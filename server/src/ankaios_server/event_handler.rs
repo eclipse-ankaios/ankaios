@@ -163,72 +163,67 @@ impl EventHandler {
 // [impl->swdd~event-handler-creates-altered-fields-using-full-difference-tree~1]
 // [impl->swdd~event-handler-creates-altered-fields-using-full-difference-tree-for-updated-fields~1]
 fn create_altered_fields_matching_subscriber_masks(
-    full_level_tree: &serde_yaml::Mapping,
-    first_level_tree: &serde_yaml::Mapping,
+    extended_difference_tree: &serde_yaml::Mapping,
+    difference_tree: &serde_yaml::Mapping,
     subscriber_field_masks: &[Path],
 ) -> Vec<String> {
-    let mut altered_fields = Vec::new();
+    let mut altered_field_masks = Vec::new();
     let empty_mapping = serde_yaml::Mapping::new();
     for subscriber_mask in subscriber_field_masks {
         let mut stack_task = vec![(
-            first_level_tree,
-            full_level_tree,
+            difference_tree,
+            extended_difference_tree,
             subscriber_mask.parts().as_slice(),
             String::new(),
         )];
 
-        while let Some((
-            current_first_level_node,
-            current_full_level_node,
-            remaining_parts,
-            current_path,
-        )) = stack_task.pop()
+        while let Some((current_node, current_extended_node, subscriber_mask_parts, current_path)) =
+            stack_task.pop()
         {
-            if remaining_parts.is_empty() {
+            if subscriber_mask_parts.is_empty() {
                 // We've reached the end of the subscriber mask; collect all leaf paths from here
-                let leaf_paths = collect_all_leaf_paths_iterative(&Value::Mapping(
-                    current_first_level_node.clone(),
-                ));
-                for leaf_path in leaf_paths {
-                    let full_path = update_path_with_new_key(&current_path, &leaf_path);
-                    altered_fields.push(full_path);
+                let paths_to_first_difference =
+                    collect_all_leaf_paths_iterative(&Value::Mapping(current_node.clone()));
+                for path in paths_to_first_difference {
+                    let first_difference_path = update_path_with_new_key(&current_path, &path);
+                    altered_field_masks.push(first_difference_path);
                 }
             } else {
-                let next_part = &remaining_parts[0];
+                let next_part = &subscriber_mask_parts[0];
                 if next_part == WILDCARD_SYMBOL {
                     // Wildcard: traverse all children
-                    for (child_key, full_child_node) in current_full_level_node {
-                        let Value::String(key_str) = child_key else {
+                    for (next_extended_key, next_extended_tree_level) in current_extended_node {
+                        let Value::String(converted_key) = next_extended_key else {
                             continue; // the difference tree only contains string keys
                         };
 
-                        let new_path = update_path_with_new_key(&current_path, key_str);
+                        let new_tree_path = update_path_with_new_key(&current_path, converted_key);
                         match (
-                            current_first_level_node
-                                .get(child_key)
+                            current_node
+                                .get(next_extended_key)
                                 .unwrap_or(&serde_yaml::Value::Null),
-                            full_child_node,
+                            next_extended_tree_level,
                         ) {
-                            (Value::Mapping(child_map), Value::Mapping(child_full_map)) => {
+                            (Value::Mapping(next_node), Value::Mapping(next_extended_node)) => {
                                 stack_task.push((
-                                    child_map,
-                                    child_full_map,
-                                    &remaining_parts[1..],
-                                    new_path,
+                                    next_node,
+                                    next_extended_node,
+                                    &subscriber_mask_parts[1..],
+                                    new_tree_path,
                                 ));
                             }
-                            (Value::Null, _) if remaining_parts[1..].is_empty() => {
+                            (Value::Null, _) if subscriber_mask_parts[1..].is_empty() => {
                                 // Treat Null as a leaf node
-                                altered_fields.push(new_path);
+                                altered_field_masks.push(new_tree_path);
                             }
-                            (Value::Null, Value::Mapping(child_full_map))
-                                if !remaining_parts[1..].is_empty() =>
+                            (Value::Null, Value::Mapping(next_extended_tree_node))
+                                if !subscriber_mask_parts[1..].is_empty() =>
                             {
                                 stack_task.push((
                                     &empty_mapping,
-                                    child_full_map,
-                                    &remaining_parts[1..],
-                                    new_path,
+                                    next_extended_tree_node,
+                                    &subscriber_mask_parts[1..],
+                                    new_tree_path,
                                 ));
                             }
                             _ => {}
@@ -236,53 +231,52 @@ fn create_altered_fields_matching_subscriber_masks(
                     }
                 } else {
                     // Specific part: traverse that child if it exists
-                    let next_full_node =
-                        current_full_level_node.get(Value::String(next_part.clone()));
-                    if let Some(child_node) =
-                        current_first_level_node.get(Value::String(next_part.clone()))
-                        && let Some(full_child_node) = next_full_node
+                    let next_extended_tree_level =
+                        current_extended_node.get(Value::String(next_part.clone()));
+                    if let Some(next_tree_node) = current_node.get(Value::String(next_part.clone()))
+                        && let Some(next_extended_tree_node) = next_extended_tree_level
                     {
-                        let new_path = update_path_with_new_key(&current_path, next_part);
-                        match (child_node, full_child_node) {
-                            (Value::Mapping(child_map), Value::Mapping(child_full_map)) => {
+                        let new_tree_path = update_path_with_new_key(&current_path, next_part);
+                        match (next_tree_node, next_extended_tree_node) {
+                            (Value::Mapping(next_node), Value::Mapping(next_extended_node)) => {
                                 stack_task.push((
-                                    child_map,
-                                    child_full_map,
-                                    &remaining_parts[1..],
-                                    new_path,
+                                    next_node,
+                                    next_extended_node,
+                                    &subscriber_mask_parts[1..],
+                                    new_tree_path,
                                 ));
                             }
-                            (Value::Null, _) if remaining_parts[1..].is_empty() => {
+                            (Value::Null, _) if subscriber_mask_parts[1..].is_empty() => {
                                 // Treat Null as a leaf node
-                                altered_fields.push(new_path);
+                                altered_field_masks.push(new_tree_path);
                             }
-                            (Value::Null, Value::Mapping(child_full_map))
-                                if !remaining_parts[1..].is_empty() =>
+                            (Value::Null, Value::Mapping(new_extended_tree_node))
+                                if !subscriber_mask_parts[1..].is_empty() =>
                             {
                                 stack_task.push((
                                     &empty_mapping,
-                                    child_full_map,
-                                    &remaining_parts[1..],
-                                    new_path,
+                                    new_extended_tree_node,
+                                    &subscriber_mask_parts[1..],
+                                    new_tree_path,
                                 ));
                             }
                             _ => {}
                         }
-                    } else if let Some(full_child_node) = next_full_node {
+                    } else if let Some(next_extended_tree_node) = next_extended_tree_level {
                         // The path exists in the full tree but not in the first level tree
-                        let new_path = update_path_with_new_key(&current_path, next_part);
-                        match full_child_node {
-                            Value::Mapping(child_full_map) => {
+                        let new_tree_path = update_path_with_new_key(&current_path, next_part);
+                        match next_extended_tree_node {
+                            Value::Mapping(next_extended_node) => {
                                 stack_task.push((
                                     &empty_mapping,
-                                    child_full_map,
-                                    &remaining_parts[1..],
-                                    new_path,
+                                    next_extended_node,
+                                    &subscriber_mask_parts[1..],
+                                    new_tree_path,
                                 ));
                             }
-                            Value::Null if remaining_parts[1..].is_empty() => {
+                            Value::Null if subscriber_mask_parts[1..].is_empty() => {
                                 // Treat Null as a leaf node
-                                altered_fields.push(new_path);
+                                altered_field_masks.push(new_tree_path);
                             }
                             _ => {}
                         }
@@ -292,33 +286,33 @@ fn create_altered_fields_matching_subscriber_masks(
         }
     }
 
-    altered_fields
+    altered_field_masks
 }
 
 // [impl->swdd~event-handler-creates-altered-fields-using-first-difference-tree~1]
 // [impl->swdd~event-handler-creates-altered-fields-using-full-difference-tree~1]
 pub fn collect_all_leaf_paths_iterative(start_node: &Value) -> Vec<String> {
-    let node = start_node;
-    let mut results = Vec::new();
-    let mut stack = vec![(node, String::new())];
-    while let Some((current, current_path)) = stack.pop() {
-        match current {
-            Value::Mapping(map) if !map.is_empty() => {
-                for (current_key, current_value) in map {
-                    let Value::String(new_key) = current_key else {
+    let mut tree_paths = Vec::new();
+    let mut stack = vec![(start_node, String::new())];
+    while let Some((current_tree_value, current_tree_path)) = stack.pop() {
+        match current_tree_value {
+            Value::Mapping(current_node) if !current_node.is_empty() => {
+                for (next_key, next_tree_value) in current_node {
+                    let Value::String(converted_next_key) = next_key else {
                         continue; // the difference tree only contains string keys
                     };
-                    let new_path = update_path_with_new_key(&current_path, new_key);
-                    stack.push((current_value, new_path));
+                    let next_tree_path =
+                        update_path_with_new_key(&current_tree_path, converted_next_key);
+                    stack.push((next_tree_value, next_tree_path));
                 }
             }
             // Any non-mapping or empty mapping is treated as a leaf node
             _ => {
-                results.push(current_path);
+                tree_paths.push(current_tree_path);
             }
         }
     }
-    results
+    tree_paths
 }
 
 fn update_path_with_new_key(current_path: &str, new_key: &str) -> String {
