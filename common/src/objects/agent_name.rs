@@ -12,12 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::Display;
+use ankaios_api::ank_base::INSTANCE_NAME_SEPARATOR;
 
-use crate::objects::workload_instance_name::INSTANCE_NAME_SEPARATOR;
+use std::fmt::{self, Display};
 
 // [impl->swdd~common-object-representation~1]
-
 #[derive(Debug, Eq, PartialEq)]
 pub struct AgentName(String);
 
@@ -48,7 +47,7 @@ impl From<&str> for AgentName {
 }
 
 impl Display for AgentName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
@@ -65,22 +64,21 @@ impl Display for AgentName {
 #[cfg(test)]
 mod tests {
     use super::AgentName;
-
-    const AGENT_NAME: &str = "agent";
+    use ankaios_api::test_utils::fixtures;
 
     #[test]
     fn utest_agent_name_get_filter_regex() {
         assert_eq!(
-            format!("[.]{AGENT_NAME}$"),
-            AgentName::from(AGENT_NAME).get_filter_regex()
+            format!("[.]{}$", fixtures::AGENT_NAMES[0]),
+            AgentName::from(fixtures::AGENT_NAMES[0]).get_filter_regex()
         );
     }
 
     #[test]
     fn utest_agent_name_get_filter_suffix() {
         assert_eq!(
-            format!(".{AGENT_NAME}"),
-            AgentName::from(AGENT_NAME).get_filter_suffix()
+            format!(".{}", fixtures::AGENT_NAMES[0]),
+            AgentName::from(fixtures::AGENT_NAMES[0]).get_filter_suffix()
         );
     }
 }

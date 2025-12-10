@@ -12,7 +12,7 @@ RUN apk update && apk add --update-cache \
     protoc \
     && rm -rf /var/cache/apk/*
 
-COPY api/proto/ank_base.proto api/proto/control_api.proto /usr/local/lib/ankaios/
+COPY ankaios_api/proto/ank_base.proto ankaios_api/proto/control_api.proto /usr/local/lib/ankaios/
 RUN protoc --python_out=/usr/local/lib/ankaios/ --proto_path=/usr/local/lib/ankaios/ ank_base.proto control_api.proto && touch /usr/local/lib/ankaios/__init__.py
 
 # prod stage
@@ -20,6 +20,6 @@ FROM base
 ENV PYTHONPATH="${PYTHONPATH}:/usr/local/lib/ankaios"
 COPY --from=dev /usr/local/lib/ankaios /usr/local/lib/ankaios
 COPY examples/python_control_interface /ankaios
-ENV ANKAIOS_VERSION=0.7.0-pre
+ENV ANKAIOS_VERSION=0.8.0-pre
 
 ENTRYPOINT ["python3", "-u", "/ankaios/src/main.py"]

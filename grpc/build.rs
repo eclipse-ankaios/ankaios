@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(true)
         .compile_protos(
             &["proto/grpc_api.proto"],
-            &["proto", "../api/proto"],
+            &["proto", "../ankaios_api/proto"],
         )
         .unwrap();
     Ok(())

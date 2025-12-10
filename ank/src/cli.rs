@@ -12,18 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{error::Error, ffi::OsStr};
+use ankaios_api::ank_base::{CompleteState, ConfigMap, ExecutionsStatesOfWorkload, WorkloadMap};
 
 use clap::{ArgAction, CommandFactory, Parser, Subcommand, ValueHint, command};
-
 use clap_complete::{ArgValueCompleter, CompleteEnv, CompletionCandidate};
-
-use crate::filtered_complete_state::FilteredCompleteState;
+use std::{error::Error, ffi::OsStr, process::Command};
 
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
 
 fn state_from_command(object_field_mask: &str) -> Vec<u8> {
-    std::process::Command::new("sh")
+    Command::new("sh")
         .arg("-c")
         .arg(format!("ank get state -o json {object_field_mask}"))
         .output()
@@ -34,12 +32,12 @@ fn state_from_command(object_field_mask: &str) -> Vec<u8> {
 fn completions_workloads(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
     let mut result = Vec::new();
 
-    let Ok(state) = serde_json::from_slice::<FilteredCompleteState>(&state) else {
+    let Ok(state) = serde_json::from_slice::<CompleteState>(&state) else {
         return vec![];
     };
 
     if let Some(desired_state) = state.desired_state {
-        if let Some(workloads) = desired_state.workloads {
+        if let Some(WorkloadMap { workloads }) = desired_state.workloads {
             for workload_name in workloads.keys() {
                 result.push(workload_name.clone());
             }
@@ -57,12 +55,12 @@ fn completions_workloads(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandi
 fn completions_configs(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
     let mut result = Vec::new();
 
-    let Ok(state) = serde_json::from_slice::<FilteredCompleteState>(&state) else {
+    let Ok(state) = serde_json::from_slice::<CompleteState>(&state) else {
         return vec![];
     };
 
     if let Some(desired_state) = state.desired_state {
-        if let Some(configs) = desired_state.configs {
+        if let Some(ConfigMap { configs }) = desired_state.configs {
             for config_name in configs.keys() {
                 result.push(config_name.clone());
             }
@@ -94,20 +92,20 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
 
     let mut result = Vec::new();
 
-    let Ok(state) = serde_json::from_slice::<FilteredCompleteState>(&state) else {
+    let Ok(state) = serde_json::from_slice::<CompleteState>(&state) else {
         return vec![];
     };
 
     if let Some(desired_state) = state.desired_state {
         result.push(DESIRED_STATE.to_string());
-        if let Some(workloads) = desired_state.workloads {
+        if let Some(WorkloadMap { workloads }) = desired_state.workloads {
             result.push(format!("{DESIRED_STATE}.{WORKLOADS}"));
             for workload_name in workloads.keys() {
                 result.push(format!("{DESIRED_STATE}.{WORKLOADS}.{workload_name}"));
             }
         }
         result.push(CONFIGS.to_string());
-        if let Some(configs) = desired_state.configs {
+        if let Some(ConfigMap { configs }) = desired_state.configs {
             result.push(format!("{DESIRED_STATE}.{CONFIGS}"));
             for config_name in configs.keys() {
                 result.push(format!("{DESIRED_STATE}.{CONFIGS}.{config_name}"));
@@ -117,9 +115,11 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
 
     if let Some(workload_states) = state.workload_states {
         result.push(WORKLOAD_STATES.to_string());
-        for (agent, workloads) in workload_states.into_iter() {
+        for (agent, ExecutionsStatesOfWorkload { wl_name_state_map }) in
+            workload_states.agent_state_map.into_iter()
+        {
             result.push(format!("{WORKLOAD_STATES}.{agent}"));
-            for workload_name in workloads.keys() {
+            for workload_name in wl_name_state_map.keys() {
                 result.push(format!("{WORKLOAD_STATES}.{agent}.{workload_name}"));
             }
         }
@@ -149,35 +149,35 @@ fn object_field_mask_completer(current: &OsStr) -> Vec<CompletionCandidate> {
 pub struct AnkCli {
     #[command(subcommand)]
     pub command: Commands,
-    #[clap(required = false, short = 'x', long = "ank-config")]
+    #[arg(required = false, short = 'x', long = "ank-config", value_hint = ValueHint::FilePath)]
     /// The path to the server config file.
     /// The default path is $HOME/.config/ankaios/ank.conf
     pub config_path: Option<String>,
-    #[clap(short = 's', long = "server-url", required=false, env = ANK_SERVER_URL_ENV_KEY)]
+    #[arg(short = 's', long = "server-url", required=false, env = ANK_SERVER_URL_ENV_KEY)]
     /// The url to Ankaios server.
     pub server_url: Option<String>,
-    #[clap(long = "response-timeout", required = false)]
+    #[arg(long = "response-timeout", required = false)]
     /// The timeout in milliseconds to wait for a response.
     pub response_timeout_ms: Option<u64>,
-    #[clap(short = 'v', long = "verbose", action=ArgAction::Set, num_args=0, default_missing_value="true")]
+    #[arg(short = 'v', long = "verbose", action=ArgAction::Set, num_args=0, default_missing_value="true")]
     /// Enable debug traces
     pub verbose: Option<bool>,
-    #[clap(short = 'q', long = "quiet", action=ArgAction::Set, num_args=0, default_missing_value="true")]
+    #[arg(short = 'q', long = "quiet", action=ArgAction::Set, num_args=0, default_missing_value="true")]
     /// Disable all output
     pub quiet: Option<bool>,
-    #[clap(long = "no-wait", action=ArgAction::Set, num_args=0, default_missing_value="true")]
+    #[arg(long = "no-wait", action=ArgAction::Set, num_args=0, default_missing_value="true")]
     /// Do not wait for workloads to be created/deleted
     pub no_wait: Option<bool>,
-    #[clap(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANK_INSECURE")]
+    #[arg(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANK_INSECURE")]
     /// Flag to disable TLS communication between ank CLI and Ankaios server.
     pub insecure: Option<bool>,
-    #[clap(long = "ca_pem", env = "ANK_CA_PEM")]
+    #[arg(long = "ca_pem", env = "ANK_CA_PEM", value_hint = ValueHint::FilePath)]
     /// Path to cli ca pem file.
     pub ca_pem: Option<String>,
-    #[clap(long = "crt_pem", env = "ANK_CRT_PEM")]
+    #[arg(long = "crt_pem", env = "ANK_CRT_PEM", value_hint = ValueHint::FilePath)]
     /// Path to cli certificate pem file.
     pub crt_pem: Option<String>,
-    #[clap(long = "key_pem", env = "ANK_KEY_PEM")]
+    #[arg(long = "key_pem", env = "ANK_KEY_PEM", value_hint = ValueHint::FilePath)]
     /// Path to cli key pem file.
     pub key_pem: Option<String>,
 }
@@ -227,7 +227,7 @@ pub enum GetCommands {
     },
     /// Information about workloads of the Ankaios system
     /// For automation use "ank get state -o json" and process the workloadStates
-    #[clap(visible_alias("workloads"), verbatim_doc_comment)]
+    #[command(visible_alias("workloads"), verbatim_doc_comment)]
     Workload {
         /// Only workloads of the given agent shall be output
         #[arg(short = 'a', long = "agent", required = false)]
@@ -244,11 +244,11 @@ pub enum GetCommands {
     },
     /// Information about the Ankaios agents connected to the Ankaios server
     /// For automation use "ank get state -o json" and process the agents
-    #[clap(visible_alias("agents"), verbatim_doc_comment)]
+    #[command(visible_alias("agents"), verbatim_doc_comment)]
     Agent {},
     /// Information about the Ankaios configs present in the Ankaios system
     /// For automation use "ank get state -o json" and process desiredState.configs
-    #[clap(visible_alias("configs"), verbatim_doc_comment)]
+    #[command(visible_alias("configs"), verbatim_doc_comment)]
     Config {},
     /// Real-time state change events from the Ankaios system
     Events {
@@ -294,13 +294,13 @@ pub struct DeleteArgs {
 #[derive(Debug, Subcommand)]
 pub enum DeleteCommands {
     /// Delete a workload(s)
-    #[clap(visible_alias("workloads"))]
+    #[command(visible_alias("workloads"))]
     Workload {
         /// One or more workload(s) to be deleted
         #[arg(required = true, add = ArgValueCompleter::new(workload_completer))]
         workload_name: Vec<String>,
     },
-    #[clap(visible_alias("configs"))]
+    #[command(visible_alias("configs"))]
     Config {
         /// One or more config(s) to be deleted
         #[arg(required = true, add = ArgValueCompleter::new(config_completer))]
@@ -405,9 +405,9 @@ pub fn parse() -> AnkCli {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-
     use super::{completions_object_field_mask, completions_workloads};
     use clap_complete::CompletionCandidate;
     use std::ffi::OsStr;
@@ -415,11 +415,11 @@ mod tests {
     static WORKLOAD_STATE: &str = r#"
         {
           "desiredState": {
-            "apiVersion": "v0.1",
+            "apiVersion": "v1",
             "workloads": {
               "databroker": {
                 "agent": "agent_A",
-                "tags": [],
+                "tags": {},
                 "dependencies": {},
                 "restartPolicy": "ALWAYS",
                 "runtime": "podman",
@@ -427,13 +427,13 @@ mod tests {
               },
               "speed-provider": {
                   "agent": "agent_A",
-                  "tags": [],
+                  "tags": {},
                   "dependencies": {
                   "databroker": "ADD_COND_RUNNING"
                   },
                   "restartPolicy": "ALWAYS",
                   "runtime": "podman",
-                  "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
+                  "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.2\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
               }
             }
           }
@@ -484,11 +484,11 @@ mod tests {
     static OBJECT_FIELD_MASK_STATE: &str = r#"
         {
           "desiredState": {
-            "apiVersion": "v0.1",
+            "apiVersion": "v1",
             "workloads": {
               "databroker": {
                 "agent": "agent_A",
-                "tags": [],
+                "tags": {},
                 "dependencies": {},
                 "restartPolicy": "ALWAYS",
                 "runtime": "podman",
@@ -496,13 +496,13 @@ mod tests {
               },
               "speed-provider": {
                 "agent": "agent_A",
-                "tags": [],
+                "tags": {},
                 "dependencies": {
                   "databroker": "ADD_COND_RUNNING"
                 },
                 "restartPolicy": "ALWAYS",
                 "runtime": "podman",
-                "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
+                "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.2\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
               }
             }
           },

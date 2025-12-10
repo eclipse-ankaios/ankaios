@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::WorkloadInstanceName;
+use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 use std::{ops::Deref, path::PathBuf};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -33,8 +33,8 @@ impl Deref for ControlInterfacePath {
     }
 }
 
-impl From<(&PathBuf, &WorkloadInstanceName)> for ControlInterfacePath {
-    fn from((run_folder, workload_instance_name): (&PathBuf, &WorkloadInstanceName)) -> Self {
+impl From<(&PathBuf, &WorkloadInstanceNameSpec)> for ControlInterfacePath {
+    fn from((run_folder, workload_instance_name): (&PathBuf, &WorkloadInstanceNameSpec)) -> Self {
         let control_interface_path = workload_instance_name
             .pipes_folder_name(run_folder.as_path())
             .join(SUBFOLDER_CONTROL_INTERFACE);
@@ -58,9 +58,8 @@ impl PartialEq<PathBuf> for ControlInterfacePath {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use crate::control_interface;
+    use std::path::PathBuf;
 
     #[test]
     fn utest_equality() {

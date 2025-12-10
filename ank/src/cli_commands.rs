@@ -41,10 +41,12 @@ mod get_workloads;
 mod run_workload;
 mod set_state;
 
+use ankaios_api::ank_base::{
+    CompleteState, CompleteStateSpec, ExecutionStateEnumSpec, Workload, WorkloadInstanceNameSpec,
+    WorkloadState, WorkloadStatesMap,
+};
 use common::{
-    communications_error::CommunicationMiddlewareError,
-    from_server_interface::FromServer,
-    objects::{CompleteState, State, WorkloadInstanceName, WorkloadState, WorkloadStatesMap},
+    communications_error::CommunicationMiddlewareError, from_server_interface::FromServer,
 };
 
 use wait_list_display::WaitListDisplay;
@@ -52,10 +54,7 @@ use wait_list_display::WaitListDisplay;
 #[cfg_attr(test, mockall_double::double)]
 use self::server_connection::ServerConnection;
 use crate::{
-    cli_commands::wait_list::ParsedUpdateStateSuccess,
-    cli_error::CliError,
-    filtered_complete_state::{FilteredCompleteState, FilteredWorkloadSpec},
-    output, output_debug,
+    cli_commands::wait_list::ParsedUpdateStateSuccess, cli_error::CliError, output, output_debug,
 };
 
 #[cfg(test)]
@@ -107,43 +106,61 @@ pub fn get_input_sources(manifest_files: &[String]) -> Result<Vec<InputSourcePai
 pub type InputSourcePair = (String, Box<dyn std::io::Read + Send + Sync + 'static>);
 
 #[derive(Debug)]
-pub struct WorkloadInfos(Vec<(WorkloadInstanceName, WorkloadTableRow)>);
+pub struct WorkloadInfos(Vec<(WorkloadInstanceNameSpec, WorkloadTableRow)>);
 
 impl WorkloadInfos {
-    pub fn get_mut(&mut self) -> &mut Vec<(WorkloadInstanceName, WorkloadTableRow)> {
+    pub fn get_mut(&mut self) -> &mut Vec<(WorkloadInstanceNameSpec, WorkloadTableRow)> {
         &mut self.0
     }
 }
 
 impl IntoIterator for WorkloadInfos {
-    type Item = (WorkloadInstanceName, WorkloadTableRow);
-    type IntoIter = <Vec<(WorkloadInstanceName, WorkloadTableRow)> as IntoIterator>::IntoIter;
+    type Item = (WorkloadInstanceNameSpec, WorkloadTableRow);
+    type IntoIter = <Vec<(WorkloadInstanceNameSpec, WorkloadTableRow)> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
 
-impl From<WorkloadStatesMap> for WorkloadInfos {
-    fn from(workload_states_map: WorkloadStatesMap) -> Self {
-        WorkloadInfos(
+impl TryFrom<WorkloadStatesMap> for WorkloadInfos {
+    type Error = String;
+
+    fn try_from(workload_states_map: WorkloadStatesMap) -> Result<Self, Self::Error> {
+        Ok(WorkloadInfos(
             // invoking this from is cheaper then repeating the code to flatten the wl state map
             Vec::<WorkloadState>::from(workload_states_map)
                 .into_iter()
                 .map(|wl_state| {
-                    (
-                        wl_state.instance_name.clone(),
+                    let instance_name = wl_state
+                        .instance_name
+                        .clone()
+                        .ok_or_else(|| "Missing instance_name in workload state".to_string())?;
+                    let exec_state = wl_state
+                        .execution_state
+                        .clone()
+                        .ok_or_else(|| "Missing execution_state in workload state".to_string())?;
+                    let instance_name_spec = instance_name
+                        .clone()
+                        .try_into()
+                        .map_err(|e| format!("Failed to convert instance name to spec: {e}"))?;
+                    let exec_state_str = exec_state
+                        .execution_state_enum
+                        .and_then(|state| TryInto::<ExecutionStateEnumSpec>::try_into(state).ok())
+                        .map_or_else(String::new, |state| state.to_string());
+                    Ok((
+                        instance_name_spec,
                         WorkloadTableRow::new(
-                            wl_state.instance_name.workload_name(),
-                            wl_state.instance_name.agent_name(),
+                            instance_name.workload_name,
+                            instance_name.agent_name,
                             String::default(),
-                            wl_state.execution_state.state.to_string(),
-                            wl_state.execution_state.additional_info.to_string(),
+                            exec_state_str,
+                            exec_state.additional_info.unwrap_or_default(),
                         ),
-                    )
+                    ))
                 })
-                .collect(),
-        )
+                .collect::<Result<_, String>>()?,
+        ))
     }
 }
 
@@ -189,40 +206,34 @@ impl CliCommands {
     }
 
     // [impl->swdd~processes-complete-state-to-list-workloads~1]
-    fn transform_into_workload_infos(
-        &self,
-        complete_state: FilteredCompleteState,
-    ) -> WorkloadInfos {
+    fn transform_into_workload_infos(&self, complete_state: CompleteState) -> WorkloadInfos {
         let workload_states_map = complete_state.workload_states.unwrap_or_default();
-        let workload_infos = WorkloadInfos::from(workload_states_map);
+        let workload_infos = WorkloadInfos::try_from(workload_states_map).unwrap();
 
         let desired_state_workloads = complete_state
             .desired_state
             .and_then(|desired_state| desired_state.workloads)
             .unwrap_or_default();
 
-        self.add_runtime_name_to_workload_infos(workload_infos, desired_state_workloads)
+        self.add_runtime_name_to_workload_infos(workload_infos, desired_state_workloads.workloads)
     }
 
     // [impl->swdd~processes-complete-state-to-list-workloads~1]
     fn add_runtime_name_to_workload_infos(
         &self,
         mut workload_infos: WorkloadInfos,
-        workloads: HashMap<String, FilteredWorkloadSpec>,
+        workloads: HashMap<String, Workload>,
     ) -> WorkloadInfos {
         for (_, table_row) in workload_infos.get_mut() {
             let runtime_name = workloads
                 .iter()
-                .find(|&(wl_name, wl_spec)| {
+                .find(|&(wl_name, wl)| {
                     *wl_name == table_row.name
-                        && wl_spec
-                            .agent
-                            .as_deref()
-                            .is_some_and(|x| x == table_row.agent)
-                        && wl_spec.runtime.as_ref().is_some()
+                        && wl.agent.as_deref().is_some_and(|x| x == table_row.agent)
+                        && wl.runtime.as_ref().is_some()
                 })
                 // runtime is valid because the filter above has found one
-                .map(|(_, found_wl_spec)| found_wl_spec.runtime.as_ref().unwrap());
+                .map(|(_, found_wl)| found_wl.runtime.as_ref().unwrap());
 
             if let Some(runtime) = runtime_name {
                 table_row.runtime.clone_from(runtime);
@@ -234,13 +245,13 @@ impl CliCommands {
     // [impl->swdd~cli-requests-update-state-with-watch~2]
     async fn update_state_and_wait_for_complete(
         &mut self,
-        new_state: CompleteState,
+        new_state: CompleteStateSpec,
         update_mask: Vec<String>,
     ) -> Result<(), CliError> {
         /* to keep track of deleted not initially started workloads in the wait mode
         the current workloads before the update must be stored in an ordered map. Affects only user output.
         The updated state is created directly, independent of fetching the current workloads. */
-        let current_workload_infos: BTreeMap<WorkloadInstanceName, WorkloadTableRow> =
+        let current_workload_infos: BTreeMap<WorkloadInstanceNameSpec, WorkloadTableRow> =
             self.get_workloads().await?.into_iter().collect();
 
         let update_state_success = self
@@ -271,7 +282,7 @@ impl CliCommands {
     async fn wait_for_complete(
         &mut self,
         update_state_success: ParsedUpdateStateSuccess,
-        mut previous_workload_infos: BTreeMap<WorkloadInstanceName, WorkloadTableRow>,
+        mut previous_workload_infos: BTreeMap<WorkloadInstanceNameSpec, WorkloadTableRow>,
     ) -> Result<(), CliError> {
         output_debug!("updated state success: {:?}", update_state_success);
 
@@ -297,7 +308,13 @@ impl CliCommands {
         let connected_agents: HashSet<String> = new_complete_state
             .agents
             .take()
-            .and_then(|agents| agents.agents)
+            .and_then(|agents| {
+                if !agents.agents.is_empty() {
+                    Some(agents.agents)
+                } else {
+                    None
+                }
+            })
             .unwrap_or_default()
             .into_keys()
             .collect();
@@ -367,18 +384,20 @@ impl CliCommands {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
+    use super::{InputSourcePair, get_input_sources};
+    use crate::test_helper::MOCKALL_CONTEXT_SYNC;
     use common::{from_server_interface::FromServerSender, to_server_interface::ToServerReceiver};
     use grpc::security::TLSConfig;
 
-    use std::io;
-
-    use super::{InputSourcePair, get_input_sources};
+    use std::collections::VecDeque;
+    use std::{io, sync::Mutex};
 
     mockall::lazy_static! {
-        pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =
-        std::sync::Mutex::new(std::collections::VecDeque::new());
+        pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: Mutex<VecDeque<io::Result<InputSourcePair>>>  =
+        Mutex::new(VecDeque::new());
     }
 
     mockall::mock! {
@@ -404,9 +423,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_apply_args_get_input_sources_manifest_files_error() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let _dummy_content = io::Cursor::new(b"manifest content");
         FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
@@ -438,9 +455,7 @@ mod tests {
     // [utest->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
     #[tokio::test]
     async fn utest_apply_args_get_input_sources_manifest_files_ok() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let _dummy_content = io::Cursor::new(b"manifest content");
         for i in 1..3 {

@@ -14,19 +14,20 @@
 
 use crate::cli::AnkCli;
 use common::DEFAULT_SERVER_ADDRESS;
-use common::std_extensions::UnreachableOption;
+use common::std_extensions::{GracefulExitResult, UnreachableOption};
 use grpc::security::read_pem_file;
+
+use once_cell::sync::Lazy;
+use serde::de::value::MapDeserializer;
 use serde::de::{Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
+use toml::{Value, from_str};
+
 use std::collections::BTreeMap;
+use std::env;
 use std::fmt;
 use std::fs::read_to_string;
 use std::path::PathBuf;
-use toml::{Value, from_str};
-
-use common::std_extensions::GracefulExitResult;
-use once_cell::sync::Lazy;
-use std::env;
 
 pub const CONFIG_VERSION: &str = "v1";
 pub const DEFAULT_CONFIG: &str = "default";
@@ -167,7 +168,7 @@ impl<'de> Visitor<'de> for AnkConfigVisitor {
             }
         }
 
-        let deserializer = serde::de::value::MapDeserializer::new(merged.into_iter());
+        let deserializer = MapDeserializer::new(merged.into_iter());
         let helper = AnkConfigHelper::deserialize(deserializer).map_err(V::Error::custom)?;
         Ok(helper.into())
     }
@@ -294,28 +295,19 @@ impl AnkConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
-    use std::path::PathBuf;
-    use tempfile::NamedTempFile;
-
-    use common::DEFAULT_SERVER_ADDRESS;
-
+    use super::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH};
     use crate::{
         ank_config::{ConversionErrors, get_default_response_timeout, get_default_url},
         cli::{AnkCli, Commands, GetArgs, GetCommands},
     };
 
-    use super::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH};
+    use ankaios_api::test_utils::fixtures;
+    use common::DEFAULT_SERVER_ADDRESS;
 
-    const CA_PEM_PATH: &str = "some_path_to_ca_pem/ca.pem";
-    const CRT_PEM_PATH: &str = "some_path_to_crt_pem/crt.pem";
-    const KEY_PEM_PATH: &str = "some_path_to_key_pem/key.pem";
-    const CA_PEM_CONTENT: &str = r"the content of the
-        ca.pem file is stored in here";
-    const CRT_PEM_CONTENT: &str = r"the content of the
-        crt.pem file is stored in here";
-    const KEY_PEM_CONTENT: &str = r"the content of the
-        key.pem file is stored in here";
+    use std::io::Write;
+    use std::path::PathBuf;
+    use tempfile::NamedTempFile;
+
     const TEST_SERVER_URL: &str = r"https://127.0.0.1:25555";
 
     // [utest->swdd~cli-loads-config-file~1]
@@ -364,9 +356,11 @@ mod tests {
             r"#
         version = 'v1'
         [default]
-        ca_pem = '''{CA_PEM_PATH}'''
-        ca_pem_content = '''{CRT_PEM_CONTENT}'''
-        #"
+        ca_pem = '''{}'''
+        ca_pem_content = '''{}'''
+        #",
+            fixtures::CA_PEM_PATH,
+            fixtures::CRT_PEM_CONTENT
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -400,9 +394,9 @@ mod tests {
             verbose: Some(true),
             quiet: Some(true),
             no_wait: Some(true),
-            ca_pem: Some(CA_PEM_PATH.to_string()),
-            crt_pem: Some(CRT_PEM_PATH.to_string()),
-            key_pem: Some(KEY_PEM_PATH.to_string()),
+            ca_pem: Some(fixtures::CA_PEM_PATH.to_string()),
+            crt_pem: Some(fixtures::CRT_PEM_PATH.to_string()),
+            key_pem: Some(fixtures::KEY_PEM_PATH.to_string()),
         };
 
         ank_config.update_with_args(&args);
@@ -413,9 +407,9 @@ mod tests {
         assert!(ank_config.no_wait);
         assert!(!ank_config.insecure);
         assert_eq!(ank_config.server_url, TEST_SERVER_URL.to_string());
-        assert_eq!(ank_config.ca_pem, Some(CA_PEM_PATH.to_string()));
-        assert_eq!(ank_config.crt_pem, Some(CRT_PEM_PATH.to_string()));
-        assert_eq!(ank_config.key_pem, Some(KEY_PEM_PATH.to_string()));
+        assert_eq!(ank_config.ca_pem, Some(fixtures::CA_PEM_PATH.to_string()));
+        assert_eq!(ank_config.crt_pem, Some(fixtures::CRT_PEM_PATH.to_string()));
+        assert_eq!(ank_config.key_pem, Some(fixtures::KEY_PEM_PATH.to_string()));
     }
 
     // [utest->swdd~cli-loads-config-file~1]
@@ -425,10 +419,13 @@ mod tests {
             r"#
         version = 'v1'
         [default]
-        ca_pem_content = '''{CA_PEM_CONTENT}'''
-        crt_pem_content = '''{CRT_PEM_CONTENT}'''
-        key_pem_content = '''{KEY_PEM_CONTENT}'''
-        #"
+        ca_pem_content = '''{}'''
+        crt_pem_content = '''{}'''
+        key_pem_content = '''{}'''
+        #",
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -456,14 +453,17 @@ mod tests {
 
         ank_config.update_with_args(&args);
 
-        assert_eq!(ank_config.ca_pem_content, Some(CA_PEM_CONTENT.to_string()));
+        assert_eq!(
+            ank_config.ca_pem_content,
+            Some(fixtures::CA_PEM_CONTENT.to_string())
+        );
         assert_eq!(
             ank_config.crt_pem_content,
-            Some(CRT_PEM_CONTENT.to_string())
+            Some(fixtures::CRT_PEM_CONTENT.to_string())
         );
         assert_eq!(
             ank_config.key_pem_content,
-            Some(KEY_PEM_CONTENT.to_string())
+            Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
     }
 
@@ -474,10 +474,13 @@ mod tests {
             r"#
         version = 'v1'
         [default]
-        ca_pem_content = '''{CA_PEM_CONTENT}'''
-        crt_pem_content = '''{CRT_PEM_CONTENT}'''
-        key_pem_content = '''{KEY_PEM_CONTENT}'''
-        #"
+        ca_pem_content = '''{}'''
+        crt_pem_content = '''{}'''
+        key_pem_content = '''{}'''
+        #",
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -561,10 +564,13 @@ mod tests {
         [default]
         server_url = 'https://127.0.0.1:25551'
         insecure = false
-        ca_pem_content = '''{CA_PEM_CONTENT}'''
-        crt_pem_content = '''{CRT_PEM_CONTENT}'''
-        key_pem_content = '''{KEY_PEM_CONTENT}'''
-        #"
+        ca_pem_content = '''{}'''
+        crt_pem_content = '''{}'''
+        key_pem_content = '''{}'''
+        #",
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -582,14 +588,17 @@ mod tests {
         assert!(!ank_config.no_wait);
         assert_eq!(ank_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
         assert!(!ank_config.insecure);
-        assert_eq!(ank_config.ca_pem_content, Some(CA_PEM_CONTENT.to_string()));
+        assert_eq!(
+            ank_config.ca_pem_content,
+            Some(fixtures::CA_PEM_CONTENT.to_string())
+        );
         assert_eq!(
             ank_config.crt_pem_content,
-            Some(CRT_PEM_CONTENT.to_string())
+            Some(fixtures::CRT_PEM_CONTENT.to_string())
         );
         assert_eq!(
             ank_config.key_pem_content,
-            Some(KEY_PEM_CONTENT.to_string())
+            Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
     }
 }

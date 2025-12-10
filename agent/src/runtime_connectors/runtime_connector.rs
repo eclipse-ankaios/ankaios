@@ -12,18 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
-
-use async_trait::async_trait;
-
-use common::{
-    commands::LogsRequest,
-    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState},
-};
-
+use super::log_fetcher::LogFetcher;
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
-use super::log_fetcher::LogFetcher;
+use ankaios_api::ank_base::{
+    ExecutionStateSpec, LogsRequestSpec, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec,
+};
+use common::objects::AgentName;
+
+use async_trait::async_trait;
+use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -66,8 +64,8 @@ impl Display for RuntimeError {
     }
 }
 
-impl From<LogsRequest> for LogRequestOptions {
-    fn from(value: LogsRequest) -> Self {
+impl From<LogsRequestSpec> for LogRequestOptions {
+    fn from(value: LogsRequestSpec) -> Self {
         Self {
             follow: value.follow,
             tail: if value.tail < 0 {
@@ -83,18 +81,18 @@ impl From<LogsRequest> for LogRequestOptions {
 
 #[derive(Debug, PartialEq)]
 pub struct ReusableWorkloadState {
-    pub workload_state: WorkloadState,
+    pub workload_state: WorkloadStateSpec,
     pub workload_id: Option<String>,
 }
 
 impl ReusableWorkloadState {
     pub fn new(
-        instance_name: WorkloadInstanceName,
-        execution_state: ExecutionState,
+        instance_name: WorkloadInstanceNameSpec,
+        execution_state: ExecutionStateSpec,
         workload_id: Option<String>,
     ) -> ReusableWorkloadState {
         ReusableWorkloadState {
-            workload_state: WorkloadState {
+            workload_state: WorkloadStateSpec {
                 instance_name,
                 execution_state,
             },
@@ -119,7 +117,7 @@ where
 
     async fn create_workload(
         &self,
-        runtime_workload_config: WorkloadSpec,
+        runtime_workload_config: WorkloadNamed,
         reusable_workload_id: Option<WorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
@@ -128,13 +126,13 @@ where
 
     async fn get_workload_id(
         &self,
-        instance_name: &WorkloadInstanceName,
+        instance_name: &WorkloadInstanceNameSpec,
     ) -> Result<WorkloadId, RuntimeError>;
 
     async fn start_checker(
         &self,
         workload_id: &WorkloadId,
-        runtime_workload_config: WorkloadSpec,
+        runtime_workload_config: WorkloadNamed,
         update_state_tx: WorkloadStateSender,
     ) -> Result<StChecker, RuntimeError>;
 
@@ -176,15 +174,7 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use std::{
-        collections::{HashMap, VecDeque},
-        path::PathBuf,
-        sync::{Arc, Mutex},
-    };
-
-    use async_trait::async_trait;
-    use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
-
+    use super::{LogRequestOptions, RuntimeConnector, RuntimeError};
     use crate::{
         runtime_connectors::{
             ReusableWorkloadState, RuntimeStateGetter, StateChecker, log_fetcher::LogFetcher,
@@ -192,12 +182,20 @@ pub mod test {
         workload_state::WorkloadStateSender,
     };
 
-    use super::{LogRequestOptions, RuntimeConnector, RuntimeError};
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
+    use common::objects::AgentName;
+
+    use async_trait::async_trait;
+    use std::{
+        collections::{HashMap, VecDeque},
+        path::PathBuf,
+        sync::{Arc, Mutex},
+    };
 
     #[async_trait]
     impl RuntimeStateGetter<String> for StubStateChecker {
-        async fn get_state(&self, _workload_id: &String) -> ExecutionState {
-            ExecutionState::running()
+        async fn get_state(&self, _workload_id: &String) -> ExecutionStateSpec {
+            ExecutionStateSpec::running()
         }
     }
 
@@ -221,7 +219,7 @@ pub mod test {
     #[async_trait]
     impl StateChecker<String> for StubStateChecker {
         fn start_checker(
-            _workload_spec: &WorkloadSpec,
+            _workload: &WorkloadNamed,
             _workload_id: String,
             _manager_interface: WorkloadStateSender,
             _state_getter: impl RuntimeStateGetter<String>,
@@ -248,15 +246,15 @@ pub mod test {
     pub enum RuntimeCall {
         GetReusableWorkloads(AgentName, Result<Vec<ReusableWorkloadState>, RuntimeError>),
         CreateWorkload(
-            WorkloadSpec,
+            WorkloadNamed,
             Option<PathBuf>,
             HashMap<PathBuf, PathBuf>,
             Result<(String, StubStateChecker), RuntimeError>,
         ),
-        GetWorkloadId(WorkloadInstanceName, Result<String, RuntimeError>),
+        GetWorkloadId(WorkloadInstanceNameSpec, Result<String, RuntimeError>),
         StartChecker(
             String,
-            WorkloadSpec,
+            WorkloadNamed,
             WorkloadStateSender,
             Result<StubStateChecker, RuntimeError>,
         ),
@@ -386,7 +384,7 @@ pub mod test {
 
         async fn create_workload(
             &self,
-            runtime_workload_config: WorkloadSpec,
+            runtime_workload_config: WorkloadNamed,
             _reusable_workload_id: Option<String>,
             control_interface_path: Option<PathBuf>,
             _update_state_tx: WorkloadStateSender,
@@ -416,7 +414,7 @@ pub mod test {
 
         async fn get_workload_id(
             &self,
-            instance_name: &WorkloadInstanceName,
+            instance_name: &WorkloadInstanceNameSpec,
         ) -> Result<String, RuntimeError> {
             match self.get_expected_call() {
                 RuntimeCall::GetWorkloadId(expected_instance_name, result)
@@ -436,7 +434,7 @@ pub mod test {
         async fn start_checker(
             &self,
             workload_id: &String,
-            runtime_workload_config: WorkloadSpec,
+            runtime_workload_config: WorkloadNamed,
             update_state_tx: WorkloadStateSender,
         ) -> Result<StubStateChecker, RuntimeError> {
             match self.get_expected_call() {

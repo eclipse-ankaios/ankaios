@@ -166,7 +166,7 @@ the command "${cli_command}" finished with exit code "${exit_code}" within "${ti
 Ankaios server is started with config "${config_path}" and PEM files: "${ca_pem}" "${crt_pem}" "${key_pem}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --startup-config
+    ...    --startup-manifest
     ...    ${config_path}
     ...    --ca_pem
     ...    ${ca_pem}
@@ -182,7 +182,7 @@ Ankaios server is started with config "${config_path}" and PEM files: "${ca_pem}
 Ankaios insecure server is started with config "${config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --startup-config
+    ...    --startup-manifest
     ...    ${config_path}
     ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
@@ -204,7 +204,7 @@ Ankaios insecure server is started with server config file "${server_config_path
 Ankaios insecure server is started with config "${config_path}" and server config file "${server_config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --startup-config
+    ...    --startup-manifest
     ...    ${config_path}
     ...    --server-config
     ...    ${server_config_path}
@@ -217,7 +217,7 @@ Ankaios insecure server is started with config "${config_path}" and server confi
 Ankaios server is started with config "${config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --startup-config
+    ...    --startup-manifest
     ...    ${config_path}
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
@@ -227,7 +227,7 @@ Ankaios server is started with config "${config_path}"
 Ankaios server is started with config "${config_path}" and server config file "${server_config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --startup-config
+    ...    --startup-manifest
     ...    ${config_path}
     ...    --server-config
     ...    ${server_config_path}
@@ -821,6 +821,100 @@ the cli log collection shall output "${total_log_lines}" log lines in total in t
         ${len_splitted_log_line}=    Get Length    ${splitted_log_line}
         Should Be True    ${len_splitted_log_line} >= 2    msg=Log line does not have the expected format: ${log_line}
     END
+
+Get Running Container Names
+    [Documentation]    Returns a list of all running and stopped container names from podman
+    ${result}=    Run Process    podman    ps    -a    --format    {{.Names}}    shell=True
+    Log    Raw container names output: "${result.stdout}"
+
+    # Filter out empty lines and get container names
+    ${all_lines}=    Split String    ${result.stdout}    \n
+    ${container_names}=    Create List
+    FOR    ${line}    IN    @{all_lines}
+        ${trimmed_line}=    Strip String    ${line}
+        IF    "${trimmed_line}" != ""
+            Append To List    ${container_names}    ${trimmed_line}
+        END
+    END
+
+    RETURN    ${container_names}
+
+Log Container Debugging Information
+    [Documentation]    Logs debugging information about workloads, pods, and containers
+    # Debug: Check workload status
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
+    Log    Ankaios workloads: ${command_result.stdout}
+
+    # Debug: Check podman pods
+    ${result}=    Run Process    podman    pod    ls    shell=True
+    Log    Podman pods: ${result.stdout}
+
+    # Debug: Check all containers (running and stopped)
+    ${result}=    Run Process    podman    ps    -a    shell=True
+    Log    All containers: ${result.stdout}
+
+Identify Target Container For Control Interface
+    [Arguments]    ${container_names}    ${target_container_name}=container_A    ${pod_name}=pod_A
+    [Documentation]    Identifies the target container and non-target containers based on naming patterns
+    ${target_container}=    Set Variable    ${EMPTY}
+    ${non_target_containers}=    Create List
+
+    FOR    ${container_name}    IN    @{container_names}
+        # Check various possible naming patterns for the target container
+        IF    "${pod_name}" in "${container_name}" and "${target_container_name}" in "${container_name}" and "sidecar" not in "${container_name}"
+            ${target_container}=    Set Variable    ${container_name}
+            Log    Identified target container: ${target_container}
+        ELSE
+            Append To List    ${non_target_containers}    ${container_name}
+        END
+    END
+
+    Log    Target container: ${target_container}
+    Log    Non-target containers: ${non_target_containers}
+
+    RETURN    ${target_container}    ${non_target_containers}
+
+Verify Control Interface Access In Containers
+    [Arguments]    ${target_container}    ${non_target_containers}
+    [Documentation]    Verifies that only the target container has access to the control interface
+
+    IF    "${target_container}" == ""
+        Log    Could not identify target container from naming patterns, but control interface was configured
+        Fail    Could not identify target container for control interface access verification
+    END
+
+    # Test target container access to control interface
+    ${result}=    Run Process    podman    exec    ${target_container}    test    -d    /run/ankaios/control_interface    shell=True
+    IF    ${result.rc} == 0
+        Log    Target container has access to control interface path
+
+        # Verify it is a named pipe
+        ${result}=    Run Process    podman    exec    ${target_container}    test    -p    /run/ankaios/control_interface/input    shell=True
+        Should Be Equal As Integers    ${result.rc}    0    msg=Control interface should be a named pipe in target container
+        ${result}=    Run Process    podman    exec    ${target_container}    test    -p    /run/ankaios/control_interface/output    shell=True
+        Should Be Equal As Integers    ${result.rc}    0    msg=Control interface should be a named pipe in target container
+
+        # Test non-target containers should NOT have access
+        FOR    ${non_target_container}    IN    @{non_target_containers}
+            ${result}=    Run Process    podman    exec    ${non_target_container}    test    -e    /run/ankaios/control_interface    shell=True
+            Should Not Be Equal As Integers    ${result.rc}    0    msg=Non-target container ${non_target_container} should NOT have control interface access
+        END
+
+        Log    Successfully verified control interface access is limited to target container
+    ELSE
+        Log    Target container exists but control interface not accessible (container may have exited)
+        Fail    Target container ${target_container} does not have access to control interface path
+    END
+
+Verify Multi Container Control Interface Access
+    [Arguments]    ${workload_name}=simple    ${container_name}=container_A    ${pod_name}=pod_A
+    [Documentation]    Verifies that control interface access is properly limited in multi-container environments
+
+    ${container_names}=    Get Running Container Names
+    ${container_count}=    Get Length    ${container_names}
+
+    ${target_container}    ${non_target_containers}=    Identify Target Container For Control Interface    ${container_names}    ${container_name}    ${pod_name}
+    Verify Control Interface Access In Containers    ${target_container}    ${non_target_containers}
 
 the workload state of workload "${workload_name}" shall contain an additional info signaling retries within "${timeout}" seconds
     ${start_time}=    Get Time Secs

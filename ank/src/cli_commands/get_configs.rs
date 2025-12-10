@@ -11,18 +11,18 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use super::CliCommands;
-use crate::cli_commands::config_table_row::ConfigTableRow;
-use crate::cli_commands::DESIRED_STATE_CONFIGS;
-use crate::filtered_complete_state::FilteredCompleteState;
-use crate::{cli_commands::cli_table::CliTable, cli_error::CliError, output_debug};
-use common::objects::ConfigItem;
+
+use crate::cli_commands::{
+    DESIRED_STATE_CONFIGS, cli_table::CliTable, config_table_row::ConfigTableRow,
+};
+use crate::{CliCommands, cli_error::CliError, output_debug};
+use ankaios_api::ank_base::{CompleteState, ConfigItem};
 
 impl CliCommands {
     // [impl->swdd~cli-provides-list-of-configs~1]
     // [impl->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     pub async fn get_configs(&mut self) -> Result<String, CliError> {
-        let filtered_complete_state: FilteredCompleteState = self
+        let filtered_complete_state: CompleteState = self
             .server_connection
             .get_complete_state(&[DESIRED_STATE_CONFIGS.to_string()])
             .await?;
@@ -31,6 +31,7 @@ impl CliCommands {
             .desired_state
             .and_then(|state| state.configs)
             .unwrap_or_default()
+            .configs
             .into_iter();
 
         // [impl->swdd~cli-shall-present-list-of-configs~1]
@@ -67,15 +68,14 @@ fn transform_into_table_rows(
 #[cfg(test)]
 mod tests {
     use crate::cli_commands::{
-        server_connection::{MockServerConnection, ServerConnectionError},
         CliCommands, DESIRED_STATE_CONFIGS,
+        server_connection::{MockServerConnection, ServerConnectionError},
     };
 
-    use api::ank_base;
-    use common::test_utils;
+    use ankaios_api::ank_base::CompleteState;
+    use ankaios_api::test_utils::{generate_test_complete_state_with_configs, fixtures};
     use mockall::predicate::eq;
 
-    const RESPONSE_TIMEOUT_MS: u64 = 3000;
     const CONFIG_1: &str = "config_1";
     const CONFIG_2: &str = "config_2";
 
@@ -91,17 +91,16 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![DESIRED_STATE_CONFIGS.to_string()]))
             .return_once(|_| {
-                Ok(ank_base::CompleteState::from(
-                    test_utils::generate_test_complete_state_with_configs(vec![
+                Ok(CompleteState::from(
+                    generate_test_complete_state_with_configs(vec![
                         CONFIG_1.to_string(),
                         CONFIG_2.to_string(),
                     ]),
-                )
-                .into())
+                ))
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -120,10 +119,10 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![DESIRED_STATE_CONFIGS.to_string()]))
-            .return_once(|_| Ok(ank_base::CompleteState::default().into()));
+            .return_once(|_| Ok(CompleteState::default()));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -149,7 +148,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };

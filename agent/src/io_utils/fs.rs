@@ -11,22 +11,26 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+
 use nix::errno::Errno;
-use std::ffi::OsString;
-use std::fmt::{self, Display};
+use std::{
+    ffi::OsString,
+    fmt::{self, Display},
+    io::ErrorKind,
+};
 
 #[cfg(test)]
 use mockall::automock;
 
 #[derive(Debug, PartialEq)]
 pub enum FileSystemError {
-    CreateDirectory(OsString, std::io::ErrorKind),
+    CreateDirectory(OsString, ErrorKind),
     NotFoundDirectory(OsString),
     CreateFifo(OsString, Errno),
-    RemoveFifo(OsString, std::io::ErrorKind),
-    RemoveDirectory(OsString, std::io::ErrorKind),
-    Permissions(OsString, std::io::ErrorKind),
-    Write(OsString, std::io::ErrorKind),
+    RemoveFifo(OsString, ErrorKind),
+    RemoveDirectory(OsString, ErrorKind),
+    Permissions(OsString, ErrorKind),
+    Write(OsString, ErrorKind),
 }
 
 impl Display for FileSystemError {
@@ -177,6 +181,8 @@ mod tests {
 
     use super::{FileSystemError, filesystem, filesystem_async};
 
+    const TEST_PATH: &str = "test_path";
+
     #[allow(non_camel_case_types)]
     pub enum FakeCall {
         create_dir_all(PathBuf, io::Result<()>), // create_dir_all(path, fake_result)
@@ -197,6 +203,7 @@ mod tests {
     pub struct FileType {
         is_fifo: bool,
     }
+
     impl FileType {
         pub fn new(is_fifo: bool) -> Self {
             FileType { is_fifo }
@@ -232,6 +239,7 @@ mod tests {
             path.to_string_lossy()
         );
     }
+
     pub fn metadata(path: &Path) -> io::Result<Metadata> {
         if let Some(FakeCall::metadata(fake_path, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
@@ -262,6 +270,7 @@ mod tests {
             mode
         );
     }
+
     pub fn remove_dir_all(path: &Path) -> io::Result<()> {
         if let Some(FakeCall::remove_dir_all(fake_path, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
@@ -333,13 +342,14 @@ mod tests {
             .lock()
             .unwrap()
             .push_back(FakeCall::set_permissions(
-                Path::new("test_dir").to_path_buf(),
+                Path::new(TEST_PATH).to_path_buf(),
                 0o777,
                 Ok(()),
             ));
 
-        assert!(filesystem::set_permissions(Path::new("test_dir"), 0o777).is_ok());
+        assert!(filesystem::set_permissions(Path::new(TEST_PATH), 0o777).is_ok());
     }
+
     #[test]
     fn utest_set_permissions_failed() {
         let _test_lock = TEST_LOCK.lock();
@@ -347,19 +357,16 @@ mod tests {
             .lock()
             .unwrap()
             .push_back(FakeCall::set_permissions(
-                Path::new("test_dir").to_path_buf(),
+                Path::new(TEST_PATH).to_path_buf(),
                 0o777,
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::PermissionDenied,
-                    "some error",
-                )),
+                Err(Error::new(ErrorKind::PermissionDenied, "some error")),
             ));
 
         assert_eq!(
-            filesystem::set_permissions(Path::new("test_dir"), 0o777),
+            filesystem::set_permissions(Path::new(TEST_PATH), 0o777),
             Err(FileSystemError::Permissions(
-                Path::new("test_dir").as_os_str().to_owned(),
-                std::io::ErrorKind::PermissionDenied
+                Path::new(TEST_PATH).as_os_str().to_owned(),
+                ErrorKind::PermissionDenied
             ))
         );
     }
@@ -371,10 +378,10 @@ mod tests {
             .lock()
             .unwrap()
             .push_back(FakeCall::create_dir_all(
-                Path::new("test_dir").to_path_buf(),
+                Path::new(TEST_PATH).to_path_buf(),
                 Ok(()),
             ));
-        assert!(filesystem::make_dir(Path::new("test_dir")).is_ok());
+        assert!(filesystem::make_dir(Path::new(TEST_PATH)).is_ok());
     }
 
     #[test]
@@ -384,73 +391,79 @@ mod tests {
             .lock()
             .unwrap()
             .push_back(FakeCall::create_dir_all(
-                Path::new("test_dir").to_path_buf(),
-                Err(std::io::Error::other("some error")),
+                Path::new(TEST_PATH).to_path_buf(),
+                Err(Error::other("some error")),
             ));
 
         assert_eq!(
-            filesystem::make_dir(Path::new("test_dir")),
+            filesystem::make_dir(Path::new(TEST_PATH)),
             Err(FileSystemError::CreateDirectory(
-                Path::new("test_dir").as_os_str().to_owned(),
-                std::io::ErrorKind::Other
+                Path::new(TEST_PATH).as_os_str().to_owned(),
+                ErrorKind::Other
             ))
         );
     }
+
     #[test]
     fn utest_filesystem_make_fifo_ok() {
         let _test_lock = TEST_LOCK.lock();
         FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::mkfifo(
-            Path::new("test_fifo").to_path_buf(),
+            Path::new(TEST_PATH).to_path_buf(),
             Mode::S_IRWXU,
             Ok(()),
         ));
 
-        assert!(filesystem::make_fifo(Path::new("test_fifo")).is_ok());
+        assert!(filesystem::make_fifo(Path::new(TEST_PATH)).is_ok());
     }
+
     #[test]
     fn utest_filesystem_make_fifo_failed() {
         let _test_lock = TEST_LOCK.lock();
         FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::mkfifo(
-            Path::new("test_fifo").to_path_buf(),
+            Path::new(TEST_PATH).to_path_buf(),
             Mode::S_IRWXU,
             Err(nix::Error::EACCES),
         ));
 
         assert!(matches!(
-            filesystem::make_fifo(Path::new("test_fifo")),
+            filesystem::make_fifo(Path::new(TEST_PATH)),
             Err(FileSystemError::CreateFifo(_, nix::Error::EACCES))
         ));
     }
+
     #[test]
     fn utest_filesystem_is_fifo_ok_true() {
         let _test_lock = TEST_LOCK.lock();
         FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::metadata(
-            Path::new("test_fifo").to_path_buf(),
+            Path::new(TEST_PATH).to_path_buf(),
             Ok(Metadata::new(FileType::new(true))),
         ));
 
-        assert!(filesystem::is_fifo(Path::new("test_fifo")));
+        assert!(filesystem::is_fifo(Path::new(TEST_PATH)));
     }
+
     #[test]
     fn utest_filesystem_is_fifo_ok_false() {
         let _test_lock = TEST_LOCK.lock();
         FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::metadata(
-            Path::new("test_fifo").to_path_buf(),
+            Path::new(TEST_PATH).to_path_buf(),
             Ok(Metadata::new(FileType::new(false))),
         ));
 
-        assert!(!filesystem::is_fifo(Path::new("test_fifo")));
+        assert!(!filesystem::is_fifo(Path::new(TEST_PATH)));
     }
+
     #[test]
     fn utest_filesystem_is_fifo_nok() {
         let _test_lock = TEST_LOCK.lock();
         FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::metadata(
-            Path::new("test_fifo").to_path_buf(),
-            Err(std::io::Error::other("oh no!")),
+            Path::new(TEST_PATH).to_path_buf(),
+            Err(Error::other("oh no!")),
         ));
 
-        assert!(!filesystem::is_fifo(Path::new("test_fifo")));
+        assert!(!filesystem::is_fifo(Path::new(TEST_PATH)));
     }
+
     #[test]
     fn utest_filesystem_remove_dir_ok() {
         let _test_lock = TEST_LOCK.lock();
@@ -458,12 +471,13 @@ mod tests {
             .lock()
             .unwrap()
             .push_back(FakeCall::remove_dir_all(
-                Path::new("test_dir").to_path_buf(),
+                Path::new(TEST_PATH).to_path_buf(),
                 Ok(()),
             ));
 
-        assert!(filesystem::remove_dir_all(Path::new("test_dir")).is_ok());
+        assert!(filesystem::remove_dir_all(Path::new(TEST_PATH)).is_ok());
     }
+
     #[test]
     fn utest_filesystem_remove_dir_failed() {
         let _test_lock = TEST_LOCK.lock();
@@ -471,12 +485,12 @@ mod tests {
             .lock()
             .unwrap()
             .push_back(FakeCall::remove_dir_all(
-                Path::new("test_dir").to_path_buf(),
+                Path::new(TEST_PATH).to_path_buf(),
                 Err(Error::other("Some Error!")),
             ));
 
         assert!(matches!(
-            filesystem::remove_dir_all(Path::new("test_dir")),
+            filesystem::remove_dir_all(Path::new(TEST_PATH)),
             Err(FileSystemError::RemoveDirectory(_, _))
         ));
     }
@@ -484,7 +498,7 @@ mod tests {
     #[tokio::test]
     async fn utest_filesystem_remove_dir_async_ok() {
         let _test_lock = TEST_LOCK.lock();
-        let path = Path::new("test_dir");
+        let path = Path::new(TEST_PATH);
         FAKE_CALL_LIST
             .lock()
             .unwrap()
@@ -496,7 +510,7 @@ mod tests {
     #[tokio::test]
     async fn utest_filesystem_remove_dir_async_fails_with_path_not_found() {
         let _test_lock = TEST_LOCK.lock();
-        let path = Path::new("test_dir");
+        let path = Path::new(TEST_PATH);
         FAKE_CALL_LIST
             .lock()
             .unwrap()
@@ -517,7 +531,7 @@ mod tests {
     #[tokio::test]
     async fn utest_filesystem_remove_dir_async_fails_with_generic_reason() {
         let _test_lock = TEST_LOCK.lock();
-        let path = Path::new("test_dir");
+        let path = Path::new(TEST_PATH);
         FAKE_CALL_LIST
             .lock()
             .unwrap()
@@ -542,12 +556,13 @@ mod tests {
             .lock()
             .unwrap()
             .push_back(FakeCall::remove_file(
-                Path::new("test_file").to_path_buf(),
+                Path::new(TEST_PATH).to_path_buf(),
                 Ok(()),
             ));
 
-        assert!(filesystem::remove_fifo(Path::new("test_file")).is_ok());
+        assert!(filesystem::remove_fifo(Path::new(TEST_PATH)).is_ok());
     }
+
     #[test]
     fn utest_filesystem_remove_fifo_failed() {
         let _test_lock = TEST_LOCK.lock();
@@ -555,12 +570,12 @@ mod tests {
             .lock()
             .unwrap()
             .push_back(FakeCall::remove_file(
-                Path::new("test_file").to_path_buf(),
+                Path::new(TEST_PATH).to_path_buf(),
                 Err(Error::other("Some Error!")),
             ));
 
         assert!(matches!(
-            filesystem::remove_fifo(Path::new("test_file")),
+            filesystem::remove_fifo(Path::new(TEST_PATH)),
             Err(FileSystemError::RemoveFifo(_, _))
         ));
     }
@@ -568,7 +583,7 @@ mod tests {
     #[tokio::test]
     async fn utest_write_file_async_ok() {
         let _test_lock = TEST_LOCK.lock();
-        let path = Path::new("test_file");
+        let path = Path::new(TEST_PATH);
         let file_content = vec![1, 2, 3];
         FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::write(
             path.to_path_buf(),
@@ -587,7 +602,7 @@ mod tests {
     async fn utest_write_file_async_fails() {
         let _test_lock = TEST_LOCK.lock();
 
-        let path = Path::new("test_file");
+        let path = Path::new(TEST_PATH);
         let io_error_kind = ErrorKind::Other;
         let file_content = vec![1, 2, 3];
 

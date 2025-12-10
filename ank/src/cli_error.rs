@@ -12,9 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::cli_commands::server_connection::ServerConnectionError;
 use std::fmt;
-
-use crate::cli_commands::server_connection;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CliError {
@@ -51,12 +50,10 @@ impl From<serde_json::Error> for CliError {
     }
 }
 
-impl From<server_connection::ServerConnectionError> for CliError {
-    fn from(value: server_connection::ServerConnectionError) -> Self {
+impl From<ServerConnectionError> for CliError {
+    fn from(value: ServerConnectionError) -> Self {
         match value {
-            server_connection::ServerConnectionError::ExecutionError(message) => {
-                CliError::ExecutionError(message)
-            }
+            ServerConnectionError::ExecutionError(message) => CliError::ExecutionError(message),
         }
     }
 }

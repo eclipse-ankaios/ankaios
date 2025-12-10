@@ -1,5 +1,5 @@
 desiredState:
-  apiVersion: v0.1
+  apiVersion: v1
   workloads:
     workload_invalid_config_reference:
       agent: agent_A

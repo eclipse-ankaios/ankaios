@@ -12,17 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::CompleteState;
-
+use super::CliCommands;
 use crate::{cli_commands::DESIRED_STATE_WORKLOADS, cli_error::CliError, output_debug};
 
-use super::CliCommands;
+use ankaios_api::ank_base::CompleteStateSpec;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-delete-workload~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
-        let complete_state_update = CompleteState::default();
+        let complete_state_update = CompleteStateSpec::default();
 
         let update_mask = workload_names
             .into_iter()
@@ -48,22 +47,21 @@ impl CliCommands {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self, UpdateStateSuccess};
-    use common::{
-        commands::UpdateWorkloadState,
-        from_server_interface::FromServer,
-        objects::{self, CompleteState, ExecutionState, WorkloadState},
+    use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
+
+    use ankaios_api::{
+        ank_base::{
+            CompleteState, CompleteStateSpec, ExecutionStateSpec, UpdateStateSuccess,
+            WorkloadStateSpec,
+        },
+        test_utils::fixtures,
     };
+    use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
+
     use mockall::predicate::eq;
-
-    use crate::{
-        cli_commands::{CliCommands, server_connection::MockServerConnection},
-        filtered_complete_state::FilteredCompleteState,
-    };
-
-    const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
     // [utest->swdd~cli-provides-delete-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
@@ -74,7 +72,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state_update = CompleteState::default();
+        let complete_state_update = CompleteStateSpec::default();
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
@@ -82,16 +80,26 @@ mod tests {
             .with(
                 eq(complete_state_update.clone()),
                 eq(vec![
-                    "desiredState.workloads.name1".to_string(),
-                    "desiredState.workloads.name2".to_string(),
+                    format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]),
+                    format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[1]),
                 ]),
             )
             .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec![
-                        "name1.abc.agent_B".to_string(),
-                        "name2.abc.agent_B".to_string(),
+                        format!(
+                            "{}.{}.{}",
+                            fixtures::WORKLOAD_NAMES[0],
+                            fixtures::WORKLOAD_IDS[0],
+                            fixtures::AGENT_NAMES[0]
+                        ),
+                        format!(
+                            "{}.{}.{}",
+                            fixtures::WORKLOAD_NAMES[1],
+                            fixtures::WORKLOAD_IDS[0],
+                            fixtures::AGENT_NAMES[0]
+                        ),
                     ],
                 })
             });
@@ -100,41 +108,50 @@ mod tests {
             .expect_get_complete_state()
             .times(2)
             .with(eq(vec![]))
-            .returning(move |_| {
-                Ok((ank_base::CompleteState::from(complete_state_update.clone())).into())
-            });
+            .returning(move |_| Ok(CompleteState::from(complete_state_update.clone())));
 
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(|| {
                 vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
                     workload_states: vec![
-                        WorkloadState {
-                            instance_name: "name1.abc.agent_B".try_into().unwrap(),
-                            execution_state: ExecutionState {
-                                state: objects::ExecutionStateEnum::Removed,
-                                additional_info: "".to_string(),
-                            },
+                        WorkloadStateSpec {
+                            instance_name: format!(
+                                "{}.{}.{}",
+                                fixtures::WORKLOAD_NAMES[0],
+                                fixtures::WORKLOAD_IDS[0],
+                                fixtures::AGENT_NAMES[0]
+                            )
+                            .try_into()
+                            .unwrap(),
+                            execution_state: ExecutionStateSpec::removed(),
                         },
-                        WorkloadState {
-                            instance_name: "name2.abc.agent_B".try_into().unwrap(),
-                            execution_state: ExecutionState {
-                                state: objects::ExecutionStateEnum::Removed,
-                                additional_info: "".to_string(),
-                            },
+                        WorkloadStateSpec {
+                            instance_name: format!(
+                                "{}.{}.{}",
+                                fixtures::WORKLOAD_NAMES[1],
+                                fixtures::WORKLOAD_IDS[0],
+                                fixtures::AGENT_NAMES[0]
+                            )
+                            .try_into()
+                            .unwrap(),
+                            execution_state: ExecutionStateSpec::removed(),
                         },
                     ],
                 })]
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
         let delete_result = cmd
-            .delete_workloads(vec!["name1".to_string(), "name2".to_string()])
+            .delete_workloads(vec![
+                fixtures::WORKLOAD_NAMES[0].to_string(),
+                fixtures::WORKLOAD_NAMES[1].to_string(),
+            ])
             .await;
         assert!(delete_result.is_ok());
     }
@@ -147,13 +164,13 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state_update = CompleteState::default();
+        let complete_state_update = CompleteStateSpec::default();
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
             .once()
-            .returning(|_| Ok(FilteredCompleteState::default()));
+            .returning(|_| Ok(CompleteState::default()));
         mock_server_connection
             .expect_update_state()
             .with(
@@ -168,7 +185,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };

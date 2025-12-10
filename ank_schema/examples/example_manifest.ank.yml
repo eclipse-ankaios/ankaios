@@ -1,0 +1,48 @@
+apiVersion: v1
+workloads:
+  test_workload:
+    agent: agent_A
+    runtime: podman
+    runtimeConfig: |
+      image: alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]
+    dependencies:
+      hello1: ADD_COND_SUCCEEDED
+    restartPolicy: ON_FAILURE
+    controlInterfaceAccess:
+      allowRules:
+        - type: StateRule
+          operation: Read
+          filterMasks:
+            - "*"
+        - type: LogRule
+          workloadNames:
+            - "*"
+    files:
+      - mountPoint: /tmp/somefile.txt
+        data: |
+          some data
+    configs:
+      my_config: mapping_of_objects
+    tags:
+      owner: Ankaios team
+configs:
+  can_be: simple_strings
+  mapping_of_objects:
+    with:
+      arbitrary: depth
+    can_be:
+      simple: strings
+  arrays_of:
+    items:
+    - some
+    - of
+    - which:
+        can:
+          be:
+            mappings:
+              again:
+              - and
+              - some
+              - arrays
+

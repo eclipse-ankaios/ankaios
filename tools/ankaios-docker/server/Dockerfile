@@ -1,7 +1,7 @@
 FROM ubuntu:24.04
 
 ARG TARGETARCH
-ARG VERSION=0.6.0
+ARG VERSION=0.7.0
 
 RUN apt update && \
     apt install -y curl
@@ -10,4 +10,4 @@ RUN curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/${VER
 
 COPY state.yaml /etc/ankaios/state.yaml
 
-CMD ["/usr/local/bin/ank-server", "--insecure", "--address", "0.0.0.0:25551", "--startup-config", "/etc/ankaios/state.yaml"]
+CMD ["/usr/local/bin/ank-server", "--insecure", "--address", "0.0.0.0:25551", "--startup-manifest", "/etc/ankaios/state.yaml"]

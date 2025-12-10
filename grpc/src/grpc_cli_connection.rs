@@ -12,21 +12,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::pin::Pin;
-
-use common::{check_version_compatibility, to_server_interface};
-use tokio::sync::mpsc::Sender;
-use tokio_stream::wrappers::ReceiverStream;
-
-use futures_core::Stream;
-use tonic::{Request, Response, Status};
-
 use crate::agent_senders_map::AgentSendersMap;
+use crate::grpc_api::{self, cli_connection_server::CliConnection};
 use crate::to_server::ToServerEnum;
 use crate::to_server_proxy::{GRPCToServerStreaming, forward_from_proto_to_ankaios};
-use grpc_api::cli_connection_server::CliConnection;
+use common::{check_version_compatibility, to_server_interface};
 
-use crate::grpc_api;
+use futures_core::Stream;
+use std::pin::Pin;
+use tokio::sync::mpsc::Sender;
+use tokio_stream::wrappers::ReceiverStream;
+use tonic::{Request, Response, Status};
 
 #[derive(Debug)]
 pub struct GRPCCliConnection {
@@ -64,7 +60,7 @@ impl CliConnection for GRPCCliConnection {
         >(common::CHANNEL_CAPACITY);
 
         let cli_connection_name = format!("cli-conn-{}", uuid::Uuid::new_v4());
-        log::debug!("Connection to CLI (name={}) open.", cli_connection_name);
+        log::debug!("Connection to CLI (name={cli_connection_name}) open.");
 
         let ankaios_tx = self.to_ankaios_server.clone();
         let cli_senders = self.cli_senders.clone();

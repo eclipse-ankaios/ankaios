@@ -22,8 +22,9 @@ fn terminal_width() -> usize {
 
 use common::std_extensions::UnreachableOption;
 use tabled::{
-    settings::{object::Columns, Modify, Padding, Style, Width},
     Table, Tabled,
+    grid::config::Entity,
+    settings::{Modify, Padding, Style, Width, object::Columns},
 };
 
 use std::fmt;
@@ -120,7 +121,7 @@ where
         let first_column_default_padding = self
             .table
             .get_config()
-            .get_padding(tabled::grid::config::Entity::Column(Self::FIRST_COLUMN_POS));
+            .get_padding(Entity::Column(Self::FIRST_COLUMN_POS));
 
         /* Set the left padding of the first and the right padding of the last column to zero
         to align the table content to the full terminal width for better output quality. */
@@ -135,7 +136,7 @@ where
         let last_column_default_padding = self
             .table
             .get_config()
-            .get_padding(tabled::grid::config::Entity::Column(last_column_pos));
+            .get_padding(Entity::Column(last_column_pos));
 
         self.table
             .with(Modify::new(Columns::last()).with(Padding::new(
@@ -371,10 +372,12 @@ mod tests {
 
         assert!(table_output_result.is_err());
 
-        assert!(table_output_result
-            .unwrap_err()
-            .0
-            .contains("no reasonable terminal width"));
+        assert!(
+            table_output_result
+                .unwrap_err()
+                .0
+                .contains("no reasonable terminal width")
+        );
     }
 
     #[test]

@@ -12,19 +12,22 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{DeletedWorkload, WorkloadSpec};
+use ankaios_api::ank_base::{DeletedWorkload, WorkloadNamed};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ReusableWorkloadSpec {
-    pub workload_spec: WorkloadSpec,
-    pub workload_id: Option<String>,
+pub struct ReusableWorkload {
+    pub workload_named: WorkloadNamed,
+    pub runtime_workload_id: Option<String>,
 }
 
-impl ReusableWorkloadSpec {
-    pub fn new(workload_spec: WorkloadSpec, workload_id: Option<String>) -> ReusableWorkloadSpec {
-        ReusableWorkloadSpec {
-            workload_spec,
-            workload_id,
+impl ReusableWorkload {
+    pub fn new(
+        workload_named: WorkloadNamed,
+        runtime_workload_id: Option<String>,
+    ) -> ReusableWorkload {
+        ReusableWorkload {
+            workload_named,
+            runtime_workload_id,
         }
     }
 }
@@ -32,8 +35,8 @@ impl ReusableWorkloadSpec {
 #[derive(Debug, Clone, PartialEq)]
 // [impl->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
 pub enum WorkloadOperation {
-    Create(ReusableWorkloadSpec),
-    Update(WorkloadSpec, DeletedWorkload),
+    Create(ReusableWorkload),
+    Update(WorkloadNamed, DeletedWorkload),
     UpdateDeleteOnly(DeletedWorkload),
     Delete(DeletedWorkload),
 }

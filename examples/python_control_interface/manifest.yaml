@@ -1,22 +1,21 @@
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   python_control_interface:
     runtime: podman
     agent: agent_A
     restartPolicy: NEVER
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     controlInterfaceAccess:
       allowRules:
         - type: StateRule
           operation: Write
-          filterMask:
+          filterMasks:
             # workload has write access to the config of the workload dynamic_nginx
             - "desiredState.workloads.dynamic_nginx"
         - type: StateRule
           operation: Read
-          filterMask:
+          filterMasks:
             # workload is allowed to read the workload state of the workload dynamic_nginx
             - "workloadStates.agent_A.dynamic_nginx"
     runtimeConfig: |

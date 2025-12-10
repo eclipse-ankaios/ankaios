@@ -12,12 +12,18 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::{self, LogsRequest};
-use crate::objects::{DeletedWorkload, WorkloadSpec, WorkloadState};
-use api::ank_base;
+use crate::{commands, std_extensions::UnreachableResult};
+use ankaios_api::ank_base::{
+    CompleteState, CompleteStateResponse, DeletedWorkload, Error, EventsCancelAccepted,
+    LogEntriesResponse, LogsCancelAccepted, LogsRequest, LogsRequestAccepted, LogsRequestSpec,
+    LogsStopResponse, Response, ResponseContent, UpdateStateSuccess, WorkloadNamed,
+    WorkloadStateSpec,
+};
+
 use async_trait::async_trait;
 use std::fmt;
-use tokio::sync::mpsc::error::SendError;
+use tokio::sync::mpsc::{self, error::SendError};
+
 #[derive(Debug)]
 pub struct FromServerInterfaceError(String);
 
@@ -38,9 +44,9 @@ pub enum FromServer {
     ServerHello(commands::ServerHello),
     UpdateWorkload(commands::UpdateWorkload),
     UpdateWorkloadState(commands::UpdateWorkloadState),
-    Response(ank_base::Response),
+    Response(Response),
     Stop(commands::Stop),
-    LogsRequest(String, LogsRequest),
+    LogsRequest(String, LogsRequestSpec),
     LogsCancelRequest(String),
     ServerGone,
 }
@@ -51,22 +57,22 @@ pub trait FromServerInterface {
     async fn server_hello(
         &self,
         agent_name: Option<String>,
-        added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadNamed>,
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_workload(
         &self,
-        added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadNamed>,
         deleted_workloads: Vec<DeletedWorkload>,
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_workload_state(
         &self,
-        workload_running: Vec<WorkloadState>,
+        workload_running: Vec<WorkloadStateSpec>,
     ) -> Result<(), FromServerInterfaceError>;
-    async fn response(&self, response: ank_base::Response) -> Result<(), FromServerInterfaceError>;
+    async fn response(&self, response: Response) -> Result<(), FromServerInterfaceError>;
     async fn complete_state(
         &self,
         request_id: String,
-        complete_state: ank_base::CompleteState,
+        complete_state: CompleteState,
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_state_success(
         &self,
@@ -77,22 +83,22 @@ pub trait FromServerInterface {
     async fn logs_request(
         &self,
         request_id: String,
-        logs_request: ank_base::LogsRequest,
+        logs_request: LogsRequest,
     ) -> Result<(), FromServerInterfaceError>;
     async fn logs_request_accepted(
         &self,
         request_id: String,
-        logs_request: ank_base::LogsRequest,
+        logs_request: LogsRequest,
     ) -> Result<(), FromServerInterfaceError>;
     async fn log_entries_response(
         &self,
         request_id: String,
-        logs_response: ank_base::LogEntriesResponse,
+        logs_response: LogEntriesResponse,
     ) -> Result<(), FromServerInterfaceError>;
     async fn logs_stop_response(
         &self,
         request_id: String,
-        logs_stop_response: ank_base::LogsStopResponse,
+        logs_stop_response: LogsStopResponse,
     ) -> Result<(), FromServerInterfaceError>;
     async fn logs_cancel_request(&self, request_id: String)
     -> Result<(), FromServerInterfaceError>;
@@ -112,8 +118,8 @@ pub trait FromServerInterface {
     async fn stop(&self) -> Result<(), FromServerInterfaceError>;
 }
 
-pub type FromServerSender = tokio::sync::mpsc::Sender<FromServer>;
-pub type FromServerReceiver = tokio::sync::mpsc::Receiver<FromServer>;
+pub type FromServerSender = mpsc::Sender<FromServer>;
+pub type FromServerReceiver = mpsc::Receiver<FromServer>;
 
 #[async_trait]
 impl FromServerInterface for FromServerSender {
@@ -121,7 +127,7 @@ impl FromServerInterface for FromServerSender {
         &self,
         // This is a workaround for not having a request-response model dedicated for the communication middleware
         agent_name: Option<String>,
-        added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadNamed>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::ServerHello(commands::ServerHello {
@@ -133,7 +139,7 @@ impl FromServerInterface for FromServerSender {
 
     async fn update_workload(
         &self,
-        added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadNamed>,
         deleted_workloads: Vec<DeletedWorkload>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
@@ -146,7 +152,7 @@ impl FromServerInterface for FromServerSender {
 
     async fn update_workload_state(
         &self,
-        workload_states: Vec<WorkloadState>,
+        workload_states: Vec<WorkloadStateSpec>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::UpdateWorkloadState(
@@ -155,24 +161,24 @@ impl FromServerInterface for FromServerSender {
             .await?)
     }
 
-    async fn response(&self, response: ank_base::Response) -> Result<(), FromServerInterfaceError> {
+    async fn response(&self, response: Response) -> Result<(), FromServerInterfaceError> {
         Ok(self.send(FromServer::Response(response)).await?)
     }
 
     async fn complete_state(
         &self,
         request_id: String,
-        complete_state: api::ank_base::CompleteState,
+        complete_state: CompleteState,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
-            .send(FromServer::Response(ank_base::Response {
+            .send(FromServer::Response(Response {
                 request_id,
-                response_content: ank_base::response::ResponseContent::CompleteStateResponse(
-                    Box::new(ank_base::CompleteStateResponse {
+                response_content: ResponseContent::CompleteStateResponse(Box::new(
+                    CompleteStateResponse {
                         complete_state: Some(complete_state),
                         altered_fields: Default::default(),
-                    }),
-                )
+                    },
+                ))
                 .into(),
             }))
             .await?)
@@ -185,14 +191,12 @@ impl FromServerInterface for FromServerSender {
         deleted_workloads: Vec<String>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
-            .send(FromServer::Response(ank_base::Response {
+            .send(FromServer::Response(Response {
                 request_id,
-                response_content: ank_base::response::ResponseContent::UpdateStateSuccess(
-                    ank_base::UpdateStateSuccess {
-                        added_workloads,
-                        deleted_workloads,
-                    },
-                )
+                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                    added_workloads,
+                    deleted_workloads,
+                })
                 .into(),
             }))
             .await?)
@@ -201,25 +205,26 @@ impl FromServerInterface for FromServerSender {
     async fn logs_request(
         &self,
         request_id: String,
-        logs_request: ank_base::LogsRequest,
+        logs_request: LogsRequest,
     ) -> Result<(), FromServerInterfaceError> {
-        self.send(FromServer::LogsRequest(request_id, logs_request.into()))
-            .await?;
+        self.send(FromServer::LogsRequest(
+            request_id,
+            logs_request.try_into().unwrap_or_unreachable(),
+        ))
+        .await?;
         Ok(())
     }
 
     async fn logs_request_accepted(
         &self,
         request_id: String,
-        logs_request: ank_base::LogsRequest,
+        logs_request: LogsRequest,
     ) -> Result<(), FromServerInterfaceError> {
-        self.send(FromServer::Response(ank_base::Response {
+        self.send(FromServer::Response(Response {
             request_id,
-            response_content: ank_base::response::ResponseContent::LogsRequestAccepted(
-                ank_base::LogsRequestAccepted {
-                    workload_names: logs_request.workload_names,
-                },
-            )
+            response_content: ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
+                workload_names: logs_request.workload_names,
+            })
             .into(),
         }))
         .await?;
@@ -229,14 +234,11 @@ impl FromServerInterface for FromServerSender {
     async fn log_entries_response(
         &self,
         request_id: String,
-        logs_response: ank_base::LogEntriesResponse,
+        logs_response: LogEntriesResponse,
     ) -> Result<(), FromServerInterfaceError> {
-        self.send(FromServer::Response(ank_base::Response {
+        self.send(FromServer::Response(Response {
             request_id,
-            response_content: ank_base::response::ResponseContent::LogEntriesResponse(
-                logs_response,
-            )
-            .into(),
+            response_content: ResponseContent::LogEntriesResponse(logs_response).into(),
         }))
         .await?;
         Ok(())
@@ -245,14 +247,11 @@ impl FromServerInterface for FromServerSender {
     async fn logs_stop_response(
         &self,
         request_id: String,
-        logs_stop_response: ank_base::LogsStopResponse,
+        logs_stop_response: LogsStopResponse,
     ) -> Result<(), FromServerInterfaceError> {
-        self.send(FromServer::Response(ank_base::Response {
+        self.send(FromServer::Response(Response {
             request_id,
-            response_content: ank_base::response::ResponseContent::LogsStopResponse(
-                logs_stop_response,
-            )
-            .into(),
+            response_content: ResponseContent::LogsStopResponse(logs_stop_response).into(),
         }))
         .await?;
         Ok(())
@@ -270,12 +269,9 @@ impl FromServerInterface for FromServerSender {
         &self,
         request_id: String,
     ) -> Result<(), FromServerInterfaceError> {
-        self.send(FromServer::Response(ank_base::Response {
+        self.send(FromServer::Response(Response {
             request_id,
-            response_content: ank_base::response::ResponseContent::LogsCancelAccepted(
-                ank_base::LogsCancelAccepted {},
-            )
-            .into(),
+            response_content: ResponseContent::LogsCancelAccepted(LogsCancelAccepted {}).into(),
         }))
         .await?;
         Ok(())
@@ -285,12 +281,9 @@ impl FromServerInterface for FromServerSender {
         &self,
         request_id: String,
     ) -> Result<(), FromServerInterfaceError> {
-        self.send(FromServer::Response(ank_base::Response {
+        self.send(FromServer::Response(Response {
             request_id,
-            response_content: ank_base::response::ResponseContent::EventsCancelAccepted(
-                ank_base::EventsCancelAccepted {},
-            )
-            .into(),
+            response_content: ResponseContent::EventsCancelAccepted(EventsCancelAccepted {}).into(),
         }))
         .await?;
         Ok(())
@@ -302,12 +295,9 @@ impl FromServerInterface for FromServerSender {
         message: String,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
-            .send(FromServer::Response(ank_base::Response {
+            .send(FromServer::Response(Response {
                 request_id,
-                response_content: ank_base::response::ResponseContent::Error(ank_base::Error {
-                    message,
-                })
-                .into(),
+                response_content: ResponseContent::Error(Error { message }).into(),
             }))
             .await?)
     }
@@ -327,37 +317,37 @@ impl FromServerInterface for FromServerSender {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::CompleteStateResponse;
-
-    use super::ank_base;
+    use super::{FromServerReceiver, FromServerSender};
     use crate::{
         commands,
         from_server_interface::{FromServer, FromServerInterface},
-        objects::{
-            ExecutionState, WorkloadInstanceName, generate_test_workload_spec,
-            generate_test_workload_state,
-        },
-        test_utils::{generate_test_complete_state, generate_test_deleted_workload},
     };
 
-    use super::{FromServerReceiver, FromServerSender};
+    use ankaios_api::ank_base::{
+        CompleteState, CompleteStateResponse, Error, ExecutionStateSpec, LogEntriesResponse,
+        LogEntry, LogsRequest, LogsRequestSpec, LogsStopResponse, Response, ResponseContent,
+        UpdateStateSuccess, WorkloadInstanceName, WorkloadInstanceNameSpec,
+    };
+    use ankaios_api::test_utils::{
+        generate_test_complete_state, generate_test_deleted_workload_with_params,
+        generate_test_workload_named, generate_test_workload_state, fixtures,
+    };
 
-    const TEST_CHANNEL_CAPA: usize = 5;
-    const WORKLOAD_NAME_1: &str = "X";
-    const WORKLOAD_NAME_2: &str = "Y";
-    const AGENT_NAME: &str = "agent_A";
-    const REQUEST_ID: &str = "emkw489ejf89ml";
+    use tokio::sync::mpsc;
+
+    const LOG_MESSAGE_1: &str = "message_1";
+    const LOG_MESSAGE_2: &str = "message_2";
 
     // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_workload() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let added_workloads = vec![generate_test_workload_spec()];
-        let deleted_workloads = vec![generate_test_deleted_workload(
-            AGENT_NAME.to_string(),
-            WORKLOAD_NAME_1.to_string(),
+        let added_workloads = vec![generate_test_workload_named()];
+        let deleted_workloads = vec![generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0].to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
         )];
         assert!(
             tx.update_workload(added_workloads.clone(), deleted_workloads.clone())
@@ -378,10 +368,10 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_update_workload_state() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload_state =
-            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionState::running());
+            generate_test_workload_state(fixtures::WORKLOAD_NAMES[0], ExecutionStateSpec::running());
         assert!(
             tx.update_workload_state(vec![workload_state.clone()])
                 .await
@@ -400,26 +390,26 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_complete_state() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let complete_state: ank_base::CompleteState =
-            generate_test_complete_state(vec![generate_test_workload_spec()]).into();
+        let complete_state: CompleteState =
+            generate_test_complete_state(vec![generate_test_workload_named()]).into();
         assert!(
-            tx.complete_state(REQUEST_ID.to_string(), complete_state.clone())
+            tx.complete_state(fixtures::REQUEST_ID.to_string(), complete_state.clone())
                 .await
                 .is_ok()
         );
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            FromServer::Response(ank_base::Response {
-                request_id: REQUEST_ID.to_string(),
-                response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
-                    Box::new(CompleteStateResponse {
+            FromServer::Response(Response {
+                request_id: fixtures::REQUEST_ID.to_string(),
+                response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                    CompleteStateResponse {
                         complete_state: Some(complete_state.clone()),
                         altered_fields: Default::default(),
-                    })
-                )),
+                    }
+                ))),
             })
         )
     }
@@ -428,13 +418,13 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_update_state_success() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let added_workloads = vec!["some_name".to_string(), "some_other_name".to_string()];
         let deleted_workloads = vec!["some_name_1".to_string(), "some_other_name_1".to_string()];
         assert!(
             tx.update_state_success(
-                REQUEST_ID.to_string(),
+                fixtures::REQUEST_ID.to_string(),
                 added_workloads.clone(),
                 deleted_workloads.clone()
             )
@@ -444,14 +434,12 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            FromServer::Response(ank_base::Response {
-                request_id: REQUEST_ID.to_string(),
-                response_content: Some(ank_base::response::ResponseContent::UpdateStateSuccess(
-                    ank_base::UpdateStateSuccess {
-                        added_workloads,
-                        deleted_workloads,
-                    },
-                )),
+            FromServer::Response(Response {
+                request_id: fixtures::REQUEST_ID.to_string(),
+                response_content: Some(ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                    added_workloads,
+                    deleted_workloads,
+                },)),
             })
         )
     }
@@ -460,22 +448,22 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_error() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let error = ank_base::Error {
+        let error = Error {
             message: "error".to_string(),
         };
         assert!(
-            tx.error(REQUEST_ID.to_string(), error.message.clone())
+            tx.error(fixtures::REQUEST_ID.to_string(), error.message.clone())
                 .await
                 .is_ok()
         );
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            FromServer::Response(ank_base::Response {
-                request_id: REQUEST_ID.to_string(),
-                response_content: Some(ank_base::response::ResponseContent::Error(error)),
+            FromServer::Response(Response {
+                request_id: fixtures::REQUEST_ID.to_string(),
+                response_content: Some(ResponseContent::Error(error)),
             })
         )
     }
@@ -483,22 +471,22 @@ mod tests {
     #[tokio::test]
     async fn utest_logs_request_success() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
             tx.logs_request(
-                REQUEST_ID.to_string(),
-                ank_base::LogsRequest {
+                fixtures::REQUEST_ID.to_string(),
+                LogsRequest {
                     workload_names: vec![
-                        ank_base::WorkloadInstanceName {
-                            workload_name: WORKLOAD_NAME_1.into(),
-                            agent_name: AGENT_NAME.into(),
-                            id: "1".into()
+                        WorkloadInstanceName {
+                            workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                            agent_name: fixtures::AGENT_NAMES[0].into(),
+                            id: fixtures::WORKLOAD_IDS[0].into()
                         },
-                        ank_base::WorkloadInstanceName {
-                            workload_name: WORKLOAD_NAME_2.into(),
-                            agent_name: AGENT_NAME.into(),
-                            id: "2".into()
+                        WorkloadInstanceName {
+                            workload_name: fixtures::WORKLOAD_NAMES[1].into(),
+                            agent_name: fixtures::AGENT_NAMES[0].into(),
+                            id: fixtures::WORKLOAD_IDS[1].into()
                         }
                     ],
                     follow: Some(true),
@@ -514,11 +502,19 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             FromServer::LogsRequest(
-                REQUEST_ID.into(),
-                commands::LogsRequest {
+                fixtures::REQUEST_ID.into(),
+                LogsRequestSpec {
                     workload_names: vec![
-                        WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_NAME_1, "1"),
-                        WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_NAME_2, "2")
+                        WorkloadInstanceNameSpec::new(
+                            fixtures::AGENT_NAMES[0],
+                            fixtures::WORKLOAD_NAMES[0],
+                            fixtures::WORKLOAD_IDS[0]
+                        ),
+                        WorkloadInstanceNameSpec::new(
+                            fixtures::AGENT_NAMES[0],
+                            fixtures::WORKLOAD_NAMES[1],
+                            fixtures::WORKLOAD_IDS[1]
+                        )
                     ],
                     follow: true,
                     tail: 10,
@@ -531,17 +527,16 @@ mod tests {
 
     #[tokio::test]
     async fn utest_logs_request_fail() {
-        let (tx, _): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+        let (tx, _): (FromServerSender, FromServerReceiver) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
             tx.logs_request(
-                REQUEST_ID.to_string(),
-                ank_base::LogsRequest {
-                    workload_names: vec![ank_base::WorkloadInstanceName {
-                        workload_name: WORKLOAD_NAME_1.into(),
-                        agent_name: AGENT_NAME.into(),
-                        id: "1".into()
+                fixtures::REQUEST_ID.to_string(),
+                LogsRequest {
+                    workload_names: vec![WorkloadInstanceName {
+                        workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                        agent_name: fixtures::AGENT_NAMES[0].into(),
+                        id: fixtures::WORKLOAD_IDS[0].into()
                     }],
                     follow: Some(true),
                     tail: Some(10),
@@ -557,28 +552,28 @@ mod tests {
     #[tokio::test]
     async fn utest_logs_response_success() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
             tx.log_entries_response(
-                REQUEST_ID.into(),
-                ank_base::LogEntriesResponse {
+                fixtures::REQUEST_ID.into(),
+                LogEntriesResponse {
                     log_entries: vec![
-                        ank_base::LogEntry {
-                            workload_name: Some(ank_base::WorkloadInstanceName {
-                                workload_name: WORKLOAD_NAME_1.into(),
-                                agent_name: AGENT_NAME.into(),
-                                id: "1".into()
+                        LogEntry {
+                            workload_name: Some(WorkloadInstanceName {
+                                workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                                agent_name: fixtures::AGENT_NAMES[0].into(),
+                                id: fixtures::WORKLOAD_IDS[0].into()
                             }),
-                            message: "message_1".into()
+                            message: LOG_MESSAGE_1.into()
                         },
-                        ank_base::LogEntry {
-                            workload_name: Some(ank_base::WorkloadInstanceName {
-                                workload_name: WORKLOAD_NAME_2.into(),
-                                agent_name: AGENT_NAME.into(),
-                                id: "2".into()
+                        LogEntry {
+                            workload_name: Some(WorkloadInstanceName {
+                                workload_name: fixtures::WORKLOAD_NAMES[1].into(),
+                                agent_name: fixtures::AGENT_NAMES[0].into(),
+                                id: fixtures::WORKLOAD_IDS[1].into()
                             }),
-                            message: "message_2".into()
+                            message: LOG_MESSAGE_2.into()
                         }
                     ]
                 }
@@ -589,50 +584,47 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            FromServer::Response(ank_base::Response {
-                request_id: REQUEST_ID.into(),
-                response_content: Some(ank_base::response::ResponseContent::LogEntriesResponse(
-                    ank_base::LogEntriesResponse {
-                        log_entries: vec![
-                            ank_base::LogEntry {
-                                workload_name: Some(ank_base::WorkloadInstanceName {
-                                    workload_name: WORKLOAD_NAME_1.into(),
-                                    agent_name: AGENT_NAME.into(),
-                                    id: "1".into()
-                                }),
-                                message: "message_1".into()
-                            },
-                            ank_base::LogEntry {
-                                workload_name: Some(ank_base::WorkloadInstanceName {
-                                    workload_name: WORKLOAD_NAME_2.into(),
-                                    agent_name: AGENT_NAME.into(),
-                                    id: "2".into()
-                                }),
-                                message: "message_2".into()
-                            }
-                        ]
-                    }
-                ))
+            FromServer::Response(Response {
+                request_id: fixtures::REQUEST_ID.into(),
+                response_content: Some(ResponseContent::LogEntriesResponse(LogEntriesResponse {
+                    log_entries: vec![
+                        LogEntry {
+                            workload_name: Some(WorkloadInstanceName {
+                                workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                                agent_name: fixtures::AGENT_NAMES[0].into(),
+                                id: fixtures::WORKLOAD_IDS[0].into()
+                            }),
+                            message: LOG_MESSAGE_1.into()
+                        },
+                        LogEntry {
+                            workload_name: Some(WorkloadInstanceName {
+                                workload_name: fixtures::WORKLOAD_NAMES[1].into(),
+                                agent_name: fixtures::AGENT_NAMES[0].into(),
+                                id: fixtures::WORKLOAD_IDS[1].into()
+                            }),
+                            message: LOG_MESSAGE_2.into()
+                        }
+                    ]
+                }))
             })
         )
     }
 
     #[tokio::test]
     async fn utest_logs_response_fail() {
-        let (tx, _): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+        let (tx, _): (FromServerSender, FromServerReceiver) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
             tx.log_entries_response(
-                REQUEST_ID.into(),
-                ank_base::LogEntriesResponse {
-                    log_entries: vec![ank_base::LogEntry {
-                        workload_name: Some(ank_base::WorkloadInstanceName {
-                            workload_name: WORKLOAD_NAME_1.into(),
-                            agent_name: AGENT_NAME.into(),
-                            id: "1".into()
+                fixtures::REQUEST_ID.into(),
+                LogEntriesResponse {
+                    log_entries: vec![LogEntry {
+                        workload_name: Some(WorkloadInstanceName {
+                            workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                            agent_name: fixtures::AGENT_NAMES[0].into(),
+                            id: fixtures::WORKLOAD_IDS[0].into()
                         }),
-                        message: "message_1".into()
+                        message: LOG_MESSAGE_1.into()
                     }]
                 }
             )
@@ -645,18 +637,18 @@ mod tests {
     #[tokio::test]
     async fn utest_logs_stop_response_success() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let workload_instance_name = ank_base::WorkloadInstanceName {
-            workload_name: WORKLOAD_NAME_1.into(),
-            agent_name: AGENT_NAME.into(),
-            id: "1".into(),
+        let workload_instance_name = WorkloadInstanceName {
+            workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+            agent_name: fixtures::AGENT_NAMES[0].into(),
+            id: fixtures::WORKLOAD_IDS[0].into(),
         };
 
         assert!(
             tx.logs_stop_response(
-                REQUEST_ID.to_string(),
-                ank_base::LogsStopResponse {
+                fixtures::REQUEST_ID.to_string(),
+                LogsStopResponse {
                     workload_name: Some(workload_instance_name.clone()),
                 }
             )
@@ -666,13 +658,11 @@ mod tests {
 
         assert_eq!(
             rx.recv().await,
-            Some(FromServer::Response(ank_base::Response {
-                request_id: REQUEST_ID.to_string(),
-                response_content: Some(ank_base::response::ResponseContent::LogsStopResponse(
-                    ank_base::LogsStopResponse {
-                        workload_name: Some(workload_instance_name),
-                    }
-                )),
+            Some(FromServer::Response(Response {
+                request_id: fixtures::REQUEST_ID.to_string(),
+                response_content: Some(ResponseContent::LogsStopResponse(LogsStopResponse {
+                    workload_name: Some(workload_instance_name),
+                })),
             }))
         );
     }
@@ -681,18 +671,18 @@ mod tests {
     #[tokio::test]
     async fn utest_logs_stop_response_fail() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         rx.close();
 
         assert!(
             tx.logs_stop_response(
-                REQUEST_ID.to_string(),
-                ank_base::LogsStopResponse {
-                    workload_name: Some(ank_base::WorkloadInstanceName {
-                        workload_name: WORKLOAD_NAME_1.into(),
-                        agent_name: AGENT_NAME.into(),
-                        id: "1".into(),
+                fixtures::REQUEST_ID.to_string(),
+                LogsStopResponse {
+                    workload_name: Some(WorkloadInstanceName {
+                        workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                        agent_name: fixtures::AGENT_NAMES[0].into(),
+                        id: fixtures::WORKLOAD_IDS[0].into(),
                     }),
                 }
             )

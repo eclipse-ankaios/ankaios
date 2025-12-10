@@ -38,12 +38,9 @@ use crate::{
     runtime_connectors::{LogRequestOptions, log_fetcher::LogFetcher},
 };
 
-use api::ank_base;
+use ankaios_api::ank_base::{self, WorkloadInstanceNameSpec, WorkloadNamed};
 
-use common::{
-    from_server_interface::FromServer,
-    objects::{WorkloadInstanceName, WorkloadSpec},
-};
+use common::from_server_interface::FromServer;
 
 #[cfg(test)]
 use mockall::automock;
@@ -70,8 +67,8 @@ impl Display for WorkloadError {
 #[derive(Debug)]
 pub enum WorkloadCommand {
     Delete,
-    Update(Option<Box<WorkloadSpec>>, Option<ControlInterfacePath>),
-    Retry(Box<WorkloadInstanceName>, RetryToken),
+    Update(Option<Box<WorkloadNamed>>, Option<ControlInterfacePath>),
+    Retry(Box<WorkloadInstanceNameSpec>, RetryToken),
     Create,
     Resume,
     StartLogFetcher(LogRequestOptions, oneshot::Sender<Box<dyn LogFetcher>>),
@@ -161,7 +158,7 @@ impl Workload {
     // [impl->swdd~agent-workload-obj-update-command~2]
     pub async fn update(
         &mut self,
-        spec: Option<WorkloadSpec>,
+        workload_named: Option<WorkloadNamed>,
         control_interface_info: Option<ControlInterfaceInfo>,
     ) -> Result<(), WorkloadError> {
         log::info!("Updating workload '{}'.", self.name);
@@ -170,8 +167,9 @@ impl Workload {
             // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
             self.exchange_control_interface(
                 control_interface_info,
-                spec.clone()
-                    .is_some_and(|spec| !spec.needs_control_interface()),
+                workload_named.clone().is_some_and(|workload_named| {
+                    !workload_named.workload.needs_control_interface()
+                }),
             );
         }
 
@@ -182,7 +180,7 @@ impl Workload {
 
         log::debug!("Send WorkloadCommand::Update.");
         self.channel
-            .update(spec, control_interface_path)
+            .update(workload_named, control_interface_path)
             .await
             .map_err(|err| WorkloadError::Communication(err.to_string()))
     }
@@ -240,20 +238,6 @@ impl Workload {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-    use std::time::Duration;
-
-    use super::ank_base::{self, Response, response::ResponseContent};
-    use common::{
-        from_server_interface::FromServer,
-        objects::{
-            CompleteState, generate_test_workload_spec_with_control_interface_access,
-            generate_test_workload_spec_with_param,
-        },
-        test_utils::generate_test_complete_state,
-    };
-    use tokio::{sync::mpsc, time::timeout};
-
     use crate::{
         control_interface::{
             ControlInterfacePath, MockControlInterface, authorizer::MockAuthorizer,
@@ -263,11 +247,17 @@ mod tests {
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
-    const RUNTIME_NAME: &str = "runtime1";
-    const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_1_NAME: &str = "workload1";
-    const PIPES_LOCATION: &str = "/some/path";
-    const REQUEST_ID: &str = "request_id";
+    use ankaios_api::ank_base::{self, CompleteStateSpec, Response, response::ResponseContent};
+    use ankaios_api::test_utils::{
+        generate_test_complete_state, generate_test_workload_named,
+        generate_test_workload_named_with_params, generate_test_workload_with_params, fixtures,
+    };
+    use common::from_server_interface::FromServer;
+
+    use std::path::PathBuf;
+    use std::time::Duration;
+    use tokio::{sync::mpsc, time::timeout};
+
     const LOG_REQUEST_OPTIONS: LogRequestOptions = LogRequestOptions {
         follow: true,
         tail: Some(100),
@@ -275,14 +265,11 @@ mod tests {
         until: None,
     };
 
-    const TEST_WL_COMMAND_BUFFER_SIZE: usize = 5;
-    const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 5;
-
     use mockall::lazy_static;
 
     lazy_static! {
         pub static ref CONTROL_INTERFACE_PATH: ControlInterfacePath =
-            ControlInterfacePath::new(PathBuf::from(PIPES_LOCATION));
+            ControlInterfacePath::new(PathBuf::from(fixtures::PIPES_LOCATION));
     }
 
     // [utest->swdd~agent-workload-obj-delete-command~1]
@@ -304,7 +291,7 @@ mod tests {
             .return_const(());
 
         let test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender,
             Some(old_control_interface_mock),
         );
@@ -320,7 +307,7 @@ mod tests {
     fn utest_is_control_interface_changed_set_from_none_to_new_returns_true() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
         let test_workload_with_control_interface = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender.clone(),
             None,
         );
@@ -336,7 +323,7 @@ mod tests {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
         let test_workload_with_control_interface = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender.clone(),
             Some(MockControlInterface::default()),
         );
@@ -349,7 +336,7 @@ mod tests {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
         let test_workload_with_control_interface = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender.clone(),
             None,
         );
@@ -368,7 +355,7 @@ mod tests {
             .once()
             .return_const(false);
         let test_workload_with_control_interface = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender.clone(),
             Some(MockControlInterface::default()),
         );
@@ -391,7 +378,7 @@ mod tests {
             .return_const(true);
 
         let test_workload_with_control_interface = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender.clone(),
             Some(MockControlInterface::default()),
         );
@@ -407,16 +394,16 @@ mod tests {
     fn utest_exchange_control_interface_not_created() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
-        let mut test_workload =
-            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
+        let mut test_workload = Workload::new(
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+            workload_command_sender,
+            None,
         );
 
-        test_workload.exchange_control_interface(None, workload_spec.needs_control_interface());
+        let workload =
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::RUNTIME_NAMES[0]);
+
+        test_workload.exchange_control_interface(None, workload.needs_control_interface());
 
         assert!(test_workload.control_interface.is_none());
     }
@@ -436,11 +423,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let workload_spec = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload = generate_test_workload_named();
 
         let mut new_control_interface_mock = MockControlInterface::default();
         new_control_interface_mock
@@ -468,7 +451,7 @@ mod tests {
         new_control_interface_info_mock
             .expect_get_instance_name()
             .once()
-            .return_const(workload_spec.instance_name.clone());
+            .return_const(workload.instance_name.clone());
 
         new_control_interface_info_mock
             .expect_move_authorizer()
@@ -480,25 +463,25 @@ mod tests {
             .return_const(false);
 
         let mut test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender,
             Some(old_control_interface_mock),
         );
 
         test_workload
             .update(
-                Some(workload_spec.clone()),
+                Some(workload.clone()),
                 Some(new_control_interface_info_mock),
             )
             .await
             .unwrap();
 
-        let expected_workload_spec = Box::new(workload_spec);
+        let expected_workload = Box::new(workload);
         let expected_pipes_path_buf = CONTROL_INTERFACE_PATH.clone();
 
         assert_eq!(
             Ok(Some(WorkloadCommand::Update(
-                Some(expected_workload_spec),
+                Some(expected_workload),
                 Some(expected_pipes_path_buf)
             ))),
             timeout(Duration::from_millis(200), workload_command_receiver.recv()).await
@@ -529,17 +512,17 @@ mod tests {
             .once()
             .return_const(CONTROL_INTERFACE_PATH.clone());
 
-        let workload_spec = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
+        let workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
         new_control_interface_info_mock
             .expect_get_control_interface_path()
             .once()
-            .return_const(ControlInterfacePath::new(PIPES_LOCATION.into()));
+            .return_const(ControlInterfacePath::new(fixtures::PIPES_LOCATION.into()));
 
         new_control_interface_info_mock
             .expect_get_to_server_sender()
@@ -549,7 +532,7 @@ mod tests {
         new_control_interface_info_mock
             .expect_get_instance_name()
             .once()
-            .return_const(workload_spec.instance_name.clone());
+            .return_const(workload.instance_name.clone());
 
         new_control_interface_info_mock
             .expect_move_authorizer()
@@ -568,7 +551,7 @@ mod tests {
             .return_once(|_, _, _, _| Ok(new_control_interface_mock));
 
         let mut test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender,
             Some(old_control_interface_mock),
         );
@@ -576,7 +559,7 @@ mod tests {
         assert!(matches!(
             test_workload
                 .update(
-                    Some(workload_spec.clone()),
+                    Some(workload.clone()),
                     Some(new_control_interface_info_mock)
                 )
                 .await,
@@ -600,7 +583,7 @@ mod tests {
             .return_const(());
 
         let test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender,
             Some(old_control_interface_mock),
         );
@@ -621,7 +604,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
-        let (to_server_tx, mut to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, mut to_server_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut control_interface_mock = MockControlInterface::default();
         control_interface_mock
@@ -630,20 +613,20 @@ mod tests {
             .return_const(to_server_tx);
 
         let mut test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender,
             Some(control_interface_mock),
         );
         let complete_state =
-            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                AGENT_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
+            generate_test_complete_state(vec![generate_test_workload_named_with_params(
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::AGENT_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
             )]);
 
         test_workload
             .forward_response(ank_base::Response {
-                request_id: REQUEST_ID.to_owned(),
+                request_id: fixtures::REQUEST_ID.to_owned(),
                 response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
                     Box::new(complete_state.clone().into()),
                 )),
@@ -667,7 +650,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
-        let (to_server_tx, to_server_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, to_server_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         drop(to_server_rx);
 
@@ -678,16 +661,16 @@ mod tests {
             .return_const(to_server_tx);
 
         let mut test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender,
             Some(control_interface_mock),
         );
-        let complete_state = CompleteState::default();
+        let complete_state = CompleteStateSpec::default();
 
         assert!(matches!(
             test_workload
                 .forward_response(ank_base::Response {
-                    request_id: REQUEST_ID.to_owned(),
+                    request_id: fixtures::REQUEST_ID.to_owned(),
                     response_content: Some(
                         ank_base::response::ResponseContent::CompleteStateResponse(Box::new(
                             complete_state.clone().into()
@@ -708,14 +691,17 @@ mod tests {
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
-        let mut test_workload =
-            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
-        let complete_state = CompleteState::default();
+        let mut test_workload = Workload::new(
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+            workload_command_sender,
+            None,
+        );
+        let complete_state = CompleteStateSpec::default();
 
         assert!(matches!(
             test_workload
                 .forward_response(ank_base::Response {
-                    request_id: REQUEST_ID.to_owned(),
+                    request_id: fixtures::REQUEST_ID.to_owned(),
                     response_content: Some(
                         ank_base::response::ResponseContent::CompleteStateResponse(Box::new(
                             complete_state.clone().into()
@@ -746,8 +732,11 @@ mod tests {
             result_sink.send(Box::new(MockLogFetcher::new())).unwrap();
         });
 
-        let test_workload =
-            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
+        let test_workload = Workload::new(
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+            workload_command_sender,
+            None,
+        );
 
         test_workload
             .start_collecting_logs(LOG_REQUEST_OPTIONS)

@@ -12,28 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, path::PathBuf};
-
-#[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::authorizer::Authorizer;
-
-use api::ank_base;
-
-use common::{
-    commands::LogsRequest,
-    objects::{
-        AgentName, DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec,
-        WorkloadState,
-    },
-    request_id_prepending::detach_prefix_from_request_id,
-    to_server_interface::ToServerSender,
-};
-
-#[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::control_interface_info::ControlInterfaceInfo;
-
-#[cfg_attr(test, mockall_double::double)]
-use crate::runtime_connectors::GenericRuntimeFacade;
 use crate::{
     control_interface::ControlInterfacePath,
     runtime_connectors::{
@@ -42,13 +20,33 @@ use crate::{
 };
 
 #[cfg_attr(test, mockall_double::double)]
+use crate::control_interface::authorizer::Authorizer;
+
+use ankaios_api::ank_base::{
+    DeletedWorkload, ExecutionStateSpec, LogsRequestSpec, Response, WorkloadInstanceNameSpec,
+    WorkloadNamed, WorkloadStateSpec,
+};
+use common::{
+    objects::AgentName, request_id_prepending::detach_prefix_from_request_id,
+    to_server_interface::ToServerSender,
+};
+
+use std::{collections::HashMap, path::PathBuf};
+
+#[cfg_attr(test, mockall_double::double)]
+use crate::control_interface::control_interface_info::ControlInterfaceInfo;
+
+#[cfg_attr(test, mockall_double::double)]
+use crate::runtime_connectors::GenericRuntimeFacade;
+
+#[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::scheduler::WorkloadScheduler;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 use crate::{
     runtime_connectors::RuntimeFacade,
-    workload_operation::{ReusableWorkloadSpec, WorkloadOperation},
+    workload_operation::{ReusableWorkload, WorkloadOperation},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
@@ -58,27 +56,25 @@ use crate::workload::Workload;
 #[cfg(test)]
 use mockall::automock;
 
-fn flatten(
-    mut runtime_workload_map: HashMap<String, HashMap<String, WorkloadSpec>>,
-) -> Vec<ReusableWorkloadSpec> {
+fn flatten(mut runtime_workload_map: HashMap<String, Vec<WorkloadNamed>>) -> Vec<ReusableWorkload> {
     runtime_workload_map
         .drain()
-        .flat_map(|(_, mut v)| {
-            v.drain()
-                .map(|(_, y)| ReusableWorkloadSpec::new(y, None))
+        .flat_map(|(_, v)| {
+            v.into_iter()
+                .map(|y| ReusableWorkload::new(y, None))
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>()
 }
 
 pub trait ToReusableWorkloadSpecs {
-    fn into_reusable_workload_specs(self) -> Vec<ReusableWorkloadSpec>;
+    fn into_reusable_workloads(self) -> Vec<ReusableWorkload>;
 }
 
-impl ToReusableWorkloadSpecs for Vec<WorkloadSpec> {
-    fn into_reusable_workload_specs(self) -> Vec<ReusableWorkloadSpec> {
+impl ToReusableWorkloadSpecs for Vec<WorkloadNamed> {
+    fn into_reusable_workloads(self) -> Vec<ReusableWorkload> {
         self.into_iter()
-            .map(|w| ReusableWorkloadSpec::new(w, None))
+            .map(|w| ReusableWorkload::new(w, None))
             .collect()
     }
 }
@@ -131,7 +127,7 @@ impl RuntimeManager {
 
     pub async fn execute_workloads(
         &mut self,
-        added_workloads: Vec<ReusableWorkloadSpec>,
+        added_workloads: Vec<ReusableWorkload>,
         deleted_workloads: Vec<DeletedWorkload>,
         workload_state_db: &WorkloadStateStore,
     ) {
@@ -152,7 +148,7 @@ impl RuntimeManager {
     // [impl->swdd~agent-initial-list-existing-workloads~1]
     pub async fn handle_server_hello(
         &mut self,
-        added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadNamed>,
         workload_state_db: &WorkloadStateStore,
     ) {
         log::info!(
@@ -171,7 +167,7 @@ impl RuntimeManager {
     // [impl->swdd~agent-handles-update-workload-requests~1]
     pub async fn handle_update_workload(
         &mut self,
-        added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadNamed>,
         deleted_workloads: Vec<DeletedWorkload>,
         workload_state_db: &WorkloadStateStore,
     ) {
@@ -181,15 +177,14 @@ impl RuntimeManager {
             deleted_workloads.len()
         );
 
-        let new_added_workloads: Vec<ReusableWorkloadSpec> =
-            added_workloads.into_reusable_workload_specs();
+        let new_added_workloads: Vec<ReusableWorkload> = added_workloads.into_reusable_workloads();
 
         self.execute_workloads(new_added_workloads, deleted_workloads, workload_state_db)
             .await;
     }
 
     // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
-    pub async fn forward_response(&mut self, mut response: ank_base::Response) {
+    pub async fn forward_response(&mut self, mut response: Response) {
         // [impl->swdd~agent-uses-id-prefix-forward-control-interface-response-correct-workload~1]
         // [impl->swdd~agent-remove-id-prefix-forwarding-control-interface-response~1]
         let (workload_name, request_id) = detach_prefix_from_request_id(&response.request_id);
@@ -206,27 +201,21 @@ impl RuntimeManager {
     // [impl->swdd~agent-initial-list-existing-workloads~1]
     async fn resume_and_remove_from_added_workloads(
         &mut self,
-        added_workloads: Vec<WorkloadSpec>,
-    ) -> (Vec<ReusableWorkloadSpec>, Vec<DeletedWorkload>) {
+        added_workloads: Vec<WorkloadNamed>,
+    ) -> (Vec<ReusableWorkload>, Vec<DeletedWorkload>) {
         log::debug!("Handling initial workload list.");
 
         // create a list per runtime
-        let mut added_workloads_per_runtime: HashMap<String, HashMap<String, WorkloadSpec>> =
-            HashMap::new();
-        for workload_spec in added_workloads {
-            if let Some(workload_map) = added_workloads_per_runtime.get_mut(&workload_spec.runtime)
+        let mut added_workloads_per_runtime: HashMap<String, Vec<WorkloadNamed>> = HashMap::new();
+        for workload_named in added_workloads {
+            if let Some(workload_vec) =
+                added_workloads_per_runtime.get_mut(&workload_named.workload.runtime)
             {
-                workload_map.insert(
-                    workload_spec.instance_name.workload_name().to_owned(),
-                    workload_spec,
-                );
+                workload_vec.push(workload_named);
             } else {
                 added_workloads_per_runtime.insert(
-                    workload_spec.runtime.clone(),
-                    HashMap::from([(
-                        workload_spec.instance_name.workload_name().to_owned(),
-                        workload_spec,
-                    )]),
+                    workload_named.workload.runtime.clone(),
+                    vec![workload_named],
                 );
             }
         }
@@ -247,34 +236,44 @@ impl RuntimeManager {
                     for reusable_workload_state in workload_states {
                         let workload_state = reusable_workload_state.workload_state;
                         let workload_id = reusable_workload_state.workload_id;
-                        if let Some(new_workload_spec) = added_workloads_per_runtime
+                        if let Some(new_workload_named) = added_workloads_per_runtime
                             .get_mut(runtime_name)
-                            .and_then(|map| {
-                                map.remove(workload_state.instance_name.workload_name())
+                            .and_then(|workload_vec| {
+                                // Remove and get the workload named from the workload_vec if name matches
+                                workload_vec
+                                    .iter()
+                                    .position(|w| {
+                                        w.instance_name
+                                            .workload_name()
+                                            .eq(workload_state.instance_name.workload_name())
+                                    })
+                                    .map(|index| workload_vec.remove(index))
                             })
                         {
-                            let new_instance_name: WorkloadInstanceName =
-                                new_workload_spec.instance_name.clone();
+                            let new_instance_name: WorkloadInstanceNameSpec =
+                                new_workload_named.instance_name.clone();
 
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
                                 // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
-                                let control_interface_info =
-                                    if new_workload_spec.needs_control_interface() {
-                                        Some(ControlInterfaceInfo::new(
-                                            ControlInterfacePath::from((
-                                                &self.run_folder,
-                                                &new_instance_name,
-                                            )),
-                                            self.control_interface_tx.clone(),
+                                let control_interface_info = if new_workload_named
+                                    .workload
+                                    .needs_control_interface()
+                                {
+                                    Some(ControlInterfaceInfo::new(
+                                        ControlInterfacePath::from((
+                                            &self.run_folder,
                                             &new_instance_name,
-                                            Authorizer::from(
-                                                &new_workload_spec.control_interface_access,
-                                            ),
-                                        ))
-                                    } else {
-                                        None
-                                    };
+                                        )),
+                                        self.control_interface_tx.clone(),
+                                        &new_instance_name,
+                                        Authorizer::from(
+                                            &new_workload_named.workload.control_interface_access,
+                                        ),
+                                    ))
+                                } else {
+                                    None
+                                };
 
                                 log::info!(
                                     "Resuming workload '{}'",
@@ -285,7 +284,7 @@ impl RuntimeManager {
                                 self.workloads.insert(
                                     new_instance_name.workload_name().to_owned(),
                                     runtime.resume_workload(
-                                        new_workload_spec,
+                                        new_workload_named,
                                         control_interface_info,
                                         &self.update_state_tx,
                                     ),
@@ -302,10 +301,8 @@ impl RuntimeManager {
                                     new_instance_name.workload_name()
                                 );
 
-                                new_added_workloads.push(ReusableWorkloadSpec::new(
-                                    new_workload_spec,
-                                    workload_id,
-                                ));
+                                new_added_workloads
+                                    .push(ReusableWorkload::new(new_workload_named, workload_id));
                             } else {
                                 // [impl->swdd~agent-existing-workloads-replace-updated~4]
 
@@ -319,16 +316,15 @@ impl RuntimeManager {
                                     .contains_key(workload_state.instance_name.workload_name())
                                 {
                                     // Replace workload when agent was restarted.
-
-                                    let old_workload_spec = WorkloadSpec {
+                                    let old_workload_named = WorkloadNamed {
                                         instance_name: workload_state.instance_name.clone(),
-                                        ..Default::default() // dummy workload spec with existing instance name to resume
+                                        ..Default::default()
                                     };
 
                                     /* Resume the workload and update it to ensure the correct order
                                     and synchronization between the update steps. */
                                     let resumed_workload = runtime.resume_workload(
-                                        old_workload_spec,
+                                        old_workload_named,
                                         None,
                                         &self.update_state_tx,
                                     );
@@ -339,7 +335,7 @@ impl RuntimeManager {
                                     );
 
                                     new_added_workloads
-                                        .push(ReusableWorkloadSpec::new(new_workload_spec, None));
+                                        .push(ReusableWorkload::new(new_workload_named, None));
 
                                     deleted_workloads.push(DeletedWorkload {
                                         instance_name: workload_state.instance_name,
@@ -350,7 +346,7 @@ impl RuntimeManager {
                                     The runtime manager will request an update of the workload
                                     when putting the workload into both added and deleted ones.*/
                                     new_added_workloads
-                                        .push(ReusableWorkloadSpec::new(new_workload_spec, None));
+                                        .push(ReusableWorkload::new(new_workload_named, None));
 
                                     deleted_workloads.push(DeletedWorkload {
                                         instance_name: workload_state.instance_name,
@@ -389,8 +385,8 @@ impl RuntimeManager {
     }
 
     fn is_resumable_workload(
-        workload_state_existing_workload: &WorkloadState,
-        new_instance_name: &WorkloadInstanceName,
+        workload_state_existing_workload: &WorkloadStateSpec,
+        new_instance_name: &WorkloadInstanceNameSpec,
     ) -> bool {
         workload_state_existing_workload
             .execution_state
@@ -401,9 +397,9 @@ impl RuntimeManager {
     }
 
     fn is_reusable_workload(
-        workload_state_existing_workload: &WorkloadState,
+        workload_state_existing_workload: &WorkloadStateSpec,
         workload_id_existing_workload: &Option<String>,
-        new_instance_name: &WorkloadInstanceName,
+        new_instance_name: &WorkloadInstanceNameSpec,
     ) -> bool {
         workload_state_existing_workload
             .execution_state
@@ -417,22 +413,22 @@ impl RuntimeManager {
     // [impl->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
     fn transform_into_workload_operations(
         &self,
-        added_workloads: Vec<ReusableWorkloadSpec>,
+        added_workloads: Vec<ReusableWorkload>,
         deleted_workloads: Vec<DeletedWorkload>,
     ) -> Vec<WorkloadOperation> {
         let mut workload_operations: Vec<WorkloadOperation> = Vec::new();
         // transform into a hashmap to be able to search for updates
         // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
-        let mut added_workloads: HashMap<String, ReusableWorkloadSpec> = added_workloads
+        let mut added_workloads: HashMap<String, ReusableWorkload> = added_workloads
             .into_iter()
-            .map(|reusable_workload_spec| {
+            .map(|reusable_workload| {
                 (
-                    reusable_workload_spec
-                        .workload_spec
+                    reusable_workload
+                        .workload_named
                         .instance_name
                         .workload_name()
                         .to_owned(),
-                    reusable_workload_spec,
+                    reusable_workload,
                 )
             })
             .collect();
@@ -444,7 +440,7 @@ impl RuntimeManager {
             {
                 // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
                 workload_operations.push(WorkloadOperation::Update(
-                    updated_workload.workload_spec,
+                    updated_workload.workload_named,
                     deleted_workload,
                 ));
             } else {
@@ -453,9 +449,9 @@ impl RuntimeManager {
             }
         }
 
-        for (_, reusable_workload_spec) in added_workloads {
-            let workload_name = reusable_workload_spec
-                .workload_spec
+        for (_, reusable_workload) in added_workloads {
+            let workload_name = reusable_workload
+                .workload_named
                 .instance_name
                 .workload_name();
             if self.workloads.contains_key(workload_name) {
@@ -464,10 +460,10 @@ impl RuntimeManager {
                 );
                 // We know this workload, seems the server is sending it again, try an update
                 // [impl->swdd~agent-update-on-add-known-workload~1]
-                let workload_spec = reusable_workload_spec.workload_spec;
-                let instance_name = workload_spec.instance_name.clone();
+                let workload_named = reusable_workload.workload_named;
+                let instance_name = workload_named.instance_name.clone();
                 workload_operations.push(WorkloadOperation::Update(
-                    workload_spec,
+                    workload_named,
                     DeletedWorkload {
                         instance_name,
                         dependencies: HashMap::default(),
@@ -475,7 +471,7 @@ impl RuntimeManager {
                 ));
             } else {
                 // [impl->swdd~agent-added-creates-workload~1]
-                workload_operations.push(WorkloadOperation::Create(reusable_workload_spec));
+                workload_operations.push(WorkloadOperation::Create(reusable_workload));
             }
         }
 
@@ -485,13 +481,13 @@ impl RuntimeManager {
     async fn execute_workload_operations(&mut self, workload_operations: Vec<WorkloadOperation>) {
         for wl_operation in workload_operations {
             match wl_operation {
-                WorkloadOperation::Create(reusable_workload_spec) => {
+                WorkloadOperation::Create(reusable_workload) => {
                     // [impl->swdd~agent-executes-create-workload-operation~1]
-                    self.add_workload(reusable_workload_spec).await
+                    self.add_workload(reusable_workload).await
                 }
-                WorkloadOperation::Update(new_workload_spec, _) => {
+                WorkloadOperation::Update(new_workload_named, _) => {
                     // [impl->swdd~agent-executes-update-workload-operation~1]
-                    self.update_workload(new_workload_spec).await
+                    self.update_workload(new_workload_named).await
                 }
                 WorkloadOperation::UpdateDeleteOnly(deleted_workload) => {
                     // [impl->swdd~agent-executes-update-delete-only-workload-operation~1]
@@ -505,16 +501,16 @@ impl RuntimeManager {
         }
     }
 
-    async fn add_workload(&mut self, reusable_workload_spec: ReusableWorkloadSpec) {
-        let workload_spec = &reusable_workload_spec.workload_spec;
-        let workload_name = workload_spec.instance_name.workload_name().to_owned();
+    async fn add_workload(&mut self, reusable_workload: ReusableWorkload) {
+        let workload_named = &reusable_workload.workload_named;
+        let workload_name = workload_named.instance_name.workload_name().to_owned();
         // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
-        let control_interface_info = if workload_spec.needs_control_interface() {
+        let control_interface_info = if workload_named.workload.needs_control_interface() {
             Some(ControlInterfaceInfo::new(
-                ControlInterfacePath::from((&self.run_folder, &workload_spec.instance_name)),
+                ControlInterfacePath::from((&self.run_folder, &workload_named.instance_name)),
                 self.control_interface_tx.clone(),
-                &workload_spec.instance_name,
-                Authorizer::from(&workload_spec.control_interface_access),
+                &workload_named.instance_name,
+                Authorizer::from(&workload_named.workload.control_interface_access),
             ))
         } else {
             log::info!("No control interface access specified for workload '{workload_name}'");
@@ -525,23 +521,24 @@ impl RuntimeManager {
 
         // [impl->swdd~agent-uses-specified-runtime~1]
         // [impl->swdd~agent-skips-unknown-runtime~2]
-        let runtime = if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
+        let runtime = if let Some(runtime) = self.runtime_map.get(&workload_named.workload.runtime)
+        {
             runtime
         } else {
             log::warn!(
                 "Could not find runtime '{}'. Workload '{}' not scheduled.",
-                workload_spec.runtime,
+                workload_named.workload.runtime,
                 workload_name
             );
             unsupported_runtime = Box::new(GenericRuntimeFacade::new(
-                Box::new(UnsupportedRuntime(workload_spec.runtime.clone())),
+                Box::new(UnsupportedRuntime(workload_named.workload.runtime.clone())),
                 PathBuf::new(),
             ));
             &unsupported_runtime
         };
         // [impl->swdd~agent-executes-create-workload-operation~1]
         let workload = runtime.create_workload(
-            reusable_workload_spec,
+            reusable_workload,
             control_interface_info,
             &self.update_state_tx,
         );
@@ -573,24 +570,24 @@ impl RuntimeManager {
             self.update_state_tx
                 .report_workload_execution_state(
                     &deleted_workload.instance_name,
-                    ExecutionState::removed(),
+                    ExecutionStateSpec::removed(),
                 )
                 .await;
         }
     }
 
     // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
-    async fn update_workload(&mut self, workload_spec: WorkloadSpec) {
-        let workload_name = workload_spec.instance_name.workload_name().to_owned();
+    async fn update_workload(&mut self, workload_named: WorkloadNamed) {
+        let workload_name = workload_named.instance_name.workload_name().to_owned();
 
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
             // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
-            let control_interface_info = if workload_spec.needs_control_interface() {
+            let control_interface_info = if workload_named.workload.needs_control_interface() {
                 Some(ControlInterfaceInfo::new(
-                    ControlInterfacePath::from((&self.run_folder, &workload_spec.instance_name)),
+                    ControlInterfacePath::from((&self.run_folder, &workload_named.instance_name)),
                     self.control_interface_tx.clone(),
-                    &workload_spec.instance_name,
-                    Authorizer::from(&workload_spec.control_interface_access),
+                    &workload_named.instance_name,
+                    Authorizer::from(&workload_named.workload.control_interface_access),
                 ))
             } else {
                 log::info!(
@@ -600,7 +597,7 @@ impl RuntimeManager {
             };
             // [impl->swdd~agent-executes-update-workload-operation~1]
             if let Err(err) = workload
-                .update(Some(workload_spec), control_interface_info)
+                .update(Some(workload_named), control_interface_info)
                 .await
             {
                 log::error!("Failed to update workload '{workload_name}': '{err}'");
@@ -608,7 +605,7 @@ impl RuntimeManager {
         } else {
             log::warn!("Workload for update '{workload_name}' not found. Recreating.");
             // [impl->swdd~agent-add-on-update-missing-workload~1]
-            self.add_workload(ReusableWorkloadSpec::new(workload_spec, None))
+            self.add_workload(ReusableWorkload::new(workload_named, None))
                 .await;
         }
     }
@@ -626,8 +623,8 @@ impl RuntimeManager {
     // [impl->swdd~agent-runtime-manager-creates-log-fetchers~1]
     pub async fn get_log_fetchers(
         &self,
-        log_request: LogsRequest,
-    ) -> Vec<(WorkloadInstanceName, Box<dyn LogFetcher>)> {
+        log_request: LogsRequestSpec,
+    ) -> Vec<(WorkloadInstanceNameSpec, Box<dyn LogFetcher>)> {
         let mut res = Vec::new();
         let log_request_options: LogRequestOptions = log_request.clone().into();
         for workload in log_request.workload_names {
@@ -664,8 +661,7 @@ impl RuntimeManager {
 #[cfg(test)]
 mod tests {
     use super::{
-        ControlInterfaceInfo, DeletedWorkload, ExecutionState, RuntimeFacade, RuntimeManager,
-        WorkloadInstanceName, WorkloadOperation, WorkloadSpec, ank_base,
+        ControlInterfaceInfo, DeletedWorkload, RuntimeFacade, RuntimeManager, WorkloadOperation,
     };
     use crate::control_interface::{
         MockControlInterface, authorizer::MockAuthorizer,
@@ -678,41 +674,31 @@ mod tests {
     };
     use crate::runtime_manager::ToReusableWorkloadSpecs;
     use crate::workload::{MockWorkload, WorkloadError};
-    use crate::workload_operation::ReusableWorkloadSpec;
+    use crate::workload_operation::ReusableWorkload;
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
     use crate::workload_state::WorkloadStateReceiver;
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
-    use ank_base::response::ResponseContent;
-    use api::ank_base::Files;
-    use common::commands::LogsRequest;
-    use common::objects::{
-        self, AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
-        generate_test_control_interface_access,
-        generate_test_workload_spec_with_control_interface_access,
-        generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
+
+    use ankaios_api::ank_base::{
+        self, CompleteStateResponse, ExecutionStateSpec, LogsRequestSpec, Response,
+        ResponseContent, WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadNamed,
+        WorkloadStateSpec,
     };
-    use common::test_utils::{
-        self, generate_test_complete_state, generate_test_deleted_workload,
+    use ankaios_api::test_utils::{
+        generate_test_complete_state, generate_test_control_interface_access,
         generate_test_deleted_workload_with_dependencies,
+        generate_test_deleted_workload_with_params, generate_test_proto_complete_state,
+        generate_test_workload_named, generate_test_workload_named_with_params,
+        generate_test_workload_with_params, fixtures,
     };
     use common::to_server_interface::ToServerReceiver;
+
     use mockall::{Sequence, predicate};
     use std::collections::HashMap;
     use std::error::Error;
     use std::fmt::Display;
     use std::{any::Any, path::Path};
     use tokio::sync::mpsc::channel;
-
-    const BUFFER_SIZE: usize = 20;
-    const RUNTIME_NAME: &str = "runtime1";
-    const RUNTIME_NAME_2: &str = "runtime2";
-    const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_1_NAME: &str = "workload1";
-    const WORKLOAD_2_NAME: &str = "workload2";
-    const WORKLOAD_3_NAME: &str = "workload3";
-    const WORKLOAD_ID: &str = "workload_id";
-    const REQUEST_ID: &str = "request_id";
-    const RUN_FOLDER: &str = "run/folder";
 
     #[derive(Default)]
     pub struct RuntimeManagerBuilder {
@@ -731,11 +717,11 @@ mod tests {
         }
 
         pub fn build(self) -> (ToServerReceiver, RuntimeManager, WorkloadStateReceiver) {
-            let (to_server, server_receiver) = channel(BUFFER_SIZE);
-            let (wl_state_sender, wl_state_receiver) = channel(BUFFER_SIZE);
+            let (to_server, server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+            let (wl_state_sender, wl_state_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
             let runtime_manager = RuntimeManager::new(
-                AGENT_NAME.into(),
-                Path::new(RUN_FOLDER).into(),
+                fixtures::AGENT_NAMES[0].into(),
+                Path::new(fixtures::RUN_FOLDER).into(),
                 to_server.clone(),
                 self.runtime_facade_map,
                 wl_state_sender.clone(),
@@ -760,22 +746,23 @@ mod tests {
             .times(1)
             .returning(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload_access = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
+        let new_workload_access = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
-        let new_workload_no_access = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_2_NAME.to_string(),
-            RUNTIME_NAME_2.to_string(),
+        let mut new_workload_no_access = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[1],
         );
+        new_workload_no_access.workload.control_interface_access = Default::default();
 
         let added_workloads = vec![new_workload_access.clone(), new_workload_no_access.clone()];
         let workload_operations = vec![
-            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload_access, None)),
-            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload_no_access, None)),
+            WorkloadOperation::Create(ReusableWorkload::new(new_workload_access, None)),
+            WorkloadOperation::Create(ReusableWorkload::new(new_workload_no_access, None)),
         ];
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -814,11 +801,11 @@ mod tests {
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                RUNTIME_NAME,
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .with_runtime(
-                RUNTIME_NAME_2,
+                fixtures::RUNTIME_NAMES[1],
                 Box::new(runtime_facade_mock_2) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -827,8 +814,16 @@ mod tests {
             .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[1])
+        );
     }
 
     // [utest->swdd~agent-skips-unknown-runtime~2]
@@ -845,15 +840,14 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let workload_with_unknown_runtime =
-            generate_test_workload_spec_with_control_interface_access(
-                AGENT_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                "unknown_runtime1".to_string(),
-            );
+        let workload_with_unknown_runtime = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            "unknown_runtime",
+        );
         let added_workloads = vec![workload_with_unknown_runtime.clone()];
 
-        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             workload_with_unknown_runtime,
             None,
         ))];
@@ -893,7 +887,7 @@ mod tests {
         let (_server_recv, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -917,14 +911,14 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let workload = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
+        let workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
         let added_workloads = vec![workload.clone()];
 
-        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             workload, None,
         ))];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -954,12 +948,12 @@ mod tests {
         runtime_facade_mock
             .expect_create_workload()
             .once()
-            .withf(|reusable_workload_spec, control_interface, to_server| {
-                reusable_workload_spec
-                    .workload_spec
+            .withf(|reusable_workload, control_interface, to_server| {
+                reusable_workload
+                    .workload_named
                     .instance_name
                     .workload_name()
-                    == WORKLOAD_1_NAME
+                    == fixtures::WORKLOAD_NAMES[0]
                     && control_interface.is_some()
                     && !to_server.is_closed()
             })
@@ -968,7 +962,7 @@ mod tests {
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -978,7 +972,11 @@ mod tests {
             .await;
         server_receiver.close();
 
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-control-interface-created-for-eligible-workloads~1]
@@ -1021,7 +1019,7 @@ mod tests {
         let (_server_recv, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -1030,24 +1028,13 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
-        let workload_spec_no_access = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-        runtime_manager
-            .update_workload(workload_spec_no_access)
-            .await;
+        let mut workload_no_access = generate_test_workload_named();
+        workload_no_access.workload.control_interface_access = Default::default();
+        runtime_manager.update_workload(workload_no_access).await;
 
         control_interface_info_new_context.expect().never();
-        let workload_spec_has_access = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-        runtime_manager
-            .update_workload(workload_spec_has_access)
-            .await;
+        let workload_has_access = generate_test_workload_named();
+        runtime_manager.update_workload(workload_has_access).await;
     }
 
     // [utest->swdd~agent-existing-workloads-resume-existing~2]
@@ -1079,16 +1066,12 @@ mod tests {
             .once()
             .return_once(|_| mock_workload_scheduler);
 
-        let existing_workload = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let existing_workload = generate_test_workload_named();
 
         let existing_workload_instance_name = existing_workload.instance_name.clone();
-        let resuable_workload_state_running = ReusableWorkloadState::new(
+        let reusable_workload_state_running = ReusableWorkloadState::new(
             existing_workload_instance_name,
-            ExecutionState::running(),
+            ExecutionStateSpec::running(),
             None,
         );
 
@@ -1096,7 +1079,7 @@ mod tests {
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![resuable_workload_state_running]) }));
+            .return_once(|_| Box::pin(async { Ok(vec![reusable_workload_state_running]) }));
 
         runtime_facade_mock
             .expect_resume_workload()
@@ -1107,7 +1090,7 @@ mod tests {
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                RUNTIME_NAME,
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -1117,7 +1100,11 @@ mod tests {
             .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-existing-workloads-replace-updated~4]
@@ -1127,11 +1114,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let existing_workload = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let existing_workload = generate_test_workload_named();
 
         let added_workloads = vec![existing_workload.clone()];
 
@@ -1143,14 +1126,14 @@ mod tests {
 
         // create workload with different config string to simulate a replace of a existing workload
         let existing_workload_with_other_config = WorkloadInstanceNameBuilder::default()
-            .workload_name(WORKLOAD_1_NAME)
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .config(&String::from("different config"))
-            .agent_name(AGENT_NAME)
+            .agent_name(fixtures::AGENT_NAMES[0])
             .build();
 
         let reusable_workload_state_running = ReusableWorkloadState::new(
             existing_workload_with_other_config.clone(),
-            ExecutionState::running(),
+            ExecutionStateSpec::running(),
             None,
         );
 
@@ -1167,13 +1150,13 @@ mod tests {
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                RUNTIME_NAME,
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
 
-        let expected_new_added_workloads: Vec<ReusableWorkloadSpec> =
-            added_workloads.clone().into_reusable_workload_specs();
+        let expected_new_added_workloads: Vec<ReusableWorkload> =
+            added_workloads.clone().into_reusable_workloads();
         let (new_added_workloads, deleted_workloads) = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
@@ -1186,7 +1169,11 @@ mod tests {
             }],
             deleted_workloads
         );
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME)); // existing workload is resumed
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        ); // existing workload is resumed
     }
 
     // [utest->swdd~agent-existing-workloads-replace-updated~4]
@@ -1196,11 +1183,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let existing_workload = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let existing_workload = generate_test_workload_named();
         let added_workloads = vec![existing_workload.clone()];
 
         let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
@@ -1211,7 +1194,7 @@ mod tests {
 
         let reusable_workload_state_succeeded = ReusableWorkloadState::new(
             existing_workload.instance_name.clone(),
-            ExecutionState::failed("some error"),
+            ExecutionStateSpec::failed("some error"),
             None,
         );
 
@@ -1227,13 +1210,13 @@ mod tests {
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                RUNTIME_NAME,
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
 
-        let expected_added_workloads: Vec<ReusableWorkloadSpec> =
-            added_workloads.clone().into_reusable_workload_specs();
+        let expected_added_workloads: Vec<ReusableWorkload> =
+            added_workloads.clone().into_reusable_workloads();
         let (new_added_workloads, deleted_workloads) = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
@@ -1246,7 +1229,11 @@ mod tests {
             }],
             deleted_workloads
         );
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME)); // existing workload is resumed
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        ); // existing workload is resumed
     }
 
     // [utest->swdd~agent-existing-workloads-replace-updated~4]
@@ -1256,11 +1243,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let existing_workload = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let existing_workload = generate_test_workload_named();
 
         let added_workloads = vec![existing_workload.clone()];
 
@@ -1270,9 +1253,9 @@ mod tests {
             .once()
             .return_once(|_| MockWorkloadScheduler::default());
 
-        let resuable_workload_state_succeeded = ReusableWorkloadState::new(
+        let reusable_workload_state_succeeded = ReusableWorkloadState::new(
             existing_workload.instance_name.clone(),
-            ExecutionState::failed("some error"),
+            ExecutionStateSpec::failed("some error"),
             None,
         );
 
@@ -1280,22 +1263,22 @@ mod tests {
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![resuable_workload_state_succeeded]) }));
+            .return_once(|_| Box::pin(async { Ok(vec![reusable_workload_state_succeeded]) }));
         runtime_facade_mock.expect_resume_workload().never();
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                RUNTIME_NAME,
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_owned(), MockWorkload::default()); // workload is known
+            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), MockWorkload::default()); // workload is known
 
-        let expected_added_workloads: Vec<ReusableWorkloadSpec> =
-            added_workloads.clone().into_reusable_workload_specs();
+        let expected_added_workloads: Vec<ReusableWorkload> =
+            added_workloads.clone().into_reusable_workloads();
         let (new_added_workloads, deleted_workloads) = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
@@ -1309,7 +1292,11 @@ mod tests {
             }],
             deleted_workloads
         );
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-existing-workloads-reuse-unmodified~1]
@@ -1319,11 +1306,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let existing_workload = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let existing_workload = generate_test_workload_named();
 
         let added_workloads = vec![existing_workload.clone()];
 
@@ -1333,32 +1316,31 @@ mod tests {
             .once()
             .return_once(|_| MockWorkloadScheduler::default());
 
-        const WORKLOAD_ID: &str = "workload_id_1";
-        let resuable_workload_state_succeeded = ReusableWorkloadState::new(
+        let reusable_workload_state_succeeded = ReusableWorkloadState::new(
             existing_workload.instance_name.clone(),
-            ExecutionState::succeeded(),
-            Some(WORKLOAD_ID.to_string()),
+            ExecutionStateSpec::succeeded(),
+            Some(fixtures::WORKLOAD_IDS[0].to_string()),
         );
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![resuable_workload_state_succeeded]) }));
+            .return_once(|_| Box::pin(async { Ok(vec![reusable_workload_state_succeeded]) }));
 
         runtime_facade_mock.expect_delete_workload().never();
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                RUNTIME_NAME,
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
 
-        let expected_new_added_workloads: Vec<ReusableWorkloadSpec> = added_workloads
+        let expected_new_added_workloads: Vec<ReusableWorkload> = added_workloads
             .clone()
             .into_iter()
-            .map(|w| ReusableWorkloadSpec::new(w, Some(WORKLOAD_ID.to_string())))
+            .map(|w| ReusableWorkload::new(w, Some(fixtures::WORKLOAD_IDS[0].to_string())))
             .collect();
         let (new_added_workloads, deleted_workloads) = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
@@ -1366,7 +1348,11 @@ mod tests {
 
         assert_eq!(expected_new_added_workloads, new_added_workloads);
         assert!(deleted_workloads.is_empty());
-        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            !runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-existing-workloads-delete-unneeded~2]
@@ -1377,9 +1363,9 @@ mod tests {
             .await;
 
         let existing_unneeded_workload = WorkloadInstanceNameBuilder::default()
-            .workload_name(WORKLOAD_1_NAME)
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .config(&String::from("different config"))
-            .agent_name(AGENT_NAME)
+            .agent_name(fixtures::AGENT_NAMES[0])
             .build();
 
         let workload_operations = vec![];
@@ -1403,7 +1389,7 @@ mod tests {
                 Box::pin(async move {
                     Ok(vec![ReusableWorkloadState::new(
                         existing_unneeded_workload,
-                        ExecutionState::default(),
+                        ExecutionStateSpec::default(),
                         None,
                     )])
                 })
@@ -1416,7 +1402,7 @@ mod tests {
 
         let (_, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
             .with_runtime(
-                RUNTIME_NAME,
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -1436,9 +1422,9 @@ mod tests {
             .await;
 
         let existing_unneeded_workload = WorkloadInstanceNameBuilder::default()
-            .workload_name(WORKLOAD_1_NAME)
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .config(&String::from("different config"))
-            .agent_name(AGENT_NAME)
+            .agent_name(fixtures::AGENT_NAMES[0])
             .build();
 
         let workload_operations = vec![];
@@ -1462,7 +1448,7 @@ mod tests {
                 Box::pin(async move {
                     Ok(vec![ReusableWorkloadState::new(
                         existing_unneeded_workload,
-                        ExecutionState::default(),
+                        ExecutionStateSpec::default(),
                         None,
                     )])
                 })
@@ -1472,7 +1458,7 @@ mod tests {
 
         let (_, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
             .with_runtime(
-                RUNTIME_NAME,
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -1482,7 +1468,7 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         runtime_manager
             .handle_server_hello(vec![], &MockWorkloadStateStore::default())
@@ -1499,11 +1485,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let added_workloads = vec![generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        )];
+        let added_workloads: Vec<WorkloadNamed> = vec![generate_test_workload_named()];
 
         let workload_operations = vec![];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -1528,7 +1510,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -1574,7 +1556,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -1583,23 +1565,16 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
-        let workload_spec_no_access = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let mut workload_no_access = generate_test_workload_named();
+        workload_no_access.workload.control_interface_access = Default::default();
         runtime_manager
-            .add_workload(ReusableWorkloadSpec::new(workload_spec_no_access, None))
+            .add_workload(ReusableWorkload::new(workload_no_access, None))
             .await;
 
         control_interface_info_new_context.expect().never();
-        let workload_spec_has_access = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload_has_access = generate_test_workload_named();
         runtime_manager
-            .add_workload(ReusableWorkloadSpec::new(workload_spec_has_access, None))
+            .add_workload(ReusableWorkload::new(workload_has_access, None))
             .await;
     }
 
@@ -1615,10 +1590,10 @@ mod tests {
         control_interface_mock.expect().never();
 
         // create workload with different config string to simulate a replace of a existing workload
-        let existing_workload_with_other_config = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME)
+        let existing_workload_with_other_config = WorkloadInstanceNameSpec::builder()
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .config(&String::from("different config"))
-            .agent_name(AGENT_NAME)
+            .agent_name(fixtures::AGENT_NAMES[0])
             .build();
 
         let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(DeletedWorkload {
@@ -1637,11 +1612,7 @@ mod tests {
             .once()
             .return_once(|_| mock_workload_scheduler);
 
-        let existing_workload = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let existing_workload = generate_test_workload_named();
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
@@ -1651,7 +1622,7 @@ mod tests {
                 Box::pin(async {
                     Ok(vec![ReusableWorkloadState::new(
                         existing_workload_with_other_config,
-                        ExecutionState::default(),
+                        ExecutionStateSpec::default(),
                         None,
                     )])
                 })
@@ -1670,7 +1641,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -1681,7 +1652,11 @@ mod tests {
             .await;
 
         // the old workload is resumed followed by an update delete only
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-updates-deleted-and-added-workloads~1]
@@ -1693,10 +1668,10 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let new_workload = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
+        let new_workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         let control_interface_info_mock = MockControlInterfaceInfo::new_context();
@@ -1705,8 +1680,10 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let old_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
+        let old_workload = generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0].to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+        );
 
         let workload_operations = vec![WorkloadOperation::Update(
             new_workload.clone(),
@@ -1729,7 +1706,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -1739,14 +1716,10 @@ mod tests {
             .expect_update()
             .once()
             .with(
-                predicate::function(|workload_spec: &Option<WorkloadSpec>| {
-                    workload_spec.is_some()
-                        && workload_spec
-                            .as_ref()
-                            .unwrap()
-                            .instance_name
-                            .workload_name()
-                            == WORKLOAD_1_NAME
+                predicate::function(|workload: &Option<WorkloadNamed>| {
+                    workload.is_some()
+                        && workload.as_ref().unwrap().instance_name.workload_name()
+                            == fixtures::WORKLOAD_NAMES[0]
                 }),
                 predicate::function(|control_interface: &Option<ControlInterfaceInfo>| {
                     control_interface.is_some()
@@ -1756,7 +1729,7 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         let added_workloads = vec![new_workload];
         let deleted_workloads = vec![old_workload];
@@ -1769,7 +1742,11 @@ mod tests {
             )
             .await;
 
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-deletes-workload~1]
@@ -1787,18 +1764,20 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_2_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
+        let new_workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
-        let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
+        let deleted_workload = generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+        );
 
         let workload_operations = vec![
             WorkloadOperation::Delete(deleted_workload.clone()),
-            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload.clone(), None)),
+            WorkloadOperation::Create(ReusableWorkload::new(new_workload.clone(), None)),
         ];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
@@ -1825,12 +1804,12 @@ mod tests {
         runtime_facade_mock
             .expect_create_workload()
             .once()
-            .withf(|reusable_workload_spec, control_interface, to_server| {
-                reusable_workload_spec
-                    .workload_spec
+            .withf(|reusable_workload, control_interface, to_server| {
+                reusable_workload
+                    .workload_named
                     .instance_name
                     .workload_name()
-                    == WORKLOAD_2_NAME
+                    == fixtures::WORKLOAD_NAMES[1]
                     && control_interface.is_some()
                     && !to_server.is_closed()
             })
@@ -1840,14 +1819,14 @@ mod tests {
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         let added_workloads = vec![new_workload];
         let deleted_workloads = vec![deleted_workload];
@@ -1861,8 +1840,16 @@ mod tests {
             .await;
         server_receiver.close();
 
-        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
+        assert!(
+            !runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[1])
+        );
     }
 
     // [utest->swdd~agent-add-on-update-missing-workload~1]
@@ -1879,16 +1866,18 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
+        let new_workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
-        let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
+        let deleted_workload = generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+        );
 
-        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             new_workload.clone(),
             None,
         ))];
@@ -1913,7 +1902,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -1928,7 +1917,11 @@ mod tests {
             )
             .await;
 
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-update-on-add-known-workload~1]
@@ -1939,11 +1932,7 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let new_workload = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let new_workload = generate_test_workload_named();
 
         let control_interface_info_mock = MockControlInterfaceInfo::new_context();
         control_interface_info_mock
@@ -1952,8 +1941,8 @@ mod tests {
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let old_workload = generate_test_deleted_workload_with_dependencies(
-            AGENT_NAME.to_owned(),
-            WORKLOAD_1_NAME.to_owned(),
+            fixtures::AGENT_NAMES[0].to_owned(),
+            fixtures::WORKLOAD_NAMES[0].to_owned(),
             Default::default(),
         );
 
@@ -1976,7 +1965,7 @@ mod tests {
         let runtime_facade_mock = MockRuntimeFacade::new();
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                RUNTIME_NAME,
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -1985,28 +1974,28 @@ mod tests {
         workload_mock
             .expect_update()
             .once()
-            .withf(|workload_spec, control_interface| {
-                workload_spec.is_some()
-                    && workload_spec
-                        .as_ref()
-                        .unwrap()
-                        .instance_name
-                        .workload_name()
-                        == WORKLOAD_1_NAME
+            .withf(|workload, control_interface| {
+                workload.is_some()
+                    && workload.as_ref().unwrap().instance_name.workload_name()
+                        == fixtures::WORKLOAD_NAMES[0]
                     && control_interface.is_some()
             })
             .return_once(move |_, _| Ok(()));
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         let added_workloads = vec![new_workload];
         runtime_manager
             .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-added-creates-workload~1]
@@ -2025,13 +2014,9 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let new_workload = generate_test_workload_named();
 
-        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             new_workload.clone(),
             None,
         ))];
@@ -2051,12 +2036,12 @@ mod tests {
         runtime_facade_mock
             .expect_create_workload()
             .once()
-            .withf(|resuable_workload_spec, control_interface, to_server| {
-                resuable_workload_spec
-                    .workload_spec
+            .withf(|reusable_workload, control_interface, to_server| {
+                reusable_workload
+                    .workload_named
                     .instance_name
                     .workload_name()
-                    == WORKLOAD_1_NAME
+                    == fixtures::WORKLOAD_NAMES[0]
                     && control_interface.is_some()
                     && !to_server.is_closed()
             })
@@ -2065,7 +2050,7 @@ mod tests {
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -2076,7 +2061,11 @@ mod tests {
             .await;
         server_receiver.close();
 
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-handles-new-workload-operations~1]
@@ -2106,23 +2095,23 @@ mod tests {
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
 
-        let added_workloads = vec![generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        )];
+        let added_workloads: Vec<WorkloadNamed> = vec![generate_test_workload_named()];
 
         runtime_manager
             .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
         server_receiver.close();
 
-        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            !runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-executes-update-delete-only-workload-operation~1]
@@ -2133,14 +2122,16 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let new_workload = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
+        let new_workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
-        let old_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
+        let old_workload = generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+        );
 
         let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(old_workload.clone())];
 
@@ -2159,7 +2150,7 @@ mod tests {
         let runtime_facade_mock = MockRuntimeFacade::new();
         let (_, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
             .with_runtime(
-                RUNTIME_NAME,
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -2169,7 +2160,7 @@ mod tests {
             .expect_update()
             .once()
             .with(
-                predicate::eq(None), // in case of update delete only there is no new workload spec
+                predicate::eq(None), // in case of update delete only there is no new workload
                 predicate::function(|control_interface: &Option<ControlInterfaceInfo>| {
                     control_interface.is_none()
                 }),
@@ -2178,7 +2169,7 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         let added_workloads = vec![new_workload];
         let deleted_workloads = vec![old_workload];
@@ -2190,7 +2181,11 @@ mod tests {
                 &MockWorkloadStateStore::default(),
             )
             .await;
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-handles-new-workload-operations~1]
@@ -2220,8 +2215,10 @@ mod tests {
         let mut workload_mock = MockWorkload::default();
         workload_mock.expect_delete().never();
 
-        let new_deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
+        let new_deleted_workload = generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+        );
 
         runtime_manager.workloads.insert(
             new_deleted_workload
@@ -2241,7 +2238,11 @@ mod tests {
             .await;
         server_receiver.close();
 
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-forward-responses-to-control-interface-pipe~1]
@@ -2264,18 +2265,19 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
 
-        let request_id: String = REQUEST_ID.to_string();
-        let complete_state_response = ank_base::CompleteStateResponse::default();
-        let expected_response = ank_base::Response {
+        let request_id: String = fixtures::REQUEST_ID.to_string();
+        let complete_state_response = CompleteStateResponse::default();
+
+        let expected_response = Response {
             request_id,
-            response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
-                Box::new(complete_state_response.clone()),
-            )),
+            response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                complete_state_response.clone(),
+            ))),
         };
         let mut mock_workload = MockWorkload::default();
         mock_workload
@@ -2286,14 +2288,14 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), mock_workload);
 
         runtime_manager
-            .forward_response(ank_base::Response {
-                request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
-                    Box::new(complete_state_response),
-                )),
+            .forward_response(Response {
+                request_id: format!("{}@{}", fixtures::WORKLOAD_NAMES[0], fixtures::REQUEST_ID),
+                response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                    complete_state_response,
+                ))),
             })
             .await;
     }
@@ -2316,53 +2318,27 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
-        let request_id: String = REQUEST_ID.to_string();
-        let workloads = [(WORKLOAD_1_NAME,
-                            ank_base::Workload {
-                                agent: Some(AGENT_NAME.to_string()),
-                                restart_policy: Some(ank_base::RestartPolicy::Always as i32),
-                                dependencies: Some(ank_base::Dependencies {
-                                    dependencies: HashMap::from([
-                                        (
-                                            "workload_A".to_string(),
-                                            AddCondition::AddCondRunning as i32,
-                                        ),
-                                        (
-                                            "workload_C".to_string(),
-                                            AddCondition::AddCondSucceeded as i32,
-                                        ),
-                                    ]),
-                                }),
-                                tags: Some(ank_base::Tags {
-                                    tags: vec![ank_base::Tag {
-                                        key: "key".to_string(),
-                                        value: "value".to_string(),
-                                    }],
-                                }),
-                                runtime: Some("runtime1".to_string()),
-                                runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()),
-                                control_interface_access: None,
-                                configs: Some(ank_base::ConfigMappings {
-                                    configs: Default::default()}),
-                                files: Some(Files::default()),
-                            })];
-        let mut complete_state = test_utils::generate_test_proto_complete_state(&workloads);
+        let request_id: String = fixtures::REQUEST_ID.to_string();
+        let workloads = [(
+            fixtures::WORKLOAD_NAMES[0],
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::RUNTIME_NAMES[0]).into(),
+        )];
+        let mut complete_state = generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {
             agent_state_map: HashMap::from([(
-                AGENT_NAME.to_string(),
+                fixtures::AGENT_NAMES[0].to_string(),
                 ank_base::ExecutionsStatesOfWorkload {
                     wl_name_state_map: HashMap::from([(
-                        WORKLOAD_1_NAME.to_string(),
+                        fixtures::WORKLOAD_NAMES[0].to_string(),
                         ank_base::ExecutionsStatesForId {
                             id_state_map: HashMap::from([(
-                                "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed"
-                                    .to_string(),
+                                fixtures::WORKLOAD_IDS[0].to_string(),
                                 ank_base::ExecutionState {
-                                    additional_info: "".to_string(),
+                                    additional_info: Some("".to_string()),
                                     execution_state_enum: Some(
                                         ank_base::execution_state::ExecutionStateEnum::Running(0),
                                     ),
@@ -2376,15 +2352,18 @@ mod tests {
 
         complete_state.agents = Some(ank_base::AgentMap {
             agents: HashMap::from([(
-                AGENT_NAME.to_owned(),
-                objects::AgentAttributes {
-                    cpu_usage: Some(objects::CpuUsage { cpu_usage: 42 }),
-                    free_memory: Some(objects::FreeMemory { free_memory: 42 }),
-                }
-                .into(),
+                fixtures::AGENT_NAMES[0].to_owned(),
+                ank_base::AgentAttributes {
+                    status: Some(ank_base::AgentStatus {
+                        cpu_usage: Some(ank_base::CpuUsage::from(fixtures::CPU_USAGE_SPEC)),
+                        free_memory: Some(ank_base::FreeMemory::from(fixtures::FREE_MEMORY_SPEC)),
+                    }),
+                    ..Default::default()
+                },
             )]),
         });
-        let expected_response = ank_base::Response {
+
+        let expected_response = Response {
             request_id,
             response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
                 ank_base::CompleteStateResponse {
@@ -2393,6 +2372,23 @@ mod tests {
                 },
             ))),
         };
+        let forwarded_response = Response {
+            request_id: format!("{}@{}", fixtures::WORKLOAD_NAMES[0], fixtures::REQUEST_ID),
+            response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                ank_base::CompleteStateResponse {
+                    complete_state: Some(
+                        generate_test_complete_state(vec![generate_test_workload_named_with_params(
+                            fixtures::WORKLOAD_NAMES[0],
+                            fixtures::AGENT_NAMES[0],
+                            fixtures::RUNTIME_NAMES[0],
+                        )])
+                        .into(),
+                    ),
+                    ..Default::default()
+                },
+            ))),
+        };
+
         let mut mock_workload = MockWorkload::default();
         mock_workload
             .expect_forward_response()
@@ -2406,21 +2402,22 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), mock_workload);
 
-        runtime_manager
-            .forward_response(ank_base::Response {
-                request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
-                    generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                        AGENT_NAME.to_string(),
-                        WORKLOAD_1_NAME.to_string(),
-                        RUNTIME_NAME.to_string(),
-                    )])
-                    .into(),
-                ))),
-            })
-            .await;
+        // runtime_manager
+        //     .forward_response(ank_base::Response {
+        //         request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
+        //         response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+        //             generate_test_complete_state(vec![generate_test_workload_spec_with_param(
+        //                 AGENT_NAME.to_string(),
+        //                 WORKLOAD_1_NAME.to_string(),
+        //                 RUNTIME_NAME.to_string(),
+        //             )])
+        //             .into(),
+        //         ))),
+        //     })
+        //     .await;
+        runtime_manager.forward_response(forwarded_response).await;
     }
 
     // [utest->swdd~agent-forward-responses-to-control-interface-pipe~1]
@@ -2441,7 +2438,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -2450,18 +2447,11 @@ mod tests {
         mock_workload.expect_forward_response().never();
 
         runtime_manager
-            .forward_response(ank_base::Response {
-                request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
-                    Box::new(
-                        generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                            AGENT_NAME.to_string(),
-                            WORKLOAD_1_NAME.to_string(),
-                            RUNTIME_NAME.to_string(),
-                        )])
-                        .into(),
-                    ),
-                )),
+            .forward_response(Response {
+                request_id: format!("{}@{}", fixtures::WORKLOAD_NAMES[0], fixtures::REQUEST_ID),
+                response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                    generate_test_complete_state(vec![generate_test_workload_named()]).into(),
+                ))),
             })
             .await;
     }
@@ -2480,17 +2470,11 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let mut workload_spec = generate_test_workload_spec_with_dependencies(
-            AGENT_NAME,
-            WORKLOAD_1_NAME,
-            RUNTIME_NAME,
-            HashMap::from([(WORKLOAD_2_NAME.to_string(), AddCondition::AddCondRunning)]),
-        );
-        workload_spec.control_interface_access = generate_test_control_interface_access();
+        let mut workload = generate_test_workload_named();
+        workload.workload.control_interface_access = generate_test_control_interface_access();
 
-        let next_workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
-            workload_spec,
-            None,
+        let next_workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
+            workload, None,
         ))];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
@@ -2513,7 +2497,7 @@ mod tests {
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -2523,7 +2507,11 @@ mod tests {
             .await;
         server_receiver.close();
 
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
@@ -2552,7 +2540,7 @@ mod tests {
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -2562,7 +2550,11 @@ mod tests {
             .await;
         server_receiver.close();
 
-        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            !runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
@@ -2573,8 +2565,10 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+        let deleted_workload = generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+        );
 
         let next_workload_operations = vec![WorkloadOperation::Delete(deleted_workload)];
 
@@ -2601,14 +2595,18 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_owned(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), workload_mock);
 
         runtime_manager
             .update_workloads_on_fulfilled_dependencies(&MockWorkloadStateStore::default())
             .await;
         server_receiver.close();
 
-        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            !runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
@@ -2639,14 +2637,18 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_owned(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), workload_mock);
 
         runtime_manager
             .update_workloads_on_fulfilled_dependencies(&MockWorkloadStateStore::default())
             .await;
         server_receiver.close();
 
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
     }
 
     #[tokio::test]
@@ -2656,9 +2658,9 @@ mod tests {
             .await;
 
         let instance_name = WorkloadInstanceNameBuilder::default()
-            .workload_name(WORKLOAD_1_NAME)
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .config(&String::from("some config"))
-            .agent_name(AGENT_NAME)
+            .agent_name(fixtures::AGENT_NAMES[0])
             .build();
 
         let mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -2680,16 +2682,23 @@ mod tests {
         server_receiver.close();
         let wl_state_msg = wl_state_receiver.recv().await;
 
-        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(
+            !runtime_manager
+                .workloads
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
+        );
         assert_ne!(wl_state_msg, None);
 
-        let WorkloadState {
+        let WorkloadStateSpec {
             instance_name: actual_instance_name,
             execution_state: actual_execution_state,
         } = wl_state_msg.unwrap();
 
-        assert_eq!(actual_instance_name.workload_name(), WORKLOAD_1_NAME);
-        assert_eq!(actual_execution_state, ExecutionState::removed());
+        assert_eq!(
+            actual_instance_name.workload_name(),
+            fixtures::WORKLOAD_NAMES[0]
+        );
+        assert_eq!(actual_execution_state, ExecutionStateSpec::removed());
     }
 
     // [utest->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
@@ -2708,18 +2717,14 @@ mod tests {
         let (_server_receiver, runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
 
-        let new_workload = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_owned(),
-            WORKLOAD_1_NAME.to_owned(),
-            RUNTIME_NAME.to_owned(),
-        );
-        let added_workloads = vec![ReusableWorkloadSpec::new(new_workload.clone(), None)];
+        let new_workload = generate_test_workload_named();
+        let added_workloads = vec![ReusableWorkload::new(new_workload.clone(), None)];
         let deleted_workloads = vec![];
         let workload_operations =
             runtime_manager.transform_into_workload_operations(added_workloads, deleted_workloads);
 
         assert_eq!(
-            vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+            vec![WorkloadOperation::Create(ReusableWorkload::new(
                 new_workload,
                 None
             ))],
@@ -2743,8 +2748,10 @@ mod tests {
         let (_server_receiver, runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
         let added_workloads = vec![];
-        let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+        let deleted_workload = generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+        );
         let deleted_workloads = vec![deleted_workload.clone()];
         let workload_operations =
             runtime_manager.transform_into_workload_operations(added_workloads, deleted_workloads);
@@ -2771,14 +2778,16 @@ mod tests {
         let (_server_receiver, runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
 
-        let new_workload = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_owned(),
-            WORKLOAD_1_NAME.to_owned(),
-            RUNTIME_NAME.to_owned(),
+        let new_workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
-        let added_workloads = vec![ReusableWorkloadSpec::new(new_workload.clone(), None)];
-        let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+        let added_workloads = vec![ReusableWorkload::new(new_workload.clone(), None)];
+        let deleted_workload = generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+        );
         let deleted_workloads = vec![deleted_workload.clone()];
         let workload_operations =
             runtime_manager.transform_into_workload_operations(added_workloads, deleted_workloads);
@@ -2818,17 +2827,13 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    RUNTIME_NAME,
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
 
-        let new_workload = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_owned(),
-            WORKLOAD_1_NAME.to_owned(),
-            RUNTIME_NAME.to_owned(),
-        );
-        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+        let new_workload = generate_test_workload_named();
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             new_workload,
             None,
         ))];
@@ -2861,10 +2866,12 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
-        let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+        let deleted_workload = generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+        );
         let workload_operations = vec![WorkloadOperation::Delete(deleted_workload)];
         runtime_manager
             .execute_workload_operations(workload_operations)
@@ -2895,10 +2902,12 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
-        let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+        let deleted_workload = generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+        );
 
         let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(deleted_workload)];
         runtime_manager
@@ -2923,11 +2932,12 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
 
-        let new_workload = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_owned(),
-            WORKLOAD_1_NAME.to_owned(),
-            RUNTIME_NAME.to_owned(),
+        let mut new_workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
+        new_workload.workload.control_interface_access = Default::default();
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
@@ -2937,10 +2947,12 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
-        let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+        let deleted_workload = generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+        );
 
         let workload_operations = vec![WorkloadOperation::Update(new_workload, deleted_workload)];
         runtime_manager
@@ -2990,17 +3002,29 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(WORKLOAD_1_NAME.to_string(), workload_1_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_1_mock);
         runtime_manager
             .workloads
-            .insert(WORKLOAD_2_NAME.to_string(), workload_2_mock);
+            .insert(fixtures::WORKLOAD_NAMES[1].to_string(), workload_2_mock);
 
         let res = runtime_manager
-            .get_log_fetchers(LogsRequest {
+            .get_log_fetchers(LogsRequestSpec {
                 workload_names: vec![
-                    WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID),
-                    WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_2_NAME, WORKLOAD_ID),
-                    WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_3_NAME, WORKLOAD_ID),
+                    WorkloadInstanceNameSpec::new(
+                        fixtures::AGENT_NAMES[0],
+                        fixtures::WORKLOAD_NAMES[0],
+                        fixtures::WORKLOAD_IDS[0],
+                    ),
+                    WorkloadInstanceNameSpec::new(
+                        fixtures::AGENT_NAMES[0],
+                        fixtures::WORKLOAD_NAMES[1],
+                        fixtures::WORKLOAD_IDS[0],
+                    ),
+                    WorkloadInstanceNameSpec::new(
+                        fixtures::AGENT_NAMES[0],
+                        fixtures::WORKLOAD_NAMES[2],
+                        fixtures::WORKLOAD_IDS[0],
+                    ),
                 ],
                 follow: true,
                 tail: -1,
@@ -3012,7 +3036,11 @@ mod tests {
         assert_eq!(res.len(), 1);
         assert_eq!(
             &res[0].0,
-            &WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID)
+            &WorkloadInstanceNameSpec::new(
+                fixtures::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::WORKLOAD_IDS[0]
+            )
         );
     }
 

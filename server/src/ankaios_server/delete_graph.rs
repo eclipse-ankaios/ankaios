@@ -11,8 +11,9 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use common::objects::{
-    AddCondition, DeleteCondition, DeletedWorkload, WorkloadSpec, WorkloadState,
+
+use ankaios_api::ank_base::{
+    AddCondition, DeleteCondition, DeletedWorkload, WorkloadNamed, WorkloadStateSpec,
 };
 use std::collections::HashMap;
 
@@ -27,13 +28,15 @@ pub struct DeleteGraph {
 #[cfg_attr(test, automock)]
 impl DeleteGraph {
     // [impl->swdd~server-state-stores-delete-condition~1]
-    pub fn insert(&mut self, new_workloads: &[WorkloadSpec]) {
-        for workload_spec in new_workloads {
-            for (dependency_name, add_condition) in workload_spec.dependencies.iter() {
+    pub fn insert(&mut self, new_workloads: &[WorkloadNamed]) {
+        for workload_named in new_workloads {
+            for (dependency_name, add_condition) in
+                workload_named.workload.dependencies.dependencies.iter()
+            {
                 /* currently for other add conditions besides AddCondRunning
                 the workload can be deleted immediately and does not need a delete condition */
                 if add_condition == &AddCondition::AddCondRunning {
-                    let workload_name = workload_spec.instance_name.workload_name().to_owned();
+                    let workload_name = workload_named.instance_name.workload_name().to_owned();
                     self.delete_graph
                         .entry(dependency_name.clone())
                         .or_default()
@@ -58,7 +61,7 @@ impl DeleteGraph {
     // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
     pub fn remove_deleted_workloads_from_delete_graph(
         &mut self,
-        workload_states: &[WorkloadState],
+        workload_states: &[WorkloadStateSpec],
     ) {
         for wl_state in workload_states {
             if wl_state.execution_state.is_removed()
@@ -80,23 +83,25 @@ impl DeleteGraph {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-    use super::{AddCondition, DeleteCondition, DeleteGraph};
-    use common::objects::{
-        generate_test_workload_spec_with_param, generate_test_workload_state_with_agent,
-        DeletedWorkload, ExecutionState, WorkloadInstanceName,
+    use super::{super::WorkloadInstanceNameSpec, AddCondition, DeleteCondition, DeleteGraph};
+    use ankaios_api::ank_base::{
+        DeletedWorkload, DependenciesSpec, ExecutionStateSpec, WorkloadNamed,
     };
+    use ankaios_api::test_utils::{
+        generate_test_workload_named_with_params, generate_test_workload_state_with_agent, fixtures,
+    };
+
     use std::collections::HashMap;
 
-    const AGENT_A: &str = "agent_A";
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";
     const WORKLOAD_NAME_3: &str = "workload_3";
     const WORKLOAD_NAME_4: &str = "workload_4";
     const WORKLOAD_NAME_5: &str = "workload_5";
     const WORKLOAD_NAME_6: &str = "workload_6";
-    const RUNTIME: &str = "runtime";
 
     // [utest->swdd~server-state-stores-delete-condition~1]
     #[test]
@@ -117,61 +122,42 @@ mod tests {
         */
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let mut workload_1 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            RUNTIME.to_string(),
-        );
+        fn generate_workload(name: &str) -> WorkloadNamed {
+            generate_test_workload_named_with_params(name, fixtures::AGENT_NAMES[0], "runtime_name")
+        }
 
-        let mut workload_2 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_2.to_string(),
-            RUNTIME.to_string(),
-        );
+        let mut workload_1 = generate_workload(WORKLOAD_NAME_1);
+        let mut workload_2 = generate_workload(WORKLOAD_NAME_2);
+        let mut workload_3 = generate_workload(WORKLOAD_NAME_3);
+        let mut workload_4 = generate_workload(WORKLOAD_NAME_4);
+        let mut workload_5 = generate_workload(WORKLOAD_NAME_5);
+        let mut workload_6 = generate_workload(WORKLOAD_NAME_6);
 
-        let mut workload_3 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_3.to_string(),
-            RUNTIME.to_string(),
-        );
+        workload_1.workload.dependencies = DependenciesSpec {
+            dependencies: HashMap::from([(
+                workload_2.instance_name.workload_name().to_owned(),
+                AddCondition::AddCondRunning,
+            )]),
+        };
 
-        let mut workload_4 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_4.to_string(),
-            RUNTIME.to_string(),
-        );
+        workload_2.workload.dependencies.dependencies.clear();
 
-        let mut workload_5 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_5.to_string(),
-            RUNTIME.to_string(),
-        );
+        workload_3.workload.dependencies = DependenciesSpec {
+            dependencies: HashMap::from([(
+                workload_5.instance_name.workload_name().to_owned(),
+                AddCondition::AddCondRunning,
+            )]),
+        };
 
-        let mut workload_6 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_6.to_string(),
-            RUNTIME.to_string(),
-        );
+        workload_4.workload.dependencies = DependenciesSpec {
+            dependencies: HashMap::from([(
+                workload_1.instance_name.workload_name().to_owned(),
+                AddCondition::AddCondFailed,
+            )]),
+        };
 
-        workload_1.dependencies = HashMap::from([(
-            workload_2.instance_name.workload_name().to_owned(),
-            AddCondition::AddCondRunning,
-        )]);
-
-        workload_2.dependencies.clear();
-
-        workload_3.dependencies = HashMap::from([(
-            workload_5.instance_name.workload_name().to_owned(),
-            AddCondition::AddCondRunning,
-        )]);
-
-        workload_4.dependencies = HashMap::from([(
-            workload_1.instance_name.workload_name().to_owned(),
-            AddCondition::AddCondFailed,
-        )]);
-
-        workload_5.dependencies.clear();
-        workload_6.dependencies.clear();
+        workload_5.workload.dependencies.dependencies.clear();
+        workload_6.workload.dependencies.dependencies.clear();
 
         let mut delete_graph = DeleteGraph::default();
         delete_graph.insert(&vec![
@@ -238,20 +224,20 @@ mod tests {
             ]),
         };
 
-        let instance_name_wl2 = WorkloadInstanceName::builder()
-            .agent_name(AGENT_A)
+        let instance_name_wl2 = WorkloadInstanceNameSpec::builder()
+            .agent_name(fixtures::AGENT_NAMES[0])
             .workload_name(WORKLOAD_NAME_2)
             .config(&String::from("some config"))
             .build();
 
-        let instance_name_wl4 = WorkloadInstanceName::builder()
-            .agent_name(AGENT_A)
+        let instance_name_wl4 = WorkloadInstanceNameSpec::builder()
+            .agent_name(fixtures::AGENT_NAMES[0])
             .workload_name(WORKLOAD_NAME_4)
             .config(&String::from("some config"))
             .build();
 
-        let instance_name_wl5 = WorkloadInstanceName::builder()
-            .agent_name(AGENT_A)
+        let instance_name_wl5 = WorkloadInstanceNameSpec::builder()
+            .agent_name(fixtures::AGENT_NAMES[0])
             .workload_name(WORKLOAD_NAME_5)
             .config(&String::from("some config"))
             .build();
@@ -319,8 +305,8 @@ mod tests {
 
         let workload_states = [generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
-            AGENT_A,
-            ExecutionState::removed(),
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::removed(),
         )];
 
         delete_graph.remove_deleted_workloads_from_delete_graph(&workload_states);
@@ -343,8 +329,8 @@ mod tests {
 
         let workload_states = [generate_test_workload_state_with_agent(
             WORKLOAD_NAME_2,
-            AGENT_A,
-            ExecutionState::running(),
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::running(),
         )];
 
         delete_graph.remove_deleted_workloads_from_delete_graph(&workload_states);
@@ -367,8 +353,8 @@ mod tests {
 
         let workload_states = [generate_test_workload_state_with_agent(
             WORKLOAD_NAME_3,
-            AGENT_A,
-            ExecutionState::removed(),
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::removed(),
         )];
 
         delete_graph.remove_deleted_workloads_from_delete_graph(&workload_states);

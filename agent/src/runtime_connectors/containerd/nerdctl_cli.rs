@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::ExecutionState;
+use ankaios_api::ank_base::ExecutionStateSpec;
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -47,24 +47,24 @@ pub struct NerdctlStartConfig {
 }
 
 // [impl->swdd~containerd-state-getter-maps-state~1]
-impl From<NerdctlContainerInfo> for ExecutionState {
+impl From<NerdctlContainerInfo> for ExecutionStateSpec {
     fn from(value: NerdctlContainerInfo) -> Self {
         match value.state.status.to_lowercase().as_str() {
-            "created" => ExecutionState::starting(value.state.status),
-            "exited" if value.state.exit_code == 0 => ExecutionState::succeeded(),
+            "created" => ExecutionStateSpec::starting(value.state.status),
+            "exited" if value.state.exit_code == 0 => ExecutionStateSpec::succeeded(),
             "exited" if value.state.exit_code != 0 => {
-                ExecutionState::failed(format!("Exit code: '{}'", value.state.exit_code))
+                ExecutionStateSpec::failed(format!("Exit code: '{}'", value.state.exit_code))
             }
-            "running" => ExecutionState::running(),
-            "removing" => ExecutionState::stopping(value.state.status),
-            "paused" => ExecutionState::unknown(value.state.status),
-            "restarting" => ExecutionState::starting(value.state.status),
-            "dead" => ExecutionState::failed(format!("Exit code: '{}'", value.state.exit_code)),
+            "running" => ExecutionStateSpec::running(),
+            "removing" => ExecutionStateSpec::stopping(value.state.status),
+            "paused" => ExecutionStateSpec::unknown(value.state.status),
+            "restarting" => ExecutionStateSpec::starting(value.state.status),
+            "dead" => ExecutionStateSpec::failed(format!("Exit code: '{}'", value.state.exit_code)),
             state => {
                 log::trace!(
                     "Mapping the container state '{state}' to the execution state 'ExecUnknown'"
                 );
-                ExecutionState::unknown(state)
+                ExecutionStateSpec::unknown(state)
             }
         }
     }
@@ -125,7 +125,7 @@ impl Deref for TimedNerdctlPsResult {
 // [impl->swdd~containerd-nerdctlcli-container-state-cache-all-containers~1]
 #[derive(Debug)]
 struct NerdctlPsResult {
-    container_states: Result<HashMap<String, ExecutionState>, String>,
+    container_states: Result<HashMap<String, ExecutionStateSpec>, String>,
 }
 
 impl From<Result<Vec<NerdctlContainerInfo>, String>> for NerdctlPsResult {
@@ -298,7 +298,9 @@ impl NerdctlCli {
     }
 
     // [impl->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
-    pub async fn list_states_by_id(workload_id: &str) -> Result<Option<ExecutionState>, String> {
+    pub async fn list_states_by_id(
+        workload_id: &str,
+    ) -> Result<Option<ExecutionStateSpec>, String> {
         let ps_result = LAST_PS_RESULT.get().await;
         let all_containers_states = ps_result
             .as_ref()
@@ -449,16 +451,16 @@ where
 #[cfg(test)]
 mod tests {
     use super::{NERDCTL_CMD, NerdctlCli, NerdctlPsCache};
-
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
-    use common::objects::ExecutionState;
+    use ankaios_api::ank_base::ExecutionStateSpec;
+    use ankaios_api::test_utils::fixtures;
+
     use serde::Serialize;
     use std::collections::HashMap;
     use std::sync::Arc;
     use std::time::{self, Duration};
 
     const SAMPLE_ERROR_MESSAGE: &str = "error message";
-    const WORKLOAD_ID: &str = "test_id";
 
     // [utest->swdd~containerd-nerdctlcli-lists-workloads-by-label~1]
     #[tokio::test]
@@ -660,7 +662,7 @@ mod tests {
                     "--label=agent=test_agent",
                     "alpine:latest",
                 ])
-                .exec_returns(Ok(WORKLOAD_ID.to_owned())),
+                .exec_returns(Ok(fixtures::WORKLOAD_IDS[0].to_owned())),
         );
 
         let run_config = super::NerdctlRunConfig {
@@ -677,7 +679,7 @@ mod tests {
             Default::default(),
         )
         .await;
-        assert_eq!(res, Ok("test_id".to_owned()));
+        assert_eq!(res, Ok(fixtures::WORKLOAD_IDS[0].to_owned()));
     }
 
     #[tokio::test]
@@ -747,7 +749,7 @@ mod tests {
                     "alpine:latest",
                     "sh",
                 ])
-                .exec_returns(Ok(WORKLOAD_ID.to_owned())),
+                .exec_returns(Ok(fixtures::WORKLOAD_IDS[0].to_owned())),
         );
 
         let run_config = super::NerdctlRunConfig {
@@ -764,7 +766,7 @@ mod tests {
             HashMap::from([(HOST_WORKLOAD_FILE_PATH.into(), MOUNT_POINT_PATH.into())]),
         )
         .await;
-        assert_eq!(res, Ok(WORKLOAD_ID.to_owned()));
+        assert_eq!(res, Ok(fixtures::WORKLOAD_IDS[0].to_owned()));
     }
 
     // [utest->swdd~containerd-create-workload-starts-existing-workload~1]
@@ -775,16 +777,16 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["--remote", "start", WORKLOAD_ID])
-                .exec_returns(Ok(WORKLOAD_ID.to_owned())),
+                .expect_args(&["--remote", "start", fixtures::WORKLOAD_IDS[0]])
+                .exec_returns(Ok(fixtures::WORKLOAD_IDS[0].to_owned())),
         );
 
         let start_config = super::NerdctlStartConfig {
             general_options: vec!["--remote".into()],
-            container_id: WORKLOAD_ID.into(),
+            container_id: fixtures::WORKLOAD_IDS[0].into(),
         };
         let res = NerdctlCli::nerdctl_start(start_config, "test_workload_name").await;
-        assert_eq!(res, Ok(WORKLOAD_ID.to_owned()));
+        assert_eq!(res, Ok(fixtures::WORKLOAD_IDS[0].to_owned()));
     }
 
     // [utest->swdd~containerd-create-workload-starts-existing-workload~1]
@@ -820,7 +822,7 @@ mod tests {
         NerdctlCli::reset_ps_cache().await;
 
         let container_id = TestNerdctlContainerId {
-            id: WORKLOAD_ID.to_owned(),
+            id: fixtures::WORKLOAD_IDS[0].to_owned(),
         };
 
         super::CliCommand::new_expect(
@@ -833,7 +835,7 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["inspect", WORKLOAD_ID])
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
                     state: TestNerdctlContainerState {
@@ -844,8 +846,8 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionState::starting("created"))));
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::starting("created"))));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -858,7 +860,7 @@ mod tests {
         *super::LAST_PS_RESULT.lock().await = None;
 
         let container_id = TestNerdctlContainerId {
-            id: WORKLOAD_ID.to_owned(),
+            id: fixtures::WORKLOAD_IDS[0].to_owned(),
         };
 
         super::CliCommand::new_expect(
@@ -871,7 +873,7 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["inspect", WORKLOAD_ID])
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
                     state: TestNerdctlContainerState {
@@ -882,8 +884,8 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionState::succeeded())));
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::succeeded())));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -895,7 +897,7 @@ mod tests {
         *super::LAST_PS_RESULT.lock().await = None;
 
         let container_id = TestNerdctlContainerId {
-            id: WORKLOAD_ID.to_owned(),
+            id: fixtures::WORKLOAD_IDS[0].to_owned(),
         };
 
         super::CliCommand::new_expect(
@@ -908,7 +910,7 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["inspect", WORKLOAD_ID])
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
                     state: TestNerdctlContainerState {
@@ -919,8 +921,8 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionState::failed("Exit code: '1'"))));
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::failed("Exit code: '1'"))));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -933,7 +935,7 @@ mod tests {
         *super::LAST_PS_RESULT.lock().await = None;
 
         let container_id = TestNerdctlContainerId {
-            id: WORKLOAD_ID.to_owned(),
+            id: fixtures::WORKLOAD_IDS[0].to_owned(),
         };
 
         super::CliCommand::new_expect(
@@ -946,7 +948,7 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["inspect", WORKLOAD_ID])
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
                     state: TestNerdctlContainerState {
@@ -957,8 +959,8 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionState::running())));
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::running())));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -971,7 +973,7 @@ mod tests {
         NerdctlCli::reset_ps_cache().await;
 
         let container_id = TestNerdctlContainerId {
-            id: WORKLOAD_ID.to_owned(),
+            id: fixtures::WORKLOAD_IDS[0].to_owned(),
         };
         super::CliCommand::new_expect(
             NERDCTL_CMD,
@@ -983,7 +985,7 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["inspect", WORKLOAD_ID])
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
                     state: TestNerdctlContainerState {
@@ -994,8 +996,8 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionState::stopping("removing"))));
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::stopping("removing"))));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -1008,7 +1010,7 @@ mod tests {
         NerdctlCli::reset_ps_cache().await;
 
         let container_id = TestNerdctlContainerId {
-            id: WORKLOAD_ID.to_owned(),
+            id: fixtures::WORKLOAD_IDS[0].to_owned(),
         };
         super::CliCommand::new_expect(
             NERDCTL_CMD,
@@ -1026,7 +1028,7 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["inspect", WORKLOAD_ID])
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
                     state: container_state,
@@ -1034,10 +1036,10 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
         assert_eq!(
             res,
-            Ok(Some(ExecutionState::unknown(expected_container_status)))
+            Ok(Some(ExecutionStateSpec::unknown(expected_container_status)))
         );
     }
 
@@ -1051,7 +1053,7 @@ mod tests {
         NerdctlCli::reset_ps_cache().await;
 
         let container_id = TestNerdctlContainerId {
-            id: WORKLOAD_ID.to_owned(),
+            id: fixtures::WORKLOAD_IDS[0].to_owned(),
         };
         super::CliCommand::new_expect(
             NERDCTL_CMD,
@@ -1063,7 +1065,7 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["inspect", WORKLOAD_ID])
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
                     state: TestNerdctlContainerState {
@@ -1074,8 +1076,8 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionState::starting("restarting"))));
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::starting("restarting"))));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -1088,7 +1090,7 @@ mod tests {
         NerdctlCli::reset_ps_cache().await;
 
         let container_id = TestNerdctlContainerId {
-            id: WORKLOAD_ID.to_owned(),
+            id: fixtures::WORKLOAD_IDS[0].to_owned(),
         };
         super::CliCommand::new_expect(
             NERDCTL_CMD,
@@ -1100,7 +1102,7 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["inspect", WORKLOAD_ID])
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
                     state: TestNerdctlContainerState {
@@ -1111,8 +1113,8 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionState::failed("Exit code: '1'"))));
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::failed("Exit code: '1'"))));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -1125,7 +1127,7 @@ mod tests {
         *super::LAST_PS_RESULT.lock().await = None;
 
         let container_id = TestNerdctlContainerId {
-            id: WORKLOAD_ID.to_owned(),
+            id: fixtures::WORKLOAD_IDS[0].to_owned(),
         };
 
         super::CliCommand::new_expect(
@@ -1138,7 +1140,7 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["inspect", WORKLOAD_ID])
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
                     state: TestNerdctlContainerState {
@@ -1149,8 +1151,8 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionState::unknown("unknown"))));
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::unknown("unknown"))));
     }
 
     // [utest->swdd~containerd-container-state-cache-refresh~1]
@@ -1167,7 +1169,7 @@ mod tests {
         super::CliCommand::new_expect(NERDCTL_CMD, mock_cli_command.clone());
         super::CliCommand::new_expect(NERDCTL_CMD, mock_cli_command);
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
         assert_eq!(res, Err("simulated error".to_string()));
     }
 
@@ -1187,7 +1189,7 @@ mod tests {
         );
 
         let container_id = TestNerdctlContainerId {
-            id: WORKLOAD_ID.to_owned(),
+            id: fixtures::WORKLOAD_IDS[0].to_owned(),
         };
 
         super::CliCommand::new_expect(
@@ -1200,7 +1202,7 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["inspect", WORKLOAD_ID])
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
                     state: TestNerdctlContainerState {
@@ -1211,8 +1213,8 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionState::running())));
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::running())));
     }
 
     // [utest->swdd~containerd-container-state-cache-refresh~1]
@@ -1228,14 +1230,17 @@ mod tests {
         *super::LAST_PS_RESULT.lock().await = Some(NerdctlPsCache {
             last_update: old_time_stamp,
             cache: Arc::new(super::NerdctlPsResult {
-                container_states: Ok([(WORKLOAD_ID.into(), ExecutionState::failed("Some error"))]
-                    .into_iter()
-                    .collect()),
+                container_states: Ok([(
+                    fixtures::WORKLOAD_IDS[0].into(),
+                    ExecutionStateSpec::failed("Some error"),
+                )]
+                .into_iter()
+                .collect()),
             }),
         });
 
         let container_id = TestNerdctlContainerId {
-            id: WORKLOAD_ID.to_owned(),
+            id: fixtures::WORKLOAD_IDS[0].to_owned(),
         };
 
         super::CliCommand::new_expect(
@@ -1248,7 +1253,7 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["inspect", WORKLOAD_ID])
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
                     state: TestNerdctlContainerState {
@@ -1259,8 +1264,8 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionState::running())));
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::running())));
     }
 
     // [utest->swdd~containerd-container-state-cache-refresh~1]
@@ -1277,7 +1282,7 @@ mod tests {
         super::CliCommand::new_expect(NERDCTL_CMD, mock_cli_command.clone());
         super::CliCommand::new_expect(NERDCTL_CMD, mock_cli_command);
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
         assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse nerdctl ps output") ));
     }
 
@@ -1297,7 +1302,7 @@ mod tests {
         );
 
         let container_id = TestNerdctlContainerId {
-            id: WORKLOAD_ID.into(),
+            id: fixtures::WORKLOAD_IDS[0].into(),
         };
 
         super::CliCommand::new_expect(
@@ -1310,7 +1315,7 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["inspect", WORKLOAD_ID])
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
                     state: TestNerdctlContainerState {
@@ -1321,8 +1326,8 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionState::running())));
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::running())));
     }
 
     // [utest->swdd~containerd-nerdctlcli-removes-workloads-by-id~1]
@@ -1334,12 +1339,12 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["stop", WORKLOAD_ID])
+                .expect_args(&["stop", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Err("simulated error".to_string())),
         );
 
         assert_eq!(
-            NerdctlCli::remove_workloads_by_id(WORKLOAD_ID).await,
+            NerdctlCli::remove_workloads_by_id(fixtures::WORKLOAD_IDS[0]).await,
             Err("simulated error".to_string())
         );
     }
@@ -1353,19 +1358,19 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["stop", WORKLOAD_ID])
-                .exec_returns(Err(format!("1 errors:\nno such container: {WORKLOAD_ID}"))),
+                .expect_args(&["stop", fixtures::WORKLOAD_IDS[0]])
+                .exec_returns(Err(format!("1 errors:\nno such container: {}", fixtures::WORKLOAD_IDS[0]))),
         );
 
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["rm", WORKLOAD_ID])
-                .exec_returns(Ok(WORKLOAD_ID.to_owned())),
+                .expect_args(&["rm", fixtures::WORKLOAD_IDS[0]])
+                .exec_returns(Ok(fixtures::WORKLOAD_IDS[0].to_owned())),
         );
 
         assert!(
-            NerdctlCli::remove_workloads_by_id(WORKLOAD_ID)
+            NerdctlCli::remove_workloads_by_id(fixtures::WORKLOAD_IDS[0])
                 .await
                 .is_ok(),
             "Expected to ignore the failed stop of non-existing container."
@@ -1381,19 +1386,19 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["stop", WORKLOAD_ID])
-                .exec_returns(Ok(WORKLOAD_ID.to_owned())),
+                .expect_args(&["stop", fixtures::WORKLOAD_IDS[0]])
+                .exec_returns(Ok(fixtures::WORKLOAD_IDS[0].to_owned())),
         );
 
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["rm", WORKLOAD_ID])
+                .expect_args(&["rm", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Err("simulated error".to_string())),
         );
 
         assert_eq!(
-            NerdctlCli::remove_workloads_by_id(WORKLOAD_ID).await,
+            NerdctlCli::remove_workloads_by_id(fixtures::WORKLOAD_IDS[0]).await,
             Err("simulated error".to_string())
         );
     }
@@ -1407,19 +1412,19 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["stop", WORKLOAD_ID])
-                .exec_returns(Ok(WORKLOAD_ID.to_owned())),
+                .expect_args(&["stop", fixtures::WORKLOAD_IDS[0]])
+                .exec_returns(Ok(fixtures::WORKLOAD_IDS[0].to_owned())),
         );
 
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["rm", WORKLOAD_ID])
-                .exec_returns(Err(format!("1 errors:\nno such container: {WORKLOAD_ID}"))),
+                .expect_args(&["rm", fixtures::WORKLOAD_IDS[0]])
+                .exec_returns(Err(format!("1 errors:\nno such container: {}", fixtures::WORKLOAD_IDS[0]))),
         );
 
         assert!(
-            NerdctlCli::remove_workloads_by_id(WORKLOAD_ID)
+            NerdctlCli::remove_workloads_by_id(fixtures::WORKLOAD_IDS[0])
                 .await
                 .is_ok(),
             "Expected to ignore the failed remove of non-existing container."
@@ -1435,18 +1440,18 @@ mod tests {
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["stop", WORKLOAD_ID])
+                .expect_args(&["stop", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok("".to_owned())),
         );
 
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["rm", WORKLOAD_ID])
+                .expect_args(&["rm", fixtures::WORKLOAD_IDS[0]])
                 .exec_returns(Ok("".to_owned())),
         );
 
-        let res = NerdctlCli::remove_workloads_by_id(WORKLOAD_ID).await;
+        let res = NerdctlCli::remove_workloads_by_id(fixtures::WORKLOAD_IDS[0]).await;
         assert_eq!(res, Ok(()));
     }
 

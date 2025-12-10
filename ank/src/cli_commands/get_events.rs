@@ -15,11 +15,23 @@
 use super::CliCommands;
 use crate::cli::OutputFormat;
 use crate::cli_error::CliError;
-use crate::filtered_complete_state::{FilteredAlteredFields, FilteredCompleteState, FilteredEvent};
 use crate::output;
 use crate::output_debug;
-use api::ank_base;
+
+use ankaios_api::ank_base::{AlteredFields, CompleteState, CompleteStateResponse};
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct FilteredEvent {
+    pub timestamp: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, flatten)]
+    pub altered_fields: Option<AlteredFields>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub complete_state: Option<CompleteState>,
+}
 
 impl CliCommands {
     // [impl->swdd~cli-provides-get-events-command~1]
@@ -54,26 +66,23 @@ impl CliCommands {
 
     // [impl->swdd~cli-outputs-events-with-timestamp~1]
     fn output_event(
-        event: &ank_base::CompleteStateResponse,
+        event: &CompleteStateResponse,
         output_format: &OutputFormat,
     ) -> Result<(), CliError> {
-        let filtered_state: FilteredCompleteState = (*event).clone().into();
+        let filtered_state = (*event).clone().complete_state;
 
         let timestamp_str = Utc::now().to_rfc3339();
 
-        let altered_fields = event
-            .altered_fields
-            .as_ref()
-            .map(|af| FilteredAlteredFields {
-                added_fields: af.added_fields.clone(),
-                updated_fields: af.updated_fields.clone(),
-                removed_fields: af.removed_fields.clone(),
-            });
+        let altered_fields = event.altered_fields.as_ref().map(|af| AlteredFields {
+            added_fields: af.added_fields.clone(),
+            updated_fields: af.updated_fields.clone(),
+            removed_fields: af.removed_fields.clone(),
+        });
 
         let event_output = FilteredEvent {
             timestamp: timestamp_str,
             altered_fields,
-            complete_state: Some(filtered_state),
+            complete_state: filtered_state,
         };
 
         // [impl->swdd~cli-supports-multiple-output-types-for-events~1]
@@ -101,18 +110,21 @@ impl CliCommands {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-    use api::ank_base;
-    use common::test_utils;
-    use mockall::predicate::eq;
-
     use crate::{
         cli::OutputFormat,
         cli_commands::{CliCommands, server_connection::MockServerConnection},
     };
 
-    const RESPONSE_TIMEOUT_MS: u64 = 3000;
+    use ankaios_api::ank_base::{AlteredFields, CompleteStateResponse};
+    use ankaios_api::test_utils::{
+        fixtures, generate_test_complete_state, generate_test_workload_named,
+        generate_test_workload_named_with_params,
+    };
+
+    use mockall::predicate::eq;
 
     // [utest->swdd~cli-provides-get-events-command~1]
     // [utest->swdd~cli-receives-events~1]
@@ -129,7 +141,7 @@ mod tests {
             .times(1)
             .returning(|_| {
                 Ok(crate::cli_commands::server_connection::EventSubscription {
-                    request_id: "test-request-id".to_string(),
+                    request_id: fixtures::REQUEST_ID.to_string(),
                     initial_response_received: false,
                 })
             });
@@ -142,19 +154,16 @@ mod tests {
                 unsafe {
                     CALL_COUNT += 1;
                     if CALL_COUNT == 1 {
-                        Ok(Some(ank_base::CompleteStateResponse {
-                            complete_state: Some(test_utils::generate_test_proto_complete_state(
-                                &[(
-                                    "test_workload",
-                                    test_utils::generate_test_proto_workload_with_param(
-                                        "agent_A", "runtime",
-                                    ),
+                        Ok(Some(CompleteStateResponse {
+                            complete_state: Some(
+                                generate_test_complete_state(vec![generate_test_workload_named()])
+                                    .into(),
+                            ),
+                            altered_fields: Some(AlteredFields {
+                                added_fields: vec![format!(
+                                    "desiredState.workloads.{}",
+                                    fixtures::WORKLOAD_NAMES[0]
                                 )],
-                            )),
-                            altered_fields: Some(ank_base::AlteredFields {
-                                added_fields: vec![
-                                    "desiredState.workloads.test_workload".to_string(),
-                                ],
                                 updated_fields: vec![],
                                 removed_fields: vec![],
                             }),
@@ -166,7 +175,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -189,7 +198,7 @@ mod tests {
             .times(1)
             .returning(|_| {
                 Ok(crate::cli_commands::server_connection::EventSubscription {
-                    request_id: "test-request-id".to_string(),
+                    request_id: fixtures::REQUEST_ID.to_string(),
                     initial_response_received: false,
                 })
             });
@@ -200,7 +209,7 @@ mod tests {
             .returning(|_| Ok(None));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -222,7 +231,7 @@ mod tests {
             .times(1)
             .returning(|_| {
                 Ok(crate::cli_commands::server_connection::EventSubscription {
-                    request_id: "test-request-id".to_string(),
+                    request_id: fixtures::REQUEST_ID.to_string(),
                     initial_response_received: false,
                 })
             });
@@ -233,7 +242,7 @@ mod tests {
             .returning(|_| Ok(None));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -262,7 +271,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -284,7 +293,7 @@ mod tests {
             .times(1)
             .returning(|_| {
                 Ok(crate::cli_commands::server_connection::EventSubscription {
-                    request_id: "test-request-id".to_string(),
+                    request_id: fixtures::REQUEST_ID.to_string(),
                     initial_response_received: false,
                 })
             });
@@ -301,7 +310,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -323,7 +332,7 @@ mod tests {
             .times(1)
             .returning(|_| {
                 Ok(crate::cli_commands::server_connection::EventSubscription {
-                    request_id: "test-request-id".to_string(),
+                    request_id: fixtures::REQUEST_ID.to_string(),
                     initial_response_received: false,
                 })
             });
@@ -336,46 +345,55 @@ mod tests {
                 unsafe {
                     CALL_COUNT += 1;
                     match CALL_COUNT {
-                        1 => Ok(Some(ank_base::CompleteStateResponse {
-                            complete_state: Some(test_utils::generate_test_proto_complete_state(
-                                &[(
-                                    "workload1",
-                                    test_utils::generate_test_proto_workload_with_param(
-                                        "agent_A", "runtime",
+                        1 => Ok(Some(CompleteStateResponse {
+                            complete_state: Some(
+                                generate_test_complete_state(vec![
+                                    generate_test_workload_named_with_params(
+                                        fixtures::WORKLOAD_NAMES[0],
+                                        fixtures::AGENT_NAMES[0],
+                                        fixtures::RUNTIME_NAMES[0],
                                     ),
+                                ])
+                                .into(),
+                            ),
+                            altered_fields: Some(AlteredFields {
+                                added_fields: vec![format!(
+                                    "desiredState.workloads.{}",
+                                    fixtures::WORKLOAD_NAMES[0]
                                 )],
-                            )),
-                            altered_fields: Some(ank_base::AlteredFields {
-                                added_fields: vec!["desiredState.workloads.workload1".to_string()],
                                 updated_fields: vec![],
                                 removed_fields: vec![],
                             }),
                         })),
-                        2 => Ok(Some(ank_base::CompleteStateResponse {
-                            complete_state: Some(test_utils::generate_test_proto_complete_state(
-                                &[(
-                                    "workload2",
-                                    test_utils::generate_test_proto_workload_with_param(
-                                        "agent_B", "runtime",
+                        2 => Ok(Some(CompleteStateResponse {
+                            complete_state: Some(
+                                generate_test_complete_state(vec![
+                                    generate_test_workload_named_with_params(
+                                        fixtures::WORKLOAD_NAMES[1],
+                                        fixtures::AGENT_NAMES[1],
+                                        fixtures::RUNTIME_NAMES[0],
                                     ),
+                                ])
+                                .into(),
+                            ),
+                            altered_fields: Some(AlteredFields {
+                                added_fields: vec![format!(
+                                    "desiredState.workloads.{}",
+                                    fixtures::WORKLOAD_NAMES[1]
                                 )],
-                            )),
-                            altered_fields: Some(ank_base::AlteredFields {
-                                added_fields: vec!["desiredState.workloads.workload2".to_string()],
                                 updated_fields: vec![],
                                 removed_fields: vec![],
                             }),
                         })),
-                        3 => Ok(Some(ank_base::CompleteStateResponse {
-                            complete_state: Some(test_utils::generate_test_proto_complete_state(
-                                &[],
-                            )),
-                            altered_fields: Some(ank_base::AlteredFields {
+                        3 => Ok(Some(CompleteStateResponse {
+                            complete_state: Some(generate_test_complete_state(vec![]).into()),
+                            altered_fields: Some(AlteredFields {
                                 added_fields: vec![],
                                 updated_fields: vec![],
-                                removed_fields: vec![
-                                    "desiredState.workloads.workload1".to_string(),
-                                ],
+                                removed_fields: vec![format!(
+                                    "desiredState.workloads.{}",
+                                    fixtures::WORKLOAD_NAMES[0]
+                                )],
                             }),
                         })),
                         _ => Ok(None),
@@ -384,7 +402,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -397,13 +415,20 @@ mod tests {
     // [utest->swdd~cli-supports-multiple-output-types-for-events~1]
     #[test]
     fn utest_output_event_yaml_format() {
-        let event = ank_base::CompleteStateResponse {
-            complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
-                "test_workload",
-                test_utils::generate_test_proto_workload_with_param("agent_A", "runtime"),
-            )])),
-            altered_fields: Some(ank_base::AlteredFields {
-                added_fields: vec!["desiredState.workloads.test_workload".to_string()],
+        let event = CompleteStateResponse {
+            complete_state: Some(
+                generate_test_complete_state(vec![generate_test_workload_named_with_params(
+                    fixtures::WORKLOAD_NAMES[0],
+                    fixtures::AGENT_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
+                )])
+                .into(),
+            ),
+            altered_fields: Some(AlteredFields {
+                added_fields: vec![format!(
+                    "desiredState.workloads.{}",
+                    fixtures::WORKLOAD_NAMES[0]
+                )],
                 updated_fields: vec![],
                 removed_fields: vec![],
             }),
@@ -417,14 +442,16 @@ mod tests {
     // [utest->swdd~cli-outputs-events-with-timestamp~1]
     #[test]
     fn utest_output_event_json_format() {
-        let event = ank_base::CompleteStateResponse {
-            complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
-                "test_workload",
-                test_utils::generate_test_proto_workload_with_param("agent_A", "runtime"),
-            )])),
-            altered_fields: Some(ank_base::AlteredFields {
+        let event = CompleteStateResponse {
+            complete_state: Some(
+                generate_test_complete_state(vec![generate_test_workload_named()]).into(),
+            ),
+            altered_fields: Some(AlteredFields {
                 added_fields: vec![],
-                updated_fields: vec!["desiredState.workloads.test_workload.agent".to_string()],
+                updated_fields: vec![format!(
+                    "desiredState.workloads.{}.agent",
+                    fixtures::WORKLOAD_NAMES[0]
+                )],
                 removed_fields: vec![],
             }),
         };
@@ -436,11 +463,10 @@ mod tests {
     // [utest->swdd~cli-outputs-events-with-timestamp~1]
     #[test]
     fn utest_output_event_no_altered_fields() {
-        let event = ank_base::CompleteStateResponse {
-            complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
-                "test_workload",
-                test_utils::generate_test_proto_workload_with_param("agent_A", "runtime"),
-            )])),
+        let event = CompleteStateResponse {
+            complete_state: Some(
+                generate_test_complete_state(vec![generate_test_workload_named()]).into(),
+            ),
             altered_fields: None,
         };
 
@@ -451,9 +477,9 @@ mod tests {
     // [utest->swdd~cli-outputs-events-with-timestamp~1]
     #[test]
     fn utest_output_event_empty_complete_state() {
-        let event = ank_base::CompleteStateResponse {
+        let event = CompleteStateResponse {
             complete_state: None,
-            altered_fields: Some(ank_base::AlteredFields {
+            altered_fields: Some(AlteredFields {
                 added_fields: vec![],
                 updated_fields: vec![],
                 removed_fields: vec!["desiredState.workloads.removed_workload".to_string()],
@@ -467,14 +493,16 @@ mod tests {
     // [utest->swdd~cli-outputs-events-with-timestamp~1]
     #[test]
     fn utest_output_event_all_altered_fields_types() {
-        let event = ank_base::CompleteStateResponse {
-            complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
-                "test_workload",
-                test_utils::generate_test_proto_workload_with_param("agent_A", "runtime"),
-            )])),
-            altered_fields: Some(ank_base::AlteredFields {
+        let event = CompleteStateResponse {
+            complete_state: Some(
+                generate_test_complete_state(vec![generate_test_workload_named()]).into(),
+            ),
+            altered_fields: Some(AlteredFields {
                 added_fields: vec!["desiredState.workloads.new_workload".to_string()],
-                updated_fields: vec!["desiredState.workloads.test_workload.agent".to_string()],
+                updated_fields: vec![format!(
+                    "desiredState.workloads.{}.agent",
+                    fixtures::WORKLOAD_NAMES[0]
+                )],
                 removed_fields: vec!["desiredState.workloads.old_workload".to_string()],
             }),
         };

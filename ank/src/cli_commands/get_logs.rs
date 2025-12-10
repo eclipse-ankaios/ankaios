@@ -12,14 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::{BTreeSet, HashMap};
-
-use common::objects::{WorkloadInstanceName, WorkloadState};
-
+use super::CliCommands;
 use crate::cli::LogsArgs;
 use crate::cli_error::CliError;
 
-use super::CliCommands;
+use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadState};
+use std::collections::{BTreeSet, HashMap};
 
 impl CliCommands {
     // [impl->swdd~cli-provides-workload-logs~1]
@@ -39,7 +37,7 @@ impl CliCommands {
     async fn workload_names_to_instance_names(
         &mut self,
         workload_names: Vec<String>,
-    ) -> Result<BTreeSet<WorkloadInstanceName>, CliError> {
+    ) -> Result<BTreeSet<WorkloadInstanceNameSpec>, CliError> {
         let filter_mask_workload_states = ["workloadStates".to_string()];
         let complete_state = self
             .server_connection
@@ -47,18 +45,31 @@ impl CliCommands {
             .await?;
 
         if let Some(wl_states) = complete_state.workload_states {
-            let available_instance_names: HashMap<String, BTreeSet<WorkloadInstanceName>> =
-                Vec::<WorkloadState>::from(wl_states).into_iter().fold(
-                    HashMap::new(),
-                    |mut acc, wl_state| {
-                        let instance_name = wl_state.instance_name.clone();
+            let available_instance_names: HashMap<String, BTreeSet<WorkloadInstanceNameSpec>> =
+                Vec::<WorkloadState>::from(wl_states)
+                    .into_iter()
+                    .map(|wl_state| {
+                        let instance_name: WorkloadInstanceNameSpec = match wl_state.instance_name {
+                            Some(instance_name) => instance_name.try_into().map_err(|err| {
+                                CliError::ExecutionError(format!(
+                                    "Failed to convert instance name: {err}"
+                                ))
+                            })?,
+                            None => {
+                                return Err(CliError::ExecutionError(
+                                    "Instance name is missing.".to_string(),
+                                ));
+                            }
+                        };
                         let workload_name = instance_name.workload_name();
-                        acc.entry(workload_name.to_owned())
-                            .or_default()
-                            .insert(instance_name);
+                        Ok((workload_name.to_owned(), instance_name))
+                    })
+                    .fold(HashMap::new(), |mut acc, item| {
+                        if let Ok((workload_name, instance_name)) = item {
+                            acc.entry(workload_name).or_default().insert(instance_name);
+                        }
                         acc
-                    },
-                );
+                    });
 
             let mut converted_instance_names = BTreeSet::new();
             for wl_name in workload_names {
@@ -93,34 +104,31 @@ impl CliCommands {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
-
     use crate::cli::LogsArgs;
     use crate::cli_commands::{
         CliCommands,
         server_connection::{MockServerConnection, ServerConnectionError},
     };
     use crate::cli_error::CliError;
-    use api::ank_base;
-    use common::objects::WorkloadInstanceName;
-    use common::{objects::generate_test_workload_spec_with_param, test_utils};
-    use mockall::predicate;
 
-    const RESPONSE_TIMEOUT_MS: u64 = 3000;
-    const AGENT_A_NAME: &str = "agent_A";
-    const AGENT_B_NAME: &str = "agent_B";
-    const WORKLOAD_NAME_1: &str = "workload_1";
-    const WORKLOAD_NAME_2: &str = "workload_2";
-    const RUNTIME_NAME: &str = "runtime";
+    use ankaios_api::ank_base::{CompleteState, WorkloadInstanceNameSpec};
+    use ankaios_api::test_utils::{
+        generate_test_complete_state, generate_test_workload_named_with_params, fixtures,
+    };
+
+    use mockall::predicate;
+    use std::collections::BTreeSet;
+
+    const NOT_EXISTING_WORKLOAD_NAME: &str = "non_existing_workload";
 
     // [utest->swdd~cli-provides-workload-logs~1]
     // [utest->swdd~cli-streams-logs-from-the-server~1]
     #[tokio::test]
     async fn utest_get_locks_blocking_success() {
-        let log_workload = generate_test_workload_spec_with_param(
-            AGENT_A_NAME.to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            RUNTIME_NAME.to_string(),
+        let log_workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
         let cloned_log_workload = log_workload.clone();
         let mut mock_server_connection = MockServerConnection::default();
@@ -128,24 +136,21 @@ mod tests {
             .expect_get_complete_state()
             .with(predicate::eq(vec!["workloadStates".to_string()]))
             .return_once(|_| {
-                Ok(
-                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
-                        cloned_log_workload,
-                        generate_test_workload_spec_with_param(
-                            AGENT_B_NAME.to_string(),
-                            WORKLOAD_NAME_2.to_string(),
-                            RUNTIME_NAME.to_string(),
-                        ),
-                    ]))
-                    .into(),
-                )
+                Ok(CompleteState::from(generate_test_complete_state(vec![
+                    cloned_log_workload,
+                    generate_test_workload_named_with_params(
+                        fixtures::WORKLOAD_NAMES[1],
+                        fixtures::AGENT_NAMES[1],
+                        fixtures::RUNTIME_NAMES[0],
+                    ),
+                ])))
             });
 
-        let instance_names: BTreeSet<WorkloadInstanceName> =
+        let instance_names: BTreeSet<WorkloadInstanceNameSpec> =
             BTreeSet::from([log_workload.instance_name.clone()]);
 
         let args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -158,7 +163,7 @@ mod tests {
             .with(
                 predicate::eq(instance_names),
                 predicate::function(|args: &LogsArgs| {
-                    args.workload_name == vec![WORKLOAD_NAME_1.to_string()]
+                    args.workload_name == vec![fixtures::WORKLOAD_NAMES[0].to_string()]
                         && !args.follow
                         && args.tail == -1
                         && args.since.is_none()
@@ -169,7 +174,7 @@ mod tests {
             .return_once(|_, _| Ok(()));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -192,7 +197,7 @@ mod tests {
             });
 
         let args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -203,7 +208,7 @@ mod tests {
         mock_server_connection.expect_stream_logs().never();
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -225,20 +230,17 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .return_once(|_| {
-                Ok(
-                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
-                        generate_test_workload_spec_with_param(
-                            AGENT_A_NAME.to_string(),
-                            WORKLOAD_NAME_1.to_string(),
-                            RUNTIME_NAME.to_string(),
-                        ),
-                    ]))
-                    .into(),
-                )
+                Ok(CompleteState::from(generate_test_complete_state(vec![
+                    generate_test_workload_named_with_params(
+                        fixtures::WORKLOAD_NAMES[0],
+                        fixtures::AGENT_NAMES[0],
+                        fixtures::RUNTIME_NAMES[0],
+                    ),
+                ])))
             });
 
         let args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -256,7 +258,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -278,25 +280,21 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .return_once(|_| {
-                Ok(
-                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
-                        generate_test_workload_spec_with_param(
-                            AGENT_A_NAME.to_string(),
-                            WORKLOAD_NAME_1.to_string(),
-                            RUNTIME_NAME.to_string(),
-                        ),
-                    ]))
-                    .into(),
-                )
+                Ok(CompleteState::from(generate_test_complete_state(vec![
+                    generate_test_workload_named_with_params(
+                        fixtures::WORKLOAD_NAMES[0],
+                        fixtures::AGENT_NAMES[0],
+                        fixtures::RUNTIME_NAMES[0],
+                    ),
+                ])))
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
-        const NOT_EXISTING_WORKLOAD_NAME: &str = "non_existing_workload";
         let workload_names = vec![NOT_EXISTING_WORKLOAD_NAME.to_string()];
         let result = cmd.workload_names_to_instance_names(workload_names).await;
 
@@ -314,15 +312,15 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .return_once(|_| Ok(ank_base::CompleteState::default().into()));
+            .return_once(|_| Ok(CompleteState::default()));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
-        let workload_names = vec![WORKLOAD_NAME_1.to_string()];
+        let workload_names = vec![fixtures::WORKLOAD_NAMES[0].to_string()];
         let result = cmd.workload_names_to_instance_names(workload_names).await;
 
         assert_eq!(
@@ -338,16 +336,16 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_names_to_instance_names_multiple_instance_names_for_one_workload() {
         let mut mock_server_connection = MockServerConnection::default();
-        let workload_1_agent_a = generate_test_workload_spec_with_param(
-            AGENT_A_NAME.to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            RUNTIME_NAME.to_string(),
+        let workload_1_agent_a = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
-        let workload_1_agent_b = generate_test_workload_spec_with_param(
-            AGENT_B_NAME.to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            RUNTIME_NAME.to_string(),
+        let workload_1_agent_b = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         let instance_name_wl_1_agent_a = workload_1_agent_a.instance_name.clone();
@@ -356,27 +354,24 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .return_once(|_| {
-                Ok(
-                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
-                        workload_1_agent_a,
-                        workload_1_agent_b,
-                    ]))
-                    .into(),
-                )
+                Ok(CompleteState::from(generate_test_complete_state(vec![
+                    workload_1_agent_a,
+                    workload_1_agent_b,
+                ])))
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
-        let workload_names = vec![WORKLOAD_NAME_1.to_string()];
+        let workload_names = vec![fixtures::WORKLOAD_NAMES[0].to_string()];
         let result = cmd.workload_names_to_instance_names(workload_names).await;
 
         assert!(result.is_ok(), "Got result {result:?}");
         let instance_names = result.unwrap();
-        let expected_instance_names: BTreeSet<WorkloadInstanceName> =
+        let expected_instance_names: BTreeSet<WorkloadInstanceNameSpec> =
             BTreeSet::from([instance_name_wl_1_agent_a, instance_name_wl_1_agent_b]);
 
         assert_eq!(instance_names, expected_instance_names);

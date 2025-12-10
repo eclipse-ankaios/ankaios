@@ -13,21 +13,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ankaios_streaming::GRPCStreaming;
+use crate::grpc_api::{self, to_server::ToServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
-use crate::grpc_api::{self, to_server::ToServerEnum};
-use api::ank_base::{
-    self, CompleteStateRequest, LogsStopResponse, Request, UpdateStateRequest,
-    request::RequestContent,
+use ankaios_api::ank_base::{
+    LogsStopResponse, Request, UpdateStateRequest, request::RequestContent,
 };
-
+use common::commands;
 use common::request_id_prepending::prepend_request_id;
 use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender};
 
+use async_trait::async_trait;
 use tokio::sync::mpsc::Sender;
 use tonic::Streaming;
-
-use async_trait::async_trait;
 
 pub struct GRPCToServerStreaming {
     inner: Streaming<grpc_api::ToServer>,
@@ -89,24 +87,23 @@ pub async fn forward_from_proto_to_ankaios(
                             }
                         };
                     }
-                    RequestContent::CompleteStateRequest(CompleteStateRequest {
-                        field_mask,
-                        subscribe_for_events,
-                    }) => {
+                    RequestContent::CompleteStateRequest(complete_state_request) => {
                         log::trace!("Received RequestCompleteState from '{agent_name}'");
-                        sink.request_complete_state(
-                            request_id,
-                            ank_base::CompleteStateRequest {
-                                field_mask,
-                                subscribe_for_events,
+                        match complete_state_request.try_into() {
+                            Ok(complete_state_request) => {
+                                sink.request_complete_state(request_id, complete_state_request)
+                                    .await?;
                             }
-                            .into(),
-                        )
-                        .await?;
+                            Err(error) => {
+                                return Err(GrpcMiddlewareError::ConversionError(format!(
+                                    "Could not convert CompleteStateRequest for forwarding: '{error}'"
+                                )));
+                            }
+                        };
                     }
                     RequestContent::LogsRequest(logs_request) => {
                         log::trace!("Received LogsRequest from '{agent_name}'");
-                        sink.logs_request(request_id, logs_request.into()).await?;
+                        sink.logs_request(request_id, logs_request).await?;
                     }
                     RequestContent::LogsCancelRequest(_logs_stop_request) => {
                         log::trace!("Received LogsCancelRequest from '{agent_name}'");
@@ -126,7 +123,7 @@ pub async fn forward_from_proto_to_ankaios(
                     update_workload_state
                         .workload_states
                         .into_iter()
-                        .map(|x| x.into())
+                        .filter_map(|x| x.try_into().ok())
                         .collect(),
                 )
                 .await?;
@@ -214,7 +211,7 @@ pub async fn forward_from_ankaios_to_proto(
                     .send(grpc_api::ToServer {
                         to_server_enum: Some(
                             grpc_api::to_server::ToServerEnum::UpdateWorkloadState(
-                                common::commands::UpdateWorkloadState {
+                                commands::UpdateWorkloadState {
                                     workload_states: method_obj.workload_states,
                                 }
                                 .into(),
@@ -237,7 +234,7 @@ pub async fn forward_from_ankaios_to_proto(
                 grpc_tx
                     .send(grpc_api::ToServer {
                         to_server_enum: Some(grpc_api::to_server::ToServerEnum::AgentLoadStatus(
-                            common::commands::AgentLoadStatus {
+                            commands::AgentLoadStatus {
                                 agent_name: status.agent_name,
                                 cpu_usage: status.cpu_usage,
                                 free_memory: status.free_memory,
@@ -312,23 +309,27 @@ pub async fn forward_from_ankaios_to_proto(
 
 #[cfg(test)]
 mod tests {
-
-    use std::collections::LinkedList;
-
     use super::{GRPCStreaming, forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
-    use async_trait::async_trait;
-    use common::objects::{CpuUsage, FreeMemory};
-    use common::test_utils::generate_test_complete_state;
-    use common::{
-        objects::generate_test_workload_spec_with_param,
-        to_server_interface::{ToServer, ToServerInterface},
-    };
-    use tokio::sync::mpsc;
-
     use crate::grpc_api::{self, to_server::ToServerEnum};
-    use api::ank_base::{
-        self, LogEntriesResponse, LogEntry, LogsStopResponse, WorkloadInstanceName,
+
+    use ankaios_api::ank_base::{
+        CompleteState, CompleteStateRequest, CompleteStateRequestSpec, ExecutionStateSpec,
+        LogEntriesResponse, LogEntry, LogsCancelRequest, LogsCancelRequestSpec, LogsRequest,
+        LogsRequestSpec, LogsStopResponse, Request, RequestContent, RequestContentSpec,
+        RequestSpec, UpdateStateRequest, WorkloadInstanceName, WorkloadInstanceNameSpec,
+        WorkloadState,
     };
+    use ankaios_api::test_utils::{
+        generate_test_complete_state, generate_test_workload_named,
+        generate_test_workload_state_with_agent, fixtures,
+    };
+
+    use common::commands;
+    use common::to_server_interface::{ToServer, ToServerInterface};
+
+    use async_trait::async_trait;
+    use std::collections::LinkedList;
+    use tokio::sync::mpsc;
 
     #[derive(Default, Clone)]
     struct MockGRPCToServerStreaming {
@@ -350,14 +351,6 @@ mod tests {
         }
     }
 
-    const REQUEST_ID: &str = "request_id";
-    const AGENT_A_NAME: &str = "agent_A";
-    const AGENT_B_NAME: &str = "agent_B";
-    const WORKLOAD_1_NAME: &str = "workload_1";
-    const WORKLOAD_2_NAME: &str = "workload_2";
-    const RUNTIME_NAME: &str = "runtime";
-    const WORKLOAD_ID_1: &str = "id_1";
-    const WORKLOAD_ID_2: &str = "id_2";
     const LOG_MESSAGE_1: &str = "message_1";
     const LOG_MESSAGE_2: &str = "message_2";
 
@@ -367,10 +360,10 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let agent_load_status = common::commands::AgentLoadStatus {
-            agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: CpuUsage { cpu_usage: 42 },
-            free_memory: FreeMemory { free_memory: 42 },
+        let agent_load_status = commands::AgentLoadStatus {
+            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+            cpu_usage: fixtures::CPU_USAGE_SPEC,
+            free_memory: fixtures::FREE_MEMORY_SPEC,
         };
 
         let agent_resource_result = server_tx.agent_load_status(agent_load_status.clone()).await;
@@ -386,9 +379,9 @@ mod tests {
         let result = grpc_rx.recv().await.unwrap();
 
         let expected = ToServerEnum::AgentLoadStatus(grpc_api::AgentLoadStatus {
-            agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: Some(ank_base::CpuUsage { cpu_usage: 42 }),
-            free_memory: Some(ank_base::FreeMemory { free_memory: 42 }),
+            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+            cpu_usage: Some(fixtures::CPU_USAGE_SPEC.into()),
+            free_memory: Some(fixtures::FREE_MEMORY_SPEC.into()),
         });
 
         assert_eq!(result.to_server_enum, Some(expected));
@@ -398,9 +391,9 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_agent_resources() {
         let agent_load_status = common::commands::AgentLoadStatus {
-            agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: CpuUsage { cpu_usage: 42 },
-            free_memory: FreeMemory { free_memory: 42 },
+            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+            cpu_usage: fixtures::CPU_USAGE_SPEC,
+            free_memory: fixtures::FREE_MEMORY_SPEC,
         };
 
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
@@ -417,7 +410,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -438,18 +431,14 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let input_state =
-            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                AGENT_A_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            )]);
+        let workload_named = generate_test_workload_named(); //.name(vars::WORKLOAD_NAMES[0]);
+        let input_state = generate_test_complete_state(vec![workload_named]);
         let update_mask = vec!["bla".into()];
 
         // As the channel capacity is big enough the await is satisfied right away
         let update_state_result = server_tx
             .update_state(
-                REQUEST_ID.to_owned(),
+                fixtures::REQUEST_ID.to_owned(),
                 input_state.clone(),
                 update_mask.clone(),
             )
@@ -469,8 +458,8 @@ mod tests {
 
         assert!(matches!(
             result.to_server_enum,
-            Some(ToServerEnum::Request(ank_base::Request{request_id, request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(update_state_request))}))
-            if request_id == REQUEST_ID && update_state_request.new_state == Some(proto_state) && update_state_request.update_mask == update_mask));
+            Some(ToServerEnum::Request(Request{request_id, request_content: Some(RequestContent::UpdateStateRequest(update_state_request))}))
+            if request_id == fixtures::REQUEST_ID && update_state_request.new_state == Some(proto_state) && update_state_request.update_mask == update_mask));
     }
 
     // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
@@ -479,10 +468,10 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let wl_state = common::objects::generate_test_workload_state_with_agent(
-            WORKLOAD_1_NAME,
-            AGENT_A_NAME,
-            common::objects::ExecutionState::running(),
+        let wl_state = generate_test_workload_state_with_agent(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::running(),
         );
 
         let update_workload_state_result = server_tx
@@ -518,7 +507,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -551,7 +540,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -572,14 +561,11 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_fail_on_invalid_state() {
         let (server_tx, mut _server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+        let workload_named = generate_test_workload_named();
+        let agent_name = workload_named.workload.agent.clone();
 
-        let mut ankaios_state: ank_base::CompleteState =
-            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                AGENT_A_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            )])
-            .into();
+        let mut ankaios_state: CompleteState =
+            generate_test_complete_state(vec![workload_named]).into();
         *ankaios_state
             .desired_state
             .as_mut()
@@ -588,13 +574,13 @@ mod tests {
             .as_mut()
             .unwrap()
             .workloads
-            .get_mut(WORKLOAD_1_NAME)
+            .get_mut(fixtures::WORKLOAD_NAMES[0])
             .unwrap()
             .dependencies
             .as_mut()
             .unwrap()
             .dependencies
-            .get_mut(&String::from("workload_A"))
+            .get_mut(&String::from(fixtures::WORKLOAD_NAMES[1]))
             .unwrap() = -1;
 
         let ankaios_update_mask = vec!["bla".into()];
@@ -603,16 +589,14 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
-                        request_id: REQUEST_ID.to_owned(),
-                        request_content: Some(
-                            ank_base::request::RequestContent::UpdateStateRequest(Box::new(
-                                ank_base::UpdateStateRequest {
-                                    new_state: Some(ankaios_state),
-                                    update_mask: ankaios_update_mask.clone(),
-                                },
-                            )),
-                        ),
+                    to_server_enum: Some(ToServerEnum::Request(Request {
+                        request_id: fixtures::REQUEST_ID.to_owned(),
+                        request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                            UpdateStateRequest {
+                                new_state: Some(ankaios_state),
+                                update_mask: ankaios_update_mask.clone(),
+                            },
+                        ))),
                     })),
                 }),
                 None,
@@ -620,7 +604,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            agent_name,
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -632,30 +616,24 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_update_workload() {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+        let workload_named = generate_test_workload_named(); //.name(vars::WORKLOAD_NAMES[0]);
+        let agent_name = workload_named.workload.agent.clone();
 
-        let ankaios_state =
-            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                AGENT_A_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            )]);
-
+        let ankaios_state = generate_test_complete_state(vec![workload_named]);
         let ankaios_update_mask = vec!["bla".into()];
 
         // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
-                        request_id: REQUEST_ID.to_owned(),
-                        request_content: Some(
-                            ank_base::request::RequestContent::UpdateStateRequest(Box::new(
-                                ank_base::UpdateStateRequest {
-                                    new_state: Some(ankaios_state.clone().into()),
-                                    update_mask: ankaios_update_mask.clone(),
-                                },
-                            )),
-                        ),
+                    to_server_enum: Some(ToServerEnum::Request(Request {
+                        request_id: fixtures::REQUEST_ID.to_owned(),
+                        request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                            UpdateStateRequest {
+                                new_state: Some(ankaios_state.clone().into()),
+                                update_mask: ankaios_update_mask.clone(),
+                            },
+                        ))),
                     })),
                 }),
                 None,
@@ -663,7 +641,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            agent_name.clone(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -673,15 +651,15 @@ mod tests {
 
         // pick received from server message
         let result = server_rx.recv().await.unwrap();
-        let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
+        let expected_prefixed_my_request_id = format!("{agent_name}@{}", fixtures::REQUEST_ID);
 
         assert!(matches!(
             result,
-            ToServer::Request(common::commands::Request {
+            ToServer::Request(RequestSpec {
                 request_id,
-                request_content: common::commands::RequestContent::UpdateStateRequest(update_request),
+                request_content: RequestContentSpec::UpdateStateRequest(update_request),
             })
-            if request_id == expected_prefixed_my_request_id && update_request.state == ankaios_state && update_request.update_mask == ankaios_update_mask));
+            if request_id == expected_prefixed_my_request_id && update_request.new_state == ankaios_state && update_request.update_mask == ankaios_update_mask));
     }
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
@@ -689,13 +667,12 @@ mod tests {
     async fn utest_to_server_command_forward_from_proto_to_ankaios_update_workload_state() {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        let proto_wl_state: ank_base::WorkloadState =
-            common::objects::generate_test_workload_state_with_agent(
-                "fake_workload",
-                AGENT_A_NAME,
-                common::objects::ExecutionState::running(),
-            )
-            .into();
+        let proto_wl_state: WorkloadState = generate_test_workload_state_with_agent(
+            "fake_workload",
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::running(),
+        )
+        .into();
 
         // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
@@ -712,7 +689,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -727,7 +704,7 @@ mod tests {
             result,
             // TODO do a proper check here ...
             ToServer::UpdateWorkloadState(common::commands::UpdateWorkloadState{workload_states})
-            if workload_states == vec!(proto_wl_state.into())
+            if workload_states == vec!(proto_wl_state.try_into().unwrap())
         ));
     }
 
@@ -739,16 +716,14 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
-                        request_id: REQUEST_ID.to_string(),
-                        request_content: Some(
-                            ank_base::request::RequestContent::CompleteStateRequest(
-                                ank_base::CompleteStateRequest {
-                                    field_mask: vec![],
-                                    subscribe_for_events: false,
-                                },
-                            ),
-                        ),
+                    to_server_enum: Some(ToServerEnum::Request(Request {
+                        request_id: fixtures::REQUEST_ID.to_string(),
+                        request_content: Some(RequestContent::CompleteStateRequest(
+                            CompleteStateRequest {
+                                field_mask: vec![],
+                                subscribe_for_events: false,
+                            },
+                        )),
                     })),
                 }),
                 None,
@@ -756,7 +731,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -766,17 +741,16 @@ mod tests {
         // pick received from server message
         let result = server_rx.recv().await.unwrap();
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
-        let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
+        let expected_prefixed_my_request_id =
+            format!("{}@{}", fixtures::AGENT_NAMES[0], fixtures::REQUEST_ID);
         let expected_empty_field_mask: Vec<String> = vec![];
-        assert!(
-            matches!(result, common::to_server_interface::ToServer::Request(common::commands::Request {
+        assert!(matches!(result, ToServer::Request(RequestSpec {
                 request_id,
                 request_content:
-                    common::commands::RequestContent::CompleteStateRequest(
-                        common::commands::CompleteStateRequest { field_mask, subscribe_for_events },
+                    RequestContentSpec::CompleteStateRequest(
+                        CompleteStateRequestSpec { field_mask, subscribe_for_events },
                     ),
-            }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask && !subscribe_for_events)
-        );
+            }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask && !subscribe_for_events));
     }
 
     #[tokio::test]
@@ -784,13 +758,13 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let request_complete_state = common::commands::CompleteStateRequest {
+        let request_complete_state = CompleteStateRequestSpec {
             field_mask: vec![],
             subscribe_for_events: false,
         };
 
         let request_complete_state_result = server_tx
-            .request_complete_state(REQUEST_ID.to_owned(), request_complete_state.clone())
+            .request_complete_state(fixtures::REQUEST_ID.to_owned(), request_complete_state.clone())
             .await;
         assert!(request_complete_state_result.is_ok());
 
@@ -805,14 +779,14 @@ mod tests {
 
         assert!(matches!(
         result.to_server_enum,
-        Some(ToServerEnum::Request(ank_base::Request {
+        Some(ToServerEnum::Request(Request {
             request_id,
             request_content:
-                Some(ank_base::request::RequestContent::CompleteStateRequest(
-                    ank_base::CompleteStateRequest { field_mask, subscribe_for_events },
+                Some(RequestContent::CompleteStateRequest(
+                    CompleteStateRequest { field_mask, subscribe_for_events },
                 )),
         }))
-        if request_id == REQUEST_ID && field_mask == vec![] as Vec<String> && !subscribe_for_events));
+        if request_id == fixtures::REQUEST_ID && field_mask == vec![] as Vec<String> && !subscribe_for_events));
     }
 
     #[tokio::test]
@@ -822,28 +796,26 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
-                        request_id: REQUEST_ID.to_owned(),
-                        request_content: Some(ank_base::request::RequestContent::LogsRequest(
-                            ank_base::LogsRequest {
-                                workload_names: vec![
-                                    ank_base::WorkloadInstanceName {
-                                        workload_name: WORKLOAD_1_NAME.to_string(),
-                                        agent_name: AGENT_A_NAME.to_string(),
-                                        id: WORKLOAD_ID_1.to_string(),
-                                    },
-                                    ank_base::WorkloadInstanceName {
-                                        workload_name: WORKLOAD_2_NAME.to_string(),
-                                        agent_name: AGENT_A_NAME.to_string(),
-                                        id: WORKLOAD_ID_2.to_string(),
-                                    },
-                                ],
-                                follow: Some(true),
-                                tail: Some(10),
-                                since: Some("since".into()),
-                                until: None,
-                            },
-                        )),
+                    to_server_enum: Some(ToServerEnum::Request(Request {
+                        request_id: fixtures::REQUEST_ID.to_owned(),
+                        request_content: Some(RequestContent::LogsRequest(LogsRequest {
+                            workload_names: vec![
+                                WorkloadInstanceName {
+                                    workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+                                    agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                                    id: fixtures::WORKLOAD_IDS[0].to_string(),
+                                },
+                                WorkloadInstanceName {
+                                    workload_name: fixtures::WORKLOAD_NAMES[1].to_string(),
+                                    agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                                    id: fixtures::WORKLOAD_IDS[1].to_string(),
+                                },
+                            ],
+                            follow: Some(true),
+                            tail: Some(10),
+                            since: Some("since".into()),
+                            until: None,
+                        })),
                     })),
                 }),
                 None,
@@ -851,7 +823,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -861,32 +833,31 @@ mod tests {
         // pick received from server message
         let result = server_rx.recv().await.unwrap();
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
-        let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
-        let expected_workload_names: Vec<common::objects::WorkloadInstanceName> = vec![
-            common::objects::WorkloadInstanceName::new(
-                AGENT_A_NAME,
-                WORKLOAD_1_NAME,
-                WORKLOAD_ID_1,
+        let expected_prefixed_my_request_id =
+            format!("{}@{}", fixtures::AGENT_NAMES[0], fixtures::REQUEST_ID);
+        let expected_workload_names: Vec<WorkloadInstanceNameSpec> = vec![
+            WorkloadInstanceNameSpec::new(
+                fixtures::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::WORKLOAD_IDS[0],
             ),
-            common::objects::WorkloadInstanceName::new(
-                AGENT_A_NAME,
-                WORKLOAD_2_NAME,
-                WORKLOAD_ID_2,
+            WorkloadInstanceNameSpec::new(
+                fixtures::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[1],
+                fixtures::WORKLOAD_IDS[1],
             ),
         ];
 
-        assert!(
-            matches!(result, common::to_server_interface::ToServer::Request(common::commands::Request {
+        assert!(matches!(result, ToServer::Request(RequestSpec {
                 request_id,
                 request_content:
-                    common::commands::RequestContent::LogsRequest(
-                        common::commands::LogsRequest { workload_names, follow, tail, since, until },
+                    RequestContentSpec::LogsRequest(
+                        LogsRequestSpec { workload_names, follow, tail, since, until },
                     ),
             }) if request_id == expected_prefixed_my_request_id
                    && workload_names == expected_workload_names
                    && follow && tail == 10
-                   && since == Some("since".into())  && until.is_none())
-        );
+                   && since == Some("since".into())  && until.is_none()));
     }
 
     #[tokio::test]
@@ -896,13 +867,11 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
-                        request_id: REQUEST_ID.to_string(),
-                        request_content: Some(
-                            ank_base::request::RequestContent::LogsCancelRequest(
-                                ank_base::LogsCancelRequest {},
-                            ),
-                        ),
+                    to_server_enum: Some(ToServerEnum::Request(Request {
+                        request_id: fixtures::REQUEST_ID.to_string(),
+                        request_content: Some(RequestContent::LogsCancelRequest(
+                            LogsCancelRequest {},
+                        )),
                     })),
                 }),
                 None,
@@ -910,7 +879,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -920,13 +889,16 @@ mod tests {
         // pick received from server message
         let result = server_rx.recv().await.unwrap();
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
-        let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
+        let expected_prefixed_my_request_id =
+            format!("{}@{}", fixtures::AGENT_NAMES[0], fixtures::REQUEST_ID);
 
         assert!(matches!(
             result,
-            common::to_server_interface::ToServer::Request(common::commands::Request {
+            ToServer::Request(RequestSpec {
                 request_id,
-                request_content: common::commands::RequestContent::LogsCancelRequest,
+                request_content: RequestContentSpec::LogsCancelRequest(
+                    LogsCancelRequestSpec{}
+                ),
             }) if request_id == expected_prefixed_my_request_id
         ));
     }
@@ -940,22 +912,22 @@ mod tests {
                 Some(grpc_api::ToServer {
                     to_server_enum: Some(ToServerEnum::LogEntriesResponse(
                         crate::LogEntriesResponse {
-                            request_id: REQUEST_ID.into(),
+                            request_id: fixtures::REQUEST_ID.into(),
                             log_entries_response: Some(LogEntriesResponse {
                                 log_entries: vec![
                                     LogEntry {
                                         workload_name: Some(WorkloadInstanceName {
-                                            workload_name: WORKLOAD_1_NAME.to_string(),
-                                            agent_name: AGENT_B_NAME.to_string(),
-                                            id: WORKLOAD_ID_1.to_string(),
+                                            workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+                                            agent_name: fixtures::AGENT_NAMES[1].to_string(),
+                                            id: fixtures::WORKLOAD_IDS[0].to_string(),
                                         }),
                                         message: LOG_MESSAGE_1.to_string(),
                                     },
                                     LogEntry {
                                         workload_name: Some(WorkloadInstanceName {
-                                            workload_name: WORKLOAD_2_NAME.to_string(),
-                                            agent_name: AGENT_B_NAME.to_string(),
-                                            id: WORKLOAD_ID_2.to_string(),
+                                            workload_name: fixtures::WORKLOAD_NAMES[1].to_string(),
+                                            agent_name: fixtures::AGENT_NAMES[1].to_string(),
+                                            id: fixtures::WORKLOAD_IDS[1].to_string(),
                                         }),
                                         message: LOG_MESSAGE_2.to_string(),
                                     },
@@ -969,7 +941,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -981,15 +953,15 @@ mod tests {
 
         assert!(matches!(
             result,
-            common::to_server_interface::ToServer::LogEntriesResponse(
+            ToServer::LogEntriesResponse(
                 request_id,
-                ank_base::LogEntriesResponse { log_entries }
-            ) if request_id == REQUEST_ID
+                LogEntriesResponse { log_entries }
+            ) if request_id == fixtures::REQUEST_ID
                  && matches!(log_entries.as_slice(),
-                            [ank_base::LogEntry{ workload_name: Some(ank_base::WorkloadInstanceName{ workload_name: workload_name_1, agent_name: agent_name_1, id: id_1 }), message: message_1 },
-                             ank_base::LogEntry{ workload_name: Some(ank_base::WorkloadInstanceName{ workload_name: workload_name_2, agent_name: agent_name_2, id: id_2 }), message: message_2 }]
-                            if workload_name_1 == WORKLOAD_1_NAME && agent_name_1 == AGENT_B_NAME && id_1 == WORKLOAD_ID_1 && message_1 == LOG_MESSAGE_1
-                               && workload_name_2 == WORKLOAD_2_NAME && agent_name_2 == AGENT_B_NAME && id_2 == WORKLOAD_ID_2 && message_2 == LOG_MESSAGE_2)
+                            [LogEntry{ workload_name: Some(WorkloadInstanceName{ workload_name: workload_name_1, agent_name: agent_name_1, id: id_1 }), message: message_1 },
+                             LogEntry{ workload_name: Some(WorkloadInstanceName{ workload_name: workload_name_2, agent_name: agent_name_2, id: id_2 }), message: message_2 }]
+                            if workload_name_1 == fixtures::WORKLOAD_NAMES[0] && agent_name_1 == fixtures::AGENT_NAMES[1] && id_1 == fixtures::WORKLOAD_IDS[0] && message_1 == LOG_MESSAGE_1
+                               && workload_name_2 == fixtures::WORKLOAD_NAMES[1] && agent_name_2 == fixtures::AGENT_NAMES[1] && id_2 == fixtures::WORKLOAD_IDS[1] && message_2 == LOG_MESSAGE_2)
         ));
     }
 
@@ -1002,7 +974,7 @@ mod tests {
                 Some(grpc_api::ToServer {
                     to_server_enum: Some(ToServerEnum::LogEntriesResponse(
                         crate::LogEntriesResponse {
-                            request_id: REQUEST_ID.into(),
+                            request_id: fixtures::REQUEST_ID.into(),
                             log_entries_response: None,
                         },
                     )),
@@ -1012,7 +984,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -1033,22 +1005,22 @@ mod tests {
 
         let forward_logs_result = server_tx
             .log_entries_response(
-                REQUEST_ID.to_owned(),
+                fixtures::REQUEST_ID.to_owned(),
                 LogEntriesResponse {
                     log_entries: vec![
                         LogEntry {
                             workload_name: Some(WorkloadInstanceName {
-                                workload_name: WORKLOAD_1_NAME.to_string(),
-                                agent_name: AGENT_B_NAME.to_string(),
-                                id: WORKLOAD_ID_1.to_string(),
+                                workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+                                agent_name: fixtures::AGENT_NAMES[1].to_string(),
+                                id: fixtures::WORKLOAD_IDS[0].to_string(),
                             }),
                             message: LOG_MESSAGE_1.to_string(),
                         },
                         LogEntry {
                             workload_name: Some(WorkloadInstanceName {
-                                workload_name: WORKLOAD_2_NAME.to_string(),
-                                agent_name: AGENT_B_NAME.to_string(),
-                                id: WORKLOAD_ID_2.to_string(),
+                                workload_name: fixtures::WORKLOAD_NAMES[1].to_string(),
+                                agent_name: fixtures::AGENT_NAMES[1].to_string(),
+                                id: fixtures::WORKLOAD_IDS[1].to_string(),
                             }),
                             message: LOG_MESSAGE_2.to_string(),
                         },
@@ -1073,12 +1045,12 @@ mod tests {
             Some(ToServerEnum::LogEntriesResponse(grpc_api::LogEntriesResponse {
                 request_id,
                 log_entries_response: Some(LogEntriesResponse { log_entries })
-            })) if request_id == REQUEST_ID
+            })) if request_id == fixtures::REQUEST_ID
                     && matches!(log_entries.as_slice(),
-                                [ank_base::LogEntry{ workload_name: Some(ank_base:: WorkloadInstanceName{ workload_name: workload_name_1, agent_name: agent_name_1, id: id_1 }), message: message_1 },
-                                 ank_base::LogEntry{ workload_name: Some(ank_base:: WorkloadInstanceName{ workload_name: workload_name_2, agent_name: agent_name_2, id: id_2 }), message: message_2 }]
-                                if workload_name_1 == WORKLOAD_1_NAME && agent_name_1 == AGENT_B_NAME && id_1 == WORKLOAD_ID_1 && message_1 == LOG_MESSAGE_1
-                                   && workload_name_2 == WORKLOAD_2_NAME && agent_name_2 == AGENT_B_NAME && id_2 == WORKLOAD_ID_2 && message_2 == LOG_MESSAGE_2)
+                                [LogEntry{ workload_name: Some(WorkloadInstanceName{ workload_name: workload_name_1, agent_name: agent_name_1, id: id_1 }), message: message_1 },
+                                 LogEntry{ workload_name: Some(WorkloadInstanceName{ workload_name: workload_name_2, agent_name: agent_name_2, id: id_2 }), message: message_2 }]
+                                if workload_name_1 == fixtures::WORKLOAD_NAMES[0] && agent_name_1 == fixtures::AGENT_NAMES[1] && id_1 == fixtures::WORKLOAD_IDS[0] && message_1 == LOG_MESSAGE_1
+                                   && workload_name_2 == fixtures::WORKLOAD_NAMES[1] && agent_name_2 == fixtures::AGENT_NAMES[1] && id_2 == fixtures::WORKLOAD_IDS[1] && message_2 == LOG_MESSAGE_2)
         ));
     }
 
@@ -1087,11 +1059,11 @@ mod tests {
     async fn utest_to_server_command_forward_from_proto_to_ankaios_logs_stop_response() {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        let request_id = REQUEST_ID.to_string();
+        let request_id = fixtures::REQUEST_ID.to_string();
         let workload_instance_name = WorkloadInstanceName {
-            workload_name: WORKLOAD_1_NAME.to_string(),
-            agent_name: AGENT_A_NAME.to_string(),
-            id: WORKLOAD_ID_1.to_string(),
+            workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+            id: fixtures::WORKLOAD_IDS[0].to_string(),
         };
 
         let mut mock_grpc_ex_request_streaming =
@@ -1108,7 +1080,7 @@ mod tests {
             ]));
 
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -1120,9 +1092,9 @@ mod tests {
 
         assert!(matches!(
             result,
-            common::to_server_interface::ToServer::LogsStopResponse(
+            ToServer::LogsStopResponse(
                 received_request_id,
-                ank_base::LogsStopResponse {
+                LogsStopResponse {
                     workload_name: received_workload_instance_name
                 }
             ) if received_request_id == request_id && received_workload_instance_name == Some(workload_instance_name)
@@ -1138,7 +1110,7 @@ mod tests {
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
                     to_server_enum: Some(ToServerEnum::LogsStopResponse(crate::LogsStopResponse {
-                        request_id: REQUEST_ID.into(),
+                        request_id: fixtures::REQUEST_ID.into(),
                         logs_stop_response: None,
                     })),
                 }),
@@ -1147,7 +1119,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -1166,11 +1138,11 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let request_id = REQUEST_ID.to_string();
+        let request_id = fixtures::REQUEST_ID.to_string();
         let workload_instance_name = WorkloadInstanceName {
-            workload_name: WORKLOAD_1_NAME.to_string(),
-            agent_name: AGENT_A_NAME.to_string(),
-            id: WORKLOAD_ID_1.to_string(),
+            workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+            id: fixtures::WORKLOAD_IDS[0].to_string(),
         };
 
         let forward_logs_result = server_tx
@@ -1213,7 +1185,7 @@ mod tests {
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
                     to_server_enum: Some(ToServerEnum::AgentHello(crate::AgentHello {
-                        agent_name: AGENT_A_NAME.to_string(),
+                        agent_name: fixtures::AGENT_NAMES[0].to_string(),
                         protocol_version: common::ANKAIOS_VERSION.into(),
                     })),
                 }),
@@ -1227,7 +1199,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )

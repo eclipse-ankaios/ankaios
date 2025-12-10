@@ -12,21 +12,20 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use async_trait::async_trait;
-use common::{
-    objects::{ExecutionState, WorkloadInstanceName, WorkloadState},
-    std_extensions::IllegalStateResult,
-};
+use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
+use common::std_extensions::IllegalStateResult;
 
-pub type WorkloadStateReceiver = tokio::sync::mpsc::Receiver<WorkloadState>;
-pub type WorkloadStateSender = tokio::sync::mpsc::Sender<WorkloadState>;
+use async_trait::async_trait;
+
+pub type WorkloadStateReceiver = tokio::sync::mpsc::Receiver<WorkloadStateSpec>;
+pub type WorkloadStateSender = tokio::sync::mpsc::Sender<WorkloadStateSpec>;
 
 #[async_trait]
 pub trait WorkloadStateSenderInterface {
     async fn report_workload_execution_state(
         &self,
-        instance_name: &WorkloadInstanceName,
-        execution_state: ExecutionState,
+        instance_name: &WorkloadInstanceNameSpec,
+        execution_state: ExecutionStateSpec,
     );
 }
 
@@ -34,10 +33,10 @@ pub trait WorkloadStateSenderInterface {
 impl WorkloadStateSenderInterface for WorkloadStateSender {
     async fn report_workload_execution_state(
         &self,
-        instance_name: &WorkloadInstanceName,
-        execution_state: ExecutionState,
+        instance_name: &WorkloadInstanceNameSpec,
+        execution_state: ExecutionStateSpec,
     ) {
-        self.send(WorkloadState {
+        self.send(WorkloadStateSpec {
             instance_name: instance_name.to_owned(),
             execution_state,
         })
@@ -57,7 +56,7 @@ impl WorkloadStateSenderInterface for WorkloadStateSender {
 #[cfg(test)]
 pub async fn assert_execution_state_sequence(
     mut state_change_rx: WorkloadStateReceiver,
-    expected_states: Vec<(&WorkloadInstanceName, ExecutionState)>,
+    expected_states: Vec<(&WorkloadInstanceNameSpec, ExecutionStateSpec)>,
 ) {
     for expected_state in expected_states {
         assert_eq!(
@@ -68,7 +67,7 @@ pub async fn assert_execution_state_sequence(
             .await
             .unwrap()
             .unwrap(),
-            WorkloadState {
+            WorkloadStateSpec {
                 instance_name: expected_state.0.clone(),
                 execution_state: expected_state.1
             }
@@ -78,31 +77,30 @@ pub async fn assert_execution_state_sequence(
 
 #[cfg(test)]
 mod tests {
-    use common::objects::{ExecutionState, WorkloadInstanceName, WorkloadState};
-
     use crate::workload_state::WorkloadStateSenderInterface;
 
-    const BUFFER_SIZE: usize = 20;
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
+    use ankaios_api::test_utils::fixtures;
 
     #[tokio::test]
     async fn utest_workload_state_sender_interface_report() {
         let (wl_state_tx, mut wl_state_rx) =
-            tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<WorkloadStateSpec>(fixtures::TEST_CHANNEL_CAP);
 
-        let instance_name = WorkloadInstanceName::builder()
-            .workload_name("name1")
-            .agent_name("agent_X")
-            .config(&"config string".to_string())
+        let instance_name = WorkloadInstanceNameSpec::builder()
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
+            .config(&fixtures::RUNTIME_CONFIGS[0].to_string())
             .build();
-        let exec_state = ExecutionState::running();
+        let exec_state = ExecutionStateSpec::running();
 
         wl_state_tx
             .report_workload_execution_state(&instance_name, exec_state)
             .await;
 
-        let expected_execution_state = WorkloadState {
+        let expected_execution_state = WorkloadStateSpec {
             instance_name,
-            execution_state: ExecutionState::running(),
+            execution_state: ExecutionStateSpec::running(),
         };
 
         assert_eq!(

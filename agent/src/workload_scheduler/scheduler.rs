@@ -12,16 +12,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::workload_operation::WorkloadOperation;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::dependency_state_validator::DependencyStateValidator;
 use crate::{
-    workload_operation::ReusableWorkloadSpec,
+    workload_operation::ReusableWorkload,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
-use common::objects::{DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec};
+
+use ankaios_api::ank_base::{
+    DeletedWorkload, ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed,
+};
 use std::{collections::HashMap, fmt::Display};
 
-use crate::workload_operation::WorkloadOperation;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 
@@ -30,10 +33,10 @@ use mockall::automock;
 
 #[derive(Debug, Clone, PartialEq)]
 enum PendingEntry {
-    Create(ReusableWorkloadSpec),
+    Create(ReusableWorkload),
     Delete(DeletedWorkload),
-    UpdateCreate(WorkloadSpec, DeletedWorkload),
-    UpdateDelete(WorkloadSpec, DeletedWorkload),
+    UpdateCreate(WorkloadNamed, DeletedWorkload),
+    UpdateDelete(WorkloadNamed, DeletedWorkload),
 }
 
 type WorkloadOperationQueue = HashMap<String, PendingEntry>;
@@ -71,22 +74,22 @@ impl WorkloadScheduler {
         let notify_on_new_entry = true;
         for workload_operation in new_workload_operations {
             match workload_operation {
-                WorkloadOperation::Create(new_workload_spec) => {
+                WorkloadOperation::Create(new_workload) => {
                     ready_workload_operations.extend(
                         self.enqueue_pending_create(
-                            new_workload_spec,
+                            new_workload,
                             workload_state_db,
                             notify_on_new_entry,
                         )
                         .await,
                     );
                 }
-                WorkloadOperation::Update(new_workload_spec, deleted_workload) => {
+                WorkloadOperation::Update(new_workload_named, deleted_workload) => {
                     ready_workload_operations.extend(
                         // [impl->swdd~agent-enqueues-update-with-unfulfilled-delete~1]
                         // [impl->swdd~agent-enqueues-update-with-unfulfilled-delete~1]
                         self.enqueue_pending_update(
-                            new_workload_spec,
+                            new_workload_named,
                             deleted_workload,
                             workload_state_db,
                             notify_on_new_entry,
@@ -134,37 +137,33 @@ impl WorkloadScheduler {
         let notify_on_new_entry = false;
         for queue_entry in queue_entries {
             match queue_entry {
-                PendingEntry::Create(new_workload_spec) => {
+                PendingEntry::Create(new_workload) => {
                     ready_workload_operations.extend(
                         self.enqueue_pending_create(
-                            new_workload_spec,
+                            new_workload,
                             workload_state_db,
                             notify_on_new_entry,
                         )
                         .await,
                     );
                 }
-                PendingEntry::UpdateCreate(new_workload_spec, deleted_workload) => {
+                PendingEntry::UpdateCreate(new_workload, deleted_workload) => {
                     // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
-                    if DependencyStateValidator::create_fulfilled(
-                        &new_workload_spec,
-                        workload_state_db,
-                    ) {
-                        ready_workload_operations.push(WorkloadOperation::Update(
-                            new_workload_spec,
-                            deleted_workload,
-                        ));
+                    if DependencyStateValidator::create_fulfilled(&new_workload, workload_state_db)
+                    {
+                        ready_workload_operations
+                            .push(WorkloadOperation::Update(new_workload, deleted_workload));
                     } else {
                         self.put_on_queue(
-                            new_workload_spec.instance_name.workload_name().to_owned(),
-                            PendingEntry::UpdateCreate(new_workload_spec, deleted_workload),
+                            new_workload.instance_name.workload_name().to_owned(),
+                            PendingEntry::UpdateCreate(new_workload, deleted_workload),
                         );
                     }
                 }
-                PendingEntry::UpdateDelete(new_workload_spec, deleted_workload) => {
+                PendingEntry::UpdateDelete(new_workload, deleted_workload) => {
                     ready_workload_operations.extend(
                         self.enqueue_pending_update(
-                            new_workload_spec,
+                            new_workload,
                             deleted_workload,
                             workload_state_db,
                             notify_on_new_entry,
@@ -190,30 +189,30 @@ impl WorkloadScheduler {
     // [impl->swdd~agent-enqueues-unfulfilled-create~1]
     async fn enqueue_pending_create(
         &mut self,
-        new_workload_spec: ReusableWorkloadSpec,
+        new_workload: ReusableWorkload,
         workload_state_db: &WorkloadStateStore,
         notify_on_new_entry: bool,
     ) -> Vec<WorkloadOperation> {
         let mut ready_workload_operations = Vec::new();
         // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
         if DependencyStateValidator::create_fulfilled(
-            &new_workload_spec.workload_spec,
+            &new_workload.workload_named,
             workload_state_db,
         ) {
-            ready_workload_operations.push(WorkloadOperation::Create(new_workload_spec));
+            ready_workload_operations.push(WorkloadOperation::Create(new_workload));
         } else {
             if notify_on_new_entry {
-                self.report_pending_create_state(&new_workload_spec.workload_spec.instance_name)
+                self.report_pending_create_state(&new_workload.workload_named.instance_name)
                     .await;
             }
 
             self.put_on_queue(
-                new_workload_spec
-                    .workload_spec
+                new_workload
+                    .workload_named
                     .instance_name
                     .workload_name()
                     .to_owned(),
-                PendingEntry::Create(new_workload_spec),
+                PendingEntry::Create(new_workload),
             );
         }
 
@@ -222,7 +221,7 @@ impl WorkloadScheduler {
 
     async fn enqueue_pending_update(
         &mut self,
-        new_workload_spec: WorkloadSpec,
+        new_workload_named: WorkloadNamed,
         deleted_workload: DeletedWorkload,
         workload_state_db: &WorkloadStateStore,
         notify_on_new_entry: bool,
@@ -231,7 +230,7 @@ impl WorkloadScheduler {
 
         // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
         let create_fulfilled =
-            DependencyStateValidator::create_fulfilled(&new_workload_spec, workload_state_db);
+            DependencyStateValidator::create_fulfilled(&new_workload_named, workload_state_db);
 
         // [impl->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
         let delete_fulfilled =
@@ -241,7 +240,7 @@ impl WorkloadScheduler {
         if create_fulfilled && delete_fulfilled {
             // dependencies for create and delete are fulfilled, the update can be done immediately
             ready_workload_operations.push(WorkloadOperation::Update(
-                new_workload_spec.clone(),
+                new_workload_named.clone(),
                 deleted_workload.clone(),
             ));
             return ready_workload_operations;
@@ -257,12 +256,12 @@ impl WorkloadScheduler {
             /* once the delete conditions are fulfilled the pending update delete is
             transformed into a pending create since the current update strategy is at most once.
             We notify a pending create state. */
-            self.report_pending_create_state(&new_workload_spec.instance_name)
+            self.report_pending_create_state(&new_workload_named.instance_name)
                 .await;
 
             self.put_on_queue(
-                new_workload_spec.instance_name.workload_name().to_owned(),
-                PendingEntry::UpdateCreate(new_workload_spec, deleted_workload.clone()),
+                new_workload_named.instance_name.workload_name().to_owned(),
+                PendingEntry::UpdateCreate(new_workload_named, deleted_workload.clone()),
             );
 
             ready_workload_operations.push(WorkloadOperation::UpdateDeleteOnly(deleted_workload));
@@ -276,8 +275,8 @@ impl WorkloadScheduler {
             }
 
             self.put_on_queue(
-                new_workload_spec.instance_name.workload_name().to_owned(),
-                PendingEntry::UpdateDelete(new_workload_spec, deleted_workload),
+                new_workload_named.instance_name.workload_name().to_owned(),
+                PendingEntry::UpdateDelete(new_workload_named, deleted_workload),
             );
         }
         ready_workload_operations
@@ -310,15 +309,15 @@ impl WorkloadScheduler {
         ready_workload_operations
     }
 
-    async fn report_pending_create_state(&self, instance_name: &WorkloadInstanceName) {
+    async fn report_pending_create_state(&self, instance_name: &WorkloadInstanceNameSpec) {
         self.workload_state_sender
-            .report_workload_execution_state(instance_name, ExecutionState::waiting_to_start())
+            .report_workload_execution_state(instance_name, ExecutionStateSpec::waiting_to_start())
             .await;
     }
 
-    async fn report_pending_delete_state(&self, instance_name: &WorkloadInstanceName) {
+    async fn report_pending_delete_state(&self, instance_name: &WorkloadInstanceNameSpec) {
         self.workload_state_sender
-            .report_workload_execution_state(instance_name, ExecutionState::waiting_to_stop())
+            .report_workload_execution_state(instance_name, ExecutionStateSpec::waiting_to_stop())
             .await;
     }
 }
@@ -333,19 +332,9 @@ impl WorkloadScheduler {
 
 #[cfg(test)]
 mod tests {
-    use common::{
-        objects::{
-            ExecutionState, WorkloadState, generate_test_workload_spec,
-            generate_test_workload_spec_with_param,
-            generate_test_workload_state_with_workload_spec,
-        },
-        test_utils::generate_test_deleted_workload,
-    };
-    use tokio::sync::mpsc::channel;
-
     use super::WorkloadScheduler;
     use crate::{
-        workload_operation::{ReusableWorkloadSpec, WorkloadOperation},
+        workload_operation::{ReusableWorkload, WorkloadOperation},
         workload_scheduler::{
             dependency_state_validator::MockDependencyStateValidator, scheduler::PendingEntry,
         },
@@ -354,9 +343,13 @@ mod tests {
         },
     };
 
-    const AGENT_A: &str = "agent_A";
-    const WORKLOAD_NAME_1: &str = "workload_1";
-    const RUNTIME: &str = "runtime";
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadStateSpec};
+    use ankaios_api::test_utils::{
+        generate_test_deleted_workload_with_params, generate_test_workload_named,
+        generate_test_workload_state_with_workload_named, fixtures,
+    };
+
+    use tokio::sync::mpsc::channel;
 
     // [utest->swdd~agent-handles-new-workload-operations~1]
     // [utest->swdd~agent-enqueues-unfulfilled-create~1]
@@ -374,13 +367,9 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let pending_workload = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let pending_workload = generate_test_workload_named();
 
-        let pending_reusable_workload = ReusableWorkloadSpec::new(pending_workload, None);
+        let pending_reusable_workload = ReusableWorkload::new(pending_workload, None);
 
         let workload_operations =
             vec![WorkloadOperation::Create(pending_reusable_workload.clone())];
@@ -392,9 +381,9 @@ mod tests {
             )
             .await;
 
-        let expected_workload_state = generate_test_workload_state_with_workload_spec(
-            &pending_reusable_workload.workload_spec.clone(),
-            ExecutionState::waiting_to_start(),
+        let expected_workload_state = generate_test_workload_state_with_workload_named(
+            &pending_reusable_workload.workload_named.clone(),
+            ExecutionStateSpec::waiting_to_start(),
         );
 
         assert_eq!(
@@ -409,7 +398,7 @@ mod tests {
         assert!(
             workload_scheduler.queue.contains_key(
                 pending_reusable_workload
-                    .workload_spec
+                    .workload_named
                     .instance_name
                     .workload_name()
             )
@@ -433,14 +422,7 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_workload = ReusableWorkloadSpec::new(
-            generate_test_workload_spec_with_param(
-                AGENT_A.to_owned(),
-                WORKLOAD_NAME_1.to_owned(),
-                RUNTIME.to_owned(),
-            ),
-            None,
-        );
+        let ready_workload = ReusableWorkload::new(generate_test_workload_named(), None);
 
         let workload_operations = vec![WorkloadOperation::Create(ready_workload.clone())];
 
@@ -472,7 +454,7 @@ mod tests {
 
         drop(workload_state_receiver);
 
-        let pending_workload = generate_test_workload_spec();
+        let pending_workload = generate_test_workload_named();
         workload_scheduler
             .report_pending_create_state(&pending_workload.instance_name)
             .await;
@@ -495,7 +477,7 @@ mod tests {
             .return_const(false);
 
         let pending_deleted_workload =
-            generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
+            generate_test_deleted_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::WORKLOAD_NAMES[0]);
 
         let workload_operations = vec![WorkloadOperation::Delete(pending_deleted_workload.clone())];
         let ready_workload_operations = workload_scheduler
@@ -514,9 +496,9 @@ mod tests {
                 .get(pending_deleted_workload.instance_name.workload_name())
         );
 
-        let expected_workload_state = WorkloadState {
+        let expected_workload_state = WorkloadStateSpec {
             instance_name: pending_deleted_workload.instance_name,
-            execution_state: ExecutionState::waiting_to_stop(),
+            execution_state: ExecutionStateSpec::waiting_to_stop(),
         };
 
         assert_eq!(
@@ -545,7 +527,7 @@ mod tests {
             .return_const(true);
 
         let ready_deleted_workload =
-            generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
+            generate_test_deleted_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::WORKLOAD_NAMES[0]);
 
         let workload_operations = vec![WorkloadOperation::Delete(ready_deleted_workload.clone())];
         let ready_workload_operations = workload_scheduler
@@ -577,8 +559,7 @@ mod tests {
 
         drop(workload_state_receiver);
 
-        let pending_workload =
-            generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
+        let pending_workload = generate_test_deleted_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::WORKLOAD_NAMES[0]);
 
         workload_scheduler
             .report_pending_delete_state(&pending_workload.instance_name)
@@ -607,15 +588,11 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let ready_new_workload = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_new_workload = generate_test_workload_named();
 
-        let pending_deleted_workload = generate_test_deleted_workload(
-            ready_new_workload.instance_name.agent_name().to_owned(),
-            ready_new_workload.instance_name.workload_name().to_owned(),
+        let pending_deleted_workload = generate_test_deleted_workload_with_params(
+            ready_new_workload.instance_name.agent_name(),
+            ready_new_workload.instance_name.workload_name(),
         );
 
         let workload_operations = vec![WorkloadOperation::Update(
@@ -641,9 +618,9 @@ mod tests {
                 .get(pending_deleted_workload.instance_name.workload_name())
         );
 
-        let expected_workload_state = WorkloadState {
+        let expected_workload_state = WorkloadStateSpec {
             instance_name: pending_deleted_workload.instance_name,
-            execution_state: ExecutionState::waiting_to_stop(),
+            execution_state: ExecutionStateSpec::waiting_to_stop(),
         };
 
         assert_eq!(
@@ -678,15 +655,11 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let ready_new_workload = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_new_workload = generate_test_workload_named();
 
-        let pending_deleted_workload = generate_test_deleted_workload(
-            ready_new_workload.instance_name.agent_name().to_owned(),
-            ready_new_workload.instance_name.workload_name().to_owned(),
+        let pending_deleted_workload = generate_test_deleted_workload_with_params(
+            ready_new_workload.instance_name.agent_name(),
+            ready_new_workload.instance_name.workload_name(),
         );
 
         let workload_operations = vec![WorkloadOperation::Update(
@@ -712,9 +685,9 @@ mod tests {
                 .get(pending_deleted_workload.instance_name.workload_name())
         );
 
-        let expected_workload_state = WorkloadState {
+        let expected_workload_state = WorkloadStateSpec {
             instance_name: pending_deleted_workload.instance_name,
-            execution_state: ExecutionState::waiting_to_stop(),
+            execution_state: ExecutionStateSpec::waiting_to_stop(),
         };
 
         assert_eq!(
@@ -749,18 +722,11 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let pending_new_workload = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let pending_new_workload = generate_test_workload_named();
 
-        let ready_deleted_workload = generate_test_deleted_workload(
-            pending_new_workload.instance_name.agent_name().to_owned(),
-            pending_new_workload
-                .instance_name
-                .workload_name()
-                .to_owned(),
+        let ready_deleted_workload = generate_test_deleted_workload_with_params(
+            pending_new_workload.instance_name.agent_name(),
+            pending_new_workload.instance_name.workload_name(),
         );
 
         let workload_operations = vec![WorkloadOperation::Update(
@@ -785,9 +751,9 @@ mod tests {
                 .get(pending_new_workload.instance_name.workload_name())
         );
 
-        let expected_workload_state = WorkloadState {
+        let expected_workload_state = WorkloadStateSpec {
             instance_name: pending_new_workload.instance_name,
-            execution_state: ExecutionState::waiting_to_start(),
+            execution_state: ExecutionStateSpec::waiting_to_start(),
         };
 
         assert_eq!(
@@ -821,18 +787,11 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let pending_new_workload = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let pending_new_workload = generate_test_workload_named();
 
-        let ready_deleted_workload = generate_test_deleted_workload(
-            pending_new_workload.instance_name.agent_name().to_owned(),
-            pending_new_workload
-                .instance_name
-                .workload_name()
-                .to_owned(),
+        let ready_deleted_workload = generate_test_deleted_workload_with_params(
+            pending_new_workload.instance_name.agent_name(),
+            pending_new_workload.instance_name.workload_name(),
         );
 
         let workload_operations = vec![WorkloadOperation::Update(
@@ -874,15 +833,11 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_new_workload = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_new_workload = generate_test_workload_named();
 
-        let ready_deleted_workload = generate_test_deleted_workload(
-            ready_new_workload.instance_name.agent_name().to_owned(),
-            ready_new_workload.instance_name.workload_name().to_owned(),
+        let ready_deleted_workload = generate_test_deleted_workload_with_params(
+            ready_new_workload.instance_name.agent_name(),
+            ready_new_workload.instance_name.workload_name(),
         );
 
         let workload_operations = vec![WorkloadOperation::Update(
@@ -925,15 +880,11 @@ mod tests {
             .once()
             .return_const(true);
 
-        let ready_new_workload = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_new_workload = generate_test_workload_named();
 
-        let ready_deleted_workload = generate_test_deleted_workload(
-            ready_new_workload.instance_name.agent_name().to_owned(),
-            ready_new_workload.instance_name.workload_name().to_owned(),
+        let ready_deleted_workload = generate_test_deleted_workload_with_params(
+            ready_new_workload.instance_name.agent_name(),
+            ready_new_workload.instance_name.workload_name(),
         );
 
         let workload_operations = vec![];
@@ -972,7 +923,7 @@ mod tests {
         let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
 
         let ready_deleted_workload =
-            generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
+            generate_test_deleted_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::WORKLOAD_NAMES[0]);
 
         let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(
             ready_deleted_workload.clone(),
@@ -1013,22 +964,18 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let new_workload_spec = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let new_workload = generate_test_workload_named();
 
-        let instance_name_new_workload = new_workload_spec.instance_name.clone();
+        let instance_name_new_workload = new_workload.instance_name.clone();
 
-        let ready_deleted_workload = generate_test_deleted_workload(
-            instance_name_new_workload.agent_name().to_owned(),
-            instance_name_new_workload.workload_name().to_owned(),
+        let ready_deleted_workload = generate_test_deleted_workload_with_params(
+            instance_name_new_workload.agent_name(),
+            instance_name_new_workload.workload_name(),
         );
 
         workload_scheduler.queue.insert(
             instance_name_new_workload.workload_name().to_owned(),
-            PendingEntry::UpdateDelete(new_workload_spec.clone(), ready_deleted_workload.clone()),
+            PendingEntry::UpdateDelete(new_workload.clone(), ready_deleted_workload.clone()),
         );
 
         let ready_workload_operations = workload_scheduler
@@ -1044,7 +991,7 @@ mod tests {
 
         assert_eq!(
             Some(&PendingEntry::UpdateCreate(
-                new_workload_spec,
+                new_workload,
                 ready_deleted_workload
             )),
             workload_scheduler
@@ -1075,22 +1022,18 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let new_workload_spec = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let new_workload = generate_test_workload_named();
 
-        let instance_name_new_workload = new_workload_spec.instance_name.clone();
+        let instance_name_new_workload = new_workload.instance_name.clone();
 
-        let ready_deleted_workload = generate_test_deleted_workload(
-            instance_name_new_workload.agent_name().to_owned(),
-            instance_name_new_workload.workload_name().to_owned(),
+        let ready_deleted_workload = generate_test_deleted_workload_with_params(
+            instance_name_new_workload.agent_name(),
+            instance_name_new_workload.workload_name(),
         );
 
         workload_scheduler.queue.insert(
             instance_name_new_workload.workload_name().to_owned(),
-            PendingEntry::UpdateDelete(new_workload_spec.clone(), ready_deleted_workload.clone()),
+            PendingEntry::UpdateDelete(new_workload.clone(), ready_deleted_workload.clone()),
         );
 
         workload_scheduler
@@ -1101,7 +1044,7 @@ mod tests {
             workload_state_receiver,
             vec![(
                 &instance_name_new_workload,
-                ExecutionState::waiting_to_start(),
+                ExecutionStateSpec::waiting_to_start(),
             )],
         )
         .await;
@@ -1124,7 +1067,7 @@ mod tests {
             .return_const(false);
 
         let pending_deleted_workload =
-            generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
+            generate_test_deleted_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::WORKLOAD_NAMES[0]);
 
         let instance_name_deleted_workload = pending_deleted_workload.instance_name.clone();
 
@@ -1162,7 +1105,7 @@ mod tests {
             .return_const(false);
 
         let pending_deleted_workload =
-            generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
+            generate_test_deleted_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::WORKLOAD_NAMES[0]);
 
         let instance_name_deleted_workload = pending_deleted_workload.instance_name.clone();
 
@@ -1193,21 +1136,13 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let pending_workload_spec = ReusableWorkloadSpec::new(
-            generate_test_workload_spec_with_param(
-                AGENT_A.to_owned(),
-                WORKLOAD_NAME_1.to_owned(),
-                RUNTIME.to_owned(),
-            ),
-            None,
-        );
+        let pending_workload = ReusableWorkload::new(generate_test_workload_named(), None);
 
-        let instance_name_create_workload =
-            pending_workload_spec.workload_spec.instance_name.clone();
+        let instance_name_create_workload = pending_workload.workload_named.instance_name.clone();
 
         workload_scheduler.queue.insert(
             instance_name_create_workload.workload_name().to_owned(),
-            PendingEntry::Create(pending_workload_spec.clone()),
+            PendingEntry::Create(pending_workload.clone()),
         );
 
         let ready_workload_operations = workload_scheduler
@@ -1238,21 +1173,13 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let pending_workload_spec = ReusableWorkloadSpec::new(
-            generate_test_workload_spec_with_param(
-                AGENT_A.to_owned(),
-                WORKLOAD_NAME_1.to_owned(),
-                RUNTIME.to_owned(),
-            ),
-            None,
-        );
+        let pending_workload = ReusableWorkload::new(generate_test_workload_named(), None);
 
-        let instance_name_create_workload =
-            pending_workload_spec.workload_spec.instance_name.clone();
+        let instance_name_create_workload = pending_workload.workload_named.instance_name.clone();
 
         workload_scheduler.queue.insert(
             instance_name_create_workload.workload_name().to_owned(),
-            PendingEntry::Create(pending_workload_spec.clone()),
+            PendingEntry::Create(pending_workload.clone()),
         );
 
         workload_scheduler
@@ -1283,25 +1210,18 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let ready_workload_spec = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_workload = generate_test_workload_named();
 
-        let instance_name = ready_workload_spec.instance_name.clone();
+        let instance_name = ready_workload.instance_name.clone();
 
-        let pending_deleted_workload = generate_test_deleted_workload(
-            instance_name.agent_name().to_owned(),
-            instance_name.workload_name().to_owned(),
+        let pending_deleted_workload = generate_test_deleted_workload_with_params(
+            instance_name.agent_name(),
+            instance_name.workload_name(),
         );
 
         workload_scheduler.queue.insert(
             instance_name.workload_name().to_owned(),
-            PendingEntry::UpdateDelete(
-                ready_workload_spec.clone(),
-                pending_deleted_workload.clone(),
-            ),
+            PendingEntry::UpdateDelete(ready_workload.clone(), pending_deleted_workload.clone()),
         );
 
         let ready_workload_operations = workload_scheduler
@@ -1338,25 +1258,18 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let ready_workload_spec = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_workload = generate_test_workload_named();
 
-        let instance_name = ready_workload_spec.instance_name.clone();
+        let instance_name = ready_workload.instance_name.clone();
 
-        let pending_deleted_workload = generate_test_deleted_workload(
-            instance_name.agent_name().to_owned(),
-            instance_name.workload_name().to_owned(),
+        let pending_deleted_workload = generate_test_deleted_workload_with_params(
+            instance_name.agent_name(),
+            instance_name.workload_name(),
         );
 
         workload_scheduler.queue.insert(
             instance_name.workload_name().to_owned(),
-            PendingEntry::UpdateDelete(
-                ready_workload_spec.clone(),
-                pending_deleted_workload.clone(),
-            ),
+            PendingEntry::UpdateDelete(ready_workload.clone(), pending_deleted_workload.clone()),
         );
 
         workload_scheduler
@@ -1387,25 +1300,18 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_workload_spec = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_workload = generate_test_workload_named();
 
-        let instance_name = ready_workload_spec.instance_name.clone();
+        let instance_name = ready_workload.instance_name.clone();
 
-        let pending_deleted_workload = generate_test_deleted_workload(
-            instance_name.agent_name().to_owned(),
-            instance_name.workload_name().to_owned(),
+        let pending_deleted_workload = generate_test_deleted_workload_with_params(
+            instance_name.agent_name(),
+            instance_name.workload_name(),
         );
 
         workload_scheduler.queue.insert(
             instance_name.workload_name().to_owned(),
-            PendingEntry::UpdateCreate(
-                ready_workload_spec.clone(),
-                pending_deleted_workload.clone(),
-            ),
+            PendingEntry::UpdateCreate(ready_workload.clone(), pending_deleted_workload.clone()),
         );
 
         let ready_workload_operations = workload_scheduler
@@ -1443,25 +1349,18 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_workload_spec = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_workload = generate_test_workload_named();
 
-        let instance_name = ready_workload_spec.instance_name.clone();
+        let instance_name = ready_workload.instance_name.clone();
 
-        let pending_deleted_workload = generate_test_deleted_workload(
-            instance_name.agent_name().to_owned(),
-            instance_name.workload_name().to_owned(),
+        let pending_deleted_workload = generate_test_deleted_workload_with_params(
+            instance_name.agent_name(),
+            instance_name.workload_name(),
         );
 
         workload_scheduler.queue.insert(
             instance_name.workload_name().to_owned(),
-            PendingEntry::UpdateCreate(
-                ready_workload_spec.clone(),
-                pending_deleted_workload.clone(),
-            ),
+            PendingEntry::UpdateCreate(ready_workload.clone(), pending_deleted_workload.clone()),
         );
 
         workload_scheduler
@@ -1486,22 +1385,15 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_workload_spec = ReusableWorkloadSpec::new(
-            generate_test_workload_spec_with_param(
-                AGENT_A.to_owned(),
-                WORKLOAD_NAME_1.to_owned(),
-                RUNTIME.to_owned(),
-            ),
-            None,
-        );
+        let ready_workload = ReusableWorkload::new(generate_test_workload_named(), None);
 
         workload_scheduler.queue.insert(
-            ready_workload_spec
-                .workload_spec
+            ready_workload
+                .workload_named
                 .instance_name
                 .workload_name()
                 .to_owned(),
-            PendingEntry::Create(ready_workload_spec.clone()),
+            PendingEntry::Create(ready_workload.clone()),
         );
 
         let ready_workload_operations = workload_scheduler
@@ -1509,7 +1401,7 @@ mod tests {
             .await;
 
         assert_eq!(
-            vec![WorkloadOperation::Create(ready_workload_spec)],
+            vec![WorkloadOperation::Create(ready_workload)],
             ready_workload_operations
         );
 
@@ -1532,7 +1424,7 @@ mod tests {
             .return_const(true);
 
         let ready_deleted_workload =
-            generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
+            generate_test_deleted_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::WORKLOAD_NAMES[0]);
 
         workload_scheduler.queue.insert(
             ready_deleted_workload
@@ -1575,22 +1467,18 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_workload_spec = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_workload = generate_test_workload_named();
 
-        let instance_name = ready_workload_spec.instance_name.clone();
+        let instance_name = ready_workload.instance_name.clone();
 
-        let ready_deleted_workload = generate_test_deleted_workload(
-            instance_name.agent_name().to_owned(),
-            instance_name.workload_name().to_owned(),
+        let ready_deleted_workload = generate_test_deleted_workload_with_params(
+            instance_name.agent_name(),
+            instance_name.workload_name(),
         );
 
         workload_scheduler.queue.insert(
             instance_name.workload_name().to_owned(),
-            PendingEntry::UpdateCreate(ready_workload_spec.clone(), ready_deleted_workload.clone()),
+            PendingEntry::UpdateCreate(ready_workload.clone(), ready_deleted_workload.clone()),
         );
 
         let ready_workload_operations = workload_scheduler
@@ -1599,7 +1487,7 @@ mod tests {
 
         assert_eq!(
             vec![WorkloadOperation::Update(
-                ready_workload_spec,
+                ready_workload,
                 ready_deleted_workload
             )],
             ready_workload_operations
@@ -1629,22 +1517,18 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_workload_spec = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_workload = generate_test_workload_named();
 
-        let instance_name = ready_workload_spec.instance_name.clone();
+        let instance_name = ready_workload.instance_name.clone();
 
-        let ready_deleted_workload = generate_test_deleted_workload(
-            instance_name.agent_name().to_owned(),
-            instance_name.workload_name().to_owned(),
+        let ready_deleted_workload = generate_test_deleted_workload_with_params(
+            instance_name.agent_name(),
+            instance_name.workload_name(),
         );
 
         workload_scheduler.queue.insert(
             instance_name.workload_name().to_owned(),
-            PendingEntry::UpdateDelete(ready_workload_spec.clone(), ready_deleted_workload.clone()),
+            PendingEntry::UpdateDelete(ready_workload.clone(), ready_deleted_workload.clone()),
         );
 
         let ready_workload_operations = workload_scheduler
@@ -1653,7 +1537,7 @@ mod tests {
 
         assert_eq!(
             vec![WorkloadOperation::Update(
-                ready_workload_spec,
+                ready_workload,
                 ready_deleted_workload
             )],
             ready_workload_operations

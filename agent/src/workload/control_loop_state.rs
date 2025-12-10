@@ -11,25 +11,27 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::runtime_connectors::{RuntimeConnector, StateChecker};
-use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
-use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
-use crate::BUFFER_SIZE;
-use common::objects::{WorkloadInstanceName, WorkloadSpec, WorkloadState};
-use std::path::PathBuf;
-use std::str::FromStr;
-
-use crate::control_interface::ControlInterfacePath;
 
 #[cfg_attr(test, mockall_double::double)]
 use super::retry_manager::RetryManager;
+use crate::BUFFER_SIZE;
+use crate::control_interface::ControlInterfacePath;
+use crate::runtime_connectors::{RuntimeConnector, StateChecker};
+use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
+use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
+
+use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec};
+
+use std::path::PathBuf;
+use std::str::FromStr;
+use tokio::sync::mpsc;
 
 pub struct ControlLoopState<WorkloadId, StChecker>
 where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    pub workload_spec: WorkloadSpec,
+    pub workload_named: WorkloadNamed,
     pub control_interface_path: Option<ControlInterfacePath>,
     pub run_folder: PathBuf,
     pub workload_id: Option<WorkloadId>,
@@ -52,8 +54,8 @@ where
         ControlLoopStateBuilder::new()
     }
 
-    pub fn instance_name(&self) -> &WorkloadInstanceName {
-        &self.workload_spec.instance_name
+    pub fn instance_name(&self) -> &WorkloadInstanceNameSpec {
+        &self.workload_named.instance_name
     }
 }
 
@@ -62,7 +64,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    workload_spec: Option<WorkloadSpec>,
+    workload_named: Option<WorkloadNamed>,
     workload_id: Option<WorkloadId>,
     control_interface_path: Option<ControlInterfacePath>,
     run_folder: Option<PathBuf>,
@@ -79,7 +81,7 @@ where
 {
     pub fn new() -> Self {
         ControlLoopStateBuilder {
-            workload_spec: None,
+            workload_named: None,
             workload_id: None,
             control_interface_path: None,
             run_folder: None,
@@ -90,8 +92,8 @@ where
         }
     }
 
-    pub fn workload_spec(mut self, workload_spec: WorkloadSpec) -> Self {
-        self.workload_spec = Some(workload_spec);
+    pub fn workload_named(mut self, workload_named: WorkloadNamed) -> Self {
+        self.workload_named = Some(workload_named);
         self
     }
 
@@ -136,12 +138,12 @@ where
     pub fn build(self) -> Result<ControlLoopState<WorkloadId, StChecker>, String> {
         // new channel for receiving the workload states from the state checker
         let (state_checker_wl_state_sender, state_checker_wl_state_receiver) =
-            tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
+            mpsc::channel::<WorkloadStateSpec>(BUFFER_SIZE);
 
         Ok(ControlLoopState {
-            workload_spec: self
-                .workload_spec
-                .ok_or_else(|| "WorkloadSpec is not set".to_string())?,
+            workload_named: self
+                .workload_named
+                .ok_or_else(|| "WorkloadNamed is not set".to_string())?,
             control_interface_path: self.control_interface_path,
             run_folder: self
                 .run_folder
@@ -184,28 +186,28 @@ mod tests {
         workload::workload_command_channel::WorkloadCommandSender,
         workload_state::WorkloadStateSenderInterface,
     };
-    use common::objects::{
-        generate_test_workload_spec, generate_test_workload_state_with_workload_spec,
-        ExecutionState,
-    };
-    use tokio::time;
 
-    const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 20;
+    use ankaios_api::ank_base::ExecutionStateSpec;
+    use ankaios_api::test_utils::{
+        generate_test_workload_named, generate_test_workload_state_with_workload_named, fixtures,
+    };
+
+    use tokio::{sync::mpsc, time};
 
     #[tokio::test]
     async fn utest_control_loop_state_builder_build_success() {
-        let control_interface_path = Some(ControlInterfacePath::new("/some/path".into()));
-        let workload_spec = generate_test_workload_spec();
+        let control_interface_path = Some(ControlInterfacePath::new(fixtures::RUN_FOLDER.into()));
+        let workload_named = generate_test_workload_named();
 
         let (workload_state_sender, mut workload_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
         let runtime = Box::new(MockRuntimeConnector::new());
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         let control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec.clone())
+            .workload_named(workload_named.clone())
             .control_interface_path(control_interface_path.clone())
-            .run_folder("/some/path".into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .workload_state_sender(workload_state_sender)
             .runtime(runtime)
             .workload_command_receiver(workload_command_receiver)
@@ -215,8 +217,8 @@ mod tests {
         assert!(control_loop_state.is_ok());
         let mut control_loop_state = control_loop_state.unwrap();
         assert_eq!(
-            control_loop_state.workload_spec.instance_name,
-            workload_spec.instance_name
+            control_loop_state.workload_named.instance_name,
+            workload_named.instance_name
         );
         assert_eq!(
             control_loop_state.control_interface_path,
@@ -227,9 +229,9 @@ mod tests {
         assert!(control_loop_state.state_checker.is_none());
 
         // workload state for testing the channel between state checker and workload control loop
-        let state_checker_wl_state = generate_test_workload_state_with_workload_spec(
-            &workload_spec,
-            ExecutionState::running(),
+        let state_checker_wl_state = generate_test_workload_state_with_workload_named(
+            &workload_named,
+            ExecutionStateSpec::running(),
         );
 
         control_loop_state
@@ -252,9 +254,9 @@ mod tests {
         );
 
         // workload state for testing the channel between workload control loop and agent manager
-        let forwarded_wl_state_to_agent = generate_test_workload_state_with_workload_spec(
-            &workload_spec,
-            ExecutionState::succeeded(),
+        let forwarded_wl_state_to_agent = generate_test_workload_state_with_workload_named(
+            &workload_named,
+            ExecutionStateSpec::succeeded(),
         );
 
         control_loop_state
@@ -283,18 +285,18 @@ mod tests {
 
     #[test]
     fn utest_control_loop_state_instance_name() {
-        let workload_spec = generate_test_workload_spec();
+        let workload_named = generate_test_workload_named();
         let (workload_state_sender, _workload_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
         let runtime = Box::new(MockRuntimeConnector::new());
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         let control_loop_state = ControlLoopState {
-            workload_spec: workload_spec.clone(),
+            workload_named: workload_named.clone(),
             control_interface_path: None,
-            run_folder: "/some/path".into(),
+            run_folder: fixtures::RUN_FOLDER.into(),
             workload_id: None,
             state_checker: None,
             to_agent_workload_state_sender: workload_state_sender,
@@ -308,7 +310,7 @@ mod tests {
 
         assert_eq!(
             *control_loop_state.instance_name(),
-            workload_spec.instance_name
+            workload_named.instance_name
         );
     }
 }

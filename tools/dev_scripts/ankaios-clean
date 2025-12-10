@@ -6,12 +6,13 @@ pkill ank-agent
 pkill ank-server
 echo "done."
 
-# Cleanup podman
 if which podman > /dev/null; then
     echo "Cleaning up podman ..."
     podman stop -a >/dev/null 2>&1
     podman rm -a >/dev/null 2>&1
     podman volume rm -a >/dev/null 2>&1
+    podman pod stop -a >/dev/null 2>&1
+    podman pod rm -fa >/dev/null 2>&1
     echo "done."
 fi
 

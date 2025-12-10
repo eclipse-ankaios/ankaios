@@ -12,12 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use ankaios_api::ank_base::WorkloadInstanceNameSpec;
+
 use std::{
     collections::{HashMap, HashSet},
     fmt::{self, Display},
 };
-
-use common::objects::WorkloadInstanceName;
 
 type AgentName = String;
 pub type LogCollectorRequestId = String;
@@ -123,7 +123,7 @@ where
 #[derive(Default, Debug, Clone)]
 pub struct RemovedLogRequests {
     pub collector_requests: HashSet<LogCollectorRequestId>,
-    pub disconnected_log_providers: Vec<(LogCollectorRequestId, Vec<WorkloadInstanceName>)>,
+    pub disconnected_log_providers: Vec<(LogCollectorRequestId, Vec<WorkloadInstanceNameSpec>)>,
 }
 
 #[derive(Default)]
@@ -131,7 +131,7 @@ pub struct LogCampaignStore {
     agent_log_request_ids_store: AgentLogRequestIdMap,
     workload_name_request_id_store: WorkloadNameRequestIdMap,
     log_providers_store:
-        HashMap<AgentName, HashMap<LogCollectorRequestId, Vec<WorkloadInstanceName>>>,
+        HashMap<AgentName, HashMap<LogCollectorRequestId, Vec<WorkloadInstanceNameSpec>>>,
     cli_log_request_id_store: CliConnectionLogRequestIdMap,
 }
 
@@ -141,7 +141,7 @@ impl LogCampaignStore {
     pub fn insert_log_campaign(
         &mut self,
         input_request_id: &LogCollectorRequestId,
-        log_providers: &Vec<WorkloadInstanceName>,
+        log_providers: &Vec<WorkloadInstanceNameSpec>,
     ) {
         let request_id: RequestId = input_request_id.into();
         log::debug!("Insert log campaign '{request_id}'");
@@ -327,16 +327,13 @@ impl LogCampaignStore {
 // [utest->swdd~server-log-campaign-store-holds-log-campaign-metadata~1]
 #[cfg(test)]
 mod tests {
-    use common::objects::WorkloadInstanceName;
+    use super::{AgentRequestId, CliRequestId, HashMap, HashSet, LogCampaignStore, RequestId};
 
-    use super::{HashMap, HashSet, LogCampaignStore};
+    use ankaios_api::ank_base::WorkloadInstanceNameSpec;
+    use ankaios_api::test_utils::fixtures;
 
-    const AGENT_A: &str = "agent_A";
-    const WORKLOAD_1_NAME: &str = "workload_1";
-    const REQUEST_ID_AGENT_A: &str = "agent_A@workload_1@request_id";
-    const AGENT_B: &str = "agent_B";
-    const WORKLOAD_2_NAME: &str = "workload_2";
-    const REQUEST_ID_AGENT_B: &str = "agent_B@workload_2@request_id";
+    const REQUEST_ID_AGENT_A: &str = "agent_A@workload_A@request_id";
+    const REQUEST_ID_AGENT_B: &str = "agent_B@workload_B@request_id";
     const CLI_CON_1: &str = "cli-conn-1";
     const CLI_REQUEST_ID_1: &str = "cli-conn-1@cli_request_id_1";
     const CLI_CON_2: &str = "cli-conn-2";
@@ -344,19 +341,18 @@ mod tests {
     const CLI_1_REQUEST_ID_3: &str = "cli-conn-1@cli_request_id_3";
 
     mockall::lazy_static! {
-        static ref WORKLOAD_3_INSTANCE_NAME: WorkloadInstanceName = WorkloadInstanceName::try_from("log_provider.some_uuid.agent_B").unwrap();
-
+        static ref WORKLOAD_3_INSTANCE_NAME: WorkloadInstanceNameSpec = WorkloadInstanceNameSpec::try_from("log_provider.some_uuid.agent_B").unwrap();
     }
 
     fn prepare_log_campaign_store() -> LogCampaignStore {
         LogCampaignStore {
             agent_log_request_ids_store: HashMap::from([
                 (
-                    AGENT_A.to_owned(),
+                    fixtures::AGENT_NAMES[0].to_owned(),
                     HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_A)]),
                 ),
                 (
-                    AGENT_B.to_owned(),
+                    fixtures::AGENT_NAMES[1].to_owned(),
                     HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]),
                 ),
             ]),
@@ -372,16 +368,16 @@ mod tests {
             ]),
             workload_name_request_id_store: HashMap::from([
                 (
-                    WORKLOAD_1_NAME.to_owned(),
+                    fixtures::WORKLOAD_NAMES[0].to_owned(),
                     HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_A)]),
                 ),
                 (
-                    WORKLOAD_2_NAME.to_owned(),
+                    fixtures::WORKLOAD_NAMES[1].to_owned(),
                     HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]),
                 ),
             ]),
             log_providers_store: HashMap::from([(
-                AGENT_B.to_owned(),
+                fixtures::AGENT_NAMES[1].to_owned(),
                 HashMap::from([
                     (
                         REQUEST_ID_AGENT_A.to_owned(),
@@ -404,43 +400,43 @@ mod tests {
         }
     }
 
-    fn to_agent_request_id(request_id: &str) -> super::AgentRequestId {
+    fn to_agent_request_id(request_id: &str) -> AgentRequestId {
         let request_id = request_id.into();
 
         match request_id {
-            super::RequestId::AgentRequestId(agent_request_id) => agent_request_id,
+            RequestId::AgentRequestId(agent_request_id) => agent_request_id,
             _ => panic!("Expected an AgentRequestId"),
         }
     }
 
-    fn to_cli_request_id(request_id: &str) -> super::CliRequestId {
+    fn to_cli_request_id(request_id: &str) -> CliRequestId {
         let request_id = request_id.into();
 
         match request_id {
-            super::RequestId::CliRequestId(cli_request_id) => cli_request_id,
+            RequestId::CliRequestId(cli_request_id) => cli_request_id,
             _ => panic!("Expected a CliRequestId"),
         }
     }
 
     #[test]
     fn utest_request_id_from_string() {
-        let cli_request_id = super::RequestId::from(CLI_REQUEST_ID_1);
+        let cli_request_id = RequestId::from(CLI_REQUEST_ID_1);
         assert!(
-            matches!(cli_request_id, super::RequestId::CliRequestId(super::CliRequestId { cli_name, request_uuid })
+            matches!(cli_request_id, RequestId::CliRequestId(CliRequestId { cli_name, request_uuid })
             if cli_name == CLI_CON_1 && request_uuid == "cli_request_id_1")
         );
 
-        let agent_request_id = super::RequestId::from(REQUEST_ID_AGENT_A);
+        let agent_request_id = RequestId::from(REQUEST_ID_AGENT_A);
         assert!(
-            matches!(agent_request_id, super::RequestId::AgentRequestId(super::AgentRequestId { agent_name, workload_name, request_uuid })
-            if agent_name == AGENT_A && workload_name == WORKLOAD_1_NAME && request_uuid == "request_id")
+            matches!(agent_request_id, RequestId::AgentRequestId(AgentRequestId { agent_name, workload_name, request_uuid })
+            if agent_name == fixtures::AGENT_NAMES[0] && workload_name == fixtures::WORKLOAD_NAMES[0] && request_uuid == "request_id")
         );
 
         let extra_part = "@extra@parts.with_strange#format";
-        let agent_request_id = super::RequestId::from(format!("{REQUEST_ID_AGENT_A}{extra_part}"));
+        let agent_request_id = RequestId::from(format!("{REQUEST_ID_AGENT_A}{extra_part}"));
         assert!(
-            matches!(agent_request_id, super::RequestId::AgentRequestId(super::AgentRequestId { agent_name, workload_name, request_uuid })
-            if agent_name == AGENT_A && workload_name == WORKLOAD_1_NAME && request_uuid == format!("request_id{extra_part}"))
+            matches!(agent_request_id, RequestId::AgentRequestId(AgentRequestId { agent_name, workload_name, request_uuid })
+            if agent_name == fixtures::AGENT_NAMES[0] && workload_name == fixtures::WORKLOAD_NAMES[0] && request_uuid == format!("request_id{extra_part}"))
         );
     }
 
@@ -459,7 +455,9 @@ mod tests {
         );
         assert_eq!(log_campaign_store.log_providers_store.len(), 1);
         assert_eq!(
-            log_campaign_store.log_providers_store.get(AGENT_B),
+            log_campaign_store
+                .log_providers_store
+                .get(fixtures::AGENT_NAMES[1]),
             Some(&HashMap::from([(
                 CLI_REQUEST_ID_1.to_owned(),
                 vec![WORKLOAD_3_INSTANCE_NAME.clone()]
@@ -477,7 +475,9 @@ mod tests {
         );
         assert_eq!(log_campaign_store.log_providers_store.len(), 1);
         assert_eq!(
-            log_campaign_store.log_providers_store.get(AGENT_B),
+            log_campaign_store
+                .log_providers_store
+                .get(fixtures::AGENT_NAMES[1]),
             Some(&HashMap::from([
                 (
                     CLI_REQUEST_ID_1.to_owned(),
@@ -504,7 +504,9 @@ mod tests {
         );
         assert_eq!(log_campaign_store.log_providers_store.len(), 1);
         assert_eq!(
-            log_campaign_store.log_providers_store.get(AGENT_B),
+            log_campaign_store
+                .log_providers_store
+                .get(fixtures::AGENT_NAMES[1]),
             Some(&HashMap::from([
                 (
                     CLI_REQUEST_ID_1.to_owned(),
@@ -535,17 +537,21 @@ mod tests {
         );
         assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 1);
         assert_eq!(
-            log_campaign_store.agent_log_request_ids_store.get(AGENT_A),
+            log_campaign_store
+                .agent_log_request_ids_store
+                .get(fixtures::AGENT_NAMES[0]),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_A)]))
         );
         assert_eq!(
             log_campaign_store
                 .workload_name_request_id_store
-                .get(WORKLOAD_1_NAME),
+                .get(fixtures::WORKLOAD_NAMES[0]),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_A)]))
         );
         assert_eq!(
-            log_campaign_store.log_providers_store.get(AGENT_B),
+            log_campaign_store
+                .log_providers_store
+                .get(fixtures::AGENT_NAMES[1]),
             Some(&HashMap::from([(
                 REQUEST_ID_AGENT_A.to_owned(),
                 vec![WORKLOAD_3_INSTANCE_NAME.clone()]
@@ -558,17 +564,21 @@ mod tests {
         );
         assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 2);
         assert_eq!(
-            log_campaign_store.agent_log_request_ids_store.get(AGENT_B),
+            log_campaign_store
+                .agent_log_request_ids_store
+                .get(fixtures::AGENT_NAMES[1]),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]))
         );
         assert_eq!(
             log_campaign_store
                 .workload_name_request_id_store
-                .get(WORKLOAD_2_NAME),
+                .get(fixtures::WORKLOAD_NAMES[1]),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]))
         );
         assert_eq!(
-            log_campaign_store.log_providers_store.get(AGENT_B),
+            log_campaign_store
+                .log_providers_store
+                .get(fixtures::AGENT_NAMES[1]),
             Some(&HashMap::from([
                 (
                     REQUEST_ID_AGENT_A.to_owned(),
@@ -590,7 +600,7 @@ mod tests {
         let mut log_campaign_store = prepare_log_campaign_store();
 
         let removed_requests =
-            log_campaign_store.remove_agent_log_campaign_entry(&AGENT_A.to_owned());
+            log_campaign_store.remove_agent_log_campaign_entry(&fixtures::AGENT_NAMES[0].to_owned());
 
         assert_eq!(
             removed_requests.collector_requests,
@@ -601,7 +611,9 @@ mod tests {
 
         assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 1);
         assert_eq!(
-            log_campaign_store.agent_log_request_ids_store.get(AGENT_B),
+            log_campaign_store
+                .agent_log_request_ids_store
+                .get(fixtures::AGENT_NAMES[1]),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]))
         );
 
@@ -609,12 +621,15 @@ mod tests {
         assert_eq!(
             log_campaign_store
                 .workload_name_request_id_store
-                .get(WORKLOAD_2_NAME),
+                .get(fixtures::WORKLOAD_NAMES[1]),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]))
         );
 
         assert_eq!(
-            log_campaign_store.log_providers_store.get(AGENT_B).unwrap(),
+            log_campaign_store
+                .log_providers_store
+                .get(fixtures::AGENT_NAMES[1])
+                .unwrap(),
             &HashMap::from([
                 (
                     REQUEST_ID_AGENT_B.to_owned(),
@@ -639,7 +654,7 @@ mod tests {
         let mut log_campaign_store = prepare_log_campaign_store();
 
         let removed_requests =
-            log_campaign_store.remove_agent_log_campaign_entry(&AGENT_B.to_owned());
+            log_campaign_store.remove_agent_log_campaign_entry(&fixtures::AGENT_NAMES[1].to_owned());
 
         assert_eq!(
             removed_requests.collector_requests,
@@ -651,7 +666,9 @@ mod tests {
 
         assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 1);
         assert_eq!(
-            log_campaign_store.agent_log_request_ids_store.get(AGENT_A),
+            log_campaign_store
+                .agent_log_request_ids_store
+                .get(fixtures::AGENT_NAMES[0]),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_A)]))
         );
 
@@ -659,11 +676,15 @@ mod tests {
         assert_eq!(
             log_campaign_store
                 .workload_name_request_id_store
-                .get(WORKLOAD_1_NAME),
+                .get(fixtures::WORKLOAD_NAMES[0]),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_A)]))
         );
 
-        assert!(!log_campaign_store.log_providers_store.contains_key(AGENT_B));
+        assert!(
+            !log_campaign_store
+                .log_providers_store
+                .contains_key(fixtures::AGENT_NAMES[1])
+        );
 
         assert_eq!(log_campaign_store.cli_log_request_id_store.len(), 2);
     }
@@ -676,7 +697,9 @@ mod tests {
 
         assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 1);
         assert_eq!(
-            log_campaign_store.agent_log_request_ids_store.get(AGENT_B),
+            log_campaign_store
+                .agent_log_request_ids_store
+                .get(fixtures::AGENT_NAMES[1]),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]))
         );
 
@@ -684,12 +707,15 @@ mod tests {
         assert_eq!(
             log_campaign_store
                 .workload_name_request_id_store
-                .get(WORKLOAD_2_NAME),
+                .get(fixtures::WORKLOAD_NAMES[1]),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]))
         );
 
         assert_eq!(
-            log_campaign_store.log_providers_store.get(AGENT_B).unwrap(),
+            log_campaign_store
+                .log_providers_store
+                .get(fixtures::AGENT_NAMES[1])
+                .unwrap(),
             &HashMap::from([
                 (
                     REQUEST_ID_AGENT_B.to_owned(),
@@ -728,7 +754,10 @@ mod tests {
         );
 
         assert_eq!(
-            log_campaign_store.log_providers_store.get(AGENT_B).unwrap(),
+            log_campaign_store
+                .log_providers_store
+                .get(fixtures::AGENT_NAMES[1])
+                .unwrap(),
             &HashMap::from([
                 (
                     REQUEST_ID_AGENT_A.to_owned(),
@@ -760,7 +789,10 @@ mod tests {
             Some(&HashSet::from([to_cli_request_id(CLI_REQUEST_ID_2)]))
         );
         assert_eq!(
-            log_campaign_store.log_providers_store.get(AGENT_B).unwrap(),
+            log_campaign_store
+                .log_providers_store
+                .get(fixtures::AGENT_NAMES[1])
+                .unwrap(),
             &HashMap::from([
                 (
                     REQUEST_ID_AGENT_A.to_owned(),
@@ -785,25 +817,30 @@ mod tests {
     fn utest_remove_collector_campaign_entry() {
         let mut log_campaign_store = prepare_log_campaign_store();
         let removed_ids =
-            log_campaign_store.remove_collector_campaign_entry(&WORKLOAD_1_NAME.to_owned());
+            log_campaign_store.remove_collector_campaign_entry(&fixtures::WORKLOAD_NAMES[0].to_owned());
         assert_eq!(removed_ids, HashSet::from([REQUEST_ID_AGENT_A.to_owned()]));
 
         assert_eq!(log_campaign_store.workload_name_request_id_store.len(), 1);
         assert_eq!(
             log_campaign_store
                 .workload_name_request_id_store
-                .get(WORKLOAD_2_NAME),
+                .get(fixtures::WORKLOAD_NAMES[1]),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]))
         );
 
         assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 1);
         assert_eq!(
-            log_campaign_store.agent_log_request_ids_store.get(AGENT_B),
+            log_campaign_store
+                .agent_log_request_ids_store
+                .get(fixtures::AGENT_NAMES[1]),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]))
         );
 
         assert_eq!(
-            log_campaign_store.log_providers_store.get(AGENT_B).unwrap(),
+            log_campaign_store
+                .log_providers_store
+                .get(fixtures::AGENT_NAMES[1])
+                .unwrap(),
             &HashMap::from([
                 (
                     REQUEST_ID_AGENT_B.to_owned(),

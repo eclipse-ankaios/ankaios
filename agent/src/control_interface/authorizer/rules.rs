@@ -17,10 +17,10 @@ use super::{
     path_pattern::{PathPattern, PathPatternMatchReason, PathPatternMatcher},
 };
 
-use common::{objects::WILDCARD_SYMBOL, std_extensions::UnreachableOption};
+use ankaios_api::ank_base::WILDCARD_SYMBOL;
+use common::std_extensions::UnreachableOption;
 
 // [impl->swdd~agent-authorizing-supported-rules~1]
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct StateRule<P: PathPattern> {
     patterns: Vec<P>,

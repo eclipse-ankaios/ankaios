@@ -12,11 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::PathBuf;
-
 use super::fs::FileSystemError;
 #[cfg_attr(test, mockall_double::double)]
 use crate::io_utils::filesystem;
+
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct Directory {
@@ -94,6 +94,13 @@ pub fn generate_test_directory_mock(
 
 #[cfg(test)]
 mod tests {
+    use super::Directory;
+    use crate::io_utils::{FileSystemError, mock_filesystem};
+    use crate::test_helper::MOCKALL_CONTEXT_SYNC;
+
+    use ankaios_api::test_utils::fixtures;
+
+    use mockall::predicate;
     use std::{
         ffi::OsString,
         path::Path,
@@ -101,48 +108,41 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
-    use super::Directory;
-
-    use crate::io_utils::FileSystemError;
-    use crate::io_utils::mock_filesystem;
-
-    use mockall::predicate;
-
     #[test]
     fn utest_directory_new_ok_and_get_path_valid() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let mk_dir_context = mock_filesystem::make_dir_context();
         mk_dir_context
             .expect()
-            .with(predicate::eq(Path::new("test_path").to_path_buf()))
+            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
             .return_once(|_| Ok(()));
 
         let rm_dir_context = mock_filesystem::remove_dir_all_context();
         rm_dir_context
             .expect()
-            .with(predicate::eq(Path::new("test_path").to_path_buf()))
+            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
             .return_once(|_| Ok(()));
 
-        let directory = Directory::new(Path::new("test_path").to_path_buf());
+        let directory = Directory::new(Path::new(fixtures::PIPES_LOCATION).to_path_buf());
         assert!(directory.is_ok());
         assert_eq!(
-            Path::new("test_path").to_path_buf(),
+            Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
             directory.as_ref().unwrap().path
         );
         assert_eq!(
-            Path::new("test_path").to_path_buf(),
+            Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
             directory.unwrap().get_path()
         );
     }
     #[test]
     fn utest_directory_new_failed() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let mk_dir_context = mock_filesystem::make_dir_context();
         mk_dir_context
             .expect()
-            .with(predicate::eq(Path::new("test_path").to_path_buf()))
+            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
             .return_once(|_| {
                 Err(FileSystemError::CreateDirectory(
                     OsString::from_str("Could not create directory").unwrap(),
@@ -153,7 +153,7 @@ mod tests {
         let rm_dir_context = mock_filesystem::remove_dir_all_context();
         rm_dir_context.expect().never();
 
-        let directory = Directory::new(Path::new("test_path").to_path_buf());
+        let directory = Directory::new(Path::new(fixtures::PIPES_LOCATION).to_path_buf());
 
         assert_eq!(
             directory.unwrap_err(),
@@ -165,7 +165,7 @@ mod tests {
     }
     #[test]
     fn utest_directory_new_remove_failed() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let actual_error_list: Arc<Mutex<Vec<Result<(), FileSystemError>>>> =
             Arc::new(Mutex::from(vec![]));
@@ -174,13 +174,13 @@ mod tests {
         let mk_dir_context = mock_filesystem::make_dir_context();
         mk_dir_context
             .expect()
-            .with(predicate::eq(Path::new("test_path").to_path_buf()))
+            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
             .return_once(|_| Ok(()));
 
         let rm_dir_context = mock_filesystem::remove_dir_all_context();
         rm_dir_context
             .expect()
-            .with(predicate::eq(Path::new("test_path").to_path_buf()))
+            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
             .return_once(move |_| {
                 actual_error_list_clone.lock().unwrap().push(Err(
                     FileSystemError::RemoveDirectory(
@@ -194,7 +194,7 @@ mod tests {
                 ))
             });
 
-        let directory = Directory::new(Path::new("test_path").to_path_buf());
+        let directory = Directory::new(Path::new(fixtures::PIPES_LOCATION).to_path_buf());
         assert!(directory.is_ok());
         drop(directory);
 

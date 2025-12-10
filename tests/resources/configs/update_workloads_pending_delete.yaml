@@ -1,4 +1,4 @@
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   frontend:
     runtime: podman
@@ -7,8 +7,7 @@ workloads:
     dependencies:
       backend: ADD_COND_RUNNING
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: ["-p", "8083:80"]
@@ -19,8 +18,7 @@ workloads:
     dependencies:
       init_backend: ADD_COND_SUCCEEDED
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: ["-p", "8082:80"]
@@ -29,8 +27,7 @@ workloads:
     agent: agent_A
     restartPolicy: NEVER
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: ["echo", "init_backend"]

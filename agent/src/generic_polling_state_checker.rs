@@ -12,15 +12,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use async_trait::async_trait;
-use std::{str::FromStr, time::Duration};
-use tokio::{task::JoinHandle, time};
-
 use crate::{
     runtime_connectors::{RuntimeStateGetter, StateChecker},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
-use common::objects::{ExecutionState, ExecutionStateEnum, WorkloadSpec};
+use ankaios_api::ank_base::{ExecutionStateEnumSpec, ExecutionStateSpec, WorkloadNamed};
+
+use async_trait::async_trait;
+use std::{str::FromStr, time::Duration};
+use tokio::{task::JoinHandle, time};
 
 // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
 const STATUS_CHECK_INTERVAL_MS: u64 = 500;
@@ -38,15 +38,15 @@ where
 {
     // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
     fn start_checker(
-        workload_spec: &WorkloadSpec,
+        workload_named: &WorkloadNamed,
         workload_id: WorkloadId,
         workload_state_sender: WorkloadStateSender,
         state_getter: impl RuntimeStateGetter<WorkloadId>,
     ) -> Self {
-        let workload_spec = workload_spec.clone();
-        let workload_name = workload_spec.instance_name.workload_name().to_owned();
+        let workload_named = workload_named.clone();
+        let workload_name = workload_named.instance_name.workload_name().to_owned();
         let task_handle = tokio::spawn(async move {
-            let mut last_state = ExecutionState::unknown("Never received an execution state.");
+            let mut last_state = ExecutionStateSpec::unknown("Never received an execution state.");
             let mut interval = time::interval(Duration::from_millis(STATUS_CHECK_INTERVAL_MS));
             loop {
                 interval.tick().await;
@@ -55,7 +55,7 @@ where
                 if current_state != last_state {
                     log::debug!(
                         "The workload {} has changed its state to {:?}",
-                        workload_spec.instance_name.workload_name(),
+                        workload_named.instance_name.workload_name(),
                         current_state
                     );
                     last_state = current_state.clone();
@@ -63,12 +63,12 @@ where
                     // [impl->swdd~generic-state-checker-sends-workload-state~2]
                     workload_state_sender
                         .report_workload_execution_state(
-                            &workload_spec.instance_name,
+                            &workload_named.instance_name,
                             current_state,
                         )
                         .await;
 
-                    if last_state.state == ExecutionStateEnum::Removed {
+                    if matches!(last_state.state(), ExecutionStateEnumSpec::Removed(_)) {
                         break;
                     }
                 }
@@ -103,19 +103,17 @@ impl Drop for GenericPollingStateChecker {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
-    use common::{objects::generate_test_workload_spec_with_param, objects::ExecutionState};
-
     use crate::{
         generic_polling_state_checker::GenericPollingStateChecker,
         runtime_connectors::{MockRuntimeStateGetter, StateChecker},
     };
 
-    const RUNTIME_NAME: &str = "runtime1";
-    const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_1_NAME: &str = "workload1";
-    const WORKLOAD_ID: &str = "some strange Id";
+    use ankaios_api::ank_base::ExecutionStateSpec;
+    use ankaios_api::test_utils::{
+        generate_test_workload_named, generate_test_workload_state_with_workload_named, fixtures,
+    };
+
+    use std::time::Duration;
 
     // [utest->swdd~agent-provides-generic-state-checker-implementation~1]
     #[tokio::test]
@@ -129,19 +127,15 @@ mod tests {
         mock_runtime_getter
             .expect_get_state()
             .times(2)
-            .returning(|_: &String| Box::pin(async { ExecutionState::running() }));
+            .returning(|_: &String| Box::pin(async { ExecutionStateSpec::running() }));
 
         let (state_sender, mut state_receiver) = tokio::sync::mpsc::channel(20);
 
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload = generate_test_workload_named();
 
         let generic_state_state_checker = GenericPollingStateChecker::start_checker(
-            &workload_spec,
-            WORKLOAD_ID.to_string(),
+            &workload,
+            fixtures::WORKLOAD_IDS[0].to_string(),
             state_sender.clone(),
             mock_runtime_getter,
         );
@@ -153,9 +147,9 @@ mod tests {
         )
         .await;
 
-        let expected_state = common::objects::generate_test_workload_state_with_workload_spec(
-            &workload_spec,
-            ExecutionState::running(),
+        let expected_state = generate_test_workload_state_with_workload_named(
+            &workload,
+            ExecutionStateSpec::running(),
         );
 
         // [utest->swdd~generic-state-checker-sends-workload-state~2]

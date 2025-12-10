@@ -24,11 +24,13 @@ pub mod communications_error;
 pub mod communications_server;
 pub mod from_server_interface;
 pub mod helpers;
-pub use helpers::check_version_compatibility;
 pub mod objects;
 pub mod request_id_prepending;
 pub mod state_manipulation;
 pub mod std_extensions;
-#[cfg(feature = "test_utils")]
-pub mod test_utils;
 pub mod to_server_interface;
+
+#[cfg(any(feature = "test_utils", test))]
+pub mod test_utils;
+
+pub use helpers::check_version_compatibility;

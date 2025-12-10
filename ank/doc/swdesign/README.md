@@ -977,6 +977,27 @@ Needs:
 - utest
 - stest
 
+#### CLI accepts both v1 and v0.1 API versions
+`swdd~cli-apply-manifest-accepts-v01-api-version~1`
+
+Status: approved
+
+When parsing an Ankaios manifest with apiVersion 'v0.1', the CLI shall:
+* display a warning message informing the user that the version is deprecated and support will be removed in future releases
+* validate that workload tags are specified either as a mapping for the current API version or as a sequence for the previous API version
+* provide an error message indicating the expected format for the detected API version and the workload name where the error occurred
+
+Rationale:
+Provides users advance notice to migrate their manifests to the current API version before support is removed.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
 ### `ank get agents`
 
 ![Get agents](plantuml/seq_get_agent.svg)

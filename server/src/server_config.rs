@@ -183,29 +183,21 @@ impl ServerConfig {
 
 #[cfg(test)]
 mod tests {
+    use super::DEFAULT_SERVER_CONFIG_FILE_PATH;
+    use super::ServerConfig;
+    use crate::{cli::Arguments, server_config::ConversionErrors};
+
+    use ankaios_api::test_utils::fixtures;
+    use common::DEFAULT_SOCKET_ADDRESS;
+
     use std::io::Write;
     use std::net::SocketAddr;
     use std::path::PathBuf;
+
     use tempfile::NamedTempFile;
-
-    use common::DEFAULT_SOCKET_ADDRESS;
-
-    use crate::{cli::Arguments, server_config::ConversionErrors};
-
-    use super::DEFAULT_SERVER_CONFIG_FILE_PATH;
-    use super::ServerConfig;
 
     const STARTUP_MANIFEST_PATH: &str = "some_path_to_config/config.yaml";
     const TEST_SOCKET_ADDRESS: &str = "127.0.0.1:3333";
-    const CA_PEM_PATH: &str = "some_path_to_ca_pem/ca.pem";
-    const CRT_PEM_PATH: &str = "some_path_to_crt_pem/crt.pem";
-    const KEY_PEM_PATH: &str = "some_path_to_key_pem/key.pem";
-    const CA_PEM_CONTENT: &str = r"the content of the
-        ca.pem file is stored in here";
-    const CRT_PEM_CONTENT: &str = r"the content of the
-        crt.pem file is stored in here";
-    const KEY_PEM_CONTENT: &str = r"the content of the
-        key.pem file is stored in here";
 
     // [utest->swdd~server-loads-config-file~1]
     #[test]
@@ -244,9 +236,11 @@ mod tests {
         let server_config_content = format!(
             r"#
         version = 'v1'
-        ca_pem = '''{CA_PEM_PATH}'''
-        ca_pem_content = '''{CRT_PEM_CONTENT}'''
-        #"
+        ca_pem = '''{}'''
+        ca_pem_content = '''{}'''
+        #",
+            fixtures::CA_PEM_PATH,
+            fixtures::CRT_PEM_CONTENT,
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -271,9 +265,9 @@ mod tests {
             config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string()),
             addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
             insecure: Some(false),
-            ca_pem: Some(CA_PEM_PATH.to_string()),
-            crt_pem: Some(CRT_PEM_PATH.to_string()),
-            key_pem: Some(KEY_PEM_PATH.to_string()),
+            ca_pem: Some(fixtures::CA_PEM_PATH.to_string()),
+            crt_pem: Some(fixtures::CRT_PEM_PATH.to_string()),
+            key_pem: Some(fixtures::KEY_PEM_PATH.to_string()),
         };
 
         server_config.update_with_args(&args);
@@ -287,9 +281,9 @@ mod tests {
             TEST_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap()
         );
         assert_eq!(server_config.insecure, Some(false));
-        assert_eq!(server_config.ca_pem, Some(CA_PEM_PATH.to_string()));
-        assert_eq!(server_config.crt_pem, Some(CRT_PEM_PATH.to_string()));
-        assert_eq!(server_config.key_pem, Some(KEY_PEM_PATH.to_string()));
+        assert_eq!(server_config.ca_pem, Some(fixtures::CA_PEM_PATH.to_string()));
+        assert_eq!(server_config.crt_pem, Some(fixtures::CRT_PEM_PATH.to_string()));
+        assert_eq!(server_config.key_pem, Some(fixtures::KEY_PEM_PATH.to_string()));
     }
 
     // [utest->swdd~server-loads-config-file~1]
@@ -298,10 +292,13 @@ mod tests {
         let server_config_content = format!(
             r"#
         version = 'v1'
-        ca_pem_content = '''{CA_PEM_CONTENT}'''
-        crt_pem_content = '''{CRT_PEM_CONTENT}'''
-        key_pem_content = '''{KEY_PEM_CONTENT}'''
-        #"
+        ca_pem_content = '''{}'''
+        crt_pem_content = '''{}'''
+        key_pem_content = '''{}'''
+        #",
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT,
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -323,15 +320,15 @@ mod tests {
 
         assert_eq!(
             server_config.ca_pem_content,
-            Some(CA_PEM_CONTENT.to_string())
+            Some(fixtures::CA_PEM_CONTENT.to_string())
         );
         assert_eq!(
             server_config.crt_pem_content,
-            Some(CRT_PEM_CONTENT.to_string())
+            Some(fixtures::CRT_PEM_CONTENT.to_string())
         );
         assert_eq!(
             server_config.key_pem_content,
-            Some(KEY_PEM_CONTENT.to_string())
+            Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
     }
 
@@ -344,10 +341,13 @@ mod tests {
         startup_manifest = '/workspaces/ankaios/server/resources/startConfig.yaml'
         address = '127.0.0.1:25551'
         insecure = true
-        ca_pem_content = '''{CA_PEM_CONTENT}'''
-        crt_pem_content = '''{CRT_PEM_CONTENT}'''
-        key_pem_content = '''{KEY_PEM_CONTENT}'''
-        #"
+        ca_pem_content = '''{}'''
+        crt_pem_content = '''{}'''
+        key_pem_content = '''{}'''
+        #",
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT,
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -365,15 +365,15 @@ mod tests {
         );
         assert_eq!(
             server_config.ca_pem_content,
-            Some(CA_PEM_CONTENT.to_string())
+            Some(fixtures::CA_PEM_CONTENT.to_string())
         );
         assert_eq!(
             server_config.crt_pem_content,
-            Some(CRT_PEM_CONTENT.to_string())
+            Some(fixtures::CRT_PEM_CONTENT.to_string())
         );
         assert_eq!(
             server_config.key_pem_content,
-            Some(KEY_PEM_CONTENT.to_string())
+            Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
         assert_eq!(server_config.insecure, Some(true));
         assert_eq!(
