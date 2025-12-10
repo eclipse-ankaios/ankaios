@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2025 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -12,38 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+mod mockall_context_sync;
+pub use mockall_context_sync::MockAllContextSync;
+
 use serde::{Serialize, Serializer};
 use std::collections::HashMap;
-
-pub struct MockAllContextSync {
-    mutex_tokio: tokio::sync::Mutex<()>,
-    mutex_std: std::sync::Mutex<()>,
-}
-
-impl MockAllContextSync {
-    pub fn new() -> Self {
-        Self {
-            mutex_tokio: tokio::sync::Mutex::new(()),
-            mutex_std: std::sync::Mutex::new(()),
-        }
-    }
-    pub async fn get_lock_async(&self) -> tokio::sync::MutexGuard<()> {
-        self.mutex_tokio.lock().await
-    }
-
-    pub fn get_lock(&self) -> std::sync::MutexGuard<()> {
-        match self.mutex_std.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
-        }
-    }
-}
-
-impl Default for MockAllContextSync {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 pub fn serialize_as_map<A, B, S>(x: &[(A, B)], s: S) -> Result<S::Ok, S::Error>
 where

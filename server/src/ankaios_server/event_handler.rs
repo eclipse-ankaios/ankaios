@@ -362,6 +362,7 @@ impl From<AlteredFields> for ankaios_api::ank_base::AlteredFields {
 mod tests {
     use std::collections::HashMap;
 
+    use ankaios_api::test_utils::generate_test_workload_with_params;
     use common::from_server_interface::FromServer;
 
     use super::StateDifferenceTree;
@@ -370,7 +371,6 @@ mod tests {
         AgentMapSpec, CompleteStateRequestSpec, CompleteStateSpec, StateSpec, WorkloadMapSpec,
         WorkloadSpec, WorkloadStatesMapSpec, response::ResponseContent,
     };
-    use ankaios_api::test_utils::generate_test_workload_with_param;
     use mockall::predicate;
 
     use super::EventHandler;
@@ -460,7 +460,7 @@ mod tests {
         let removed_field_mask = "configs.*";
         let expected_removed_field_mask = "configs.some_config";
         let added_workload: WorkloadSpec =
-            generate_test_workload_with_param("agent_A", "runtime_1");
+            generate_test_workload_with_params("agent_A", "runtime_1");
         let mut mock_server_state = MockServerState::default();
         mock_server_state
             .expect_get_complete_state_by_field_mask()

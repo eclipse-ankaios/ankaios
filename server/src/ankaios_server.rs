@@ -845,17 +845,14 @@ mod tests {
 
     use ankaios_api::ank_base::{
         AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateResponse,
-        CompleteStateSpec, CpuUsageSpec, DeletedWorkload, Error, ExecutionStateEnumSpec,
-        ExecutionStateSpec, FreeMemorySpec, LogEntriesResponse, LogEntry, LogsCancelAccepted,
-        LogsRequestAccepted, LogsRequestSpec, LogsStopResponse, Pending as PendingSubstate,
-        Response, ResponseContent, State, StateSpec, UpdateStateSuccess, Workload,
-        WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap, WorkloadMapSpec,
-        WorkloadNamed, WorkloadSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
+        CompleteStateSpec, DeletedWorkload, Error, ExecutionStateEnumSpec, ExecutionStateSpec,
+        LogEntriesResponse, LogEntry, LogsCancelAccepted, LogsRequestAccepted, LogsRequestSpec,
+        LogsStopResponse, Pending as PendingSubstate, Response, ResponseContent, State, StateSpec,
+        UpdateStateSuccess, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap,
+        WorkloadMapSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_agent_map, generate_test_configs, generate_test_workload,
-        generate_test_workload_state, generate_test_workload_state_with_agent,
-        generate_test_workload_states_map_with_data, generate_test_workload_with_param,
+        fixtures, generate_test_agent_map, generate_test_config_map, generate_test_workload_instance_name_with_params, generate_test_workload_named, generate_test_workload_named_with_params, generate_test_workload_state, generate_test_workload_state_with_agent, generate_test_workload_states_map_with_data, generate_test_workload_with_params
     };
     use common::commands::{AgentLoadStatus, ServerHello, UpdateWorkload, UpdateWorkloadState};
     use common::from_server_interface::FromServer;
@@ -863,18 +860,7 @@ mod tests {
 
     use mockall::predicate;
 
-    const AGENT_A: &str = "agent_A";
-    const AGENT_B: &str = "agent_B";
-    const WORKLOAD_NAME_1: &str = "workload_1";
-    const WORKLOAD_INSTANCE_NAME_1: &str = "workload_1.instanceId1.agent_A";
-    const WORKLOAD_NAME_2: &str = "workload_2";
-    const WORKLOAD_INSTANCE_NAME_2: &str = "workload_2.instanceId2.agent_A";
-    const WORKLOAD_NAME_3: &str = "workload_3";
-    const RUNTIME_NAME: &str = "runtime";
-    const REQUEST_ID: &str = "request_1";
-    const REQUEST_ID_A: &str = "agent_A@workload_1@request_1";
-    const REQUEST_ID_A2: &str = "agent_A@workload_2@request_2";
-    const INSTANCE_ID: &str = "instance_id";
+    const SECOND_REQUEST_ID: &str = "request_id_2";
     const MESSAGE: &str = "message";
 
     // [utest->swdd~server-uses-async-channels~1]
@@ -887,12 +873,15 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         // contains a self cycle to workload_A
-        let workload: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
+        let workload = generate_test_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let startup_state = CompleteStateSpec {
             desired_state: StateSpec {
                 workloads: WorkloadMapSpec {
-                    workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+                    workloads: HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_string(), workload)]),
                 },
                 ..Default::default()
             },
@@ -922,7 +911,7 @@ mod tests {
             .with(mockall::predicate::eq(startup_state.desired_state.clone()))
             .once()
             .return_const(Err(UpdateStateError::CycleInDependencies(
-                WORKLOAD_NAME_1.to_string() + " part of cycle.",
+                fixtures::WORKLOAD_NAMES[0].to_string() + " part of cycle.",
             )));
         server.server_state = mock_server_state;
 
@@ -930,7 +919,8 @@ mod tests {
         assert_eq!(
             result,
             Err(format!(
-                "workload dependency '{WORKLOAD_NAME_1} part of cycle.' is part of a cycle."
+                "workload dependency '{} part of cycle.' is part of a cycle.",
+                fixtures::WORKLOAD_NAMES[0]
             ))
         );
 
@@ -970,9 +960,11 @@ mod tests {
 
         /* new workload invalidates the state because
         it contains a self cycle in the inter workload dependencies config */
-        let mut updated_workload =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
-                .name(WORKLOAD_NAME_1);
+        let mut updated_workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let new_state = CompleteStateSpec {
             desired_state: StateSpec {
@@ -1017,7 +1009,7 @@ mod tests {
             .once()
             .in_sequence(&mut seq)
             .return_const(Err(UpdateStateError::CycleInDependencies(
-                WORKLOAD_NAME_1.to_string(),
+                fixtures::WORKLOAD_NAMES[0].to_string(),
             )));
 
         server.event_handler.expect_has_subscribers().never();
@@ -1061,7 +1053,7 @@ mod tests {
         assert!(
             to_server
                 .update_state(
-                    REQUEST_ID_A.to_string(),
+                    fixtures::REQUEST_ID.to_string(),
                     new_state.clone(),
                     update_mask.clone()
                 )
@@ -1074,13 +1066,17 @@ mod tests {
             FromServer::Response(Response {
                 request_id,
                 response_content: Some(ResponseContent::Error(_))
-            }) if request_id == REQUEST_ID_A
+            }) if request_id == fixtures::REQUEST_ID
         ));
 
         // send the update with the new clean state again
         assert!(
             to_server
-                .update_state(REQUEST_ID_A.to_string(), fixed_state.clone(), update_mask)
+                .update_state(
+                    fixtures::REQUEST_ID.to_string(),
+                    fixed_state.clone(),
+                    update_mask
+                )
                 .await
                 .is_ok()
         );
@@ -1096,7 +1092,7 @@ mod tests {
         assert_eq!(
             comm_middle_ware_receiver.recv().await.unwrap(),
             FromServer::Response(Response {
-                request_id: REQUEST_ID_A.into(),
+                request_id: fixtures::REQUEST_ID.into(),
                 response_content: Some(ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
                     added_workloads: vec![updated_workload.instance_name.to_string()],
                     deleted_workloads: Vec::new(),
@@ -1119,8 +1115,11 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_A.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let startup_state = CompleteStateSpec {
             desired_state: StateSpec {
@@ -1178,7 +1177,7 @@ mod tests {
         assert_eq!(
             server
                 .workload_states_map
-                .get_workload_state_for_agent(AGENT_A),
+                .get_workload_state_for_agent(fixtures::AGENT_NAMES[0]),
             vec![WorkloadStateSpec {
                 instance_name: workload.instance_name,
                 execution_state: ExecutionStateSpec {
@@ -1204,11 +1203,16 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
 
-        let w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
-            .name(WORKLOAD_NAME_1);
-
-        let w2 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
-            .name(WORKLOAD_NAME_2);
+        let w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        let w2 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let mut mock_server_state = MockServerState::new();
 
@@ -1217,14 +1221,14 @@ mod tests {
         let mut seq = mockall::Sequence::new();
         mock_server_state
             .expect_get_workloads_for_agent()
-            .with(mockall::predicate::eq(AGENT_A.to_string()))
+            .with(mockall::predicate::eq(fixtures::AGENT_NAMES[0].to_string()))
             .once()
             .in_sequence(&mut seq)
             .return_const(vec![w1.clone()]);
 
         mock_server_state
             .expect_get_workloads_for_agent()
-            .with(mockall::predicate::eq(AGENT_B.to_string()))
+            .with(mockall::predicate::eq(fixtures::AGENT_NAMES[1].to_string()))
             .once()
             .in_sequence(&mut seq)
             .return_const(vec![w2.clone()]);
@@ -1239,14 +1243,16 @@ mod tests {
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // first agent connects to the server
-        let agent_hello_result = to_server.agent_hello(AGENT_A.to_string()).await;
+        let agent_hello_result = to_server
+            .agent_hello(fixtures::AGENT_NAMES[0].to_string())
+            .await;
         assert!(agent_hello_result.is_ok());
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
             FromServer::ServerHello(ServerHello {
-                agent_name: Some(AGENT_A.to_string()),
+                agent_name: Some(fixtures::AGENT_NAMES[0].to_string()),
                 added_workloads: vec![w1],
             }),
             from_server_command
@@ -1255,8 +1261,10 @@ mod tests {
         // [utest->swdd~server-informs-a-newly-connected-agent-workload-states~1]
         // [utest->swdd~server-starts-without-startup-config~1]
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
-        let test_wl_1_state_running =
-            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionStateSpec::running());
+        let test_wl_1_state_running = generate_test_workload_state(
+            fixtures::WORKLOAD_NAMES[0],
+            ExecutionStateSpec::running(),
+        );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_running.clone()])
             .await;
@@ -1271,7 +1279,9 @@ mod tests {
             from_server_command
         );
 
-        let agent_hello_result = to_server.agent_hello(AGENT_B.to_owned()).await;
+        let agent_hello_result = to_server
+            .agent_hello(fixtures::AGENT_NAMES[1].to_owned())
+            .await;
         assert!(agent_hello_result.is_ok());
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
@@ -1287,7 +1297,7 @@ mod tests {
 
         assert_eq!(
             FromServer::ServerHello(ServerHello {
-                agent_name: Some(AGENT_B.to_string()),
+                agent_name: Some(fixtures::AGENT_NAMES[1].to_string()),
                 added_workloads: vec![w2],
             }),
             from_server_command
@@ -1295,8 +1305,10 @@ mod tests {
 
         // [utest->swdd~server-forwards-workload-state~1]
         // send update_workload_state for second agent which is then stored in the workload_state_db in ankaios server
-        let test_wl_2_state_succeeded =
-            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionStateSpec::succeeded());
+        let test_wl_2_state_succeeded = generate_test_workload_state(
+            fixtures::WORKLOAD_NAMES[1],
+            ExecutionStateSpec::succeeded(),
+        );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_2_state_succeeded.clone()])
             .await;
@@ -1312,8 +1324,10 @@ mod tests {
         );
 
         // send update_workload_state for first agent again which is then updated in the workload_state_db in ankaios server
-        let test_wl_1_state_succeeded =
-            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionStateSpec::succeeded());
+        let test_wl_1_state_succeeded = generate_test_workload_state(
+            fixtures::WORKLOAD_NAMES[1],
+            ExecutionStateSpec::succeeded(),
+        );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_succeeded.clone()])
             .await;
@@ -1344,14 +1358,20 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
-            .name(WORKLOAD_NAME_1);
+        let mut w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
         w1.workload.runtime_config = "changed".to_string();
 
         let update_state = CompleteStateSpec {
             desired_state: StateSpec {
                 workloads: WorkloadMapSpec {
-                    workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]),
+                    workloads: HashMap::from([(
+                        fixtures::WORKLOAD_NAMES[0].to_owned(),
+                        w1.workload.clone(),
+                    )]),
                 },
                 ..Default::default()
             },
@@ -1361,7 +1381,10 @@ mod tests {
         let added_workloads = vec![w1.clone()];
         let deleted_workloads = vec![];
 
-        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[0]
+        )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         let updated_desired_state = update_state.desired_state.clone();
@@ -1394,7 +1417,7 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
+            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
             .await;
         assert!(update_state_result.is_ok());
 
@@ -1410,7 +1433,7 @@ mod tests {
         let update_state_success_message = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::Response(Response {
-                request_id: REQUEST_ID_A.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
                     added_workloads: added_workloads
                         .into_iter()
@@ -1440,20 +1463,29 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
-            .name(WORKLOAD_NAME_1);
+        let mut w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
         w1.workload.runtime_config = "changed".to_string();
 
         let update_state = CompleteStateSpec {
             desired_state: StateSpec {
                 workloads: WorkloadMapSpec {
-                    workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]),
+                    workloads: HashMap::from([(
+                        fixtures::WORKLOAD_NAMES[0].to_owned(),
+                        w1.workload.clone(),
+                    )]),
                 },
                 ..Default::default()
             },
             ..Default::default()
         };
-        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[0]
+        )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         let updated_desired_state = update_state.desired_state.clone();
@@ -1483,7 +1515,7 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
+            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
             .await;
         assert!(update_state_result.is_ok());
 
@@ -1495,7 +1527,7 @@ mod tests {
                     added_workloads,
                     deleted_workloads
                 }))
-            }) if request_id == REQUEST_ID_A && added_workloads.is_empty() && deleted_workloads.is_empty()
+            }) if request_id == fixtures::REQUEST_ID && added_workloads.is_empty() && deleted_workloads.is_empty()
         ));
 
         assert!(
@@ -1521,18 +1553,27 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
+        let w1 = generate_test_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let update_state = CompleteStateSpec {
             desired_state: StateSpec {
                 workloads: WorkloadMapSpec {
-                    workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), w1.clone())]),
+                    workloads: HashMap::from([(
+                        fixtures::WORKLOAD_NAMES[0].to_owned(),
+                        w1.clone(),
+                    )]),
                 },
                 ..Default::default()
             },
             ..Default::default()
         };
-        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[0]
+        )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         let updated_desired_state = update_state.desired_state.clone();
@@ -1557,7 +1598,7 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
+            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
             .await;
         assert!(update_state_result.is_ok());
 
@@ -1566,7 +1607,7 @@ mod tests {
             FromServer::Response(Response {
                 request_id,
                 response_content: Some(ResponseContent::Error(_))
-            }) if request_id == REQUEST_ID_A
+            }) if request_id == fixtures::REQUEST_ID
         ));
 
         assert!(
@@ -1598,7 +1639,11 @@ mod tests {
             .with(mockall::predicate::function(
                 |instance_name: &WorkloadInstanceNameSpec| {
                     instance_name
-                        == &WorkloadInstanceNameSpec::new(AGENT_A, WORKLOAD_NAME_1, INSTANCE_ID)
+                        == &WorkloadInstanceNameSpec::new(
+                            fixtures::AGENT_NAMES[0],
+                            fixtures::WORKLOAD_NAMES[0],
+                            fixtures::WORKLOAD_IDS[0],
+                        )
                 },
             ))
             .once()
@@ -1607,16 +1652,16 @@ mod tests {
         server.server_state = mock_server_state;
 
         let log_providing_workloads = vec![WorkloadInstanceNameSpec::new(
-            AGENT_A,
-            WORKLOAD_NAME_1,
-            INSTANCE_ID,
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::WORKLOAD_IDS[0],
         )];
 
         server
             .log_campaign_store
             .expect_insert_log_campaign()
             .with(
-                predicate::eq(REQUEST_ID_A.to_owned()),
+                predicate::eq(fixtures::REQUEST_ID.to_owned()),
                 predicate::eq(log_providing_workloads.clone()),
             )
             .once()
@@ -1634,7 +1679,7 @@ mod tests {
 
         // send logs request to server
         let logs_request_result = to_server
-            .logs_request(REQUEST_ID_A.to_string(), logs_request.into())
+            .logs_request(fixtures::REQUEST_ID.to_string(), logs_request.into())
             .await;
         assert!(logs_request_result.is_ok());
         drop(to_server);
@@ -1642,12 +1687,12 @@ mod tests {
         let logs_request_message = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::LogsRequest(
-                REQUEST_ID_A.into(),
+                fixtures::REQUEST_ID.into(),
                 LogsRequestSpec {
                     workload_names: vec![WorkloadInstanceNameSpec::new(
-                        AGENT_A,
-                        WORKLOAD_NAME_1,
-                        INSTANCE_ID,
+                        fixtures::AGENT_NAMES[0],
+                        fixtures::WORKLOAD_NAMES[0],
+                        fixtures::WORKLOAD_IDS[0],
                     )],
                     follow: true,
                     tail: 10,
@@ -1662,12 +1707,12 @@ mod tests {
         assert_eq!(
             from_server_command,
             FromServer::Response(Response {
-                request_id: REQUEST_ID_A.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
                     workload_names: vec![WorkloadInstanceName {
-                        workload_name: WORKLOAD_NAME_1.to_string(),
-                        agent_name: AGENT_A.to_string(),
-                        id: INSTANCE_ID.to_string()
+                        workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+                        agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                        id: fixtures::WORKLOAD_IDS[0].to_string()
                     }],
                 })),
             })
@@ -1693,9 +1738,9 @@ mod tests {
         mock_server_state
             .expect_desired_state_contains_instance_name()
             .with(mockall::predicate::eq(WorkloadInstanceNameSpec::new(
-                AGENT_A,
-                WORKLOAD_NAME_1,
-                INSTANCE_ID,
+                fixtures::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::WORKLOAD_IDS[0],
             )))
             .once()
             .return_const(false);
@@ -1709,9 +1754,9 @@ mod tests {
 
         let logs_request = LogsRequestSpec {
             workload_names: vec![WorkloadInstanceNameSpec::new(
-                AGENT_A,
-                WORKLOAD_NAME_1,
-                INSTANCE_ID,
+                fixtures::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::WORKLOAD_IDS[0],
             )],
             follow: true,
             tail: 10,
@@ -1721,7 +1766,7 @@ mod tests {
 
         // send logs request to server
         let logs_request_result = to_server
-            .logs_request(REQUEST_ID.to_string(), logs_request.into())
+            .logs_request(fixtures::REQUEST_ID.to_string(), logs_request.into())
             .await;
         assert!(logs_request_result.is_ok());
 
@@ -1732,7 +1777,7 @@ mod tests {
         assert_eq!(
             from_server_command,
             FromServer::Response(Response {
-                request_id: REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
                     workload_names: vec![],
                 })),
@@ -1754,17 +1799,21 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1: Workload = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
+        let w1: Workload = generate_test_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        )
+        .into();
         let w2 = w1.clone();
         let w3 = Workload {
-            agent: Some(AGENT_B.to_string()),
+            agent: Some(fixtures::AGENT_NAMES[1].to_string()),
             ..w1.clone()
         };
 
         let workloads = HashMap::from([
-            (WORKLOAD_NAME_1.to_owned(), w1),
-            (WORKLOAD_NAME_2.to_owned(), w2),
-            (WORKLOAD_NAME_3.to_owned(), w3),
+            (fixtures::WORKLOAD_NAMES[0].to_owned(), w1),
+            (fixtures::WORKLOAD_NAMES[1].to_owned(), w2),
+            (fixtures::WORKLOAD_NAMES[2].to_owned(), w3),
         ]);
 
         let workload_map = WorkloadMap { workloads };
@@ -1776,7 +1825,7 @@ mod tests {
             }),
             ..Default::default()
         };
-        let request_id = format!("{AGENT_A}@my_request_id");
+        let request_id = format!("{}@my_request_id", fixtures::AGENT_NAMES[0]);
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
@@ -1860,7 +1909,7 @@ mod tests {
         server.server_state = mock_server_state;
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        let request_id = format!("{AGENT_A}@my_request_id");
+        let request_id = format!("{}@my_request_id", fixtures::AGENT_NAMES[0]);
         // send command 'CompleteStateRequest'
         // CompleteState shall contain the complete state
         let request_complete_state_result = to_server
@@ -1932,8 +1981,8 @@ mod tests {
 
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
         let test_wl_1_state_running = generate_test_workload_state_with_agent(
-            WORKLOAD_NAME_1,
-            AGENT_A,
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         );
         let update_workload_state_result = to_server
@@ -1942,7 +1991,9 @@ mod tests {
         assert!(update_workload_state_result.is_ok());
 
         // first agent disconnects from the ankaios server
-        let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
+        let agent_gone_result = to_server
+            .agent_gone(fixtures::AGENT_NAMES[0].to_owned())
+            .await;
         assert!(agent_gone_result.is_ok());
 
         let server_handle = server.start(None);
@@ -1961,11 +2012,11 @@ mod tests {
 
         let workload_states = server
             .workload_states_map
-            .get_workload_state_for_agent(AGENT_A);
+            .get_workload_state_for_agent(fixtures::AGENT_NAMES[0]);
 
         let expected_workload_state = generate_test_workload_state_with_agent(
-            WORKLOAD_NAME_1,
-            AGENT_A,
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::agent_disconnected(),
         );
         assert_eq!(vec![expected_workload_state.clone()], workload_states);
@@ -1992,12 +2043,12 @@ mod tests {
         server
             .log_campaign_store
             .expect_remove_agent_log_campaign_entry()
-            .with(predicate::eq(AGENT_A.to_owned()))
+            .with(predicate::eq(fixtures::AGENT_NAMES[0].to_owned()))
             .once()
             .return_const(RemovedLogRequests {
                 collector_requests: HashSet::from([
-                    REQUEST_ID_A.to_owned(),
-                    REQUEST_ID_A2.to_owned(),
+                    fixtures::REQUEST_ID.to_owned(),
+                    SECOND_REQUEST_ID.to_owned(),
                 ]),
                 ..Default::default()
             });
@@ -2013,14 +2064,16 @@ mod tests {
             .times(2)
             .return_const(false);
 
-        let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
+        let agent_gone_result = to_server
+            .agent_gone(fixtures::AGENT_NAMES[0].to_owned())
+            .await;
         assert!(agent_gone_result.is_ok());
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         let expected_logs_cancel_requests = vec![
-            FromServer::LogsCancelRequest(REQUEST_ID_A.to_string()),
-            FromServer::LogsCancelRequest(REQUEST_ID_A2.to_string()),
+            FromServer::LogsCancelRequest(fixtures::REQUEST_ID.to_string()),
+            FromServer::LogsCancelRequest(SECOND_REQUEST_ID.to_string()),
         ];
         let mut actual_logs_cancel_requests = Vec::new();
         let _update_workload_state = comm_middle_ware_receiver.recv().await.unwrap();
@@ -2048,21 +2101,25 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let instance_name_1: WorkloadInstanceNameSpec =
-            WORKLOAD_INSTANCE_NAME_1.try_into().unwrap();
-        let instance_name_2: WorkloadInstanceNameSpec =
-            WORKLOAD_INSTANCE_NAME_2.try_into().unwrap();
+        let instance_name_1 = generate_test_workload_instance_name_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+        );
+        let instance_name_2 = generate_test_workload_instance_name_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+        );
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         server
             .log_campaign_store
             .expect_remove_agent_log_campaign_entry()
-            .with(predicate::eq(AGENT_A.to_owned()))
+            .with(predicate::eq(fixtures::AGENT_NAMES[0].to_owned()))
             .once()
             .return_const(RemovedLogRequests {
                 collector_requests: HashSet::new(),
                 disconnected_log_providers: vec![(
-                    REQUEST_ID_A.to_owned(),
+                    fixtures::REQUEST_ID.to_owned(),
                     vec![instance_name_1.clone(), instance_name_2.clone()],
                 )],
             });
@@ -2078,20 +2135,22 @@ mod tests {
             .times(2)
             .return_const(false);
 
-        let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
+        let agent_gone_result = to_server
+            .agent_gone(fixtures::AGENT_NAMES[0].to_owned())
+            .await;
         assert!(agent_gone_result.is_ok());
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         let expected_logs_stop_responses = vec![
             FromServer::Response(Response {
-                request_id: REQUEST_ID_A.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::LogsStopResponse(LogsStopResponse {
                     workload_name: Some(instance_name_1.into()),
                 })),
             }),
             FromServer::Response(Response {
-                request_id: REQUEST_ID_A.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::LogsStopResponse(LogsStopResponse {
                     workload_name: Some(instance_name_2.into()),
                 })),
@@ -2125,10 +2184,16 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
-            .name(WORKLOAD_NAME_1);
-        let w2 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
-            .name(WORKLOAD_NAME_2);
+        let w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        let w2 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let mut updated_w1 = w1.clone();
         updated_w1.instance_name = WorkloadInstanceNameSpec::builder()
@@ -2140,7 +2205,7 @@ mod tests {
             desired_state: StateSpec {
                 workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
-                        WORKLOAD_NAME_1.to_owned(),
+                        fixtures::WORKLOAD_NAMES[0].to_owned(),
                         updated_w1.workload.clone(),
                     )]),
                 },
@@ -2161,14 +2226,14 @@ mod tests {
         let mut seq = mockall::Sequence::new();
         mock_server_state
             .expect_get_workloads_for_agent()
-            .with(mockall::predicate::eq(AGENT_A.to_string()))
+            .with(mockall::predicate::eq(fixtures::AGENT_NAMES[0].to_string()))
             .once()
             .in_sequence(&mut seq)
             .return_const(vec![w1.clone()]);
 
         mock_server_state
             .expect_get_workloads_for_agent()
-            .with(mockall::predicate::eq(AGENT_B.to_string()))
+            .with(mockall::predicate::eq(fixtures::AGENT_NAMES[1].to_string()))
             .once()
             .in_sequence(&mut seq)
             .return_const(vec![w2.clone()]);
@@ -2204,16 +2269,25 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
+            .times(6)
             .return_const(false);
 
-        let agent_hello1_result = to_server.agent_hello(AGENT_A.to_owned()).await;
+        let agent_hello1_result = to_server
+            .agent_hello(fixtures::AGENT_NAMES[0].to_owned())
+            .await;
         assert!(agent_hello1_result.is_ok());
 
-        let agent_hello2_result = to_server.agent_hello(AGENT_B.to_owned()).await;
+        let agent_hello2_result = to_server
+            .agent_hello(fixtures::AGENT_NAMES[1].to_owned())
+            .await;
         assert!(agent_hello2_result.is_ok());
 
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
+            .update_state(
+                fixtures::REQUEST_ID.to_string(),
+                update_state,
+                update_mask.clone(),
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -2226,7 +2300,7 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::ServerHello(ServerHello {
-                agent_name: Some(AGENT_A.to_string()),
+                agent_name: Some(fixtures::AGENT_NAMES[0].to_string()),
                 added_workloads: vec![w1.clone()]
             }),
             from_server_command
@@ -2235,7 +2309,7 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::ServerHello(ServerHello {
-                agent_name: Some(AGENT_B.to_string()),
+                agent_name: Some(fixtures::AGENT_NAMES[1].to_string()),
                 added_workloads: vec![w2],
             }),
             from_server_command
@@ -2261,13 +2335,13 @@ mod tests {
                     added_workloads,
                     deleted_workloads
                 }))
-            }) if request_id == REQUEST_ID_A && added_workloads == vec![updated_w1.instance_name.to_string()] && deleted_workloads == vec![w1.instance_name.to_string()]
+            }) if request_id == fixtures::REQUEST_ID && added_workloads == vec![updated_w1.instance_name.to_string()] && deleted_workloads == vec![w1.instance_name.to_string()]
         ));
 
         assert_eq!(
             server
                 .workload_states_map
-                .get_workload_state_for_agent(AGENT_A),
+                .get_workload_state_for_agent(fixtures::AGENT_NAMES[0]),
             vec![WorkloadStateSpec {
                 instance_name: updated_w1.instance_name,
                 execution_state: ExecutionStateSpec {
@@ -2322,13 +2396,13 @@ mod tests {
         assert!(
             to_server
                 .log_entries_response(
-                    REQUEST_ID.into(),
+                    fixtures::REQUEST_ID.into(),
                     LogEntriesResponse {
                         log_entries: vec![LogEntry {
                             workload_name: Some(WorkloadInstanceName {
-                                workload_name: WORKLOAD_NAME_1.into(),
-                                agent_name: AGENT_A.into(),
-                                id: INSTANCE_ID.into()
+                                workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                                agent_name: fixtures::AGENT_NAMES[0].into(),
+                                id: fixtures::WORKLOAD_IDS[0].into()
                             }),
                             message: MESSAGE.into()
                         }]
@@ -2341,13 +2415,13 @@ mod tests {
         assert_eq!(
             comm_middle_ware_receiver.recv().await.unwrap(),
             FromServer::Response(Response {
-                request_id: REQUEST_ID.into(),
+                request_id: fixtures::REQUEST_ID.into(),
                 response_content: Some(ResponseContent::LogEntriesResponse(LogEntriesResponse {
                     log_entries: vec![LogEntry {
                         workload_name: Some(WorkloadInstanceName {
-                            workload_name: WORKLOAD_NAME_1.into(),
-                            agent_name: AGENT_A.into(),
-                            id: INSTANCE_ID.into()
+                            workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                            agent_name: fixtures::AGENT_NAMES[0].into(),
+                            id: fixtures::WORKLOAD_IDS[0].into()
                         }),
                         message: MESSAGE.into()
                     },]
@@ -2372,13 +2446,20 @@ mod tests {
             ..Default::default()
         };
 
-        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[0]
+        )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state.clone(), update_mask)
+            .update_state(
+                fixtures::REQUEST_ID.to_string(),
+                update_state.clone(),
+                update_mask,
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -2389,7 +2470,7 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::Response(Response {
-                request_id: REQUEST_ID_A.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::Error(Error {
                     message: error_message
                 })),
@@ -2414,14 +2495,17 @@ mod tests {
         };
         update_state_ankaios_no_version.desired_state.api_version = "".to_string();
 
-        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[0]
+        )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
         let update_state_result = to_server
             .update_state(
-                REQUEST_ID_A.to_string(),
+                fixtures::REQUEST_ID.to_string(),
                 update_state_ankaios_no_version.clone(),
                 update_mask,
             )
@@ -2435,7 +2519,7 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::Response(Response {
-                request_id: REQUEST_ID_A.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::Error(Error {
                     message: error_message
                 })),
@@ -2460,7 +2544,7 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
 
         let workload_states = vec![generate_test_workload_state(
-            WORKLOAD_NAME_1,
+            fixtures::WORKLOAD_NAMES[0],
             ExecutionStateSpec::removed(),
         )];
 
@@ -2486,13 +2570,17 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let workload_without_agent =
-            generate_test_workload_with_param::<WorkloadNamed>("", RUNTIME_NAME)
-                .name(WORKLOAD_NAME_1);
+        let workload_without_agent = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            "",
+            fixtures::RUNTIME_NAMES[0],
+        );
 
-        let workload_with_agent =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
-                .name(WORKLOAD_NAME_2);
+        let workload_with_agent = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let update_state = CompleteStateSpec::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
@@ -2538,7 +2626,11 @@ mod tests {
             .return_const(false);
 
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
+            .update_state(
+                fixtures::REQUEST_ID.to_string(),
+                update_state,
+                update_mask.clone(),
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -2587,9 +2679,11 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let log_collecting_workload =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
-                .name(WORKLOAD_NAME_2);
+        let log_collecting_workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let update_state = CompleteStateSpec::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
@@ -2642,7 +2736,11 @@ mod tests {
             .return_const(HashSet::from([logs_request_id.to_owned()]));
 
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
+            .update_state(
+                fixtures::REQUEST_ID.to_string(),
+                update_state,
+                update_mask.clone(),
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -2681,9 +2779,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_receives_agent_status_load() {
         let payload = AgentLoadStatus {
-            agent_name: AGENT_A.to_string(),
-            cpu_usage: CpuUsageSpec { cpu_usage: 42 },
-            free_memory: FreeMemorySpec { free_memory: 42 },
+            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+            cpu_usage: fixtures::CPU_USAGE_SPEC,
+            free_memory: fixtures::FREE_MEMORY_SPEC,
         };
 
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
@@ -2694,7 +2792,7 @@ mod tests {
         server
             .agent_map
             .agents
-            .entry(AGENT_A.to_owned())
+            .entry(fixtures::AGENT_NAMES[0].to_owned())
             .or_default();
 
         server
@@ -2711,7 +2809,8 @@ mod tests {
 
         assert!(result.is_ok());
 
-        let expected_agent_map: AgentMapSpec = generate_test_agent_map(AGENT_A);
+        let expected_agent_map: AgentMapSpec =
+            generate_test_agent_map(fixtures::AGENT_NAMES[0]);
 
         assert_eq!(expected_agent_map, server.agent_map);
     }
@@ -2736,9 +2835,13 @@ mod tests {
             .times(4)
             .return_const(false);
 
-        let agent_resource_result = to_server.agent_hello(AGENT_A.to_owned()).await;
+        let agent_resource_result = to_server
+            .agent_hello(fixtures::AGENT_NAMES[0].to_owned())
+            .await;
         assert!(agent_resource_result.is_ok());
-        let agent_resource_result = to_server.agent_hello(AGENT_B.to_owned()).await;
+        let agent_resource_result = to_server
+            .agent_hello(fixtures::AGENT_NAMES[1].to_owned())
+            .await;
         assert!(agent_resource_result.is_ok());
 
         drop(to_server);
@@ -2751,11 +2854,11 @@ mod tests {
         };
         expected_agent_map
             .agents
-            .entry(AGENT_A.to_owned())
+            .entry(fixtures::AGENT_NAMES[0].to_owned())
             .or_default();
         expected_agent_map
             .agents
-            .entry(AGENT_B.to_owned())
+            .entry(fixtures::AGENT_NAMES[1].to_owned())
             .or_default();
 
         assert_eq!(expected_agent_map, server.agent_map);
@@ -2781,14 +2884,26 @@ mod tests {
             .times(4)
             .return_const(false);
 
-        let mut agent_map = AgentMapSpec::default();
-        agent_map.agents.entry(AGENT_A.to_owned()).or_default();
-        agent_map.agents.entry(AGENT_B.to_owned()).or_default();
+        let mut agent_map = AgentMapSpec {
+            agents: HashMap::new(),
+        };
+        agent_map
+            .agents
+            .entry(fixtures::AGENT_NAMES[0].to_owned())
+            .or_default();
+        agent_map
+            .agents
+            .entry(fixtures::AGENT_NAMES[1].to_owned())
+            .or_default();
         server.agent_map = agent_map;
 
-        let agent_resource_result = to_server.agent_gone(AGENT_A.to_owned()).await;
+        let agent_resource_result = to_server
+            .agent_gone(fixtures::AGENT_NAMES[0].to_owned())
+            .await;
         assert!(agent_resource_result.is_ok());
-        let agent_resource_result = to_server.agent_gone(AGENT_B.to_owned()).await;
+        let agent_resource_result = to_server
+            .agent_gone(fixtures::AGENT_NAMES[1].to_owned())
+            .await;
         assert!(agent_resource_result.is_ok());
 
         drop(to_server);
@@ -2809,7 +2924,7 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
 
-        let workload: WorkloadNamed = generate_test_workload();
+        let workload = generate_test_workload_named();
 
         let update_state = CompleteStateSpec::default();
 
@@ -2862,9 +2977,12 @@ mod tests {
         assert!(
             to_server
                 .update_state(
-                    REQUEST_ID.to_owned(),
+                    fixtures::REQUEST_ID.to_owned(),
                     update_state,
-                    vec![format!("desiredState.workloads.{WORKLOAD_NAME_1}")],
+                    vec![format!(
+                        "desiredState.workloads.{}",
+                        fixtures::WORKLOAD_NAMES[0]
+                    )],
                 )
                 .await
                 .is_ok()
@@ -2897,7 +3015,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let request_id = REQUEST_ID.to_string();
+        let request_id = fixtures::REQUEST_ID.to_string();
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         server
             .log_campaign_store
@@ -2937,14 +3055,14 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let request_id = REQUEST_ID.to_string();
+        let request_id = fixtures::REQUEST_ID.to_string();
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         let workload_instance_name = WorkloadInstanceName {
-            workload_name: WORKLOAD_NAME_1.to_string(),
-            agent_name: AGENT_A.to_string(),
-            id: INSTANCE_ID.to_string(),
+            workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+            id: fixtures::WORKLOAD_IDS[0].to_string(),
         };
 
         // send new state to server
@@ -3015,7 +3133,7 @@ mod tests {
 
         let current_complete_state = CompleteState::default();
 
-        let request_id = format!("{AGENT_A}@my_request_id");
+        let request_id = format!("{}@my_request_id", fixtures::AGENT_NAMES[0]);
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         server
             .server_state
@@ -3083,7 +3201,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let request_id = format!("{AGENT_A}@my_request_id");
+        let request_id = format!("{}@my_request_id", fixtures::AGENT_NAMES[0]);
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
 
         server
@@ -3135,7 +3253,7 @@ mod tests {
         server
             .server_state
             .expect_get_workloads_for_agent()
-            .with(mockall::predicate::eq(AGENT_A.to_string()))
+            .with(mockall::predicate::eq(fixtures::AGENT_NAMES[0].to_string()))
             .once()
             .return_const(Vec::default());
 
@@ -3148,7 +3266,10 @@ mod tests {
         let mut state_diference_tree = StateDifferenceTree::new();
 
         state_diference_tree.added_tree.first_difference_tree =
-            generate_difference_tree_from_paths(&[vec!["agents".to_owned(), AGENT_A.to_owned()]]);
+            generate_difference_tree_from_paths(&[vec![
+                "agents".to_owned(),
+                fixtures::AGENT_NAMES[0].to_owned(),
+            ]]);
 
         state_diference_tree.added_tree.full_difference_tree = state_diference_tree
             .added_tree
@@ -3179,7 +3300,9 @@ mod tests {
             .once()
             .return_const(());
 
-        let agent_hello_result = to_server.agent_hello(AGENT_A.to_string()).await;
+        let agent_hello_result = to_server
+            .agent_hello(fixtures::AGENT_NAMES[0].to_string())
+            .await;
         assert!(agent_hello_result.is_ok());
 
         drop(to_server);
@@ -3212,14 +3335,17 @@ mod tests {
             .return_const(true);
 
         let test_wl_1_state_running = generate_test_workload_state_with_agent(
-            WORKLOAD_NAME_1,
-            AGENT_A,
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         );
 
         let mut state_diference_tree = StateDifferenceTree::new();
         state_diference_tree.removed_tree.first_difference_tree =
-            generate_difference_tree_from_paths(&[vec!["agents".to_owned(), AGENT_A.to_owned()]]);
+            generate_difference_tree_from_paths(&[vec![
+                "agents".to_owned(),
+                fixtures::AGENT_NAMES[0].to_owned(),
+            ]]);
 
         state_diference_tree.removed_tree.full_difference_tree = state_diference_tree
             .removed_tree
@@ -3264,7 +3390,9 @@ mod tests {
             .process_new_states(vec![test_wl_1_state_running]);
 
         // first agent disconnects from the ankaios server
-        let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
+        let agent_gone_result = to_server
+            .agent_gone(fixtures::AGENT_NAMES[0].to_owned())
+            .await;
         assert!(agent_gone_result.is_ok());
 
         drop(to_server);
@@ -3283,30 +3411,33 @@ mod tests {
         let (to_agents, _comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_workload_with_param::<WorkloadNamed>(
-            AGENT_A.to_owned(),
-            RUNTIME_NAME.to_string(),
-        )
-        .name(WORKLOAD_NAME_1);
+        let w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0].to_owned(),
+            fixtures::RUNTIME_NAMES[0].to_string(),
+        );
 
-        let updated_w1 = generate_test_workload_with_param::<WorkloadNamed>(
-            AGENT_B.to_owned(),
-            RUNTIME_NAME.to_string(),
-        )
-        .name(WORKLOAD_NAME_1);
+        let updated_w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[1].to_owned(),
+            fixtures::RUNTIME_NAMES[0].to_string(),
+        );
 
         let mut old_state = CompleteStateSpec::default();
         old_state.desired_state.workloads = WorkloadMapSpec {
-            workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]
+            workloads: vec![(fixtures::WORKLOAD_NAMES[0].to_owned(), w1.workload.clone())]
                 .into_iter()
                 .collect(),
         };
 
         let mut update_state = CompleteStateSpec::default();
         update_state.desired_state.workloads = WorkloadMapSpec {
-            workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.workload.clone())]
-                .into_iter()
-                .collect(),
+            workloads: vec![(
+                fixtures::WORKLOAD_NAMES[0].to_owned(),
+                updated_w1.workload.clone(),
+            )]
+            .into_iter()
+            .collect(),
         };
 
         let added_workloads = vec![updated_w1.clone()];
@@ -3315,7 +3446,10 @@ mod tests {
             ..Default::default()
         }];
 
-        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[0]
+        )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
 
         server
@@ -3341,7 +3475,7 @@ mod tests {
             vec![
                 "desiredState".to_owned(),
                 "workloads".to_owned(),
-                WORKLOAD_NAME_1.to_owned(),
+                fixtures::WORKLOAD_NAMES[0].to_owned(),
             ],
             vec![
                 "workloadStates".to_owned(),
@@ -3357,7 +3491,7 @@ mod tests {
             vec![
                 "desiredState".to_owned(),
                 "workloads".to_owned(),
-                WORKLOAD_NAME_1.to_owned(),
+                fixtures::WORKLOAD_NAMES[0].to_owned(),
             ],
             vec![
                 "workloadStates".to_owned(),
@@ -3439,7 +3573,7 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
+            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
             .await;
         assert!(update_state_result.is_ok());
 
@@ -3460,7 +3594,7 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut update_state = CompleteStateSpec::default();
-        update_state.desired_state.configs = generate_test_configs();
+        update_state.desired_state.configs = generate_test_config_map();
         update_state
             .desired_state
             .configs
@@ -3535,7 +3669,7 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
+            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
             .await;
         assert!(update_state_result.is_ok());
 
@@ -3564,11 +3698,15 @@ mod tests {
             .expect_has_subscribers()
             .return_const(true);
 
-        let workload_state_1 =
-            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionStateSpec::succeeded());
+        let workload_state_1 = generate_test_workload_state(
+            fixtures::WORKLOAD_NAMES[0],
+            ExecutionStateSpec::succeeded(),
+        );
 
-        let workload_state_2 =
-            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionStateSpec::removed());
+        let workload_state_2 = generate_test_workload_state(
+            fixtures::WORKLOAD_NAMES[1],
+            ExecutionStateSpec::removed(),
+        );
 
         let updated_instance_name = workload_state_1.instance_name.clone();
         let removed_instance_name = workload_state_2.instance_name.clone();
@@ -3650,7 +3788,7 @@ mod tests {
         server
             .agent_map
             .agents
-            .entry(AGENT_A.to_owned())
+            .entry(fixtures::AGENT_NAMES[0].to_owned())
             .or_default();
 
         server
@@ -3665,13 +3803,13 @@ mod tests {
             .full_difference_tree = generate_difference_tree_from_paths(&[
             vec![
                 "agents".to_owned(),
-                AGENT_A.to_owned(),
+                fixtures::AGENT_NAMES[0].to_owned(),
                 "status".to_owned(),
                 "cpuUsage".to_owned(),
             ],
             vec![
                 "agents".to_owned(),
-                AGENT_A.to_owned(),
+                fixtures::AGENT_NAMES[0].to_owned(),
                 "status".to_owned(),
                 "freeMemory".to_owned(),
             ],
@@ -3704,9 +3842,9 @@ mod tests {
             .return_const(());
 
         let new_agent_load_status = AgentLoadStatus {
-            agent_name: AGENT_A.to_string(),
-            cpu_usage: CpuUsageSpec { cpu_usage: 42 },
-            free_memory: FreeMemorySpec { free_memory: 42 },
+            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+            cpu_usage: fixtures::CPU_USAGE_SPEC,
+            free_memory: fixtures::FREE_MEMORY_SPEC,
         };
         let update_agent_load_status_result =
             to_server.agent_load_status(new_agent_load_status).await;

@@ -335,7 +335,7 @@ pub fn generate_difference_tree_from_paths(new_tree_paths: &[Vec<String>]) -> Ob
 // [utest->swdd~server-calculates-state-differences~1]
 #[cfg(test)]
 mod tests {
-    use ankaios_api::test_utils::{generate_test_complete_state, generate_test_workload};
+    use ankaios_api::test_utils::{generate_test_complete_state, generate_test_workload_named};
     use common::state_manipulation::{Object, Path};
 
     use crate::ankaios_server::state_comparator::{AddedTree, RemovedTree, UpdatedTree};
@@ -344,7 +344,7 @@ mod tests {
 
     #[test]
     fn utest_state_comparator_new() {
-        let new_state_spec = generate_test_complete_state(vec![generate_test_workload()]);
+        let new_state_spec = generate_test_complete_state(vec![generate_test_workload_named()]);
         let old_state_spec = CompleteStateSpec::default();
 
         let state_comparator = StateComparator::new(old_state_spec.clone(), new_state_spec.clone());

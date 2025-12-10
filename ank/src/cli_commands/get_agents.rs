@@ -122,21 +122,15 @@ mod tests {
         CliCommands,
         server_connection::{MockServerConnection, ServerConnectionError},
     };
-    use ankaios_api::ank_base::{AgentMapSpec, CompleteState, ExecutionStateSpec, WorkloadNamed};
+    use ankaios_api::ank_base::{AgentMapSpec, CompleteState, ExecutionStateSpec};
     use ankaios_api::test_utils::{
         generate_test_agent_map, generate_test_agent_map_from_workloads,
-        generate_test_complete_state, generate_test_workload_states_map_with_data,
-        generate_test_workload_with_param,
+        generate_test_complete_state, generate_test_workload_named_with_params,
+        generate_test_workload_states_map_with_data, fixtures,
     };
     use mockall::predicate::eq;
 
-    const RESPONSE_TIMEOUT_MS: u64 = 3000;
-    const AGENT_A_NAME: &str = "agent_A";
-    const AGENT_B_NAME: &str = "agent_B";
     const AGENT_UNCONNECTED_NAME: &str = "agent_not_connected";
-    const WORKLOAD_NAME_1: &str = "workload_1";
-    const WORKLOAD_NAME_2: &str = "workload_2";
-    const RUNTIME_NAME: &str = "runtime";
 
     // [utest->swdd~cli-presents-connected-agents-as-table~2]
     // [utest->swdd~cli-provides-list-of-agents~1]
@@ -149,15 +143,21 @@ mod tests {
             .with(eq(vec![]))
             .return_once(|_| {
                 Ok(CompleteState::from(generate_test_complete_state(vec![
-                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
-                        .name(WORKLOAD_NAME_1),
-                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_B_NAME, RUNTIME_NAME)
-                        .name(WORKLOAD_NAME_2),
+                    generate_test_workload_named_with_params(
+                        fixtures::WORKLOAD_NAMES[0],
+                        "agent_A",
+                        fixtures::RUNTIME_NAMES[0],
+                    ),
+                    generate_test_workload_named_with_params(
+                        fixtures::WORKLOAD_NAMES[1],
+                        "agent_B",
+                        fixtures::RUNTIME_NAMES[0],
+                    ),
                 ])))
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -166,8 +166,8 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
-            "agent_A   1           42%         42B        ",
-            "agent_B   1           42%         42B        ",
+            "agent_A   1           50%         1024B      ",
+            "agent_B   1           50%         1024B      ",
         ]
         .join("\n");
 
@@ -183,9 +183,10 @@ mod tests {
             .with(eq(vec![]))
             .return_once(|_| {
                 let mut complete_state =
-                    generate_test_complete_state(vec![generate_test_workload_with_param(
+                    generate_test_complete_state(vec![generate_test_workload_named_with_params(
+                        fixtures::WORKLOAD_NAMES[0],
                         AGENT_UNCONNECTED_NAME,
-                        RUNTIME_NAME,
+                        fixtures::RUNTIME_NAMES[0],
                     )]);
 
                 complete_state.agents = AgentMapSpec::default();
@@ -193,7 +194,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -215,12 +216,12 @@ mod tests {
             .return_once(|_| {
                 let mut complete_state = generate_test_complete_state(vec![]);
 
-                complete_state.agents = generate_test_agent_map(AGENT_A_NAME);
+                complete_state.agents = generate_test_agent_map("agent_A");
                 Ok(CompleteState::from(complete_state))
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -229,7 +230,7 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
-            "agent_A   0           42%         42B        ",
+            "agent_A   0           50%         1024B      ",
         ]
         .join("\n");
 
@@ -250,7 +251,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -267,16 +268,18 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                let workload1 =
-                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
-                        .name(WORKLOAD_NAME_2);
+                let workload1 = generate_test_workload_named_with_params(
+                    fixtures::WORKLOAD_NAMES[1],
+                    "agent_A",
+                    fixtures::RUNTIME_NAMES[0],
+                );
                 let mut complete_state = generate_test_complete_state(vec![
                     workload1.clone(),
-                    generate_test_workload_with_param::<WorkloadNamed>(
+                    generate_test_workload_named_with_params(
+                        fixtures::WORKLOAD_NAMES[0],
                         String::default(),
-                        RUNTIME_NAME,
-                    )
-                    .name(WORKLOAD_NAME_1),
+                        fixtures::RUNTIME_NAMES[0],
+                    ),
                 ]);
 
                 complete_state.agents =
@@ -285,7 +288,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -294,7 +297,7 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
-            "agent_A   1           42%         42B        ",
+            "agent_A   1           50%         1024B      ",
         ]
         .join("\n");
 
@@ -310,11 +313,11 @@ mod tests {
             .with(eq(vec![]))
             .return_once(|_| {
                 let mut complete_state = generate_test_complete_state(vec![]);
-                complete_state.agents = generate_test_agent_map(AGENT_A_NAME);
+                complete_state.agents = generate_test_agent_map(fixtures::AGENT_NAMES[0]);
                 // workload1 is deleted from the complete state already but delete not scheduled yet
                 complete_state.workload_states = generate_test_workload_states_map_with_data(
-                    AGENT_A_NAME,
-                    WORKLOAD_NAME_1,
+                    "agent_A",
+                    fixtures::WORKLOAD_NAMES[0],
                     "some workload id",
                     ExecutionStateSpec::waiting_to_stop(),
                 );
@@ -322,7 +325,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -331,7 +334,7 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
-            "agent_A   1           42%         42B        ",
+            "agent_A   1           50%         1024B      ",
         ]
         .join("\n");
 
