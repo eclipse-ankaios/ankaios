@@ -24,6 +24,9 @@ pub fn setup_schema_annotations(mut builder: Builder) -> Builder {
     builder
 }
 
+// TODO 313 - unify accepted char sets
+const ACCEPTED_CHAR_SET: &str = "[a-zA-Z0-9_-]";
+
 fn setup_state_annotations(builder: Builder) -> Builder {
     builder
         .message_attribute(
@@ -34,6 +37,8 @@ fn setup_state_annotations(builder: Builder) -> Builder {
             "State",
             "#[spec_type_attr(#[serde(rename = \"desiredState\")])]",
         )
+        // TODO 313
+        .field_attribute("State.apiVersion", r#"#[spec_field_attr(#[schemars(regex(pattern = r"^v1$"))])]"#)
         .message_attribute(
             "WorkloadMap",
             "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
@@ -42,9 +47,34 @@ fn setup_state_annotations(builder: Builder) -> Builder {
             "WorkloadMap",
             "#[spec_type_attr(#[serde(rename = \"workloadMap\")])]",
         )
+        // TODO 313
+        .field_attribute(
+            "WorkloadMap.workloads",
+            "#[spec_field_attr(#[schemars(schema_with = \"constrained_map_schema::<WorkloadSpec>\")])]",
+        )
         .message_attribute(
             "Workload",
             "#[spec_type_attr(#[serde(rename = \"workload\")])]",
+        )
+        // TODO 313
+        .field_attribute(
+            "Workload.agent",
+            format!(r#"#[spec_field_attr(#[schemars(regex(pattern = r"^(?:{ACCEPTED_CHAR_SET}*|\{{\{{{ACCEPTED_CHAR_SET}+(?:\.{ACCEPTED_CHAR_SET}+)*\}}\}})$"),length(min = 0, max = 63))])]"#)
+        )
+        // TODO 313
+        .field_attribute(
+            "ConfigMappings.configs",
+            "#[spec_field_attr(#[schemars(schema_with = \"constrained_config_map\")])]",
+        )
+        // TODO 313
+        .field_attribute(
+            "ConfigMap.configs",
+            "#[spec_field_attr(#[schemars(schema_with = \"constrained_map_schema::<ConfigItemSpec>\")])]",
+        )
+        // TODO 313
+        .field_attribute(
+            "ConfigObject.fields",
+            "#[spec_field_attr(#[schemars(schema_with = \"constrained_map_schema::<ConfigItemSpec>\")])]",
         )
         .message_attribute(
             "ConfigMap",

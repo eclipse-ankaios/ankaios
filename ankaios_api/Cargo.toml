@@ -14,10 +14,11 @@ prost = "0.14"
 tonic = "0.14"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
+serde_json = "1.0"
 sha256 = "1.5"
 regex = "1.10"
 log = "0.4"
-schemars = "1.0"
+schemars = "1.1"
 
 [build-dependencies]
 tonic-prost-build = "0.14"

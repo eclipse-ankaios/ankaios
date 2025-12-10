@@ -1,7 +1,15 @@
 apiVersion: v1
 workloads:
+  # each key must be in r"^[a-zA-Z0-9_-]+$" and be at most 63 characters
+  hello1:
+    agent: ""
+    runtime: podman
+    runtimeConfig: |
+      image: hello-world:latest
+    restartPolicy: NEVER
   test_workload:
-    agent: agent_A
+    # each key must be either in r"^[a-zA-Z0-9_-]*$" or be a variable reference like "{{variables.2.VAR_NAME}}"
+    agent: '{{arrays_of.items.2.which.can.be.mappings.again.2}}'
     runtime: podman
     runtimeConfig: |
       image: alpine:latest
@@ -14,20 +22,29 @@ workloads:
         - type: StateRule
           operation: Read
           filterMasks:
+            # TODO each item must not be empty TODO: what about being in r"^[a-zA-Z0-9_-]*$" and separated with points and having "*" wildcards?
             - "*"
         - type: LogRule
           workloadNames:
+            # TODO each item must be a valid workload name with at most one "*" wildcard somewhere
             - "*"
     files:
       - mountPoint: /tmp/somefile.txt
         data: |
           some data
     configs:
+      # each key and value must be in r"^[a-zA-Z0-9_-]+$"
       my_config: mapping_of_objects
+      arrays_of: arrays_of
     tags:
       owner: Ankaios team
 configs:
+# each key must be in r"^[a-zA-Z0-9_-]*$", but what about the sub-keys?
   can_be: simple_strings
+  agents:
+   - agent_A
+   - agent_B
+   - agent_C
   mapping_of_objects:
     with:
       arbitrary: depth

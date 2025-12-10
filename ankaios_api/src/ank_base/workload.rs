@@ -18,14 +18,55 @@ use crate::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use serde_yaml::Value;
 use std::collections::HashMap;
 
 const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
 pub const ALLOWED_SYMBOLS: &str = "[a-zA-Z0-9_-]";
-pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]*$";
+pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]*$"; // TODO 313 shouldn't this be a + instead of * ?
 pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
 pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
+
+// TODO 313 this is now more restrictive than the validate functions
+pub fn constrained_config_map(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    serde_json::from_value(json!({
+        "type": "object",
+        "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": STR_RE_WORKLOAD,
+            "description": "Only a-z, A-Z, 0-9 chars, underscore (_), and hyphen (-) allowed."
+        },
+        "additionalProperties": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": STR_RE_WORKLOAD,
+            "description": "Only a-z, A-Z, 0-9 chars, underscore (_), and hyphen (-) allowed."
+        },
+    }))
+    .expect("Ill formed JSON schema.")
+}
+
+pub fn constrained_map_schema<T: schemars::JsonSchema>(
+    generator: &mut schemars::SchemaGenerator,
+) -> schemars::Schema {
+    let value_schema = generator.subschema_for::<T>();
+
+    serde_json::from_value(json!({
+        "type": "object",
+        "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            // TODO 313 We should rename the vars to something more generic
+            "maxLength": MAX_CHARACTERS_WORKLOAD_NAME,
+            "pattern": STR_RE_WORKLOAD,
+            "description": "Only a-z, A-Z, 0-9 chars, underscore (_), and hyphen (-) allowed. Maximum length is 63 characters."
+        },
+        "additionalProperties": value_schema
+    }))
+    .unwrap()
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct WorkloadNamed {
@@ -144,6 +185,7 @@ impl WorkloadNamed {
     pub fn validate_fields_format(&self) -> Result<(), String> {
         validate_workload_name_format(self.instance_name.workload_name())?;
         validate_agent_name_format(self.instance_name.agent_name())?;
+        // TODO: should we compare the agents from instance_name and workload.agent instead of checking the format again?
         validate_agent_name_format(&self.workload.agent)?;
         self.workload.control_interface_access.validate_format()?;
         Ok(())
