@@ -87,12 +87,15 @@ impl DeleteGraph {
 #[cfg(test)]
 mod tests {
     use super::{super::WorkloadInstanceNameSpec, AddCondition, DeleteCondition, DeleteGraph};
-    use ankaios_api::ank_base::{DeletedWorkload, DependenciesSpec, ExecutionStateSpec, WorkloadNamed};
-    use ankaios_api::test_utils::{generate_test_workload, generate_test_workload_state_with_agent};
+    use ankaios_api::ank_base::{
+        DeletedWorkload, DependenciesSpec, ExecutionStateSpec, WorkloadNamed,
+    };
+    use ankaios_api::test_utils::{
+        generate_test_workload_named_with_params, generate_test_workload_state_with_agent, fixtures,
+    };
 
     use std::collections::HashMap;
 
-    const AGENT_A: &str = "agent_A";
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";
     const WORKLOAD_NAME_3: &str = "workload_3";
@@ -119,12 +122,16 @@ mod tests {
         */
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let mut workload_1 = generate_test_workload::<WorkloadNamed>().name(WORKLOAD_NAME_1);
-        let mut workload_2 = workload_1.clone().name(WORKLOAD_NAME_2);
-        let mut workload_3 = workload_1.clone().name(WORKLOAD_NAME_3);
-        let mut workload_4 = workload_1.clone().name(WORKLOAD_NAME_4);
-        let mut workload_5 = workload_1.clone().name(WORKLOAD_NAME_5);
-        let mut workload_6 = workload_1.clone().name(WORKLOAD_NAME_6);
+        fn generate_workload(name: &str) -> WorkloadNamed {
+            generate_test_workload_named_with_params(name, fixtures::AGENT_NAMES[0], "runtime_name")
+        }
+
+        let mut workload_1 = generate_workload(WORKLOAD_NAME_1);
+        let mut workload_2 = generate_workload(WORKLOAD_NAME_2);
+        let mut workload_3 = generate_workload(WORKLOAD_NAME_3);
+        let mut workload_4 = generate_workload(WORKLOAD_NAME_4);
+        let mut workload_5 = generate_workload(WORKLOAD_NAME_5);
+        let mut workload_6 = generate_workload(WORKLOAD_NAME_6);
 
         workload_1.workload.dependencies = DependenciesSpec {
             dependencies: HashMap::from([(
@@ -218,19 +225,19 @@ mod tests {
         };
 
         let instance_name_wl2 = WorkloadInstanceNameSpec::builder()
-            .agent_name(AGENT_A)
+            .agent_name(fixtures::AGENT_NAMES[0])
             .workload_name(WORKLOAD_NAME_2)
             .config(&String::from("some config"))
             .build();
 
         let instance_name_wl4 = WorkloadInstanceNameSpec::builder()
-            .agent_name(AGENT_A)
+            .agent_name(fixtures::AGENT_NAMES[0])
             .workload_name(WORKLOAD_NAME_4)
             .config(&String::from("some config"))
             .build();
 
         let instance_name_wl5 = WorkloadInstanceNameSpec::builder()
-            .agent_name(AGENT_A)
+            .agent_name(fixtures::AGENT_NAMES[0])
             .workload_name(WORKLOAD_NAME_5)
             .config(&String::from("some config"))
             .build();
@@ -298,7 +305,7 @@ mod tests {
 
         let workload_states = [generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
-            AGENT_A,
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::removed(),
         )];
 
@@ -322,7 +329,7 @@ mod tests {
 
         let workload_states = [generate_test_workload_state_with_agent(
             WORKLOAD_NAME_2,
-            AGENT_A,
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         )];
 
@@ -346,7 +353,7 @@ mod tests {
 
         let workload_states = [generate_test_workload_state_with_agent(
             WORKLOAD_NAME_3,
-            AGENT_A,
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::removed(),
         )];
 

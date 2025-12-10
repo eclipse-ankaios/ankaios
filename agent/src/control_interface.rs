@@ -148,13 +148,6 @@ impl Drop for ControlInterface {
 #[cfg(test)]
 mod tests {
     use super::ControlInterface;
-
-    use common::from_server_interface::FromServer;
-    use tokio::sync::mpsc;
-
-    const CONFIG: &str = "config";
-    const PIPES_FOLDER: &str = "api_pipes_location/workload_name_1.b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910/control_interface";
-
     use crate::control_interface::{
         ControlInterfacePath, authorizer::MockAuthorizer,
         control_interface_task::generate_test_control_interface_task_mock,
@@ -162,7 +155,14 @@ mod tests {
         input_output::generate_test_input_output_mock, input_pipe::MockInputPipe,
         output_pipe::MockOutputPipe,
     };
+
     use ankaios_api::ank_base::WorkloadInstanceNameSpec;
+    use ankaios_api::test_utils::fixtures;
+    use common::from_server_interface::FromServer;
+
+    use tokio::sync::mpsc;
+
+    const CONFIG: &str = "config";
 
     // [utest->swdd~agent-create-control-interface-pipes-per-workload~2]
     // [utest->swdd~agent-control-interface-pipes-path-naming~2]
@@ -195,9 +195,9 @@ mod tests {
         let _control_interface_task_mock = generate_test_control_interface_task_mock();
 
         let control_interface = ControlInterface::new(
-            ControlInterfacePath::new(PIPES_FOLDER.into()),
+            ControlInterfacePath::new(fixtures::PIPES_LOCATION.into()),
             &WorkloadInstanceNameSpec::builder()
-                .workload_name("workload_name_1")
+                .workload_name(fixtures::WORKLOAD_NAMES[0])
                 .config(&String::from(CONFIG))
                 .build(),
             mpsc::channel(1).0,
@@ -210,7 +210,7 @@ mod tests {
                 .get_api_location()
                 .as_os_str()
                 .to_string_lossy(),
-            PIPES_FOLDER
+            fixtures::PIPES_LOCATION
         );
     }
 
@@ -245,9 +245,9 @@ mod tests {
         let _control_interface_task_mock = generate_test_control_interface_task_mock();
 
         let control_interface = ControlInterface::new(
-            ControlInterfacePath::new("api_pipes_location".into()),
+            ControlInterfacePath::new(fixtures::PIPES_LOCATION.into()),
             &WorkloadInstanceNameSpec::builder()
-                .agent_name("workload_name_1")
+                .agent_name(fixtures::WORKLOAD_NAMES[0])
                 .config(&String::from(CONFIG))
                 .build(),
             mpsc::channel(1).0,

@@ -101,12 +101,11 @@ mod tests {
         ConfigMap, ConfigMapSpec, State, StateSpec, WorkloadMap, WorkloadMapSpec, WorkloadSpec,
     };
     use crate::test_utils::{
-        generate_test_config_item, generate_test_configs, generate_test_state,
-        generate_test_workload,
+        generate_test_config_item, generate_test_config_map, generate_test_state,
+        generate_test_workload, fixtures,
     };
     use std::collections::HashMap;
 
-    const WORKLOAD_NAME_1: &str = "workload_1";
     const INVALID_CONFIG_KEY: &str = "invalid%key";
 
     #[test]
@@ -117,8 +116,8 @@ mod tests {
         // serialize to sorted output
         let sorted_state_string = serde_yaml::to_string(&ankaios_state).unwrap();
 
-        let index_workload1 = sorted_state_string.find("workload_name_1").unwrap();
-        let index_workload2 = sorted_state_string.find("workload_name_2").unwrap();
+        let index_workload1 = sorted_state_string.find(fixtures::WORKLOAD_NAMES[0]).unwrap();
+        let index_workload2 = sorted_state_string.find(fixtures::WORKLOAD_NAMES[1]).unwrap();
         assert!(
             index_workload1 < index_workload2,
             "expected sorted workloads."
@@ -186,9 +185,9 @@ mod tests {
         let state = StateSpec {
             api_version: super::CURRENT_API_VERSION.into(),
             workloads: WorkloadMapSpec {
-                workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+                workloads: HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_string(), workload)]),
             },
-            configs: generate_test_configs(),
+            configs: generate_test_config_map(),
         };
 
         assert_eq!(StateSpec::validate_configs_format(&state), Ok(()));
@@ -230,7 +229,7 @@ mod tests {
         let state = StateSpec {
             api_version: super::CURRENT_API_VERSION.into(),
             workloads: WorkloadMapSpec {
-                workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+                workloads: HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_string(), workload)]),
             },
             ..Default::default()
         };

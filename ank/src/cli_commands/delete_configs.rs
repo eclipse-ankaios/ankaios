@@ -58,9 +58,9 @@ mod tests {
     use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
 
     use ankaios_api::ank_base::{CompleteState, CompleteStateSpec, UpdateStateSuccess};
+    use ankaios_api::test_utils::fixtures;
     use mockall::predicate::eq;
 
-    const RESPONSE_TIMEOUT_MS: u64 = 3000;
     const CONFIG_1: &str = "config_1";
     const CONFIG_2: &str = "config_2";
 
@@ -94,7 +94,7 @@ mod tests {
             .returning(|_| Ok(CompleteState::default()));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -135,7 +135,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };

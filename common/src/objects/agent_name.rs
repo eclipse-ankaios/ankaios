@@ -64,22 +64,21 @@ impl Display for AgentName {
 #[cfg(test)]
 mod tests {
     use super::AgentName;
-
-    const AGENT_NAME: &str = "agent";
+    use ankaios_api::test_utils::fixtures;
 
     #[test]
     fn utest_agent_name_get_filter_regex() {
         assert_eq!(
-            format!("[.]{AGENT_NAME}$"),
-            AgentName::from(AGENT_NAME).get_filter_regex()
+            format!("[.]{}$", fixtures::AGENT_NAMES[0]),
+            AgentName::from(fixtures::AGENT_NAMES[0]).get_filter_regex()
         );
     }
 
     #[test]
     fn utest_agent_name_get_filter_suffix() {
         assert_eq!(
-            format!(".{AGENT_NAME}"),
-            AgentName::from(AGENT_NAME).get_filter_suffix()
+            format!(".{}", fixtures::AGENT_NAMES[0]),
+            AgentName::from(fixtures::AGENT_NAMES[0]).get_filter_suffix()
         );
     }
 }

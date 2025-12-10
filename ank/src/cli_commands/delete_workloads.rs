@@ -52,14 +52,16 @@ impl CliCommands {
 mod tests {
     use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
 
-    use ankaios_api::ank_base::{
-        CompleteState, CompleteStateSpec, ExecutionStateSpec, UpdateStateSuccess, WorkloadStateSpec,
+    use ankaios_api::{
+        ank_base::{
+            CompleteState, CompleteStateSpec, ExecutionStateSpec, UpdateStateSuccess,
+            WorkloadStateSpec,
+        },
+        test_utils::fixtures,
     };
     use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
 
     use mockall::predicate::eq;
-
-    const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
     // [utest->swdd~cli-provides-delete-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
@@ -78,16 +80,26 @@ mod tests {
             .with(
                 eq(complete_state_update.clone()),
                 eq(vec![
-                    "desiredState.workloads.name1".to_string(),
-                    "desiredState.workloads.name2".to_string(),
+                    format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]),
+                    format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[1]),
                 ]),
             )
             .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec![
-                        "name1.abc.agent_B".to_string(),
-                        "name2.abc.agent_B".to_string(),
+                        format!(
+                            "{}.{}.{}",
+                            fixtures::WORKLOAD_NAMES[0],
+                            fixtures::WORKLOAD_IDS[0],
+                            fixtures::AGENT_NAMES[0]
+                        ),
+                        format!(
+                            "{}.{}.{}",
+                            fixtures::WORKLOAD_NAMES[1],
+                            fixtures::WORKLOAD_IDS[0],
+                            fixtures::AGENT_NAMES[0]
+                        ),
                     ],
                 })
             });
@@ -104,11 +116,25 @@ mod tests {
                 vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
                     workload_states: vec![
                         WorkloadStateSpec {
-                            instance_name: "name1.abc.agent_B".try_into().unwrap(),
+                            instance_name: format!(
+                                "{}.{}.{}",
+                                fixtures::WORKLOAD_NAMES[0],
+                                fixtures::WORKLOAD_IDS[0],
+                                fixtures::AGENT_NAMES[0]
+                            )
+                            .try_into()
+                            .unwrap(),
                             execution_state: ExecutionStateSpec::removed(),
                         },
                         WorkloadStateSpec {
-                            instance_name: "name2.abc.agent_B".try_into().unwrap(),
+                            instance_name: format!(
+                                "{}.{}.{}",
+                                fixtures::WORKLOAD_NAMES[1],
+                                fixtures::WORKLOAD_IDS[0],
+                                fixtures::AGENT_NAMES[0]
+                            )
+                            .try_into()
+                            .unwrap(),
                             execution_state: ExecutionStateSpec::removed(),
                         },
                     ],
@@ -116,13 +142,16 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
         let delete_result = cmd
-            .delete_workloads(vec!["name1".to_string(), "name2".to_string()])
+            .delete_workloads(vec![
+                fixtures::WORKLOAD_NAMES[0].to_string(),
+                fixtures::WORKLOAD_NAMES[1].to_string(),
+            ])
             .await;
         assert!(delete_result.is_ok());
     }
@@ -156,7 +185,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };

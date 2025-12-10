@@ -23,7 +23,7 @@
             "extensions": [
                 "vadimcn.vscode-lldb",
                 "mutantdino.resourcemonitor",
-                "rust-lang.rust-analyzer",
+                "rust-lang.rust-analyzer@0.3.2702",
                 "tamasfe.even-better-toml",
                 "timonwong.shellcheck",
                 "eamodio.gitlens",
