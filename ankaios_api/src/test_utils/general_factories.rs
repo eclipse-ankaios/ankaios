@@ -15,11 +15,21 @@
 use super::fixtures;
 use crate::{
     ank_base::{
-        CompleteState, ConfigMap, DeleteCondition, DeletedWorkload, State, Workload, WorkloadMap,
+        CompleteState, CompleteStateResponse, ConfigMap, DeleteCondition, DeletedWorkload,
+        ResponseContent, State, Workload, WorkloadMap,
     },
     test_utils::{generate_test_config_item, generate_test_workload_instance_name_with_params},
 };
 use std::collections::HashMap;
+
+// ## ResponseContent fixtures ##
+
+pub fn generate_test_complete_state_response(workloads: &[(&str, Workload)]) -> ResponseContent {
+    ResponseContent::CompleteStateResponse(Box::new(CompleteStateResponse {
+        complete_state: Some(generate_test_proto_complete_state(workloads)),
+        ..Default::default()
+    }))
+}
 
 // ## CompleteState fixtures ##
 
@@ -58,7 +68,10 @@ pub fn generate_test_proto_complete_state(workloads: &[(&str, Workload)]) -> Com
 // ## DeletedWorkload fixtures ##
 
 pub fn generate_test_deleted_workload() -> DeletedWorkload {
-    generate_test_deleted_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::WORKLOAD_NAMES[0])
+    generate_test_deleted_workload_with_params(
+        fixtures::AGENT_NAMES[0],
+        fixtures::WORKLOAD_NAMES[0],
+    )
 }
 
 pub fn generate_test_deleted_workload_with_params(
