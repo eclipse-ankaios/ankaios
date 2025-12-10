@@ -441,11 +441,12 @@ mod tests {
     use ankaios_api::ank_base::{
         self, CompleteState, CompleteStateResponse, Dependencies, ExecutionStateSpec,
         LogsRequestSpec, Response, ResponseContent, State, Workload, WorkloadInstanceName,
-        WorkloadInstanceNameSpec, WorkloadMap, WorkloadNamed,
+        WorkloadInstanceNameSpec, WorkloadMap,
     };
     use ankaios_api::test_utils::{
-        generate_test_deleted_workload, generate_test_workload,
-        generate_test_workload_state_with_agent, generate_test_workload_with_param,
+        fixtures, generate_test_deleted_workload_with_params, generate_test_workload,
+        generate_test_workload_named_with_params, generate_test_workload_state_with_agent,
+        generate_test_workload_with_params,
     };
     use common::from_server_interface::{self, FromServerInterface};
 
@@ -464,8 +465,6 @@ mod tests {
         Receiver<Result<FromServer, tonic::Status>>,
         AgentSendersMap,
     );
-
-    const WORKLOAD_NAME: &str = "workload_1";
 
     fn create_test_setup(agent_name: &str) -> TestSetup {
         let (to_manager, manager_receiver) =
@@ -509,17 +508,20 @@ mod tests {
     #[test]
     fn utest_get_workloads_per_agent_one_agent_one_workload() {
         let added_workloads = vec![
-            generate_test_workload_with_param::<WorkloadNamed>("agent1", "runtime1")
-                .name("name 1".to_string()),
-            generate_test_workload_with_param::<WorkloadNamed>("agent1", "runtime2")
-                .name("name 2".to_string()),
-            generate_test_workload_with_param::<WorkloadNamed>("agent2", "runtime3")
-                .name("name 3".to_string()),
+            generate_test_workload_named_with_params("name 1", "agent1", "runtime1"),
+            generate_test_workload_named_with_params("name 2", "agent1", "runtime2"),
+            generate_test_workload_named_with_params("name 3", "agent2", "runtime3"),
         ];
 
         let deleted_workloads = vec![
-            generate_test_deleted_workload("agent1".to_string(), "workload 8".to_string()),
-            generate_test_deleted_workload("agent4".to_string(), "workload 9".to_string()),
+            generate_test_deleted_workload_with_params(
+                "agent1".to_string(),
+                "workload 8".to_string(),
+            ),
+            generate_test_deleted_workload_with_params(
+                "agent4".to_string(),
+                "workload 9".to_string(),
+            ),
         ];
 
         let workload_map = super::get_workloads_per_agent(added_workloads, deleted_workloads);
@@ -577,11 +579,12 @@ mod tests {
         // As the channel capacity is big enough the await is satisfied right away
         let update_workload_result = to_manager
             .update_workload(
-                vec![
-                    generate_test_workload_with_param::<WorkloadNamed>(agent, "my_runtime")
-                        .name("name"),
-                ],
-                vec![generate_test_deleted_workload(
+                vec![generate_test_workload_named_with_params(
+                    "name",
+                    agent,
+                    "my_runtime",
+                )],
+                vec![generate_test_deleted_workload_with_params(
                     agent.to_string(),
                     "workload X".to_string(),
                 )],
@@ -600,7 +603,7 @@ mod tests {
 
         assert!(matches!(
             result.from_server_enum,
-            // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
+            // We don't need to check the exact object, this will be checked in the test for distribute_workloads_to_agents
             Some(FromServerEnum::UpdateWorkload(_))
         ))
     }
@@ -608,12 +611,12 @@ mod tests {
     #[tokio::test]
     async fn utest_from_server_proxy_forward_from_ankaios_to_proto_update_workload_state() {
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
-            create_test_setup("agent_X");
+            create_test_setup(fixtures::AGENT_NAMES[0]);
 
         let update_workload_state_result = to_manager
             .update_workload_state(vec![generate_test_workload_state_with_agent(
-                WORKLOAD_NAME,
-                "other_agent",
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::AGENT_NAMES[1], // different agent
                 ExecutionStateSpec::running(),
             )])
             .await;
@@ -630,7 +633,7 @@ mod tests {
 
         assert!(matches!(
             result.from_server_enum,
-            // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
+            // We don't need to check the exact object, this will be checked in the test for distribute_workloads_to_agents
             Some(FromServerEnum::UpdateWorkloadState(_))
         ))
     }
@@ -670,9 +673,9 @@ mod tests {
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        let mut workload: Workload = generate_test_workload();
+        let mut workload: Workload = generate_test_workload().into();
         workload.dependencies = Some(Dependencies {
-            dependencies: HashMap::from([("workload_B".to_string(), -1)]), // Set invalid AddCondition
+            dependencies: HashMap::from([(fixtures::WORKLOAD_NAMES[1].to_string(), -1)]), // Set invalid AddCondition
         });
         let added_workload = grpc_api::AddedWorkload {
             workload: Some(workload),
@@ -773,7 +776,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
+            // We don't need to check the exact object, this will be checked in the test for distribute_workloads_to_agents
             from_server_interface::FromServer::UpdateWorkload(_)
         ));
     }
@@ -807,7 +810,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
+            // We don't need to check the exact object, this will be checked in the test for distribute_workloads_to_agents
             from_server_interface::FromServer::UpdateWorkloadState(_)
         ));
     }
@@ -819,7 +822,11 @@ mod tests {
 
         join!(super::distribute_workloads_to_agents(
             &agent_senders,
-            vec![generate_test_workload_with_param(agent_name, "runtime")],
+            vec![generate_test_workload_named_with_params(
+                fixtures::WORKLOAD_NAMES[0],
+                agent_name,
+                fixtures::RUNTIME_NAMES[0]
+            )],
             vec![]
         ))
         .0;
@@ -841,9 +848,10 @@ mod tests {
 
         join!(super::distribute_workloads_to_agents(
             &agent_senders,
-            vec![generate_test_workload_with_param(
+            vec![generate_test_workload_named_with_params(
+                fixtures::WORKLOAD_NAMES[0],
                 "non_existing_agent",
-                "runtime"
+                fixtures::RUNTIME_NAMES[0]
             )],
             vec![]
         ))
@@ -862,7 +870,7 @@ mod tests {
         join!(super::distribute_workload_states_to_agents(
             &agent_senders,
             vec![generate_test_workload_state_with_agent(
-                "workload1",
+                fixtures::WORKLOAD_NAMES[0],
                 "other_agent",
                 ExecutionStateSpec::running()
             )],
@@ -886,8 +894,8 @@ mod tests {
 
         let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
-            String::from(WORKLOAD_NAME),
-            generate_test_workload_with_param(agent_name, "my_runtime"),
+            String::from(fixtures::WORKLOAD_NAMES[0]),
+            generate_test_workload_with_params(agent_name, fixtures::RUNTIME_NAMES[0]).into(),
         );
 
         let my_request_id = "my_request_id".to_owned();
@@ -935,17 +943,14 @@ mod tests {
 
     #[tokio::test]
     async fn utest_from_server_proxy_forward_from_ankaios_to_proto_logs_request() {
-        let agent_name_1: &str = "agent_X";
-        let agent_name_2: &str = "agent_Y";
-
         let (to_manager, mut manager_receiver) =
             mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
         let (agent_1_tx, mut agent_1_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
         let (agent_2_tx, mut agent_2_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
 
         let agent_senders_map = AgentSendersMap::new();
-        agent_senders_map.insert(agent_name_1, agent_1_tx);
-        agent_senders_map.insert(agent_name_2, agent_2_tx);
+        agent_senders_map.insert(fixtures::AGENT_NAMES[0], agent_1_tx);
+        agent_senders_map.insert(fixtures::AGENT_NAMES[1], agent_2_tx);
 
         let my_request_id = "my_request_id";
 
@@ -955,14 +960,14 @@ mod tests {
                 ank_base::LogsRequest {
                     workload_names: vec![
                         WorkloadInstanceName {
-                            workload_name: "workload_1".into(),
-                            agent_name: agent_name_1.into(),
-                            id: "id_1".into(),
+                            workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                            agent_name: fixtures::AGENT_NAMES[0].into(),
+                            id: fixtures::WORKLOAD_IDS[0].into(),
                         },
                         WorkloadInstanceName {
-                            workload_name: "workload_2".into(),
-                            agent_name: agent_name_2.into(),
-                            id: "id_2".into(),
+                            workload_name: fixtures::WORKLOAD_NAMES[1].into(),
+                            agent_name: fixtures::AGENT_NAMES[1].into(),
+                            id: fixtures::WORKLOAD_IDS[1].into(),
                         },
                     ],
                     follow: Some(true),
@@ -985,7 +990,7 @@ mod tests {
                         request_id,
                         logs_request: Some(ank_base::LogsRequest{ workload_names, follow, tail, since, until }) }))
                 if request_id == my_request_id
-                   && workload_names == vec![WorkloadInstanceName{ workload_name: "workload_1".into(), agent_name: agent_name_1.into(), id: "id_1".into() }]
+                   && workload_names == vec![WorkloadInstanceName{ workload_name: fixtures::WORKLOAD_NAMES[0].into(), agent_name: fixtures::AGENT_NAMES[0].into(), id: fixtures::WORKLOAD_IDS[0].into() }]
                    && follow == Some(true) && tail == Some(10) && since.is_none() && until.is_none()
         ));
         assert!(agent_1_rx.recv().await.is_none());
@@ -996,7 +1001,7 @@ mod tests {
                         request_id,
                         logs_request: Some(ank_base::LogsRequest{ workload_names, follow, tail, since, until }) }))
                 if request_id == my_request_id
-                   && workload_names == vec![WorkloadInstanceName{ workload_name: "workload_2".into(), agent_name: agent_name_2.into(), id: "id_2".into() }]
+                   && workload_names == vec![WorkloadInstanceName{ workload_name: fixtures::WORKLOAD_NAMES[1].into(), agent_name: fixtures::AGENT_NAMES[1].into(), id: fixtures::WORKLOAD_IDS[1].into() }]
                    && follow == Some(true) && tail == Some(10) && since.is_none() && until.is_none()
         ));
         assert!(agent_2_rx.recv().await.is_none());
@@ -1004,17 +1009,14 @@ mod tests {
 
     #[tokio::test]
     async fn utest_from_server_proxy_forward_from_ankaios_to_proto_logs_cancel_request() {
-        let agent_name_1: &str = "agent_X";
-        let agent_name_2: &str = "agent_Y";
-
         let (to_manager, mut manager_receiver) =
             mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
         let (agent_1_tx, mut agent_1_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
         let (agent_2_tx, mut agent_2_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
 
         let agent_senders_map = AgentSendersMap::new();
-        agent_senders_map.insert(agent_name_1, agent_1_tx);
-        agent_senders_map.insert(agent_name_2, agent_2_tx);
+        agent_senders_map.insert(fixtures::AGENT_NAMES[0], agent_1_tx);
+        agent_senders_map.insert(fixtures::AGENT_NAMES[1], agent_2_tx);
 
         let my_request_id = "my_request_id";
 
@@ -1049,8 +1051,8 @@ mod tests {
 
         let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
-            String::from(WORKLOAD_NAME),
-            generate_test_workload_with_param(agent_name, "my_runtime"),
+            String::from(fixtures::WORKLOAD_NAMES[0]),
+            generate_test_workload_with_params(agent_name, fixtures::RUNTIME_NAMES[0]).into(),
         );
 
         let my_request_id = "my_request_id".to_owned();
@@ -1127,17 +1129,17 @@ mod tests {
 
         let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
-            String::from(WORKLOAD_NAME),
-            generate_test_workload_with_param(agent_name, "my_runtime"),
+            String::from(fixtures::WORKLOAD_NAMES[0]),
+            generate_test_workload_with_params(agent_name, fixtures::RUNTIME_NAMES[0]).into(),
         );
 
         let my_request_id = "my_request_id".to_owned();
 
         let logs_request_content = ank_base::LogsRequest {
             workload_names: vec![WorkloadInstanceName {
-                workload_name: WORKLOAD_NAME.into(),
+                workload_name: fixtures::WORKLOAD_NAMES[0].into(),
                 agent_name: agent_name.into(),
-                id: "id".into(),
+                id: fixtures::WORKLOAD_IDS[0].into(),
             }],
             follow: Some(true),
             tail: Some(10),
@@ -1180,7 +1182,7 @@ mod tests {
                     since,
                     until
                 }
-            ) if request_id == my_request_id && workload_names == vec![WorkloadInstanceNameSpec::new(agent_name, WORKLOAD_NAME, "id")] && follow && tail == 10 &&since.is_none() && until.is_none()
+            ) if request_id == my_request_id && workload_names == vec![WorkloadInstanceNameSpec::new(agent_name, fixtures::WORKLOAD_NAMES[0], fixtures::WORKLOAD_IDS[0])] && follow && tail == 10 &&since.is_none() && until.is_none()
         ));
     }
 
@@ -1192,8 +1194,8 @@ mod tests {
 
         let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
-            String::from(WORKLOAD_NAME),
-            generate_test_workload_with_param(agent_name, "my_runtime"),
+            String::from(fixtures::WORKLOAD_NAMES[0]),
+            generate_test_workload_with_params(agent_name, fixtures::RUNTIME_NAMES[0]).into(),
         );
 
         let my_request_id = "my_request_id".to_owned();

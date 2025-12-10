@@ -78,21 +78,17 @@ mod tests {
         CompleteState, CompleteStateSpec, ExecutionStateSpec, TagsSpec, UpdateStateSuccess,
         WorkloadSpec, WorkloadStateSpec,
     };
+    use ankaios_api::test_utils::fixtures;
     use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
 
     use mockall::predicate::eq;
     use std::collections::HashMap;
-
-    const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
     // [utest->swdd~cli-provides-run-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-run-workload~2]
     // [utest->swdd~cli-watches-workloads-on-updates~1]
     #[tokio::test]
     async fn utest_run_workload_one_new_workload() {
-        const TEST_WORKLOAD_NAME: &str = "name4";
-        let test_workload_agent = "agent_B".to_string();
-        let test_workload_runtime_name = "runtime2".to_string();
         let test_workload_runtime_cfg = "some config".to_string();
 
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -100,8 +96,8 @@ mod tests {
             .await;
 
         let new_workload = WorkloadSpec {
-            agent: test_workload_agent.to_owned(),
-            runtime: test_workload_runtime_name.clone(),
+            agent: fixtures::AGENT_NAMES[0].to_owned(),
+            runtime: fixtures::RUNTIME_NAMES[0].to_owned(),
             tags: TagsSpec {
                 tags: HashMap::from([("key".to_string(), "value".to_string())]),
             },
@@ -117,7 +113,7 @@ mod tests {
             .desired_state
             .workloads
             .workloads
-            .insert(TEST_WORKLOAD_NAME.into(), new_workload);
+            .insert(fixtures::WORKLOAD_NAMES[0].into(), new_workload);
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
@@ -131,14 +127,16 @@ mod tests {
                 eq(complete_state_update.clone()),
                 eq(vec![format!(
                     "desiredState.workloads.{}",
-                    TEST_WORKLOAD_NAME
+                    fixtures::WORKLOAD_NAMES[0]
                 )]),
             )
             .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![format!(
-                        "{}.abc.agent_B",
-                        TEST_WORKLOAD_NAME.to_string()
+                        "{}.{}.{}",
+                        fixtures::WORKLOAD_NAMES[0],
+                        fixtures::WORKLOAD_IDS[0],
+                        fixtures::AGENT_NAMES[0],
                     )],
                     deleted_workloads: vec![],
                 })
@@ -154,24 +152,31 @@ mod tests {
             .return_once(|| {
                 vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
                     workload_states: vec![WorkloadStateSpec {
-                        instance_name: "name4.abc.agent_B".try_into().unwrap(),
+                        instance_name: format!(
+                            "{}.{}.{}",
+                            fixtures::WORKLOAD_NAMES[0],
+                            fixtures::WORKLOAD_IDS[0],
+                            fixtures::AGENT_NAMES[0]
+                        )
+                        .try_into()
+                        .unwrap(),
                         execution_state: ExecutionStateSpec::running(),
                     }],
                 })]
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
         let run_workload_result = cmd
             .run_workload(
-                TEST_WORKLOAD_NAME.into(),
-                test_workload_runtime_name,
+                fixtures::WORKLOAD_NAMES[0].into(),
+                fixtures::RUNTIME_NAMES[0].to_owned(),
                 test_workload_runtime_cfg,
-                test_workload_agent,
+                fixtures::AGENT_NAMES[0].to_owned(),
                 HashMap::from([("key".to_string(), "value".to_string())]),
             )
             .await;

@@ -115,13 +115,12 @@ pub fn dfs(state: &StateSpec, start_nodes: Option<Vec<&str>>) -> Option<String> 
 #[cfg(test)]
 mod tests {
     use super::dfs;
-    use ankaios_api::ank_base::{AddCondition, StateSpec, WorkloadSpec};
-    use ankaios_api::test_utils::{generate_test_complete_state, generate_test_workload_with_param};
+    use ankaios_api::ank_base::{AddCondition, StateSpec};
+    use ankaios_api::test_utils::{
+        generate_test_complete_state, generate_test_workload_with_params, fixtures,
+    };
 
     use std::{collections::HashSet, ops::Deref};
-
-    const AGENT_NAME: &str = "agent_A";
-    const RUNTIME: &str = "runtime X";
 
     fn fn_assert_cycle(
         state_builder: StateBuilder,
@@ -593,8 +592,10 @@ mod tests {
 
         fn with_workloads(mut self, workloads: &[&str]) -> Self {
             for w in workloads {
-                let mut test_workload: WorkloadSpec =
-                    generate_test_workload_with_param(AGENT_NAME, RUNTIME);
+                let mut test_workload = generate_test_workload_with_params(
+                    fixtures::AGENT_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
+                );
                 test_workload.dependencies.dependencies.clear();
                 self.0
                     .workloads

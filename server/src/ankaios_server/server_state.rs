@@ -369,23 +369,17 @@ mod tests {
     use ankaios_api::ank_base::{
         AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec, DeletedWorkload,
         StateSpec, Workload, WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadNamed,
-        WorkloadSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
+        WorkloadStateSpec, WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_configs, generate_test_proto_complete_state,
-        generate_test_runtime_config, generate_test_state_from_workloads, generate_test_workload,
-        generate_test_workload_with_param, generate_test_workload_with_runtime_config,
+        fixtures, generate_test_complete_state, generate_test_config_map,
+        generate_test_proto_complete_state, generate_test_state_from_workloads,
+        generate_test_workload, generate_test_workload_named,
+        generate_test_workload_named_with_params, generate_test_workload_named_with_runtime_config,
+        generate_test_workload_with_params,
     };
 
     use std::collections::HashMap;
-
-    const AGENT_A: &str = "agent_A";
-    const AGENT_B: &str = "agent_B";
-    const WORKLOAD_NAME_1: &str = "workload_1";
-    const WORKLOAD_NAME_2: &str = "workload_2";
-    const WORKLOAD_NAME_3: &str = "workload_3";
-    const WORKLOAD_NAME_4: &str = "workload_4";
-    const RUNTIME: &str = "runtime";
 
     fn generate_rendered_workloads_from_state(state: &StateSpec) -> RenderedWorkloads {
         RenderedWorkloads(
@@ -432,9 +426,21 @@ mod tests {
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_empty_mask() {
-        let w1 = generate_test_workload::<WorkloadNamed>().name(WORKLOAD_NAME_1);
-        let w2 = w1.clone().name(WORKLOAD_NAME_2);
-        let w3 = w1.clone().name(WORKLOAD_NAME_3);
+        let w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        let w2 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        let w3 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[2],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let mut complete_state =
             generate_test_complete_state(vec![w1.clone(), w2.clone(), w3.clone()]);
@@ -472,7 +478,11 @@ mod tests {
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_continue_on_invalid_mask() {
-        let w1 = generate_test_workload::<WorkloadNamed>().name(WORKLOAD_NAME_1);
+        let w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let mut server_state = ServerState {
             state: generate_test_complete_state(vec![w1]),
@@ -485,7 +495,7 @@ mod tests {
         let request_complete_state = CompleteStateRequestSpec {
             field_mask: vec![
                 "workloads.invalidMask".to_string(), // invalid not existing workload
-                format!("desiredState.workloads.{}", WORKLOAD_NAME_1), // valid existing workload
+                format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]), // valid existing workload
             ],
             subscribe_for_events: false,
         };
@@ -515,9 +525,21 @@ mod tests {
     // [utest->swdd~server-filters-get-complete-state-result-with-wildcards~1]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask() {
-        let mut w1 = generate_test_workload::<WorkloadNamed>().name(WORKLOAD_NAME_1);
-        let w2 = w1.clone().name(WORKLOAD_NAME_2);
-        let w3 = w1.clone().name(WORKLOAD_NAME_3);
+        let mut w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        let w2 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        let w3 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[2],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
         w1.workload.configs.configs.clear();
 
         let server_state = ServerState {
@@ -527,8 +549,11 @@ mod tests {
 
         let request_complete_state = CompleteStateRequestSpec {
             field_mask: vec![
-                format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
-                format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),
+                format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]),
+                format!(
+                    "desiredState.workloads.{}.agent",
+                    fixtures::WORKLOAD_NAMES[2]
+                ),
                 format!("desiredState.workloads.*.runtime"),
             ],
             subscribe_for_events: false,
@@ -577,7 +602,7 @@ mod tests {
             ),
             (
                 w1.instance_name.workload_name(),
-                generate_test_workload::<Workload>(),
+                generate_test_workload().into(),
             ),
         ];
         let mut expected_complete_state = generate_test_proto_complete_state(&expected_workloads);
@@ -591,12 +616,21 @@ mod tests {
     // [utest->swdd~agent-from-agent-field~1]
     #[test]
     fn utest_server_state_get_workloads_per_agent() {
-        let w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME)
-            .name(WORKLOAD_NAME_1);
-        let w2 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME)
-            .name(WORKLOAD_NAME_2);
-        let w3 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME)
-            .name(WORKLOAD_NAME_3);
+        let w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        let w2 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        let w3 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[2],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let old_complete_state =
             generate_test_complete_state(vec![w1.clone(), w2.clone(), w3.clone()]);
@@ -609,7 +643,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut workloads = server_state.get_workloads_for_agent(AGENT_A);
+        let mut workloads = server_state.get_workloads_for_agent(fixtures::AGENT_NAMES[0]);
         workloads.sort_by(|left, right| {
             left.instance_name
                 .workload_name()
@@ -617,7 +651,7 @@ mod tests {
         });
         assert_eq!(workloads, vec![w1, w2]);
 
-        let workloads = server_state.get_workloads_for_agent(AGENT_B);
+        let workloads = server_state.get_workloads_for_agent(fixtures::AGENT_NAMES[1]);
         assert_eq!(workloads, vec![w3]);
 
         let workloads = server_state.get_workloads_for_agent("unknown_agent");
@@ -627,11 +661,14 @@ mod tests {
     // [utest->swdd~server-handles-logs-request-message~1]
     #[test]
     fn utest_desired_state_contains_instance_name() {
-        let workload = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME)
-            .name(WORKLOAD_NAME_1);
+        let workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let mut other_workload_instance_name = workload.instance_name.clone();
-        other_workload_instance_name.workload_name = WORKLOAD_NAME_2.to_string();
+        other_workload_instance_name.workload_name = fixtures::WORKLOAD_NAMES[1].to_string();
 
         let complete_state = generate_test_complete_state(vec![workload.clone()]);
 
@@ -653,18 +690,27 @@ mod tests {
     #[test]
     fn utest_server_state_update_state_reject_state_with_cyclic_dependencies() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let workload: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME);
+        let workload = generate_test_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         // workload has a self cycle to workload_B
-        let new_workload_1: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME);
+        let new_workload_1 = generate_test_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
-        let mut new_workload_2: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME);
+        let mut new_workload_2 = generate_test_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
         new_workload_2.dependencies.dependencies.clear();
 
         let old_state = CompleteStateSpec {
             desired_state: StateSpec {
                 workloads: WorkloadMapSpec {
-                    workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+                    workloads: HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_string(), workload)]),
                 },
                 ..Default::default()
             },
@@ -675,8 +721,8 @@ mod tests {
             desired_state: StateSpec {
                 workloads: WorkloadMapSpec {
                     workloads: HashMap::from([
-                        ("workload_B".to_string(), new_workload_1),
-                        (WORKLOAD_NAME_1.to_string(), new_workload_2),
+                        (fixtures::WORKLOAD_NAMES[1].to_string(), new_workload_1),
+                        (fixtures::WORKLOAD_NAMES[0].to_string(), new_workload_2),
                     ]),
                 },
                 ..Default::default()
@@ -712,7 +758,7 @@ mod tests {
         assert_eq!(
             result,
             Err(UpdateStateError::CycleInDependencies(
-                "workload_B".to_string()
+                fixtures::WORKLOAD_NAMES[1].to_string()
             ))
         );
 
@@ -746,13 +792,16 @@ mod tests {
     fn utest_server_state_generate_new_state_replace_workload() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
-        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[0]
+        )];
 
         let new_workload = update_state
             .desired_state
             .workloads
             .workloads
-            .get(WORKLOAD_NAME_1)
+            .get(fixtures::WORKLOAD_NAMES[0])
             .unwrap()
             .clone();
 
@@ -761,7 +810,7 @@ mod tests {
             .desired_state
             .workloads
             .workloads
-            .insert(WORKLOAD_NAME_1.to_owned(), new_workload.clone());
+            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), new_workload.clone());
 
         let server_state = ServerState {
             state: old_state.clone(),
@@ -782,13 +831,16 @@ mod tests {
     fn utest_server_state_generate_new_state_add_workload() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
-        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_4)];
+        let update_mask = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[3]
+        )];
 
         let new_workload = update_state
             .desired_state
             .workloads
             .workloads
-            .get(WORKLOAD_NAME_4)
+            .get(fixtures::WORKLOAD_NAMES[3])
             .unwrap()
             .clone();
 
@@ -797,7 +849,7 @@ mod tests {
             .desired_state
             .workloads
             .workloads
-            .insert(WORKLOAD_NAME_4.into(), new_workload.clone());
+            .insert(fixtures::WORKLOAD_NAMES[3].into(), new_workload.clone());
 
         let server_state = ServerState {
             state: old_state.clone(),
@@ -818,7 +870,7 @@ mod tests {
     fn utest_server_state_generate_new_state_update_configs() {
         let old_state = generate_test_old_state();
         let mut state_with_updated_config = old_state.clone();
-        state_with_updated_config.desired_state.configs = generate_test_configs();
+        state_with_updated_config.desired_state.configs = generate_test_config_map();
 
         let update_mask = vec!["desiredState".to_string()];
 
@@ -844,14 +896,17 @@ mod tests {
     fn utest_server_state_generate_new_state_remove_workload() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
-        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_2)];
+        let update_mask = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[1]
+        )];
 
         let mut expected = old_state.clone();
         expected
             .desired_state
             .workloads
             .workloads
-            .remove(WORKLOAD_NAME_2)
+            .remove(fixtures::WORKLOAD_NAMES[1])
             .unwrap();
 
         let server_state = ServerState {
@@ -873,7 +928,7 @@ mod tests {
     fn utest_server_state_update_state_remove_non_existing_workload() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
-        let update_mask = vec!["desiredState.workloads.workload_5".into()];
+        let update_mask = vec!["desiredState.workloads.non_existing".into()];
 
         let expected = &old_state;
 
@@ -989,7 +1044,7 @@ mod tests {
 
         let new_state_with_configs = CompleteStateSpec {
             desired_state: StateSpec {
-                configs: generate_test_configs(),
+                configs: generate_test_config_map(),
                 ..Default::default()
             },
             ..Default::default()
@@ -1006,7 +1061,7 @@ mod tests {
     #[test]
     fn utest_server_state_update_state_workload_references_removed_configs() {
         let mut old_state = generate_test_old_state();
-        old_state.desired_state.configs = generate_test_configs();
+        old_state.desired_state.configs = generate_test_config_map();
 
         let mut updated_state = old_state.clone();
         updated_state.desired_state.configs.configs.clear();
@@ -1054,14 +1109,14 @@ mod tests {
     #[test]
     fn utest_server_state_update_state_detects_changed_workloads() {
         let templated_runtime_config = "{{templated_runtime_config}}".to_owned();
-        let templated_workload = generate_test_workload_with_runtime_config::<WorkloadNamed>(
-            AGENT_A,
-            RUNTIME,
+        let templated_workload = generate_test_workload_named_with_runtime_config(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             templated_runtime_config,
-        )
-        .name(WORKLOAD_NAME_1);
+        );
 
-        let unchanged_workload: WorkloadNamed = generate_test_workload();
+        let unchanged_workload = generate_test_workload_named();
 
         let old_state = CompleteStateSpec {
             desired_state: generate_test_state_from_workloads(vec![
@@ -1072,7 +1127,7 @@ mod tests {
         };
 
         let mut rendered_workload = templated_workload.clone();
-        rendered_workload.workload.runtime_config = generate_test_runtime_config();
+        rendered_workload.workload.runtime_config = fixtures::RUNTIME_CONFIGS[0].to_owned();
 
         // old and new state are identical but the workload has been changed after rendering
         let new_state = old_state.clone();
@@ -1080,8 +1135,14 @@ mod tests {
         let mut server_state = ServerState {
             state: old_state,
             rendered_workloads: RenderedWorkloads::from([
-                (WORKLOAD_NAME_1.to_owned(), rendered_workload.clone()),
-                (WORKLOAD_NAME_2.to_owned(), unchanged_workload.clone()),
+                (
+                    fixtures::WORKLOAD_NAMES[0].to_owned(),
+                    rendered_workload.clone(),
+                ),
+                (
+                    fixtures::WORKLOAD_NAMES[1].to_owned(),
+                    unchanged_workload.clone(),
+                ),
             ]),
             ..Default::default()
         };
@@ -1089,8 +1150,14 @@ mod tests {
         rendered_workload.workload.runtime_config =
             "updated_runtime_config_after_rendering".to_owned();
         let new_rendered_workloads = RenderedWorkloads::from([
-            (WORKLOAD_NAME_1.to_owned(), rendered_workload.clone()),
-            (WORKLOAD_NAME_2.to_owned(), unchanged_workload.clone()),
+            (
+                fixtures::WORKLOAD_NAMES[0].to_owned(),
+                rendered_workload.clone(),
+            ),
+            (
+                fixtures::WORKLOAD_NAMES[1].to_owned(),
+                unchanged_workload.clone(),
+            ),
         ]);
         server_state
             .config_renderer
@@ -1223,9 +1290,11 @@ mod tests {
     // [utest->swdd~server-state-triggers-validation-of-workload-fields~1]
     #[test]
     fn utest_server_state_update_state_triggers_workload_field_validations() {
-        let invalid_workload =
-            generate_test_workload_with_param::<WorkloadNamed>("invalid.agent?name", RUNTIME)
-                .name(WORKLOAD_NAME_1);
+        let invalid_workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            "invalid.agent?name",
+            fixtures::RUNTIME_NAMES[0],
+        );
         let mut server_state = ServerState::default();
         let cloned_invalid_workload = invalid_workload.clone();
         server_state
@@ -1234,7 +1303,7 @@ mod tests {
             .once()
             .return_once(|_, _| {
                 Ok(RenderedWorkloads::from([(
-                    WORKLOAD_NAME_1.to_string(),
+                    fixtures::WORKLOAD_NAMES[0].to_string(),
                     cloned_invalid_workload,
                 )]))
             });
@@ -1248,7 +1317,7 @@ mod tests {
         let result = server_state.update(StateSpec {
             workloads: WorkloadMapSpec {
                 workloads: HashMap::from([(
-                    WORKLOAD_NAME_1.to_string(),
+                    fixtures::WORKLOAD_NAMES[0].to_string(),
                     invalid_workload.workload,
                 )]),
             },
@@ -1268,8 +1337,11 @@ mod tests {
     // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     #[test]
     fn utest_server_state_update_state_store_and_add_delete_conditions() {
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_A.to_string(), RUNTIME.to_string());
+        let workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let current_complete_state = CompleteStateSpec {
             desired_state: StateSpec {
@@ -1284,8 +1356,11 @@ mod tests {
             ..Default::default()
         };
 
-        let new_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_B.to_string(), RUNTIME.to_string());
+        let new_workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let new_complete_state = CompleteStateSpec {
             desired_state: StateSpec {
@@ -1362,23 +1437,41 @@ mod tests {
 
     fn generate_test_old_state() -> CompleteStateSpec {
         generate_test_complete_state(vec![
-            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime_1")
-                .name("workload_1"),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime_2")
-                .name("workload_2"),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime_1")
-                .name("workload_3"),
+            generate_test_workload_named_with_params(
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::AGENT_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
+            ),
+            generate_test_workload_named_with_params(
+                fixtures::WORKLOAD_NAMES[1],
+                fixtures::AGENT_NAMES[0],
+                fixtures::RUNTIME_NAMES[1],
+            ),
+            generate_test_workload_named_with_params(
+                fixtures::WORKLOAD_NAMES[2],
+                fixtures::AGENT_NAMES[1],
+                fixtures::RUNTIME_NAMES[0],
+            ),
         ])
     }
 
     fn generate_test_update_state() -> CompleteStateSpec {
         generate_test_complete_state(vec![
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime_2")
-                .name("workload_1"),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime_2")
-                .name("workload_3"),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime_1")
-                .name("workload_4"),
+            generate_test_workload_named_with_params(
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::AGENT_NAMES[1],
+                fixtures::RUNTIME_NAMES[1],
+            ),
+            generate_test_workload_named_with_params(
+                fixtures::WORKLOAD_NAMES[2],
+                fixtures::AGENT_NAMES[1],
+                fixtures::RUNTIME_NAMES[1],
+            ),
+            generate_test_workload_named_with_params(
+                fixtures::WORKLOAD_NAMES[3],
+                fixtures::AGENT_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
+            ),
         ])
     }
 }
