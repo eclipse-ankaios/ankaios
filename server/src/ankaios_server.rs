@@ -586,15 +586,18 @@ impl AnkaiosServer {
                             )
                             .await;
 
-                        for workload_state in &method_obj.workload_states {
-                            if workload_state.execution_state.is_removed() {
-                                // [impl->swdd~server-removes-subscription-for-deleted-subscriber-workload~1]
-                                self.event_handler.remove_workload_subscriber(
-                                    &workload_state.instance_name.agent_name().to_owned(),
-                                    &workload_state.instance_name.workload_name().to_owned(),
-                                );
-                            }
-                        }
+                        // [impl->swdd~server-removes-subscription-for-deleted-subscriber-workload~1]
+                        method_obj
+                            .workload_states
+                            .iter()
+                            .for_each(|workload_state| {
+                                if workload_state.execution_state.is_removed() {
+                                    self.event_handler.remove_workload_subscriber(
+                                        &workload_state.instance_name.agent_name().to_owned(),
+                                        &workload_state.instance_name.workload_name().to_owned(),
+                                    );
+                                }
+                            });
                     }
 
                     // [impl->swdd~server-forwards-workload-state~1]
