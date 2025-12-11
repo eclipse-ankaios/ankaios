@@ -76,6 +76,16 @@ fn setup_state_annotations(builder: Builder) -> Builder {
             "ConfigObject.fields",
             "#[spec_field_attr(#[schemars(schema_with = \"constrained_map_schema::<ConfigItemSpec>\")])]",
         )
+        .field_attribute(
+            "LogRule.workloadNames",
+            // TODO 313
+        format!(r#"#[spec_field_attr(#[schemars(inner(regex(pattern = r"^(?:\*|{ACCEPTED_CHAR_SET}*\*{ACCEPTED_CHAR_SET}*|{ACCEPTED_CHAR_SET}+)$")))])]"#)
+        )
+        .field_attribute(
+            "StateRule.filterMasks",
+            // TODO 313
+        format!(r#"#[spec_field_attr(#[schemars(inner(regex(pattern = r"^(?:\*|{ACCEPTED_CHAR_SET}+)(?:\.(?:\*|{ACCEPTED_CHAR_SET}+))*$")))])]"#)
+        )
         .message_attribute(
             "ConfigMap",
             "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
