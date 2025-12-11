@@ -105,20 +105,6 @@ impl AccessRightsRuleEnumSpec {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_control_interface_access() -> ControlInterfaceAccessSpec {
-    ControlInterfaceAccessSpec {
-        allow_rules: vec![AccessRightsRuleSpec::state_rule(
-            ReadWriteEnum::RwReadWrite,
-            vec!["desiredState".to_string()],
-        )],
-        deny_rules: vec![AccessRightsRuleSpec::state_rule(
-            ReadWriteEnum::RwWrite,
-            vec!["desiredState.workload.workload_B".to_string()],
-        )],
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::ank_base::{AccessRightsRuleSpec, ReadWriteEnum};

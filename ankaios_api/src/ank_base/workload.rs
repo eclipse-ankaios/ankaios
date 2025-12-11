@@ -218,202 +218,16 @@ pub fn validate_tags(
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-#[cfg(any(feature = "test_utils", test))]
-use crate::ank_base::{
-    ConfigMappingsSpec, DependenciesSpec, FileContentSpec, FileSpec, FilesSpec, TagsSpec, Workload,
-};
-#[cfg(any(feature = "test_utils", test))]
-use crate::test_utils::generate_test_control_interface_access;
-
-#[cfg(any(feature = "test_utils", test))]
-impl WorkloadNamed {
-    pub fn name<T: Into<String>>(mut self, name: T) -> Self {
-        self.instance_name.workload_name = name.into();
-        self
-    }
-}
-
-#[cfg(any(feature = "test_utils", test))]
-pub trait TestWorkloadFixture: Default {
-    fn generate_workload() -> Self;
-    fn generate_workload_with_params(
-        agent_name: impl Into<String>,
-        runtime_name: impl Into<String>,
-    ) -> Self;
-    fn generate_workload_with_runtime_config(
-        agent_name: impl Into<String>,
-        runtime_name: impl Into<String>,
-        runtime_config: impl Into<String>,
-    ) -> Self;
-}
-
-#[cfg(any(feature = "test_utils", test))]
-impl TestWorkloadFixture for WorkloadSpec {
-    fn generate_workload() -> Self {
-        generate_test_workload_with_param("agent_A", "runtime_A")
-    }
-
-    fn generate_workload_with_params(
-        agent_name: impl Into<String>,
-        runtime_name: impl Into<String>,
-    ) -> Self {
-        generate_test_workload_with_runtime_config(
-            agent_name,
-            runtime_name,
-            generate_test_runtime_config(),
-        )
-    }
-
-    fn generate_workload_with_runtime_config(
-        agent_name: impl Into<String>,
-        runtime_name: impl Into<String>,
-        runtime_config: impl Into<String>,
-    ) -> Self {
-        use crate::ank_base::AddCondition;
-
-        WorkloadSpec {
-            agent: agent_name.into(),
-            dependencies: DependenciesSpec {
-                dependencies: HashMap::from([
-                    (String::from("workload_B"), AddCondition::AddCondRunning),
-                    (String::from("workload_C"), AddCondition::AddCondSucceeded),
-                ]),
-            },
-            restart_policy: crate::ank_base::RestartPolicy::Always,
-            runtime: runtime_name.into(),
-            tags: TagsSpec {
-                tags: HashMap::from([
-                    ("tag1".into(), "val_1".into()),
-                    ("tag2".into(), "val_2".into()),
-                ]),
-            },
-            runtime_config: runtime_config.into(),
-            configs: ConfigMappingsSpec {
-                configs: HashMap::from([
-                    ("ref1".into(), "config_1".into()),
-                    ("ref2".into(), "config_2".into()),
-                ]),
-            },
-            control_interface_access: generate_test_control_interface_access(),
-            files: FilesSpec {
-                files: vec![
-                    FileSpec {
-                        mount_point: "/file.json".to_string(),
-                        file_content: FileContentSpec::Data {
-                            data: "text data".into(),
-                        },
-                    },
-                    FileSpec {
-                        mount_point: "/binary_file".to_string(),
-                        file_content: FileContentSpec::BinaryData {
-                            binary_data: "base64_data".into(),
-                        },
-                    },
-                ],
-            },
-        }
-    }
-}
-
-#[cfg(any(feature = "test_utils", test))]
-impl TestWorkloadFixture for Workload {
-    fn generate_workload() -> Self {
-        WorkloadSpec::generate_workload().into()
-    }
-
-    fn generate_workload_with_params(
-        agent_name: impl Into<String>,
-        runtime_name: impl Into<String>,
-    ) -> Self {
-        WorkloadSpec::generate_workload_with_params(agent_name, runtime_name).into()
-    }
-
-    fn generate_workload_with_runtime_config(
-        agent_name: impl Into<String>,
-        runtime_name: impl Into<String>,
-        runtime_config: impl Into<String>,
-    ) -> Self {
-        WorkloadSpec::generate_workload_with_runtime_config(
-            agent_name,
-            runtime_name,
-            runtime_config,
-        )
-        .into()
-    }
-}
-
-#[cfg(any(feature = "test_utils", test))]
-impl TestWorkloadFixture for WorkloadNamed {
-    fn generate_workload() -> Self {
-        (
-            String::from("workload_A"),
-            WorkloadSpec::generate_workload(),
-        )
-            .into()
-    }
-
-    fn generate_workload_with_params(
-        agent_name: impl Into<String>,
-        runtime_name: impl Into<String>,
-    ) -> Self {
-        (
-            String::from("workload_A"),
-            WorkloadSpec::generate_workload_with_params(agent_name, runtime_name),
-        )
-            .into()
-    }
-
-    fn generate_workload_with_runtime_config(
-        agent_name: impl Into<String>,
-        runtime_name: impl Into<String>,
-        runtime_config: impl Into<String>,
-    ) -> Self {
-        (
-            String::from("workload_A"),
-            WorkloadSpec::generate_workload_with_runtime_config(
-                agent_name,
-                runtime_name,
-                runtime_config,
-            ),
-        )
-            .into()
-    }
-}
-
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload<T: TestWorkloadFixture>() -> T {
-    T::generate_workload()
-}
-
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_with_param<T: TestWorkloadFixture>(
-    agent_name: impl Into<String>,
-    runtime_name: impl Into<String>,
-) -> T {
-    T::generate_workload_with_params(agent_name, runtime_name)
-}
-
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_with_runtime_config<T: TestWorkloadFixture>(
-    agent_name: impl Into<String>,
-    runtime_name: impl Into<String>,
-    runtime_config: impl Into<String>,
-) -> T {
-    T::generate_workload_with_runtime_config(agent_name, runtime_name, runtime_config)
-}
-
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_runtime_config() -> String {
-    "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use super::validate_workload_name_format;
 
-    use crate::ank_base::{AddCondition, DeleteCondition, WorkloadNamed, WorkloadSpec};
+    use crate::ank_base::{
+        AddCondition, DeleteCondition
+    };
     use crate::test_utils::{
-        generate_test_deleted_workload, generate_test_workload, generate_test_workload_with_param,
+        generate_test_workload, generate_test_workload_named,generate_test_deleted_workload_with_params,
+        generate_test_workload_named_with_params, fixtures,
     };
 
     // one test for a failing case, other cases are tested on the caller side to not repeat test code
@@ -421,7 +235,7 @@ mod tests {
     #[test]
     fn utest_validate_config_reference_format_invalid_config_reference_key() {
         let invalid_config_reference_key = "invalid%key";
-        let mut workload_spec: WorkloadSpec = generate_test_workload();
+        let mut workload_spec = generate_test_workload();
         workload_spec.configs.configs.insert(
             "config_alias_1".to_owned(),
             invalid_config_reference_key.to_owned(),
@@ -479,18 +293,24 @@ mod tests {
     // [utest->swdd~api-object-serialization~1]
     #[test]
     fn utest_serialize_deleted_workload_into_ordered_output() {
-        let mut deleted_workload =
-            generate_test_deleted_workload("agent X".to_string(), "workload X".to_string());
+        let mut deleted_workload = generate_test_deleted_workload_with_params(
+            "agent X".to_string(),
+            "workload X".to_string(),
+        );
 
         deleted_workload.dependencies.insert(
-            "workload_C".to_string(),
+            fixtures::WORKLOAD_NAMES[2].to_owned(),
             DeleteCondition::DelCondNotPendingNorRunning,
         );
 
         let serialized_deleted_workload = serde_yaml::to_string(&deleted_workload).unwrap();
         let indices = [
-            serialized_deleted_workload.find("workload_A").unwrap(),
-            serialized_deleted_workload.find("workload_C").unwrap(),
+            serialized_deleted_workload
+                .find(fixtures::WORKLOAD_NAMES[0])
+                .unwrap(),
+            serialized_deleted_workload
+                .find(fixtures::WORKLOAD_NAMES[2])
+                .unwrap(),
         ];
         assert!(
             indices.windows(2).all(|window| window[0] < window[1]),
@@ -501,7 +321,7 @@ mod tests {
     // [utest->swdd~api-workload-needs-control-interface~1]
     #[test]
     fn utest_needs_control_interface() {
-        let mut workload: WorkloadSpec = generate_test_workload(); // Generates with control interface access
+        let mut workload = generate_test_workload(); // Generates with control interface access
         assert!(workload.needs_control_interface());
 
         workload.control_interface_access = Default::default(); // No rules
@@ -513,7 +333,7 @@ mod tests {
     // [utest->swdd~api-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_workload_validate_fields_format_success() {
-        let compatible_workload: WorkloadNamed = generate_test_workload();
+        let compatible_workload = generate_test_workload_named();
         assert!(compatible_workload.validate_fields_format().is_ok());
     }
 
@@ -530,8 +350,11 @@ mod tests {
     // [utest->swdd~api-workload-naming-convention~1]
     #[test]
     fn utest_workload_validate_fields_incompatible_workload_name() {
-        let workload_with_wrong_name =
-            generate_test_workload::<WorkloadNamed>().name("incompatible.workload_name");
+        let workload_with_wrong_name = generate_test_workload_named_with_params(
+            "incompatible.workload_name",
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         assert_eq!(
             workload_with_wrong_name.validate_fields_format(),
@@ -546,8 +369,11 @@ mod tests {
     // [utest->swdd~api-agent-naming-convention~1]
     #[test]
     fn utest_workload_validate_fields_incompatible_agent_name() {
-        let workload_with_wrong_agent_name: WorkloadNamed =
-            generate_test_workload_with_param("incompatible.agent_name", "runtime");
+        let workload_with_wrong_agent_name = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            "incompatible.agent_name",
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         assert_eq!(
             workload_with_wrong_agent_name.validate_fields_format(),
@@ -562,8 +388,11 @@ mod tests {
     // [utest->swdd~api-agent-naming-convention~1]
     #[test]
     fn utest_workload_with_valid_empty_agent_name() {
-        let workload_with_valid_missing_agent_name: WorkloadNamed =
-            generate_test_workload_with_param("", "runtime");
+        let workload_with_valid_missing_agent_name = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            "",
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         assert!(
             workload_with_valid_missing_agent_name

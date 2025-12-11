@@ -111,28 +111,25 @@ mod tests {
     };
     use crate::cli_error::CliError;
 
-    use ankaios_api::ank_base::{CompleteState, WorkloadInstanceNameSpec, WorkloadNamed};
+    use ankaios_api::ank_base::{CompleteState, WorkloadInstanceNameSpec};
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_workload_with_param,
+        generate_test_complete_state, generate_test_workload_named_with_params, fixtures,
     };
 
     use mockall::predicate;
     use std::collections::BTreeSet;
 
-    const RESPONSE_TIMEOUT_MS: u64 = 3000;
-    const AGENT_A_NAME: &str = "agent_A";
-    const AGENT_B_NAME: &str = "agent_B";
-    const WORKLOAD_NAME_1: &str = "workload_1";
-    const WORKLOAD_NAME_2: &str = "workload_2";
-    const RUNTIME_NAME: &str = "runtime";
+    const NOT_EXISTING_WORKLOAD_NAME: &str = "non_existing_workload";
 
     // [utest->swdd~cli-provides-workload-logs~1]
     // [utest->swdd~cli-streams-logs-from-the-server~1]
     #[tokio::test]
     async fn utest_get_locks_blocking_success() {
-        let log_workload =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
-                .name(WORKLOAD_NAME_1);
+        let log_workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
         let cloned_log_workload = log_workload.clone();
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
@@ -141,8 +138,11 @@ mod tests {
             .return_once(|_| {
                 Ok(CompleteState::from(generate_test_complete_state(vec![
                     cloned_log_workload,
-                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_B_NAME, RUNTIME_NAME)
-                        .name(WORKLOAD_NAME_2),
+                    generate_test_workload_named_with_params(
+                        fixtures::WORKLOAD_NAMES[1],
+                        fixtures::AGENT_NAMES[1],
+                        fixtures::RUNTIME_NAMES[0],
+                    ),
                 ])))
             });
 
@@ -150,7 +150,7 @@ mod tests {
             BTreeSet::from([log_workload.instance_name.clone()]);
 
         let args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -163,7 +163,7 @@ mod tests {
             .with(
                 predicate::eq(instance_names),
                 predicate::function(|args: &LogsArgs| {
-                    args.workload_name == vec![WORKLOAD_NAME_1.to_string()]
+                    args.workload_name == vec![fixtures::WORKLOAD_NAMES[0].to_string()]
                         && !args.follow
                         && args.tail == -1
                         && args.since.is_none()
@@ -174,7 +174,7 @@ mod tests {
             .return_once(|_, _| Ok(()));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -197,7 +197,7 @@ mod tests {
             });
 
         let args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -208,7 +208,7 @@ mod tests {
         mock_server_connection.expect_stream_logs().never();
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -231,13 +231,16 @@ mod tests {
             .expect_get_complete_state()
             .return_once(|_| {
                 Ok(CompleteState::from(generate_test_complete_state(vec![
-                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
-                        .name(WORKLOAD_NAME_1),
+                    generate_test_workload_named_with_params(
+                        fixtures::WORKLOAD_NAMES[0],
+                        fixtures::AGENT_NAMES[0],
+                        fixtures::RUNTIME_NAMES[0],
+                    ),
                 ])))
             });
 
         let args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -255,7 +258,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -278,18 +281,20 @@ mod tests {
             .expect_get_complete_state()
             .return_once(|_| {
                 Ok(CompleteState::from(generate_test_complete_state(vec![
-                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
-                        .name(WORKLOAD_NAME_1),
+                    generate_test_workload_named_with_params(
+                        fixtures::WORKLOAD_NAMES[0],
+                        fixtures::AGENT_NAMES[0],
+                        fixtures::RUNTIME_NAMES[0],
+                    ),
                 ])))
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
-        const NOT_EXISTING_WORKLOAD_NAME: &str = "non_existing_workload";
         let workload_names = vec![NOT_EXISTING_WORKLOAD_NAME.to_string()];
         let result = cmd.workload_names_to_instance_names(workload_names).await;
 
@@ -310,12 +315,12 @@ mod tests {
             .return_once(|_| Ok(CompleteState::default()));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
-        let workload_names = vec![WORKLOAD_NAME_1.to_string()];
+        let workload_names = vec![fixtures::WORKLOAD_NAMES[0].to_string()];
         let result = cmd.workload_names_to_instance_names(workload_names).await;
 
         assert_eq!(
@@ -331,13 +336,17 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_names_to_instance_names_multiple_instance_names_for_one_workload() {
         let mut mock_server_connection = MockServerConnection::default();
-        let workload_1_agent_a =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
-                .name(WORKLOAD_NAME_1);
+        let workload_1_agent_a = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
-        let workload_1_agent_b =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_B_NAME, RUNTIME_NAME)
-                .name(WORKLOAD_NAME_1);
+        let workload_1_agent_b = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let instance_name_wl_1_agent_a = workload_1_agent_a.instance_name.clone();
         let instance_name_wl_1_agent_b = workload_1_agent_b.instance_name.clone();
@@ -352,12 +361,12 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
-        let workload_names = vec![WORKLOAD_NAME_1.to_string()];
+        let workload_names = vec![fixtures::WORKLOAD_NAMES[0].to_string()];
         let result = cmd.workload_names_to_instance_names(workload_names).await;
 
         assert!(result.is_ok(), "Got result {result:?}");
