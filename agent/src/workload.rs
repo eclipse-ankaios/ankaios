@@ -247,11 +247,10 @@ mod tests {
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
-    use ankaios_api::ank_base::{
-        self, CompleteStateSpec, Response, WorkloadNamed, WorkloadSpec, response::ResponseContent,
-    };
+    use ankaios_api::ank_base::{self, CompleteStateSpec, Response, response::ResponseContent};
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_workload_with_param,
+        generate_test_complete_state, generate_test_workload_named,
+        generate_test_workload_named_with_params, generate_test_workload_with_params, fixtures,
     };
     use common::from_server_interface::FromServer;
 
@@ -259,11 +258,6 @@ mod tests {
     use std::time::Duration;
     use tokio::{sync::mpsc, time::timeout};
 
-    const RUNTIME_NAME: &str = "runtime1";
-    const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_1_NAME: &str = "workload1";
-    const PIPES_LOCATION: &str = "/some/path";
-    const REQUEST_ID: &str = "request_id";
     const LOG_REQUEST_OPTIONS: LogRequestOptions = LogRequestOptions {
         follow: true,
         tail: Some(100),
@@ -271,14 +265,11 @@ mod tests {
         until: None,
     };
 
-    const TEST_WL_COMMAND_BUFFER_SIZE: usize = 5;
-    const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 5;
-
     use mockall::lazy_static;
 
     lazy_static! {
         pub static ref CONTROL_INTERFACE_PATH: ControlInterfacePath =
-            ControlInterfacePath::new(PathBuf::from(PIPES_LOCATION));
+            ControlInterfacePath::new(PathBuf::from(fixtures::PIPES_LOCATION));
     }
 
     // [utest->swdd~agent-workload-obj-delete-command~1]
@@ -300,7 +291,7 @@ mod tests {
             .return_const(());
 
         let test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender,
             Some(old_control_interface_mock),
         );
@@ -316,7 +307,7 @@ mod tests {
     fn utest_is_control_interface_changed_set_from_none_to_new_returns_true() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
         let test_workload_with_control_interface = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender.clone(),
             None,
         );
@@ -332,7 +323,7 @@ mod tests {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
         let test_workload_with_control_interface = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender.clone(),
             Some(MockControlInterface::default()),
         );
@@ -345,7 +336,7 @@ mod tests {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
         let test_workload_with_control_interface = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender.clone(),
             None,
         );
@@ -364,7 +355,7 @@ mod tests {
             .once()
             .return_const(false);
         let test_workload_with_control_interface = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender.clone(),
             Some(MockControlInterface::default()),
         );
@@ -387,7 +378,7 @@ mod tests {
             .return_const(true);
 
         let test_workload_with_control_interface = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender.clone(),
             Some(MockControlInterface::default()),
         );
@@ -403,11 +394,14 @@ mod tests {
     fn utest_exchange_control_interface_not_created() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
-        let mut test_workload =
-            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
+        let mut test_workload = Workload::new(
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+            workload_command_sender,
+            None,
+        );
 
-        let workload: WorkloadSpec =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload =
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::RUNTIME_NAMES[0]);
 
         test_workload.exchange_control_interface(None, workload.needs_control_interface());
 
@@ -429,8 +423,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let mut new_control_interface_mock = MockControlInterface::default();
         new_control_interface_mock
@@ -470,7 +463,7 @@ mod tests {
             .return_const(false);
 
         let mut test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender,
             Some(old_control_interface_mock),
         );
@@ -519,14 +512,17 @@ mod tests {
             .once()
             .return_const(CONTROL_INTERFACE_PATH.clone());
 
-        let workload = generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
-            .name(WORKLOAD_1_NAME);
+        let workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
         new_control_interface_info_mock
             .expect_get_control_interface_path()
             .once()
-            .return_const(ControlInterfacePath::new(PIPES_LOCATION.into()));
+            .return_const(ControlInterfacePath::new(fixtures::PIPES_LOCATION.into()));
 
         new_control_interface_info_mock
             .expect_get_to_server_sender()
@@ -555,7 +551,7 @@ mod tests {
             .return_once(|_, _, _, _| Ok(new_control_interface_mock));
 
         let mut test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender,
             Some(old_control_interface_mock),
         );
@@ -587,7 +583,7 @@ mod tests {
             .return_const(());
 
         let test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender,
             Some(old_control_interface_mock),
         );
@@ -608,7 +604,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
-        let (to_server_tx, mut to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, mut to_server_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut control_interface_mock = MockControlInterface::default();
         control_interface_mock
@@ -617,21 +613,20 @@ mod tests {
             .return_const(to_server_tx);
 
         let mut test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender,
             Some(control_interface_mock),
         );
-        let complete_state = generate_test_complete_state(vec![
-            generate_test_workload_with_param::<WorkloadNamed>(
-                AGENT_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            )
-            .name(WORKLOAD_1_NAME),
-        ]);
+        let complete_state =
+            generate_test_complete_state(vec![generate_test_workload_named_with_params(
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::AGENT_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
+            )]);
 
         test_workload
             .forward_response(ank_base::Response {
-                request_id: REQUEST_ID.to_owned(),
+                request_id: fixtures::REQUEST_ID.to_owned(),
                 response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
                     Box::new(complete_state.clone().into()),
                 )),
@@ -655,7 +650,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
-        let (to_server_tx, to_server_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, to_server_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         drop(to_server_rx);
 
@@ -666,7 +661,7 @@ mod tests {
             .return_const(to_server_tx);
 
         let mut test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             workload_command_sender,
             Some(control_interface_mock),
         );
@@ -675,7 +670,7 @@ mod tests {
         assert!(matches!(
             test_workload
                 .forward_response(ank_base::Response {
-                    request_id: REQUEST_ID.to_owned(),
+                    request_id: fixtures::REQUEST_ID.to_owned(),
                     response_content: Some(
                         ank_base::response::ResponseContent::CompleteStateResponse(Box::new(
                             complete_state.clone().into()
@@ -696,14 +691,17 @@ mod tests {
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
-        let mut test_workload =
-            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
+        let mut test_workload = Workload::new(
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+            workload_command_sender,
+            None,
+        );
         let complete_state = CompleteStateSpec::default();
 
         assert!(matches!(
             test_workload
                 .forward_response(ank_base::Response {
-                    request_id: REQUEST_ID.to_owned(),
+                    request_id: fixtures::REQUEST_ID.to_owned(),
                     response_content: Some(
                         ank_base::response::ResponseContent::CompleteStateResponse(Box::new(
                             complete_state.clone().into()
@@ -734,8 +732,11 @@ mod tests {
             result_sink.send(Box::new(MockLogFetcher::new())).unwrap();
         });
 
-        let test_workload =
-            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
+        let test_workload = Workload::new(
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+            workload_command_sender,
+            None,
+        );
 
         test_workload
             .start_collecting_logs(LOG_REQUEST_OPTIONS)

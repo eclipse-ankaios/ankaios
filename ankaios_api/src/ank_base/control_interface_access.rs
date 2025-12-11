@@ -12,23 +12,21 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::workload::{
-    verify_workload_name_length, verify_workload_name_not_empty, verify_workload_name_pattern,
-};
 use crate::ank_base::{
     AccessRightsRuleEnumSpec, AccessRightsRuleSpec, ControlInterfaceAccessSpec, LogRuleSpec,
     ReadWriteEnum, StateRuleSpec,
+    workload::{validate_wildcard_workload_name_format, validate_workload_name_format},
 };
 
 pub const WILDCARD_SYMBOL: &str = "*";
 
 impl ControlInterfaceAccessSpec {
     // [impl->swdd~common-access-rules-filter-mask-convention~1]
-    pub fn verify_format(&self) -> Result<(), String> {
+    pub fn validate_format(&self) -> Result<(), String> {
         self.allow_rules
             .iter()
             .chain(self.deny_rules.iter())
-            .try_for_each(|rule| rule.access_rights_rule_enum.verify_format())
+            .try_for_each(|rule| rule.access_rights_rule_enum.validate_format())
     }
 }
 
@@ -50,13 +48,13 @@ impl AccessRightsRuleSpec {
         }
     }
 
-    pub fn verify_format(&self) -> Result<(), String> {
-        self.access_rights_rule_enum.verify_format()
+    pub fn validate_format(&self) -> Result<(), String> {
+        self.access_rights_rule_enum.validate_format()
     }
 }
 
 impl AccessRightsRuleEnumSpec {
-    fn verify_format(&self) -> Result<(), String> {
+    fn validate_format(&self) -> Result<(), String> {
         match self {
             // [impl->swdd~common-access-rules-filter-mask-convention~1]
             AccessRightsRuleEnumSpec::StateRule(state_rule) => {
@@ -73,7 +71,7 @@ impl AccessRightsRuleEnumSpec {
             // [impl->swdd~common-access-rules-logs-workload-names-convention~1]
             AccessRightsRuleEnumSpec::LogRule(log_rule) => {
                 log_rule.workload_names.iter().try_for_each(|name| {
-                    Self::verify_log_rule_workload_name_pattern_format(name)
+                    Self::validate_log_rule_workload_name_pattern_format(name)
                 })?;
             }
         }
@@ -81,24 +79,21 @@ impl AccessRightsRuleEnumSpec {
     }
 
     // [impl->swdd~common-access-rules-logs-workload-names-convention~1]
-    fn verify_log_rule_workload_name_pattern_format(workload_name: &str) -> Result<(), String> {
-        if let Some(wildcard_pos) = workload_name.find(WILDCARD_SYMBOL) {
-            let prefix = &workload_name[..wildcard_pos];
-            let suffix = &workload_name[wildcard_pos + 1..];
-            if suffix.contains(WILDCARD_SYMBOL) {
-                Err(format!("Expected at most one '{WILDCARD_SYMBOL}' symbol."))
-            } else {
-                verify_workload_name_pattern(prefix)
-                    .and_then(|_| verify_workload_name_pattern(suffix))
-                    .and_then(|_| verify_workload_name_length(prefix.len() + suffix.len()))
+    fn validate_log_rule_workload_name_pattern_format(workload_name: &str) -> Result<(), String> {
+        let first_match = workload_name.find(WILDCARD_SYMBOL);
+        let last_match = workload_name.rfind(WILDCARD_SYMBOL);
+
+        match (first_match, last_match) {
+            (Some(first), Some(last)) if first == last => {
+                validate_wildcard_workload_name_format(workload_name, first)
             }
-        } else {
-            let length = workload_name.len();
-            verify_workload_name_pattern(workload_name)
-                .and_then(|_| verify_workload_name_length(length))
-                .and_then(|_| verify_workload_name_not_empty(length))
+            (Some(_), Some(_)) => {
+                return Err(format!("Expected at most one '{WILDCARD_SYMBOL}' symbol."));
+            }
+            (None, None) => validate_workload_name_format(workload_name),
+            _ => unreachable!(),
         }
-        .map_err(|err| format!("Unsupported workload name for log rule '{workload_name}'. {err}"))
+        .map_err(|err| format!("Log rule validation filed: {err}"))
     }
 }
 
@@ -110,20 +105,6 @@ impl AccessRightsRuleEnumSpec {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_control_interface_access() -> ControlInterfaceAccessSpec {
-    ControlInterfaceAccessSpec {
-        allow_rules: vec![AccessRightsRuleSpec::state_rule(
-            ReadWriteEnum::RwReadWrite,
-            vec!["desiredState".to_string()],
-        )],
-        deny_rules: vec![AccessRightsRuleSpec::state_rule(
-            ReadWriteEnum::RwWrite,
-            vec!["desiredState.workload.workload_B".to_string()],
-        )],
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::ank_base::{AccessRightsRuleSpec, ReadWriteEnum};
@@ -131,128 +112,132 @@ mod tests {
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
-    fn utest_access_rights_state_rule_verify_fails() {
+    fn utest_access_rights_state_rule_validate_fails() {
         let empty_state_rule =
             AccessRightsRuleSpec::state_rule(ReadWriteEnum::RwWrite, vec!["".to_string()]);
 
-        assert!(empty_state_rule.verify_format().is_err_and(
+        assert!(empty_state_rule.validate_format().is_err_and(
             |x| x == "Empty filter masks are not allowed in Control Interface access rules"
         ));
     }
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
-    fn utest_access_rights_state_rule_verify_success() {
+    fn utest_access_rights_state_rule_validate_success() {
         let state_rule =
             AccessRightsRuleSpec::state_rule(ReadWriteEnum::RwWrite, vec!["some".to_string()]);
 
-        assert!(state_rule.verify_format().is_ok());
+        assert!(state_rule.validate_format().is_ok());
     }
 
     // [utest->swdd~common-access-rules-logs-workload-names-convention~1]
     #[test]
-    fn utest_access_rights_log_rule_verify_success() {
+    fn utest_access_rights_log_rule_validate_success() {
         const MAX_PREFIX: &str = "123456789012345678901234567890";
         const MAX_SUFFIX: &str = "123456789012345678901234567890123";
 
-        assert!(log_rule_with_workload("workload_1").verify_format().is_ok());
+        assert!(
+            log_rule_with_workload("workload_1")
+                .validate_format()
+                .is_ok()
+        );
         assert!(
             log_rule_with_workload("*workload_1")
-                .verify_format()
+                .validate_format()
                 .is_ok()
         );
         assert!(
             log_rule_with_workload("work*load_1")
-                .verify_format()
+                .validate_format()
                 .is_ok()
         );
         assert!(
             log_rule_with_workload("workload_1*")
-                .verify_format()
+                .validate_format()
                 .is_ok()
         );
         assert!(
             log_rule_with_workload(&format!("{MAX_PREFIX}{MAX_SUFFIX}"))
-                .verify_format()
+                .validate_format()
                 .is_ok()
         );
         assert!(
             log_rule_with_workload(&format!("*{MAX_PREFIX}{MAX_SUFFIX}"))
-                .verify_format()
+                .validate_format()
                 .is_ok()
         );
         assert!(
             log_rule_with_workload(&format!("{MAX_PREFIX}*{MAX_SUFFIX}"))
-                .verify_format()
+                .validate_format()
                 .is_ok()
         );
         assert!(
             log_rule_with_workload(&format!("{MAX_PREFIX}{MAX_SUFFIX}*"))
-                .verify_format()
+                .validate_format()
                 .is_ok()
         );
     }
 
     // [utest->swdd~common-access-rules-logs-workload-names-convention~1]
     #[test]
-    fn utest_access_rights_log_rule_verify_fails() {
+    fn utest_access_rights_log_rule_validate_fails() {
         const TOO_LONG_PREFIX: &str = "123456789012345678901234567890";
         const TOO_LONG_SUFFIX: &str = "1234567890123456789012345678901234";
 
-        assert!(log_rule_with_workload("").verify_format().is_err());
+        assert!(log_rule_with_workload("").validate_format().is_err());
         assert!(
             log_rule_with_workload(&format!("{TOO_LONG_PREFIX}{TOO_LONG_SUFFIX}"))
-                .verify_format()
+                .validate_format()
                 .is_err()
         );
         assert!(
             log_rule_with_workload(&format!("*{TOO_LONG_PREFIX}{TOO_LONG_SUFFIX}"))
-                .verify_format()
+                .validate_format()
                 .is_err()
         );
         assert!(
             log_rule_with_workload(&format!("{TOO_LONG_PREFIX}*{TOO_LONG_SUFFIX}"))
-                .verify_format()
+                .validate_format()
                 .is_err()
         );
         assert!(
             log_rule_with_workload(&format!("{TOO_LONG_PREFIX}{TOO_LONG_SUFFIX}*"))
-                .verify_format()
+                .validate_format()
                 .is_err()
         );
         assert!(
             log_rule_with_workload("just.wrong")
-                .verify_format()
+                .validate_format()
                 .is_err()
         );
         assert!(
             log_rule_with_workload("also@wrong")
-                .verify_format()
+                .validate_format()
                 .is_err()
         );
         assert!(
             log_rule_with_workload("*also@wrong")
-                .verify_format()
+                .validate_format()
                 .is_err()
         );
         assert!(
             log_rule_with_workload("al*so@wrong")
-                .verify_format()
+                .validate_format()
                 .is_err()
         );
         assert!(
             log_rule_with_workload("also@wr*ong")
-                .verify_format()
+                .validate_format()
                 .is_err()
         );
         assert!(
             log_rule_with_workload("also@wrong*")
-                .verify_format()
+                .validate_format()
                 .is_err()
         );
         assert!(
             log_rule_with_workload("multiple*wildcards*wrong")
-                .verify_format()
+                .validate_format()
                 .is_err()
         );
     }
@@ -263,7 +248,7 @@ mod tests {
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
-    fn utest_control_interface_access_verify_fails_on_empty_allow_rule_filter() {
+    fn utest_control_interface_access_validate_fails_on_empty_allow_rule_filter() {
         let mut control_interface_access = generate_test_control_interface_access();
 
         let empty_state_rule =
@@ -272,14 +257,14 @@ mod tests {
         control_interface_access
             .allow_rules
             .push(empty_state_rule.clone());
-        assert!(control_interface_access.verify_format().is_err_and(
+        assert!(control_interface_access.validate_format().is_err_and(
             |x| x == "Empty filter masks are not allowed in Control Interface access rules"
         ));
     }
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
-    fn utest_control_interface_access_verify_fails_on_empty_deny_rule_filter() {
+    fn utest_control_interface_access_validate_fails_on_empty_deny_rule_filter() {
         let mut control_interface_access = generate_test_control_interface_access();
 
         let empty_state_rule =
@@ -288,16 +273,16 @@ mod tests {
         control_interface_access
             .deny_rules
             .push(empty_state_rule.clone());
-        assert!(control_interface_access.verify_format().is_err_and(
+        assert!(control_interface_access.validate_format().is_err_and(
             |x| x == "Empty filter masks are not allowed in Control Interface access rules"
         ));
     }
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
-    fn utest_control_interface_access_verify_success() {
+    fn utest_control_interface_access_validate_success() {
         let control_interface_access = generate_test_control_interface_access();
 
-        assert!(control_interface_access.verify_format().is_ok());
+        assert!(control_interface_access.validate_format().is_ok());
     }
 }

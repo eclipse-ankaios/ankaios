@@ -245,10 +245,11 @@ mod tests {
 
     use ankaios_api::ank_base::{
         CompleteState, CompleteStateSpec, ExecutionStateSpec, Response, ResponseContent, StateSpec,
-        UpdateStateSuccess, WorkloadNamed, WorkloadStateSpec,
+        UpdateStateSuccess, WorkloadInstanceNameSpec, WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_state_from_workloads, generate_test_workload_with_param,
+        generate_test_state_from_workloads, generate_test_workload_named,
+        generate_test_workload_named_with_params, fixtures,
     };
     use common::{
         commands::UpdateWorkloadState,
@@ -265,9 +266,6 @@ mod tests {
         std::sync::Mutex::new(std::collections::VecDeque::new());
     }
 
-    const WORKLOAD_NAME_1: &str = "workload_A";
-    const WORKLOAD_NAME_2: &str = "workload_B";
-
     pub fn get_input_sources_mock(
         _manifest_files: &[String],
     ) -> Result<Vec<InputSourcePair>, String> {
@@ -278,21 +276,23 @@ mod tests {
             .unwrap()
     }
 
-    const RESPONSE_TIMEOUT_MS: u64 = 3000;
     const OTHER_REQUEST_ID: &str = "other_request_id";
 
     // [utest->swdd~cli-apply-supports-ankaios-manifest~1]
     #[test]
     fn utest_parse_manifest_ok() {
-        let manifest_content = Cursor::new(
-            b"apiVersion: \"v1\"\nworkloads:
-    simple:
-      runtime: podman
-      agent: agent_A
+        let manifest_content = Cursor::new(format!(
+            "apiVersion: \"v1\"\nworkloads:
+    {}:
+      runtime: {}
+      agent: {}
       runtimeConfig: |
         image: docker.io/nginx:latest
         commandOptions: [\"-p\", \"8081:80\"]",
-        );
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
+        ));
 
         assert!(
             parse_manifest(&mut (
@@ -334,17 +334,20 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_current_api_version_tags_as_mapping_ok() {
-        let manifest_content = Cursor::new(
-            b"apiVersion: \"v1\"\nworkloads:
-    simple:
-      runtime: podman
-      agent: agent_A
+        let manifest_content = Cursor::new(format!(
+            "apiVersion: \"v1\"\nworkloads:
+    {}:
+      runtime: {}
+      agent: {}
       tags:
         owner: Ankaios team
         version: 1.0
       runtimeConfig: |
         image: docker.io/nginx:latest",
-        );
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
+        ));
 
         assert!(
             parse_manifest(&mut (
@@ -358,11 +361,11 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_current_api_version_tags_as_sequence_fails() {
-        let manifest_content = Cursor::new(
-            b"apiVersion: \"v1\"\nworkloads:
-    simple:
-      runtime: podman
-      agent: agent_A
+        let manifest_content = Cursor::new(format!(
+            "apiVersion: \"v1\"\nworkloads:
+    {}:
+      runtime: {}
+      agent: {}
       tags:
         - key: owner
           value: Ankaios team
@@ -370,7 +373,10 @@ mod tests {
           value: 1.0
       runtimeConfig: |
         image: docker.io/nginx:latest",
-        );
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
+        ));
 
         let result = parse_manifest(&mut (
             "invalid_manifest_with_tags_sequence".to_string(),
@@ -388,11 +394,11 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_previous_api_version_tags_as_sequence_ok() {
-        let manifest_content = Cursor::new(
-            b"apiVersion: \"v0.1\"\nworkloads:
-    simple:
-      runtime: podman
-      agent: agent_A
+        let manifest_content = Cursor::new(format!(
+            "apiVersion: \"v0.1\"\nworkloads:
+    {}:
+      runtime: {}
+      agent: {}
       tags:
         - key: owner
           value: Ankaios team
@@ -400,7 +406,10 @@ mod tests {
           value: 1.0
       runtimeConfig: |
         image: docker.io/nginx:latest",
-        );
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
+        ));
 
         assert!(
             parse_manifest(&mut (
@@ -414,17 +423,20 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_previous_api_version_tags_as_mapping_fails() {
-        let manifest_content = Cursor::new(
-            b"apiVersion: \"v0.1\"\nworkloads:
-    simple:
-      runtime: podman
-      agent: agent_A
+        let manifest_content = Cursor::new(format!(
+            "apiVersion: \"v0.1\"\nworkloads:
+    {}:
+      runtime: {}
+      agent: {}
       tags:
         owner: Ankaios team
         version: 1.0
       runtimeConfig: |
         image: docker.io/nginx:latest",
-        );
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
+        ));
 
         let result = parse_manifest(&mut (
             "invalid_manifest_with_tags_mapping_old_version".to_string(),
@@ -519,7 +531,7 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_agent_name_provided_through_agent_flag() {
-        let workload: WorkloadNamed = generate_test_workload_with_param("agent_A", "runtime_X");
+        let workload = generate_test_workload_named();
         let state = generate_test_state_from_workloads(vec![workload.clone()]);
 
         let overwritten_agent_name = "overwritten_agent_name";
@@ -530,7 +542,7 @@ mod tests {
 
         assert_eq!(
             handle_agent_overwrite(
-                &vec![format!("workloads.{WORKLOAD_NAME_1}").into()],
+                &vec![format!("workloads.{}", fixtures::WORKLOAD_NAMES[0]).into()],
                 &Some(overwritten_agent_name.to_owned()),
                 state.try_into().unwrap(),
             )
@@ -542,14 +554,11 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_one_agent_name_provided_in_workloads() {
-        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
-            "agent_A",
-            "runtime_X",
-        )]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_named()]);
 
         assert_eq!(
             handle_agent_overwrite(
-                &vec![format!("workloads.{WORKLOAD_NAME_1}").into()],
+                &vec![format!("workloads.{}", fixtures::WORKLOAD_NAMES[0]).into()],
                 &None,
                 state.clone().try_into().unwrap(),
             )
@@ -562,17 +571,23 @@ mod tests {
     #[test]
     fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload() {
         let state = generate_test_state_from_workloads(vec![
-            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime_X")
-                .name(WORKLOAD_NAME_1),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime_X")
-                .name(WORKLOAD_NAME_2),
+            generate_test_workload_named_with_params(
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::AGENT_NAMES[0],
+                fixtures::RUNTIME_CONFIGS[0],
+            ),
+            generate_test_workload_named_with_params(
+                fixtures::WORKLOAD_NAMES[1],
+                fixtures::AGENT_NAMES[1],
+                fixtures::RUNTIME_CONFIGS[0],
+            ),
         ]);
 
         assert_eq!(
             handle_agent_overwrite(
                 &vec![
-                    format!("workloads.{WORKLOAD_NAME_1}").into(),
-                    format!("workloads.{WORKLOAD_NAME_2}").into()
+                    format!("workloads.{}", fixtures::WORKLOAD_NAMES[0]).into(),
+                    format!("workloads.{}", fixtures::WORKLOAD_NAMES[1]).into()
                 ],
                 &None,
                 state.clone().try_into().unwrap(),
@@ -586,20 +601,17 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
-        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
-            "agent_A",
-            "runtime_X",
-        )]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_named()]);
 
         let mut obj: Object = state.try_into().unwrap();
 
-        obj.remove(&format!("workloads.{WORKLOAD_NAME_1}.agent").into())
+        obj.remove(&format!("workloads.{}.agent", fixtures::WORKLOAD_NAMES[0]).into())
             .unwrap();
 
         assert_eq!(
             Err("No agent name specified -> use '--agent' option to specify!".to_string()),
             handle_agent_overwrite(
-                &vec![format!("workloads.{WORKLOAD_NAME_1}").into()],
+                &vec![format!("workloads.{}", fixtures::WORKLOAD_NAMES[0]).into()],
                 &None,
                 obj
             )
@@ -609,25 +621,23 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_missing_agent_name() {
-        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
-            "agent_A".to_string(),
-            "runtime_X".to_string(),
-        )]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_named()]);
 
-        let expected_state =
-            generate_test_state_from_workloads(vec![generate_test_workload_with_param(
-                "overwritten_agent_name".to_string(),
-                "runtime_X".to_string(),
-            )]);
+        let expected_state = generate_test_state_from_workloads(vec![{
+            let mut workload = generate_test_workload_named();
+            workload.workload.agent = "overwritten_agent_name".to_string();
+            workload.instance_name.agent_name = "overwritten_agent_name".to_string();
+            workload
+        }]);
 
         let mut obj: Object = state.try_into().unwrap();
 
-        obj.remove(&format!("workloads.{WORKLOAD_NAME_1}.agent").into())
+        obj.remove(&format!("workloads.{}.agent", fixtures::WORKLOAD_NAMES[0]).into())
             .unwrap();
 
         assert_eq!(
             handle_agent_overwrite(
-                &vec![format!("workloads.{WORKLOAD_NAME_1}").into()],
+                &vec![format!("workloads.{}", fixtures::WORKLOAD_NAMES[0]).into()],
                 &Some("overwritten_agent_name".to_string()),
                 obj,
             )
@@ -639,23 +649,15 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_considers_only_workloads() {
-        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
-            "agent_A".to_string(),
-            "runtime_X".to_string(),
-        )]);
-
-        let expected_state =
-            generate_test_state_from_workloads(vec![generate_test_workload_with_param(
-                "agent_A".to_string(),
-                "runtime_X".to_string(),
-            )]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_named()]);
+        let expected_state = state.clone();
 
         let cli_specified_agent_name = None;
 
         assert_eq!(
             handle_agent_overwrite(
                 &vec![
-                    format!("workloads.{WORKLOAD_NAME_1}").into(),
+                    format!("workloads.{}", fixtures::WORKLOAD_NAMES[0]).into(),
                     "configs.config_key".into()
                 ],
                 &cli_specified_agent_name,
@@ -671,11 +673,11 @@ mod tests {
     #[test]
     fn utest_generate_state_obj_and_filter_masks_from_manifests_ok() {
         let manifest_file_name = "manifest.yaml";
-        let manifest_content = Cursor::new(
-            b"apiVersion: \"v1\"\nworkloads:
-        simple:
-          runtime: podman
-          agent: agent_A
+        let manifest_content = Cursor::new(format!(
+            "apiVersion: \"v1\"\nworkloads:
+        {}:
+          runtime: {}
+          agent: {}
           restartPolicy: ALWAYS
           updateStrategy: AT_MOST_ONCE
           accessRights:
@@ -686,7 +688,10 @@ mod tests {
           runtimeConfig: |
             image: docker.io/nginx:latest
             commandOptions: [\"-p\", \"8081:80\"]",
-        );
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
+        ));
 
         let mut data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut data);
@@ -696,7 +701,10 @@ mod tests {
             ..Default::default()
         };
 
-        let expected_filter_masks = vec!["desiredState.workloads.simple".to_string()];
+        let expected_filter_masks = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[0]
+        )];
 
         let mut manifests: Vec<InputSourcePair> =
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
@@ -719,21 +727,27 @@ mod tests {
     #[test]
     fn utest_generate_state_obj_and_filter_masks_from_manifests_delete_mode_ok() {
         let manifest_file_name = "manifest.yaml";
-        let manifest_content = Cursor::new(
-            b"apiVersion: \"v1\"\nworkloads:
-        simple:
-          runtime: podman
-          agent: agent_A
+        let manifest_content = Cursor::new(format!(
+            "apiVersion: \"v1\"\nworkloads:
+        {}:
+          runtime: {}
+          agent: {}
           runtimeConfig: |
             image: docker.io/nginx:latest
             commandOptions: [\"-p\", \"8081:80\"]",
-        );
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
+        ));
 
         let expected_complete_state_obj = CompleteStateSpec {
             ..Default::default()
         };
 
-        let expected_filter_masks = vec!["desiredState.workloads.simple".to_string()];
+        let expected_filter_masks = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[0]
+        )];
 
         let mut manifests: Vec<InputSourcePair> =
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
@@ -759,15 +773,18 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = Cursor::new(
-            b"apiVersion: \"v1\"\nworkloads:
-    simple_manifest1:
-      runtime: podman
-      agent: agent_A
+        let manifest_content = Cursor::new(format!(
+            "apiVersion: \"v1\"\nworkloads:
+    {}:
+      runtime: {}
+      agent: {}
       runtimeConfig: |
             image: docker.io/nginx:latest
             commandOptions: [\"-p\", \"8081:80\"]",
-        );
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
+        ));
 
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
@@ -776,17 +793,29 @@ mod tests {
             ..Default::default()
         };
 
+        let deleted_workload = format!(
+            "{}.{}.{}",
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::WORKLOAD_IDS[1],
+            fixtures::AGENT_NAMES[1]
+        );
+        let deleted_workload_instance_name: WorkloadInstanceNameSpec =
+            deleted_workload.clone().try_into().unwrap();
+
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_update_state()
             .with(
                 eq(updated_state.clone()),
-                eq(vec!["desiredState.workloads.simple_manifest1".to_string()]),
+                eq(vec![format!(
+                    "desiredState.workloads.{}",
+                    fixtures::WORKLOAD_NAMES[0]
+                )]),
             )
             .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
-                    deleted_workloads: vec!["name4.abc.agent_B".to_string()],
+                    deleted_workloads: vec![deleted_workload],
                 })
             });
         let updated_state_clone = updated_state.clone();
@@ -803,14 +832,14 @@ mod tests {
             .return_once(|| {
                 Ok(UpdateWorkloadState {
                     workload_states: vec![WorkloadStateSpec {
-                        instance_name: "name4.abc.agent_B".try_into().unwrap(),
+                        instance_name: deleted_workload_instance_name,
                         execution_state: ExecutionStateSpec::removed(),
                     }],
                 })
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -841,14 +870,19 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = Cursor::new(
-            b"apiVersion: \"v1\"\nworkloads:
-        simple_manifest1:
-          runtime: podman
-          agent: agent_A
+        // TODO here
+
+        let manifest_content = Cursor::new(format!(
+            "apiVersion: \"v1\"\nworkloads:
+        {}:
+          runtime: {}
+          agent: {}
           runtimeConfig: \"\"
             ",
-        );
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
+        ));
 
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
@@ -858,16 +892,28 @@ mod tests {
             ..Default::default()
         };
 
+        let added_workload = format!(
+            "{}.{}.{}",
+            fixtures::WORKLOAD_NAMES[0], // Same name
+            fixtures::WORKLOAD_IDS[1],
+            fixtures::AGENT_NAMES[1]
+        );
+        let added_workload_instance_name: WorkloadInstanceNameSpec =
+            added_workload.clone().try_into().unwrap();
+
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_update_state()
             .with(
                 eq(updated_state.clone()),
-                eq(vec!["desiredState.workloads.simple_manifest1".to_string()]),
+                eq(vec![format!(
+                    "desiredState.workloads.{}",
+                    fixtures::WORKLOAD_NAMES[0]
+                )]),
             )
             .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
-                    added_workloads: vec!["simple_manifest1.abc.agent_B".to_string()],
+                    added_workloads: vec![added_workload],
                     deleted_workloads: vec![],
                 })
             });
@@ -885,6 +931,7 @@ mod tests {
                     ..Default::default()
                 }))
             });
+        let added_workload_instance_name_clone = added_workload_instance_name.clone();
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(|| {
@@ -895,7 +942,7 @@ mod tests {
                     }),
                     FromServer::UpdateWorkloadState(UpdateWorkloadState {
                         workload_states: vec![WorkloadStateSpec {
-                            instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
+                            instance_name: added_workload_instance_name_clone,
                             execution_state: ExecutionStateSpec::running(),
                         }],
                     }),
@@ -906,14 +953,14 @@ mod tests {
             .return_once(|| {
                 Ok(UpdateWorkloadState {
                     workload_states: vec![WorkloadStateSpec {
-                        instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
+                        instance_name: added_workload_instance_name,
                         execution_state: ExecutionStateSpec::running(),
                     }],
                 })
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -978,7 +1025,7 @@ mod tests {
             .never();
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: true,
             server_connection: mock_server_connection,
         };
@@ -1025,7 +1072,7 @@ mod tests {
             .never();
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -1054,14 +1101,16 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = Cursor::new(
-            b"apiVersion: \"v1\"\nworkloads:
+        let manifest_content = Cursor::new(format!(
+            "apiVersion: \"v1\"\nworkloads:
             simple.manifest1:
-              runtime: podman
-              agent: agent_A
+              runtime: {}
+              agent: {}
               runtimeConfig: \"\"
                 ",
-        );
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
+        ));
 
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
@@ -1070,6 +1119,14 @@ mod tests {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
+
+        let added_workload = format!(
+            "simple_manifest1.{}.{}",
+            fixtures::WORKLOAD_IDS[1],
+            fixtures::AGENT_NAMES[1]
+        );
+        let added_workload_instance_name: WorkloadInstanceNameSpec =
+            added_workload.clone().try_into().unwrap();
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
@@ -1080,7 +1137,7 @@ mod tests {
             )
             .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
-                    added_workloads: vec!["simple_manifest1.abc.agent_B".to_string()],
+                    added_workloads: vec![added_workload],
                     deleted_workloads: vec![],
                 })
             });
@@ -1093,6 +1150,7 @@ mod tests {
                     ..Default::default()
                 }))
             });
+        let added_workload_instance_name_clone = added_workload_instance_name.clone();
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(|| {
@@ -1103,7 +1161,7 @@ mod tests {
                     }),
                     FromServer::UpdateWorkloadState(UpdateWorkloadState {
                         workload_states: vec![WorkloadStateSpec {
-                            instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
+                            instance_name: added_workload_instance_name_clone,
                             execution_state: ExecutionStateSpec::running(),
                         }],
                     }),
@@ -1114,14 +1172,14 @@ mod tests {
             .return_once(|| {
                 Ok(UpdateWorkloadState {
                     workload_states: vec![WorkloadStateSpec {
-                        instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
+                        instance_name: added_workload_instance_name,
                         execution_state: ExecutionStateSpec::running(),
                     }],
                 })
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };

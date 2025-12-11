@@ -23,6 +23,7 @@
         "templating",
         "unrendered",
         "utest",
+        "varint",
         "VecDeque"
     ],
     "markdown-preview-github-styles.colorTheme": "light",

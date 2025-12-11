@@ -14,11 +14,28 @@
 
 use tonic_prost_build::Builder;
 
+/// This function provides the proto objects with annotations required for the
+/// generation of the spec objects.
+///
+/// All spec macros are configured in the `spec_macros` crate.
+pub fn setup_spec_objects(mut builder: Builder) -> Builder {
+    builder = setup_spec_files(builder);
+    builder = setup_spec_control_interface_access(builder);
+    builder = setup_spec_workload_instance_name(builder);
+    builder = setup_spec_agent_map(builder);
+    builder = setup_spec_configs(builder);
+    builder = setup_spec_workload_states(builder);
+    builder = setup_spec_workload(builder);
+    builder = setup_spec_state(builder);
+    builder = setup_spec_requests(builder);
+    builder
+}
+
 /// This function is used to create and configure the following structs:
 /// - CompleteStateSpec
 /// - StateSpec
 /// - WorkloadMapSpec
-pub fn setup_spec_state(builder: Builder) -> Builder {
+fn setup_spec_state(builder: Builder) -> Builder {
     builder
         .message_attribute(
             "CompleteState",
@@ -68,7 +85,7 @@ pub fn setup_spec_state(builder: Builder) -> Builder {
 /// - FilesSpec
 /// - FileSpec
 /// - FileContentSpec
-pub fn setup_spec_files(builder: Builder) -> Builder {
+fn setup_spec_files(builder: Builder) -> Builder {
     builder
         .message_attribute("Files", "#[derive(spec_macros::Spec)]")
         .message_attribute(
@@ -112,7 +129,7 @@ pub fn setup_spec_files(builder: Builder) -> Builder {
 /// - WorkloadSpec
 /// - DependenciesSpec
 /// - TagsSpec
-pub fn setup_spec_workload(builder: Builder) -> Builder {
+fn setup_spec_workload(builder: Builder) -> Builder {
     builder
         .message_attribute("Workload", "#[derive(spec_macros::Spec)]")
         .message_attribute(
@@ -163,7 +180,7 @@ pub fn setup_spec_workload(builder: Builder) -> Builder {
 
 /// This function is used to create and configure the following structs:
 /// - WorkloadInstanceNameSpec
-pub fn setup_spec_workload_instance_name(builder: Builder) -> Builder {
+fn setup_spec_workload_instance_name(builder: Builder) -> Builder {
     builder.message_attribute(
         "WorkloadInstanceName",
         "#[derive(spec_macros::Spec)]",
@@ -184,7 +201,7 @@ pub fn setup_spec_workload_instance_name(builder: Builder) -> Builder {
 /// - AccessRightsRuleEnumSpec
 /// - StateRuleSpec
 /// - LogRuleSpec
-pub fn setup_spec_control_interface_access(builder: Builder) -> Builder {
+fn setup_spec_control_interface_access(builder: Builder) -> Builder {
     builder
         .message_attribute(
             "ControlInterfaceAccess",
@@ -264,7 +281,7 @@ pub fn setup_spec_control_interface_access(builder: Builder) -> Builder {
 /// - ConfigItemEnumSpec
 /// - ConfigObjectSpec
 /// - ConfigArraySpec
-pub fn setup_spec_configs(builder: Builder) -> Builder {
+fn setup_spec_configs(builder: Builder) -> Builder {
     builder
         .message_attribute(
             "ConfigMappings",
@@ -325,7 +342,7 @@ pub fn setup_spec_configs(builder: Builder) -> Builder {
 /// - AgentStatusSpec
 /// - CpuUsageSpec
 /// - FreeMemorySpec
-pub fn setup_spec_agent_map(builder: Builder) -> Builder {
+fn setup_spec_agent_map(builder: Builder) -> Builder {
     builder
         .message_attribute("AgentMap", "#[derive(spec_macros::Spec)]")
         .message_attribute(
@@ -367,7 +384,7 @@ pub fn setup_spec_agent_map(builder: Builder) -> Builder {
 /// - ExecutionsStatesForIdSpec
 /// - ExecutionStateSpec
 /// - ExecutionStateEnumSpec
-pub fn setup_spec_workload_states(builder: Builder) -> Builder {
+fn setup_spec_workload_states(builder: Builder) -> Builder {
     builder
     .message_attribute(
         "WorkloadState",
@@ -464,7 +481,7 @@ pub fn setup_spec_workload_states(builder: Builder) -> Builder {
 /// - CompleteStateRequestSpec
 /// - RequestContentSpec
 /// - RequestSpec
-pub fn setup_spec_requests(builder: Builder) -> Builder {
+fn setup_spec_requests(builder: Builder) -> Builder {
     builder
         .message_attribute("LogsRequest", "#[derive(spec_macros::Spec)]")
         .message_attribute(

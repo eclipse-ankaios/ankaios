@@ -296,11 +296,10 @@ mod tests {
         workload_state_store::{MockWorkloadStateStore, mock_parameter_storage_new_returns},
     };
 
-    use ankaios_api::ank_base::{
-        self, CpuUsageSpec, ExecutionStateSpec, FreeMemorySpec, LogsRequestSpec, WorkloadNamed,
-    };
+    use ankaios_api::ank_base::{self, ExecutionStateSpec, LogsRequestSpec};
     use ankaios_api::test_utils::{
-        generate_test_workload_state_with_agent, generate_test_workload_with_param,
+        generate_test_workload_named, generate_test_workload_named_with_params,
+        generate_test_workload_state_with_agent, fixtures,
     };
     use common::{
         commands::UpdateWorkloadState,
@@ -314,13 +313,6 @@ mod tests {
         sync::mpsc::{Sender, channel},
     };
 
-    const BUFFER_SIZE: usize = 20;
-    const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_1_NAME: &str = "workload1";
-    const WORKLOAD_2_NAME: &str = "workload2";
-    const REQUEST_ID: &str = "request_id";
-    const RUNTIME_NAME: &str = "runtime_name";
-
     // [utest->swdd~agent-manager-listens-requests-from-server~1]
     // [utest->swdd~agent-uses-async-channels~1]
     // [utest->swdd~agent-handles-update-workload-requests~1]
@@ -333,9 +325,9 @@ mod tests {
         let mock_wl_state_store_context = MockWorkloadStateStore::default();
         mock_parameter_storage_new_returns(mock_wl_state_store_context);
 
-        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, _) = channel(BUFFER_SIZE);
-        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+        let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (to_server, _) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (_workload_state_sender, workload_state_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager
             .expect_handle_update_workload()
@@ -349,20 +341,24 @@ mod tests {
             .return_once(MockResourceMonitor::default);
 
         let mut agent_manager = AgentManager::new(
-            AGENT_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             manager_receiver,
             mock_runtime_manager,
             to_server,
             workload_state_receiver,
         );
 
-        let workload_1 =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
-                .name(WORKLOAD_1_NAME);
+        let workload_1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
-        let workload_2 =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
-                .name(WORKLOAD_2_NAME);
+        let workload_2 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
 
         let handle = tokio::spawn(async move { agent_manager.start().await });
 
@@ -386,13 +382,13 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, _) = channel(BUFFER_SIZE);
-        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+        let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (to_server, _) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (_workload_state_sender, workload_state_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload_state = generate_test_workload_state_with_agent(
-            WORKLOAD_1_NAME,
-            AGENT_NAME,
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         );
 
@@ -416,7 +412,7 @@ mod tests {
             .return_once(MockResourceMonitor::default);
 
         let mut agent_manager = AgentManager::new(
-            AGENT_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             manager_receiver,
             mock_runtime_manager,
             to_server,
@@ -444,9 +440,9 @@ mod tests {
         let mock_wl_state_store = MockWorkloadStateStore::default();
         mock_parameter_storage_new_returns(mock_wl_state_store);
 
-        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, _) = channel(BUFFER_SIZE);
-        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+        let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (to_server, _) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (_workload_state_sender, workload_state_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager.expect_handle_update_workload().never();
@@ -458,7 +454,7 @@ mod tests {
             .return_once(MockResourceMonitor::default);
 
         let mut agent_manager = AgentManager::new(
-            AGENT_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             manager_receiver,
             mock_runtime_manager,
             to_server,
@@ -488,11 +484,11 @@ mod tests {
         let mock_wl_state_store_context = MockWorkloadStateStore::default();
         mock_parameter_storage_new_returns(mock_wl_state_store_context);
 
-        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, _) = channel(BUFFER_SIZE);
-        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+        let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (to_server, _) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (_workload_state_sender, workload_state_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
 
-        let request_id = format!("{WORKLOAD_1_NAME}@{REQUEST_ID}");
+        let request_id = format!("{}@{}", fixtures::WORKLOAD_NAMES[0], fixtures::REQUEST_ID);
         let complete_state: ank_base::CompleteState = Default::default();
 
         let response = ank_base::Response {
@@ -519,7 +515,7 @@ mod tests {
             .return_once(MockResourceMonitor::default);
 
         let mut agent_manager = AgentManager::new(
-            AGENT_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             manager_receiver,
             mock_runtime_manager,
             to_server,
@@ -549,26 +545,26 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
-        let (workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+        let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (to_server, mut to_server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (workload_state_sender, workload_state_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload_state_incoming = generate_test_workload_state_with_agent(
-            WORKLOAD_1_NAME,
-            AGENT_NAME,
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         );
 
         let wl_state_after_hysteresis = generate_test_workload_state_with_agent(
-            WORKLOAD_1_NAME,
-            AGENT_NAME,
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::stopping_requested(),
         );
 
         let mut mock_wl_state_store = MockWorkloadStateStore::default();
 
         mock_wl_state_store.states_storage.insert(
-            WORKLOAD_1_NAME.to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
             ExecutionStateSpec::stopping_requested(),
         );
 
@@ -587,12 +583,7 @@ mod tests {
         let mut mock_resource_monitor = MockResourceMonitor::default();
         mock_resource_monitor
             .expect_sample_resource_usage()
-            .returning(|| {
-                (
-                    CpuUsageSpec { cpu_usage: 50 },
-                    FreeMemorySpec { free_memory: 1024 },
-                )
-            });
+            .returning(|| (fixtures::CPU_USAGE_SPEC, fixtures::FREE_MEMORY_SPEC));
 
         let mock_resource_monitor_context = MockResourceMonitor::new_context();
         mock_resource_monitor_context
@@ -601,7 +592,7 @@ mod tests {
             .return_once(|| mock_resource_monitor);
 
         let mut agent_manager = AgentManager::new(
-            AGENT_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             manager_receiver,
             mock_runtime_manager,
             to_server,
@@ -644,9 +635,9 @@ mod tests {
         let mock_wl_state_store = MockWorkloadStateStore::default();
         mock_parameter_storage_new_returns(mock_wl_state_store);
 
-        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, mut server_receiver) = channel(BUFFER_SIZE);
-        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+        let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (to_server, mut server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (_workload_state_sender, workload_state_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager.expect_handle_update_workload().never();
         mock_runtime_manager.expect_forward_response().never();
@@ -664,17 +655,12 @@ mod tests {
                 let mut mock_resource_monitor = MockResourceMonitor::default();
                 mock_resource_monitor
                     .expect_sample_resource_usage()
-                    .returning(|| {
-                        (
-                            CpuUsageSpec { cpu_usage: 50 },
-                            FreeMemorySpec { free_memory: 1024 },
-                        )
-                    });
+                    .returning(|| (fixtures::CPU_USAGE_SPEC, fixtures::FREE_MEMORY_SPEC));
                 mock_resource_monitor
             });
 
         let mut agent_manager = AgentManager::new(
-            AGENT_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             manager_receiver,
             mock_runtime_manager,
             to_server,
@@ -685,7 +671,7 @@ mod tests {
 
         let result = server_receiver.recv().await.unwrap();
         if let ToServer::AgentLoadStatus(load_status) = result {
-            assert_eq!(load_status.agent_name, AGENT_NAME.to_string());
+            assert_eq!(load_status.agent_name, fixtures::AGENT_NAMES[0].to_string());
             assert_eq!(load_status.cpu_usage.cpu_usage, 50);
             assert_eq!(load_status.free_memory.free_memory, 1024);
         } else {
@@ -706,11 +692,11 @@ mod tests {
         let mock_wl_state_store = MockWorkloadStateStore::default();
         mock_parameter_storage_new_returns(mock_wl_state_store);
 
-        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, _server_receiver) = channel(BUFFER_SIZE);
-        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+        let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (to_server, _server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (_workload_state_sender, workload_state_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
 
-        let workload: WorkloadNamed = generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
+        let workload = generate_test_workload_named();
 
         let mock_runtime_manager = RuntimeManager::default();
 
@@ -734,7 +720,7 @@ mod tests {
             .expect()
             .once()
             .with(
-                predicate::eq(REQUEST_ID.to_string()),
+                predicate::eq(fixtures::REQUEST_ID.to_string()),
                 predicate::eq(logs_request.clone()),
                 predicate::function(move |to_server_sender: &Sender<ToServer>| {
                     to_server_sender.same_channel(&to_server_clone)
@@ -745,7 +731,7 @@ mod tests {
             .return_const(());
 
         let mut agent_manager = AgentManager::new(
-            AGENT_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             manager_receiver,
             mock_runtime_manager,
             to_server,
@@ -755,7 +741,7 @@ mod tests {
         assert!(
             to_manager
                 .logs_request(
-                    REQUEST_ID.to_string(),
+                    fixtures::REQUEST_ID.to_string(),
                     ank_base::LogsRequest {
                         workload_names: vec![ank_base::WorkloadInstanceName {
                             workload_name: logs_request.workload_names[0]
@@ -790,9 +776,9 @@ mod tests {
         let mock_wl_state_store = MockWorkloadStateStore::default();
         mock_parameter_storage_new_returns(mock_wl_state_store);
 
-        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, _server_receiver) = channel(BUFFER_SIZE);
-        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+        let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (to_server, _server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (_workload_state_sender, workload_state_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
 
         let mock_runtime_manager = RuntimeManager::default();
 
@@ -803,7 +789,7 @@ mod tests {
             .return_once(MockResourceMonitor::default);
 
         let mut agent_manager = AgentManager::new(
-            AGENT_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             manager_receiver,
             mock_runtime_manager,
             to_server,
@@ -811,14 +797,14 @@ mod tests {
         );
 
         let subscription_store = agent_manager.subscription_store.clone();
-        subscription_store
-            .lock()
-            .unwrap()
-            .add_subscription(REQUEST_ID.to_string(), generate_test_subscription_entry());
+        subscription_store.lock().unwrap().add_subscription(
+            fixtures::REQUEST_ID.to_string(),
+            generate_test_subscription_entry(),
+        );
 
         assert!(
             to_manager
-                .logs_cancel_request(REQUEST_ID.to_string())
+                .logs_cancel_request(fixtures::REQUEST_ID.to_string())
                 .await
                 .is_ok()
         );
@@ -838,9 +824,9 @@ mod tests {
         let mock_wl_state_store = MockWorkloadStateStore::default();
         mock_parameter_storage_new_returns(mock_wl_state_store);
 
-        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, _server_receiver) = channel(BUFFER_SIZE);
-        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+        let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (to_server, _server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+        let (_workload_state_sender, workload_state_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
 
         let mock_runtime_manager = RuntimeManager::default();
 
@@ -851,7 +837,7 @@ mod tests {
             .return_once(MockResourceMonitor::default);
 
         let mut agent_manager = AgentManager::new(
-            AGENT_NAME.to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             manager_receiver,
             mock_runtime_manager,
             to_server,
@@ -862,7 +848,10 @@ mod tests {
             .subscription_store
             .lock()
             .unwrap()
-            .add_subscription(REQUEST_ID.to_string(), generate_test_subscription_entry());
+            .add_subscription(
+                fixtures::REQUEST_ID.to_string(),
+                generate_test_subscription_entry(),
+            );
 
         assert!(to_manager.send(FromServer::ServerGone).await.is_ok());
         to_manager.stop().await.unwrap();

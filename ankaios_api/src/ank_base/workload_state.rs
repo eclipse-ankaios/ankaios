@@ -52,15 +52,17 @@ impl ExecutionStateSpec {
     pub fn transition(&self, incoming: ExecutionStateSpec) -> ExecutionStateSpec {
         match (&self.state(), &incoming.state()) {
             (
+                // Skip transitions from stopping states:
                 ExecutionStateEnumSpec::Stopping(Stopping::RequestedAtRuntime)
                 | ExecutionStateEnumSpec::Stopping(Stopping::WaitingToStop),
+                // to these states:
                 ExecutionStateEnumSpec::Running(Running::Ok)
                 | ExecutionStateEnumSpec::Succeeded(Succeeded::Ok)
                 | ExecutionStateEnumSpec::Failed(Failed::ExecFailed)
                 | ExecutionStateEnumSpec::Failed(Failed::Lost)
                 | ExecutionStateEnumSpec::Failed(Failed::Unknown),
             ) => {
-                // log::trace!("Skipping transition from '{self}' to '{incoming}' state.");
+                log::trace!("Skipping transition from '{self}' to '{incoming}' state.");
                 self.clone()
             }
             _ => incoming,
@@ -266,45 +268,6 @@ impl Display for ExecutionStateSpec {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
-
-#[cfg(any(feature = "test_utils", test))]
-use crate::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec};
-#[cfg(any(feature = "test_utils", test))]
-use crate::test_utils::generate_test_runtime_config;
-
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_state_with_agent(
-    workload_name: &str,
-    agent_name: &str,
-    execution_state: ExecutionStateSpec,
-) -> WorkloadStateSpec {
-    WorkloadStateSpec {
-        instance_name: WorkloadInstanceNameSpec::builder()
-            .workload_name(workload_name)
-            .agent_name(agent_name)
-            .config(&generate_test_runtime_config())
-            .build(),
-        execution_state,
-    }
-}
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_state_with_workload_named(
-    workload_named: &WorkloadNamed,
-    execution_state: ExecutionStateSpec,
-) -> WorkloadStateSpec {
-    WorkloadStateSpec {
-        instance_name: workload_named.instance_name.clone(),
-        execution_state,
-    }
-}
-
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_state(
-    workload_name: &str,
-    execution_state: ExecutionStateSpec,
-) -> WorkloadStateSpec {
-    generate_test_workload_state_with_agent(workload_name, "agent_name", execution_state)
-}
 
 // [utest->swdd~common-conversions-between-ankaios-and-proto~1]
 // [utest->swdd~common-object-representation~1]

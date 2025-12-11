@@ -568,7 +568,9 @@ mod tests {
         ResponseContent, StateSpec, UpdateStateRequestSpec, UpdateStateSuccess,
         WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadSpec, WorkloadStateSpec,
     };
-    use ankaios_api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
+    use ankaios_api::test_utils::{
+        fixtures, generate_test_proto_complete_state, generate_test_workload,
+    };
     use common::{
         commands::UpdateWorkloadState, from_server_interface::FromServer,
         to_server_interface::ToServer,
@@ -580,14 +582,8 @@ mod tests {
         oneshot,
     };
 
-    const WORKLOAD_NAME_1: &str = "workload_1";
-    const WORKLOAD_NAME_2: &str = "workload_2";
-    const AGENT_A: &str = "agent_A";
-    const RUNTIME: &str = "runtime";
-    const REQUEST: &str = "request";
     const OTHER_REQUEST: &str = "other_request";
     const FIELD_MASK: &str = "field_mask";
-    const ID: &str = "id";
 
     #[derive(Default)]
     struct CommunicationSimulator {
@@ -707,8 +703,8 @@ mod tests {
                     workloads: [(
                         workload_name.into(),
                         WorkloadSpec {
-                            agent: AGENT_A.into(),
-                            runtime: RUNTIME.into(),
+                            agent: fixtures::AGENT_NAMES[0].into(),
+                            runtime: fixtures::RUNTIME_NAMES[0].into(),
                             ..Default::default()
                         },
                     )]
@@ -721,27 +717,33 @@ mod tests {
     }
 
     fn instance_name(workload_name: &str) -> WorkloadInstanceNameSpec {
-        format!("{workload_name}.{ID}.{AGENT_A}")
-            .try_into()
-            .unwrap()
+        format!(
+            "{workload_name}.{}.{}",
+            fixtures::WORKLOAD_IDS[0],
+            fixtures::AGENT_NAMES[0]
+        )
+        .try_into()
+        .unwrap()
     }
 
     #[tokio::test]
     async fn utest_get_complete_state() {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
                 subscribe_for_events: false,
             }),
         );
 
-        let proto_complete_state =
-            generate_test_proto_complete_state(&[(WORKLOAD_NAME_1, generate_test_workload())]);
+        let proto_complete_state = generate_test_proto_complete_state(&[(
+            fixtures::WORKLOAD_NAMES[0],
+            generate_test_workload().into(),
+        )]);
 
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::CompleteStateResponse(Box::new(CompleteStateResponse {
                 complete_state: Some(proto_complete_state.clone()),
                 ..Default::default()
@@ -777,7 +779,7 @@ mod tests {
     async fn utest_get_complete_state_fails_no_response() {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
                 subscribe_for_events: false,
@@ -794,16 +796,18 @@ mod tests {
     // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_get_complete_state_other_response_in_between() {
-        let proto_complete_state =
-            generate_test_proto_complete_state(&[(WORKLOAD_NAME_1, generate_test_workload())]);
+        let proto_complete_state = generate_test_proto_complete_state(&[(
+            fixtures::WORKLOAD_NAMES[0],
+            generate_test_workload().into(),
+        )]);
 
         let other_response = FromServer::Response(Response {
             request_id: OTHER_REQUEST.into(),
             response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
                 CompleteStateResponse {
                     complete_state: Some(generate_test_proto_complete_state(&[(
-                        WORKLOAD_NAME_2,
-                        generate_test_workload(),
+                        fixtures::WORKLOAD_NAMES[1],
+                        generate_test_workload().into(),
                     )])),
                     ..Default::default()
                 },
@@ -812,7 +816,7 @@ mod tests {
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
                 subscribe_for_events: false,
@@ -820,7 +824,7 @@ mod tests {
         );
         sim.will_send_message(other_response.clone());
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::CompleteStateResponse(Box::new(CompleteStateResponse {
                 complete_state: Some(proto_complete_state.clone()),
                 ..Default::default()
@@ -846,12 +850,14 @@ mod tests {
         let other_message = FromServer::UpdateWorkloadState(UpdateWorkloadState {
             workload_states: vec![],
         });
-        let proto_complete_state =
-            generate_test_proto_complete_state(&[(WORKLOAD_NAME_1, generate_test_workload())]);
+        let proto_complete_state = generate_test_proto_complete_state(&[(
+            fixtures::WORKLOAD_NAMES[0],
+            generate_test_workload().into(),
+        )]);
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
                 subscribe_for_events: false,
@@ -859,7 +865,7 @@ mod tests {
         );
         sim.will_send_message(other_message.clone());
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::CompleteStateResponse(Box::new(CompleteStateResponse {
                 complete_state: Some(proto_complete_state.clone()),
                 ..Default::default()
@@ -882,26 +888,29 @@ mod tests {
     #[tokio::test]
     async fn utest_update_state() {
         let update_state_success = UpdateStateSuccess {
-            added_workloads: vec![WORKLOAD_NAME_1.into()],
+            added_workloads: vec![fixtures::WORKLOAD_NAMES[0].into()],
             deleted_workloads: vec![],
         };
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
-                new_state: complete_state(WORKLOAD_NAME_1),
+                new_state: complete_state(fixtures::WORKLOAD_NAMES[0]),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::UpdateStateSuccess(update_state_success.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(
+                complete_state(fixtures::WORKLOAD_NAMES[0]),
+                vec![FIELD_MASK.into()],
+            )
             .await;
 
         assert!(result.is_ok());
@@ -918,7 +927,10 @@ mod tests {
         server_connection.to_server = to_server;
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(
+                complete_state(fixtures::WORKLOAD_NAMES[0]),
+                vec![FIELD_MASK.into()],
+            )
             .await;
 
         assert!(result.is_err());
@@ -928,9 +940,9 @@ mod tests {
     async fn utest_update_state_fails_no_response() {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
-                new_state: complete_state(WORKLOAD_NAME_1),
+                new_state: complete_state(fixtures::WORKLOAD_NAMES[0]),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -938,7 +950,10 @@ mod tests {
         let (_, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(
+                complete_state(fixtures::WORKLOAD_NAMES[0]),
+                vec![FIELD_MASK.into()],
+            )
             .await;
 
         assert!(result.is_err());
@@ -948,21 +963,24 @@ mod tests {
     async fn utest_update_state_fails_error_response() {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
-                new_state: complete_state(WORKLOAD_NAME_1),
+                new_state: complete_state(fixtures::WORKLOAD_NAMES[0]),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::Error(Error { message: "".into() }),
         );
 
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(
+                complete_state(fixtures::WORKLOAD_NAMES[0]),
+                vec![FIELD_MASK.into()],
+            )
             .await;
 
         assert!(result.is_err());
@@ -973,9 +991,9 @@ mod tests {
     async fn utest_update_state_fails_response_timeout() {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
-                new_state: complete_state(WORKLOAD_NAME_1),
+                new_state: complete_state(fixtures::WORKLOAD_NAMES[0]),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -985,7 +1003,10 @@ mod tests {
         server_connection.from_server = from_server;
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(
+                complete_state(fixtures::WORKLOAD_NAMES[0]),
+                vec![FIELD_MASK.into()],
+            )
             .await;
 
         assert!(result.is_err());
@@ -996,7 +1017,7 @@ mod tests {
     #[tokio::test]
     async fn utest_update_state_other_response_in_between() {
         let update_state_success = UpdateStateSuccess {
-            added_workloads: vec![WORKLOAD_NAME_1.into()],
+            added_workloads: vec![fixtures::WORKLOAD_NAMES[0].into()],
             deleted_workloads: vec![],
         };
         let other_response = FromServer::Response(Response {
@@ -1004,8 +1025,8 @@ mod tests {
             response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
                 CompleteStateResponse {
                     complete_state: Some(generate_test_proto_complete_state(&[(
-                        WORKLOAD_NAME_2,
-                        generate_test_workload(),
+                        fixtures::WORKLOAD_NAMES[1],
+                        generate_test_workload().into(),
                     )])),
                     ..Default::default()
                 },
@@ -1014,21 +1035,24 @@ mod tests {
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
-                new_state: complete_state(WORKLOAD_NAME_1),
+                new_state: complete_state(fixtures::WORKLOAD_NAMES[0]),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
         sim.will_send_message(other_response.clone());
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::UpdateStateSuccess(update_state_success.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(
+                complete_state(fixtures::WORKLOAD_NAMES[0]),
+                vec![FIELD_MASK.into()],
+            )
             .await;
 
         assert!(result.is_ok());
@@ -1044,7 +1068,7 @@ mod tests {
     #[tokio::test]
     async fn utest_update_state_other_message_in_between() {
         let update_state_success = UpdateStateSuccess {
-            added_workloads: vec![WORKLOAD_NAME_1.into()],
+            added_workloads: vec![fixtures::WORKLOAD_NAMES[0].into()],
             deleted_workloads: vec![],
         };
         let other_message = FromServer::UpdateWorkloadState(UpdateWorkloadState {
@@ -1053,21 +1077,24 @@ mod tests {
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
-                new_state: complete_state(WORKLOAD_NAME_1),
+                new_state: complete_state(fixtures::WORKLOAD_NAMES[0]),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
         sim.will_send_message(other_message.clone());
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::UpdateStateSuccess(update_state_success.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(
+                complete_state(fixtures::WORKLOAD_NAMES[0]),
+                vec![FIELD_MASK.into()],
+            )
             .await;
 
         assert!(result.is_ok());
@@ -1083,7 +1110,7 @@ mod tests {
     async fn utest_read_next_update_workload_state() {
         let update_workload_state = UpdateWorkloadState {
             workload_states: vec![WorkloadStateSpec {
-                instance_name: instance_name(WORKLOAD_NAME_1),
+                instance_name: instance_name(fixtures::WORKLOAD_NAMES[0]),
                 execution_state: ExecutionStateSpec::running(),
             }],
         };
@@ -1105,12 +1132,12 @@ mod tests {
     #[tokio::test]
     async fn utest_read_next_update_workload_state_other_message_in_between() {
         let other_message = FromServer::Response(Response {
-            request_id: REQUEST.into(),
+            request_id: fixtures::REQUEST_ID.into(),
             response_content: Some(ResponseContent::Error(Error { message: "".into() })),
         });
         let update_workload_state = UpdateWorkloadState {
             workload_states: vec![WorkloadStateSpec {
-                instance_name: instance_name(WORKLOAD_NAME_1),
+                instance_name: instance_name(fixtures::WORKLOAD_NAMES[0]),
                 execution_state: ExecutionStateSpec::running(),
             }],
         };
@@ -1152,7 +1179,10 @@ mod tests {
     async fn utest_stream_logs_multiple_workloads_no_follow() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string(), WORKLOAD_NAME_2.to_string()],
+            workload_name: vec![
+                fixtures::WORKLOAD_NAMES[0].to_string(),
+                fixtures::WORKLOAD_NAMES[1].to_string(),
+            ],
             follow: false,
             tail: -1,
             since: None,
@@ -1160,8 +1190,8 @@ mod tests {
             output_names: false,
         };
 
-        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
-        let instance_name_2 = instance_name(WORKLOAD_NAME_2);
+        let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
+        let instance_name_2 = instance_name(fixtures::WORKLOAD_NAMES[1]);
 
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone(), instance_name_2.clone()];
@@ -1169,7 +1199,7 @@ mod tests {
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
@@ -1180,7 +1210,7 @@ mod tests {
         );
 
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
                 workload_names: vec![
                     instance_name_1.clone().into(),
@@ -1201,21 +1231,21 @@ mod tests {
         ];
 
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::LogEntriesResponse(LogEntriesResponse {
                 log_entries: log_entries.clone(),
             }),
         );
 
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::LogsStopResponse(LogsStopResponse {
                 workload_name: Some(instance_name_1.into()),
             }),
         );
 
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::LogsStopResponse(LogsStopResponse {
                 workload_name: Some(instance_name_2.into()),
             }),
@@ -1255,7 +1285,7 @@ mod tests {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let log_args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -1263,7 +1293,7 @@ mod tests {
             output_names: false,
         };
 
-        let instance_names_set = BTreeSet::from([instance_name(WORKLOAD_NAME_1)]);
+        let instance_names_set = BTreeSet::from([instance_name(fixtures::WORKLOAD_NAMES[0])]);
 
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();
         signal_handler_context.expect().never();
@@ -1291,9 +1321,9 @@ mod tests {
     #[test]
     fn utest_output_log_line_without_workload_name_upon_single_workload() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
-        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
         let log_args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -1321,9 +1351,9 @@ mod tests {
     #[test]
     fn utest_output_log_line_with_prefixed_workload_name_upon_provided_force_names_argument() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
-        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
         let log_args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -1360,7 +1390,7 @@ mod tests {
     async fn utest_stream_logs_response_error() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -1369,13 +1399,13 @@ mod tests {
         };
 
         let mut sim = CommunicationSimulator::default();
-        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
         let instance_names = vec![instance_name_1.clone()];
         let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
@@ -1386,14 +1416,14 @@ mod tests {
         );
 
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
                 workload_names: vec![instance_name_1.into()],
             }),
         );
 
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::Error(Error {
                 message: "log collection error.".to_string(),
             }),
@@ -1429,7 +1459,7 @@ mod tests {
     async fn utest_stream_logs_ignore_unrelated_response() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -1437,14 +1467,14 @@ mod tests {
             output_names: false,
         };
 
-        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
         let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
@@ -1455,7 +1485,7 @@ mod tests {
         );
 
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
                 workload_names: vec![instance_name_1.clone().into()],
             }),
@@ -1463,16 +1493,16 @@ mod tests {
 
         // Send unrelated response that should be ignored in the log streaming
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
-                added_workloads: vec![WORKLOAD_NAME_2.into()],
+                added_workloads: vec![fixtures::WORKLOAD_NAMES[1].into()],
                 ..Default::default()
             }),
         );
 
         // just to stop the streaming
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::LogsStopResponse(LogsStopResponse {
                 workload_name: Some(instance_name_1.into()),
             }),
@@ -1503,7 +1533,7 @@ mod tests {
     async fn utest_stream_logs_send_logs_cancel_request_upon_termination_signal() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: true,
             tail: -1,
             since: None,
@@ -1511,14 +1541,14 @@ mod tests {
             output_names: false,
         };
 
-        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
         let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
@@ -1529,14 +1559,14 @@ mod tests {
         );
 
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
                 workload_names: vec![instance_name_1.into()],
             }),
         );
 
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
         );
 
@@ -1563,7 +1593,7 @@ mod tests {
     async fn utest_stream_logs_ignore_unexpected_message_instead_of_logs_request_accepted() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -1571,14 +1601,14 @@ mod tests {
             output_names: false,
         };
 
-        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1];
         let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
@@ -1589,18 +1619,18 @@ mod tests {
         );
 
         let unexpected_message = ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
-            added_workloads: vec![WORKLOAD_NAME_1.into()],
+            added_workloads: vec![fixtures::WORKLOAD_NAMES[0].into()],
             deleted_workloads: vec![],
         });
 
-        sim.will_send_response(REQUEST, unexpected_message);
+        sim.will_send_response(fixtures::REQUEST_ID, unexpected_message);
 
         // error to stop the loop after the ignored message
         let error_response = ResponseContent::Error(Error {
             message: "connection interruption".to_string(),
         });
 
-        sim.will_send_response(REQUEST, error_response);
+        sim.will_send_response(fixtures::REQUEST_ID, error_response);
 
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();
         signal_handler_context.expect().never();
@@ -1626,7 +1656,7 @@ mod tests {
         server_connection.from_server.close();
 
         let result = server_connection
-            .get_logs_accepted_response(REQUEST.to_owned())
+            .get_logs_accepted_response(fixtures::REQUEST_ID.to_owned())
             .await;
 
         assert_eq!(
@@ -1643,7 +1673,10 @@ mod tests {
     async fn utest_stream_logs_invalid_workload_names_in_logs_request_accepted() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string(), WORKLOAD_NAME_2.to_string()],
+            workload_name: vec![
+                fixtures::WORKLOAD_NAMES[0].to_string(),
+                fixtures::WORKLOAD_NAMES[1].to_string(),
+            ],
             follow: false,
             tail: -1,
             since: None,
@@ -1651,15 +1684,15 @@ mod tests {
             output_names: false,
         };
 
-        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
-        let instance_name_2 = instance_name(WORKLOAD_NAME_2);
+        let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
+        let instance_name_2 = instance_name(fixtures::WORKLOAD_NAMES[1]);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
         let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
-            REQUEST,
+            fixtures::REQUEST_ID,
             RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
@@ -1670,7 +1703,7 @@ mod tests {
         );
 
         sim.will_send_response(
-            REQUEST,
+            fixtures::REQUEST_ID,
             ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
                 workload_names: vec![instance_name_2.into()],
             }),
@@ -1688,7 +1721,8 @@ mod tests {
         assert_eq!(
             result,
             Err(ServerConnectionError::ExecutionError(format!(
-                "Workload '{WORKLOAD_NAME_1}' is not accepted by the server to receive logs from."
+                "Workload '{}' is not accepted by the server to receive logs from.",
+                fixtures::WORKLOAD_NAMES[0]
             )))
         );
 

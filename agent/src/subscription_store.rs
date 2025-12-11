@@ -89,10 +89,8 @@ pub use tests::{MockJoinHandle, MockSubscriptionEntry};
 #[cfg(test)]
 mod tests {
     use super::{SubscriptionEntry, SubscriptionStore};
+    use ankaios_api::test_utils::fixtures;
     use mockall::mock;
-
-    const ID_1: &str = "id_1";
-    const ID_2: &str = "id_2";
 
     // [utest->swdd~agent-workload-log-facade-starts-log-collection~1]
     // [utest->swdd~agent-stops-log-collection-on-removed-subscription~1]
@@ -108,8 +106,8 @@ mod tests {
         let subscription_entry_2 = SubscriptionEntry::new(mock_join_handle_2);
 
         let mut subscription_store = SubscriptionStore::default();
-        subscription_store.add_subscription(ID_1.into(), subscription_entry_1);
-        subscription_store.add_subscription(ID_2.into(), subscription_entry_2);
+        subscription_store.add_subscription(fixtures::WORKLOAD_IDS[0].into(), subscription_entry_1);
+        subscription_store.add_subscription(fixtures::WORKLOAD_IDS[1].into(), subscription_entry_2);
 
         let mut new_mock_join_handle_2 = MockJoinHandle::new();
         new_mock_join_handle_2
@@ -120,10 +118,10 @@ mod tests {
         let new_subscription_2 = SubscriptionEntry::new(new_mock_join_handle_2);
 
         // overwrite the existing subscription entry
-        subscription_store.add_subscription(ID_2.into(), new_subscription_2);
+        subscription_store.add_subscription(fixtures::WORKLOAD_IDS[1].into(), new_subscription_2);
 
-        assert!(subscription_store.store.contains_key(ID_1));
-        assert!(subscription_store.store.contains_key(ID_2));
+        assert!(subscription_store.store.contains_key(fixtures::WORKLOAD_IDS[0]));
+        assert!(subscription_store.store.contains_key(fixtures::WORKLOAD_IDS[1]));
     }
 
     // [utest->swdd~agent-workload-log-facade-starts-log-collection~1]
@@ -141,8 +139,8 @@ mod tests {
         let subscription_entry_2 = SubscriptionEntry::new(mock_join_handle_2);
 
         let mut subscription_store = SubscriptionStore::default();
-        subscription_store.add_subscription(ID_1.into(), subscription_entry_1);
-        subscription_store.add_subscription(ID_2.into(), subscription_entry_2);
+        subscription_store.add_subscription(fixtures::WORKLOAD_IDS[0].into(), subscription_entry_1);
+        subscription_store.add_subscription(fixtures::WORKLOAD_IDS[1].into(), subscription_entry_2);
 
         subscription_store.delete_all_subscriptions();
         assert!(subscription_store.is_empty());

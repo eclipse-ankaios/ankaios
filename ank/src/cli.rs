@@ -424,7 +424,7 @@ mod tests {
                   },
                   "restartPolicy": "ALWAYS",
                   "runtime": "podman",
-                  "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
+                  "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.2\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
               }
             }
           }
@@ -493,7 +493,7 @@ mod tests {
                 },
                 "restartPolicy": "ALWAYS",
                 "runtime": "podman",
-                "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
+                "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.2\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
               }
             }
           },
