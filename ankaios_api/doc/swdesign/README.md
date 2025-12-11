@@ -184,7 +184,7 @@ Needs:
 
 ### Spec Objects
 
-The Ankaios Spec objects are providing objects definitions that can be validated upon conversion and used internally without further validation.
+The Ankaios Spec objects are providing object definitions that can be validated upon conversion and used internally without further validation.
 The general idea is to automatically generate all of the required objects using the `spec_macros` crate. Additionally there are some exceptions where the objects or some conversions need to be written manually.
 
 #### API provides spec object definitions
@@ -192,7 +192,7 @@ The general idea is to automatically generate all of the required objects using 
 
 Status: approved
 
-Ankaios shall provide Spec objects definitions that include the minimum required fields for the internal execution.
+Ankaios shall provide Spec object definitions that include the minimum required fields for the internal execution.
 
 Comment:
 In contrast to the Ank Base objects, the Spec objects do not allow empty fields for required values.
@@ -284,7 +284,7 @@ Rationale:
 Delete conditions are needed to be able to stop a workload on which others depend and for the update strategy `at least once` when the workload is shifted from one agent to another.
 
 Comment:
-The `DeleteCondition` objects is currently not automatically generated, mut manually written as it is not required at the external interface.
+The `DeleteCondition` object is currently not automatically generated, but manually written as it is not required at the external interface.
 
 Tags:
 - SpecObjects
@@ -376,7 +376,7 @@ Status: approved
 Ankaios shall provide functionality for enforcing a non-empty filter mask for Control Interface access `StateRule`s.
 
 Rationale:
-An empty filter mask for an allow access rules might be misunderstood and expected to "allow nothing".
+An empty filter mask for an allow access rule might be misunderstood and expected to "allow nothing".
 
 Tags:
 - SpecObjects
