@@ -139,7 +139,7 @@ impl TryFrom<Object> for serde_yaml::Mapping {
     fn try_from(value: Object) -> Result<Self, Self::Error> {
         match value.data {
             Value::Mapping(map) => Ok(map),
-            _ => Err("Object does not contain a mapping at the root".to_string()),
+            _ => Err("Object does not contain a mapping at the root".to_owned()),
         }
     }
 }
