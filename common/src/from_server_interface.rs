@@ -14,10 +14,10 @@
 
 use crate::{commands, std_extensions::UnreachableResult};
 use ankaios_api::ank_base::{
-    CompleteState, CompleteStateResponse, DeletedWorkload, Error, EventsCancelAccepted,
-    LogEntriesResponse, LogsCancelAccepted, LogsRequest, LogsRequestAccepted, LogsRequestSpec,
-    LogsStopResponse, Response, ResponseContent, UpdateStateSuccess, WorkloadNamed,
-    WorkloadStateSpec,
+    AlteredFields, CompleteState, CompleteStateResponse, DeletedWorkload, Error,
+    EventsCancelAccepted, LogEntriesResponse, LogsCancelAccepted, LogsRequest, LogsRequestAccepted,
+    LogsRequestSpec, LogsStopResponse, Response, ResponseContent, UpdateStateSuccess,
+    WorkloadNamed, WorkloadStateSpec,
 };
 
 use async_trait::async_trait;
@@ -73,6 +73,7 @@ pub trait FromServerInterface {
         &self,
         request_id: String,
         complete_state: CompleteState,
+        altered_fields: Option<AlteredFields>,
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_state_success(
         &self,
@@ -169,6 +170,7 @@ impl FromServerInterface for FromServerSender {
         &self,
         request_id: String,
         complete_state: CompleteState,
+        altered_fields: Option<AlteredFields>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::Response(Response {
@@ -176,7 +178,7 @@ impl FromServerInterface for FromServerSender {
                 response_content: ResponseContent::CompleteStateResponse(Box::new(
                     CompleteStateResponse {
                         complete_state: Some(complete_state),
-                        altered_fields: Default::default(),
+                        altered_fields,
                     },
                 ))
                 .into(),
@@ -395,7 +397,7 @@ mod tests {
         let complete_state: CompleteState =
             generate_test_complete_state(vec![generate_test_workload_named()]).into();
         assert!(
-            tx.complete_state(fixtures::REQUEST_ID.to_string(), complete_state.clone())
+            tx.complete_state(fixtures::REQUEST_ID.to_string(), complete_state.clone(), None)
                 .await
                 .is_ok()
         );

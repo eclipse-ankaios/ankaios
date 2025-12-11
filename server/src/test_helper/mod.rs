@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2025 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -12,9 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-mod object;
-mod path;
-
-pub use object::Object;
-pub use object::get_paths_from_yaml_node;
-pub use path::Path;
+#[cfg(test)]
+mod mockall_context_sync;
+#[cfg(test)]
+pub use mockall_context_sync::MOCKALL_CONTEXT_SYNC;

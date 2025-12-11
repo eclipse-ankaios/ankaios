@@ -19,7 +19,7 @@ use ankaios_api::ank_base::{
     AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec, DeletedWorkload,
     StateSpec, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
-use common::state_manipulation::{FieldDifference, Object, Path};
+use common::state_manipulation::{Object, Path};
 use common::std_extensions::IllegalStateResult;
 
 use std::fmt::Display;
@@ -32,21 +32,9 @@ use super::delete_graph::DeleteGraph;
 #[cfg(test)]
 use mockall::automock;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct StateComparator {
-    old_state: Object,
-    new_state: Object,
-}
-
-impl StateComparator {
-    pub fn state_differences(&self) -> Vec<FieldDifference> {
-        self.old_state.calculate_state_differences(&self.new_state)
-    }
-}
-
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub struct StateGenerationResult {
-    pub state_comparator: StateComparator,
+    pub old_desired_state: StateSpec,
     pub new_desired_state: StateSpec,
 }
 
@@ -297,10 +285,7 @@ impl ServerState {
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         if update_mask.is_empty() {
             return Ok(StateGenerationResult {
-                state_comparator: StateComparator {
-                    old_state,
-                    new_state: state_from_update,
-                },
+                old_desired_state: self.state.desired_state.clone(),
                 new_desired_state: updated_state.desired_state,
             });
         }
@@ -326,10 +311,7 @@ impl ServerState {
             })?;
 
         Ok(StateGenerationResult {
-            state_comparator: StateComparator {
-                old_state,
-                new_state,
-            },
+            old_desired_state: self.state.desired_state.clone(),
             new_desired_state: new_complete_state.desired_state,
         })
     }
@@ -769,6 +751,7 @@ mod tests {
     // [utest->swdd~update-desired-state-empty-update-mask~1]
     #[test]
     fn utest_server_state_generate_new_state_replace_all_if_update_mask_empty() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec![];
@@ -790,6 +773,7 @@ mod tests {
     // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_generate_new_state_replace_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec![format!(
@@ -816,6 +800,7 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
+
         let state_generation_result = server_state
             .generate_new_state(update_state, update_mask)
             .unwrap();
@@ -829,6 +814,7 @@ mod tests {
     // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_generate_new_state_add_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec![format!(
@@ -855,6 +841,7 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
+
         let state_generation_result = server_state
             .generate_new_state(update_state, update_mask)
             .unwrap();
@@ -868,6 +855,7 @@ mod tests {
     // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_generate_new_state_update_configs() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
         let mut state_with_updated_config = old_state.clone();
         state_with_updated_config.desired_state.configs = generate_test_config_map();
@@ -894,6 +882,7 @@ mod tests {
     // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_generate_new_state_remove_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec![format!(
@@ -913,6 +902,7 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
+
         let state_generation_result = server_state
             .generate_new_state(update_state, update_mask)
             .unwrap();
@@ -926,6 +916,7 @@ mod tests {
     // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_update_state_remove_non_existing_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec!["desiredState.workloads.non_existing".into()];
@@ -936,6 +927,7 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
+
         let state_generation_result = server_state
             .generate_new_state(update_state, update_mask)
             .unwrap();
@@ -959,10 +951,10 @@ mod tests {
             ..Default::default()
         };
         let result = server_state.generate_new_state(update_state, update_mask);
-
+        assert!(result.is_err());
         assert_eq!(
-            Err(UpdateStateError::FieldNotFound(field_mask.into())),
-            result
+            UpdateStateError::FieldNotFound(field_mask.into()),
+            result.unwrap_err()
         );
         assert_eq!(server_state.state, old_state);
     }
@@ -979,13 +971,18 @@ mod tests {
             ..Default::default()
         };
         let result = server_state.generate_new_state(update_state, update_mask);
-        assert_eq!(Err(UpdateStateError::FieldNotFound("".into())), result);
+        assert!(result.is_err());
+        assert_eq!(
+            UpdateStateError::FieldNotFound("".into()),
+            result.unwrap_err()
+        );
         assert_eq!(server_state.state, old_state);
     }
 
     // [utest->swdd~update-desired-state-empty-update-mask~1]
     #[test]
     fn utest_server_state_generate_new_state_no_changes_on_equal_states() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let server_state = ServerState::default(); // empty old state
 
         let state_generation_result = server_state
