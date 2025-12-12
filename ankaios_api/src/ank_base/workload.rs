@@ -14,7 +14,7 @@
 
 use crate::ank_base::{AddCondition, ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadSpec};
 use crate::helpers::serialize_to_ordered_map;
-use crate::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
+use crate::{ALLOWED_CHAR_SET, CURRENT_API_VERSION, MAX_FIELD_LENGTH, PREVIOUS_API_VERSION};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -22,8 +22,6 @@ use serde_json::json;
 use serde_yaml::Value;
 use std::collections::HashMap;
 
-const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
-pub const ALLOWED_SYMBOLS: &str = "[a-zA-Z0-9_-]";
 pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]*$"; // TODO 313 shouldn't this be a + instead of * ?
 pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
 pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
@@ -59,7 +57,7 @@ pub fn constrained_map_schema<T: schemars::JsonSchema>(
             "type": "string",
             "minLength": 1,
             // TODO 313 We should rename the vars to something more generic
-            "maxLength": MAX_CHARACTERS_WORKLOAD_NAME,
+            "maxLength": MAX_FIELD_LENGTH,
             "pattern": STR_RE_WORKLOAD,
             "description": "Only a-z, A-Z, 0-9 chars, underscore (_), and hyphen (-) allowed. Maximum length is 63 characters."
         },
@@ -117,16 +115,18 @@ pub fn validate_workload_name_format(workload_name: &str) -> Result<(), String> 
 fn validate_workload_name_pattern(workload_name: &str) -> Result<(), String> {
     let re_workloads = Regex::new(STR_RE_WORKLOAD).unwrap();
     if !re_workloads.is_match(workload_name) {
-        Err(format!("Expected to have characters in {ALLOWED_SYMBOLS}."))
+        Err(format!(
+            "Expected to have characters in {ALLOWED_CHAR_SET}."
+        ))
     } else {
         Ok(())
     }
 }
 
 fn validate_workload_name_length(length: usize) -> Result<(), String> {
-    if length > MAX_CHARACTERS_WORKLOAD_NAME {
+    if length > MAX_FIELD_LENGTH {
         Err(format!(
-            "Length {length} exceeds the maximum limit of {MAX_CHARACTERS_WORKLOAD_NAME} characters."
+            "Length {length} exceeds the maximum limit of {MAX_FIELD_LENGTH} characters."
         ))
     } else {
         Ok(())
@@ -146,7 +146,7 @@ fn validate_agent_name_format(agent_name: &str) -> Result<(), String> {
     let re_agent = Regex::new(STR_RE_AGENT).unwrap();
     if !re_agent.is_match(agent_name) {
         Err(format!(
-            "Unsupported agent name. Received '{agent_name}', expected to have characters in {ALLOWED_SYMBOLS}"
+            "Unsupported agent name. Received '{agent_name}', expected to have characters in {ALLOWED_CHAR_SET}"
         ))
     } else {
         Ok(())
@@ -300,8 +300,8 @@ mod tests {
     };
     use crate::test_utils::generate_test_deleted_workload_with_params;
     use crate::test_utils::{
-        generate_test_workload, generate_test_workload_named,
-        generate_test_workload_named_with_params, fixtures,
+        fixtures, generate_test_workload, generate_test_workload_named,
+        generate_test_workload_named_with_params,
     };
 
     // one test for a failing case, other cases are tested on the caller side to not repeat test code
@@ -478,7 +478,7 @@ mod tests {
             Err(format!(
                 "Unsupported workload name '{}'. Expected to have characters in {}.",
                 workload_with_wrong_name.instance_name.workload_name(),
-                super::ALLOWED_SYMBOLS
+                super::ALLOWED_CHAR_SET
             ))
         );
     }
@@ -497,7 +497,7 @@ mod tests {
             Err(format!(
                 "Unsupported agent name. Received '{}', expected to have characters in {}",
                 workload_with_wrong_agent_name.instance_name.agent_name(),
-                super::ALLOWED_SYMBOLS
+                super::ALLOWED_CHAR_SET
             ))
         );
     }
@@ -528,7 +528,7 @@ mod tests {
                 "Unsupported workload name '{}'. Length {} exceeds the maximum limit of {} characters.",
                 workload_name,
                 workload_name.len(),
-                super::MAX_CHARACTERS_WORKLOAD_NAME,
+                super::MAX_FIELD_LENGTH,
             ))
         );
     }
@@ -547,7 +547,7 @@ mod tests {
             Err(format!(
                 "Unsupported workload name with wildcard '{}'. Expected to have characters in {}.",
                 workload_name,
-                super::ALLOWED_SYMBOLS
+                super::ALLOWED_CHAR_SET
             ))
         );
     }

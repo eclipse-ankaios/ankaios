@@ -12,20 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-include!("../common_constants.rs");
-
-pub const ANKAIOS_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const API_VERSION_0_1: &str = "v0.1";
-pub const CURRENT_API_VERSION: &str = API_VERSION_1_0;
-pub const PREVIOUS_API_VERSION: &str = API_VERSION_0_1;
-
-pub mod control_api {
-    // [impl->swdd~control-api-provides-control-interface-definitions~1]
-    tonic::include_proto!("control_api"); // The string specified here must match the proto package name
-}
-
-pub mod ank_base;
-mod helpers;
-
-#[cfg(any(feature = "test_utils", test))]
-pub mod test_utils;
+pub const API_VERSION_1_0: &str = "v1";
+pub const MAX_FIELD_LENGTH: usize = 63;
+pub const ALLOWED_CHAR_SET: &str = "[a-zA-Z0-9_-]";

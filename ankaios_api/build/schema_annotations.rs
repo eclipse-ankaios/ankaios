@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+include!("../common_constants.rs");
+
 use tonic_prost_build::Builder;
 
 /// Add annotations required for generating the JSON schema for the spec objects.
@@ -24,9 +26,6 @@ pub fn setup_schema_annotations(mut builder: Builder) -> Builder {
     builder
 }
 
-// TODO 313 - unify accepted char sets
-const ACCEPTED_CHAR_SET: &str = "[a-zA-Z0-9_-]";
-
 fn setup_state_annotations(builder: Builder) -> Builder {
     builder
         .message_attribute(
@@ -38,7 +37,7 @@ fn setup_state_annotations(builder: Builder) -> Builder {
             "#[spec_type_attr(#[serde(rename = \"desiredState\")])]",
         )
         // TODO 313
-        .field_attribute("State.apiVersion", r#"#[spec_field_attr(#[schemars(regex(pattern = r"^v1$"))])]"#)
+        .field_attribute("State.apiVersion", format!(r#"#[spec_field_attr(#[schemars(regex(pattern = r"^{API_VERSION_1_0}$"))])]"#))
         .message_attribute(
             "WorkloadMap",
             "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
@@ -59,7 +58,7 @@ fn setup_state_annotations(builder: Builder) -> Builder {
         // TODO 313
         .field_attribute(
             "Workload.agent",
-            format!(r#"#[spec_field_attr(#[schemars(regex(pattern = r"^(?:{ACCEPTED_CHAR_SET}*|\{{\{{{ACCEPTED_CHAR_SET}+(?:\.{ACCEPTED_CHAR_SET}+)*\}}\}})$"),length(min = 0, max = 63))])]"#)
+            format!(r#"#[spec_field_attr(#[schemars(regex(pattern = r"^(?:{ALLOWED_CHAR_SET}*|\{{\{{{ALLOWED_CHAR_SET}+(?:\.{ALLOWED_CHAR_SET}+)*\}}\}})$"),length(min = 0, max = {MAX_FIELD_LENGTH}))])]"#)
         )
         // TODO 313
         .field_attribute(
@@ -79,12 +78,12 @@ fn setup_state_annotations(builder: Builder) -> Builder {
         .field_attribute(
             "LogRule.workloadNames",
             // TODO 313
-        format!(r#"#[spec_field_attr(#[schemars(inner(regex(pattern = r"^(?:\*|{ACCEPTED_CHAR_SET}*\*{ACCEPTED_CHAR_SET}*|{ACCEPTED_CHAR_SET}+)$")))])]"#)
+        format!(r#"#[spec_field_attr(#[schemars(inner(regex(pattern = r"^(?:\*|{ALLOWED_CHAR_SET}*\*{ALLOWED_CHAR_SET}*|{ALLOWED_CHAR_SET}+)$")))])]"#)
         )
         .field_attribute(
             "StateRule.filterMasks",
             // TODO 313
-        format!(r#"#[spec_field_attr(#[schemars(inner(regex(pattern = r"^(?:\*|{ACCEPTED_CHAR_SET}+)(?:\.(?:\*|{ACCEPTED_CHAR_SET}+))*$")))])]"#)
+        format!(r#"#[spec_field_attr(#[schemars(inner(regex(pattern = r"^(?:\*|{ALLOWED_CHAR_SET}+)(?:\.(?:\*|{ALLOWED_CHAR_SET}+))*$")))])]"#)
         )
         .message_attribute(
             "ConfigMap",
