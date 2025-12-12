@@ -25,6 +25,7 @@ use std::collections::HashMap;
 pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]*$"; // TODO 313 shouldn't this be a + instead of * ?
 pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
 pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
+pub const CONSTRAINT_FIELD_DESCRIPTION: &str = "Only a-z, A-Z, 0-9 chars, underscore (_), and hyphen (-) allowed. Maximum length is 63 characters.";
 
 // TODO 313 this is now more restrictive than the validate functions
 pub fn constrained_config_map(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
@@ -33,14 +34,16 @@ pub fn constrained_config_map(_generator: &mut schemars::SchemaGenerator) -> sch
         "propertyNames": {
             "type": "string",
             "minLength": 1,
+            "maxLength": MAX_FIELD_LENGTH,
             "pattern": STR_RE_WORKLOAD,
-            "description": "Only a-z, A-Z, 0-9 chars, underscore (_), and hyphen (-) allowed."
+            "description": CONSTRAINT_FIELD_DESCRIPTION
         },
         "additionalProperties": {
             "type": "string",
             "minLength": 1,
+            "maxLength": MAX_FIELD_LENGTH,
             "pattern": STR_RE_WORKLOAD,
-            "description": "Only a-z, A-Z, 0-9 chars, underscore (_), and hyphen (-) allowed."
+            "description": CONSTRAINT_FIELD_DESCRIPTION
         },
     }))
     .expect("Ill formed JSON schema.")
@@ -56,10 +59,9 @@ pub fn constrained_map_schema<T: schemars::JsonSchema>(
         "propertyNames": {
             "type": "string",
             "minLength": 1,
-            // TODO 313 We should rename the vars to something more generic
             "maxLength": MAX_FIELD_LENGTH,
             "pattern": STR_RE_WORKLOAD,
-            "description": "Only a-z, A-Z, 0-9 chars, underscore (_), and hyphen (-) allowed. Maximum length is 63 characters."
+            "description": CONSTRAINT_FIELD_DESCRIPTION
         },
         "additionalProperties": value_schema
     }))
