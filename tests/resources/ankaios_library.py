@@ -728,12 +728,9 @@ def internal_check_all_control_interface_requests_succeeded(tmp_folder):
 @err_logging_decorator
 def internal_check_all_result_expectations_succeeded(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
-    logger.trace(output)
     for expectation in control_interface_result_expectations:
-        logger.trace(expectation)
         response_number = expectation["response_number"]
         test_result = output[response_number]
-        logger.trace(test_result)
         if expectation["type"] == "exact_workloads":
             expected_workload_names = expectation["workload_names"]
             try:
