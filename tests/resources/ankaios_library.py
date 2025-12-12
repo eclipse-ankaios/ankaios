@@ -748,21 +748,21 @@ def internal_check_all_result_expectations_succeeded(tmp_folder):
             assert set(expected_field_names) == set(actual_field_names), f"Expected fields {expected_field_names} but found {actual_field_names}"
         elif expectation["type"] == "exact_altered_fields":
             alteration_type = expectation["alteration_type"]
-            masks = expectation["masks"]
+            expected_masks = expectation["masks"]
             actual_masks = test_result["result"]["value"]["value"][1][alteration_type]
             actual_masks_clone = actual_masks.copy()
-            for m in masks:
+            for em in expected_masks:
                 failed = True
                 for i in range(len(actual_masks)):
                     am = actual_masks[i]
-                    if fnmatch(am, m):
+                    if fnmatch(am, em):
                         failed = False
                         del actual_masks[i]
                         break
                 if failed:
-                    assert False, f"Expected {alteration_type} to match {masks} but found {actual_masks_clone}"
+                    assert False, f"Expected {alteration_type} to match {expected_masks} but found {actual_masks_clone}"
             if len(actual_masks) != 0:
-                assert False, f"Expected {alteration_type} to match {masks} but found {actual_masks_clone}"
+                assert False, f"Expected {alteration_type} to match {expected_masks} but found {actual_masks_clone}"
 
 @err_logging_decorator
 def internal_check_last_control_interface_request_failed(tmp_folder):
