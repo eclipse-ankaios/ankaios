@@ -23,7 +23,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct FilteredEvent {
+struct EventOutput {
     pub timestamp: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default, flatten)]
@@ -31,6 +31,26 @@ pub struct FilteredEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub complete_state: Option<CompleteState>,
+}
+
+impl From<&CompleteStateResponse> for EventOutput {
+    fn from(response: &CompleteStateResponse) -> Self {
+        let timestamp_str = Utc::now().to_rfc3339();
+
+        let filtered_state = (*response).clone().complete_state;
+
+        let altered_fields = response.altered_fields.as_ref().map(|af| AlteredFields {
+            added_fields: af.added_fields.clone(),
+            updated_fields: af.updated_fields.clone(),
+            removed_fields: af.removed_fields.clone(),
+        });
+
+        EventOutput {
+            timestamp: timestamp_str,
+            altered_fields,
+            complete_state: filtered_state,
+        }
+    }
 }
 
 impl CliCommands {
@@ -69,21 +89,8 @@ impl CliCommands {
         event: &CompleteStateResponse,
         output_format: &OutputFormat,
     ) -> Result<(), CliError> {
-        let filtered_state = (*event).clone().complete_state;
 
-        let timestamp_str = Utc::now().to_rfc3339();
-
-        let altered_fields = event.altered_fields.as_ref().map(|af| AlteredFields {
-            added_fields: af.added_fields.clone(),
-            updated_fields: af.updated_fields.clone(),
-            removed_fields: af.removed_fields.clone(),
-        });
-
-        let event_output = FilteredEvent {
-            timestamp: timestamp_str,
-            altered_fields,
-            complete_state: filtered_state,
-        };
+        let event_output: EventOutput = event.into();
 
         // [impl->swdd~cli-supports-multiple-output-types-for-events~1]
         match output_format {
