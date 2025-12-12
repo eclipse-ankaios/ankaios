@@ -12,13 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ankaios_server::request_id::to_string_id;
+use crate::ankaios_server::request_id::{AgentName, AgentRequestId, WorkloadName, to_string_id};
 #[cfg_attr(test, mockall_double::double)]
 use crate::ankaios_server::server_state::ServerState;
 
 use crate::ankaios_server::state_comparator::StateDifferenceTree;
 
-use super::request_id::RequestId;
+use super::request_id::{CliConnectionName, RequestId};
 use common::{
     from_server_interface::{FromServerInterface, FromServerSender},
     state_manipulation::Path,
@@ -45,14 +45,60 @@ const WILDCARD_SYMBOL: &str = "*";
 impl EventHandler {
     // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn add_subscriber(&mut self, request_id: String, field_masks: SubscribedFieldMasks) {
-        log::debug!("Adding subscriber '{request_id}' with field masks: {field_masks:?}",);
+        log::debug!("Adding event subscriber '{request_id}' with field masks: {field_masks:?}",);
         self.subscriber_store.insert(request_id.into(), field_masks);
     }
 
     // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn remove_subscriber(&mut self, request_id: String) {
-        log::debug!("Removing subscriber '{request_id}'");
+        log::debug!("Removing event subscriber '{request_id}'");
         self.subscriber_store.remove(&request_id.into());
+    }
+
+    // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
+    pub fn remove_subscribers_of_agent(&mut self, agent_name: &AgentName) {
+        self.subscriber_store.retain(|request_id, _| {
+            if let RequestId::AgentRequestId(agent_request_id) = request_id
+                && agent_request_id.agent_name == *agent_name
+            {
+                log::debug!("Removing event subscriber '{request_id}' of agent '{agent_name}'",);
+                false
+            } else {
+                true
+            }
+        });
+    }
+
+    // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
+    pub fn remove_cli_subscriber(&mut self, cli_connection_name: &CliConnectionName) {
+        self.subscriber_store.retain(|request_id, _| {
+            if let RequestId::CliRequestId(cli_request_id) = request_id && cli_request_id.cli_name == *cli_connection_name {
+                log::debug!(
+                    "Removing event subscriber '{request_id}' of CLI connection '{cli_connection_name}'",
+                );
+                false
+            } else {
+                true
+            }
+        });
+    }
+
+    // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
+    pub fn remove_workload_subscriber(
+        &mut self,
+        agent_name: &AgentName,
+        workload_name: &WorkloadName,
+    ) {
+        self.subscriber_store.retain(|request_id, _| {
+            if let RequestId::AgentRequestId(agent_request_id) = request_id
+                && request_id_matches_agent_and_workload_name(agent_request_id, agent_name, workload_name)
+            {
+                log::debug!("Removing event subscriber '{request_id}' of agent '{agent_name}' and workload '{workload_name}'");
+                false
+            } else {
+                true
+            }
+        });
     }
 
     // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
@@ -326,6 +372,14 @@ fn update_path_with_new_key(current_path: &str, new_key: &str) -> String {
     }
 }
 
+fn request_id_matches_agent_and_workload_name(
+    agent_request_id: &AgentRequestId,
+    agent_name: &AgentName,
+    workload_name: &WorkloadName,
+) -> bool {
+    agent_request_id.agent_name == *agent_name && agent_request_id.workload_name == *workload_name
+}
+
 #[derive(Debug, Default)]
 pub struct AlteredFields {
     pub added_fields: Vec<String>,
@@ -381,26 +435,40 @@ mod tests {
         server_state::MockServerState,
     };
 
-    const REQUEST_ID_1: &str = "agent_A@workload_1@1234";
-    const REQUEST_ID_2: &str = "agent_B@workload_2@5678";
+    const AGENT_A_REQUEST_ID_1: &str = "agent_A@workload_1@1234";
+    const AGENT_B_REQUEST_ID_1: &str = "agent_B@workload_2@5678";
+    const AGENT_A_REQUEST_ID_2: &str = "agent_A@workload_3@9876";
+    const CLI_CONN_1_REQUEST_ID_1: &str = "cli-conn-1@cli_request_id_1";
+    const CLI_CONN_1_REQUEST_ID_2: &str = "cli-conn-1@cli_request_id_2";
+    const CLI_CONN_2_REQUEST_ID_1: &str = "cli-conn-2@cli_request_id_2";
 
     // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
     #[test]
     fn utest_event_handler_add_subscriber() {
         let mut event_handler = EventHandler::default();
         let subscriber_1_field_masks = vec!["path.to.field".into()];
-        event_handler.add_subscriber(REQUEST_ID_1.to_owned(), subscriber_1_field_masks.clone());
+        event_handler.add_subscriber(
+            AGENT_A_REQUEST_ID_1.to_owned(),
+            subscriber_1_field_masks.clone(),
+        );
         assert!(event_handler.has_subscribers());
         assert_eq!(event_handler.subscriber_store.len(), 1);
         assert_eq!(
-            event_handler.subscriber_store.get(&REQUEST_ID_1.into()),
+            event_handler
+                .subscriber_store
+                .get(&AGENT_A_REQUEST_ID_1.into()),
             Some(&subscriber_1_field_masks)
         );
         let subscriber_2_field_masks = vec!["another.path".into(), "more.paths".into()];
-        event_handler.add_subscriber(REQUEST_ID_2.to_owned(), subscriber_2_field_masks.clone());
+        event_handler.add_subscriber(
+            CLI_CONN_1_REQUEST_ID_1.to_owned(),
+            subscriber_2_field_masks.clone(),
+        );
         assert_eq!(event_handler.subscriber_store.len(), 2);
         assert_eq!(
-            event_handler.subscriber_store.get(&REQUEST_ID_2.into()),
+            event_handler
+                .subscriber_store
+                .get(&CLI_CONN_1_REQUEST_ID_1.into()),
             Some(&subscriber_2_field_masks)
         );
     }
@@ -410,37 +478,126 @@ mod tests {
     fn utest_event_handler_remove_subscriber() {
         let mut event_handler = EventHandler {
             subscriber_store: HashMap::from([
-                (REQUEST_ID_1.into(), vec!["path.to.field".into()]),
+                (AGENT_A_REQUEST_ID_1.into(), vec!["path.to.field".into()]),
                 (
-                    REQUEST_ID_2.into(),
+                    AGENT_B_REQUEST_ID_1.into(),
                     vec!["another.path".into(), "more.paths".into()],
                 ),
             ]),
         };
 
-        event_handler.remove_subscriber(REQUEST_ID_1.to_owned());
+        event_handler.remove_subscriber(AGENT_A_REQUEST_ID_1.to_owned());
         assert_eq!(event_handler.subscriber_store.len(), 1);
         assert!(
             !event_handler
                 .subscriber_store
-                .contains_key(&REQUEST_ID_1.into())
+                .contains_key(&AGENT_A_REQUEST_ID_1.into())
         );
         assert!(
             event_handler
                 .subscriber_store
-                .contains_key(&REQUEST_ID_2.into())
+                .contains_key(&AGENT_B_REQUEST_ID_1.into())
         );
 
-        event_handler.remove_subscriber(REQUEST_ID_2.to_owned());
+        event_handler.remove_subscriber(AGENT_B_REQUEST_ID_1.to_owned());
         assert!(!event_handler.has_subscribers());
         assert_eq!(event_handler.subscriber_store.len(), 0);
     }
 
     // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
     #[test]
+    fn utest_event_handler_removes_subscribers_of_agent() {
+        let mut event_handler = EventHandler {
+            subscriber_store: HashMap::from([
+                (AGENT_A_REQUEST_ID_1.into(), vec!["path.to.field".into()]),
+                (AGENT_B_REQUEST_ID_1.into(), vec!["more.paths".into()]),
+                (AGENT_A_REQUEST_ID_2.into(), vec!["another.path".into()]),
+                (CLI_CONN_1_REQUEST_ID_1.into(), vec!["cli.path".into()]),
+            ]),
+        };
+
+        event_handler.remove_subscribers_of_agent(&"agent_A".to_owned());
+        assert_eq!(event_handler.subscriber_store.len(), 2);
+        assert!(
+            event_handler
+                .subscriber_store
+                .contains_key(&AGENT_B_REQUEST_ID_1.into())
+        );
+
+        assert!(
+            event_handler
+                .subscriber_store
+                .contains_key(&CLI_CONN_1_REQUEST_ID_1.into())
+        );
+    }
+
+    // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
+    #[test]
+    fn utest_event_handler_removes_cli_subscriber() {
+        let mut event_handler = EventHandler {
+            subscriber_store: HashMap::from([
+                (CLI_CONN_1_REQUEST_ID_1.into(), vec!["cli.path".into()]),
+                (
+                    CLI_CONN_1_REQUEST_ID_2.into(),
+                    vec!["another.cli.path".into()],
+                ),
+                (
+                    CLI_CONN_2_REQUEST_ID_1.into(),
+                    vec!["different.cli.path".into()],
+                ),
+                (AGENT_A_REQUEST_ID_1.into(), vec!["another.path".into()]),
+            ]),
+        };
+
+        event_handler.remove_cli_subscriber(&"cli-conn-1".to_owned());
+        assert_eq!(event_handler.subscriber_store.len(), 2);
+        assert!(
+            event_handler
+                .subscriber_store
+                .contains_key(&CLI_CONN_2_REQUEST_ID_1.into())
+        );
+        assert!(
+            event_handler
+                .subscriber_store
+                .contains_key(&AGENT_A_REQUEST_ID_1.into())
+        );
+    }
+
+    // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
+    #[test]
+    fn utest_event_handler_remove_workload_subscribers() {
+        let agent_a_request_id_3 = "agent_B@workload_1@19234";
+        let mut event_handler = EventHandler {
+            subscriber_store: HashMap::from([
+                (CLI_CONN_1_REQUEST_ID_1.into(), vec!["cli.path".into()]),
+                (AGENT_A_REQUEST_ID_1.into(), vec!["another.path".into()]),
+                (agent_a_request_id_3.into(), vec!["more.paths".into()]),
+                (AGENT_B_REQUEST_ID_1.into(), vec!["different.path".into()]),
+            ]),
+        };
+
+        event_handler.remove_workload_subscriber(&"agent_A".to_owned(), &"workload_1".to_owned());
+        assert_eq!(event_handler.subscriber_store.len(), 3);
+        assert!(
+            !event_handler
+                .subscriber_store
+                .contains_key(&AGENT_A_REQUEST_ID_1.into())
+        );
+        assert!(
+            event_handler
+                .subscriber_store
+                .contains_key(&agent_a_request_id_3.into())
+        );
+    }
+
+    // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
+    #[test]
     fn utest_event_handler_has_subscribers() {
         let mut event_handler = EventHandler {
-            subscriber_store: HashMap::from([(REQUEST_ID_1.into(), vec!["path.to.field".into()])]),
+            subscriber_store: HashMap::from([(
+                AGENT_A_REQUEST_ID_1.into(),
+                vec!["path.to.field".into()],
+            )]),
         };
 
         assert!(event_handler.has_subscribers());
@@ -544,7 +701,7 @@ mod tests {
 
         let mut event_handler = EventHandler::default();
         event_handler.subscriber_store.insert(
-            REQUEST_ID_1.into(),
+            AGENT_A_REQUEST_ID_1.into(),
             vec![
                 added_field_mask.into(),
                 updated_field_mask.into(),
@@ -575,7 +732,7 @@ mod tests {
             panic!("Expected FromServer::Response message");
         };
 
-        assert_eq!(response.request_id, REQUEST_ID_1.to_owned());
+        assert_eq!(response.request_id, AGENT_A_REQUEST_ID_1.to_owned());
         let ResponseContent::CompleteStateResponse(complete_state_response) =
             response.response_content.unwrap()
         else {
