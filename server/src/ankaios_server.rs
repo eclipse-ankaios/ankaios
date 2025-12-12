@@ -307,6 +307,8 @@ impl AnkaiosServer {
                                 &self.to_agents,
                             )
                             .await;
+
+                        self.event_handler.remove_subscribers_of_agent(&agent_name);
                     }
 
                     // [impl->swdd~server-distribute-workload-state-on-disconnect~1]
@@ -583,6 +585,19 @@ impl AnkaiosServer {
                                 &self.to_agents,
                             )
                             .await;
+
+                        // [impl->swdd~server-removes-subscription-for-deleted-subscriber-workload~1]
+                        method_obj
+                            .workload_states
+                            .iter()
+                            .for_each(|workload_state| {
+                                if workload_state.execution_state.is_removed() {
+                                    self.event_handler.remove_workload_subscriber(
+                                        &workload_state.instance_name.agent_name().to_owned(),
+                                        &workload_state.instance_name.workload_name().to_owned(),
+                                    );
+                                }
+                            });
                     }
 
                     // [impl->swdd~server-forwards-workload-state~1]
@@ -619,6 +634,10 @@ impl AnkaiosServer {
                         removed_cli_log_requests,
                     )
                     .await;
+
+                    // [impl->swdd~server-removes-event-subscription-for-disconnected-cli~1]
+                    self.event_handler
+                        .remove_cli_subscriber(&goodbye.connection_name);
                 }
                 ToServer::Stop(_method_obj) => {
                     log::debug!("Received Stop from communications server");
@@ -852,7 +871,11 @@ mod tests {
         WorkloadMapSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
-        fixtures, generate_test_agent_map, generate_test_config_map, generate_test_workload_instance_name_with_params, generate_test_workload_named, generate_test_workload_named_with_params, generate_test_workload_state, generate_test_workload_state_with_agent, generate_test_workload_states_map_with_data, generate_test_workload_with_params
+        fixtures, generate_test_agent_map, generate_test_config_map,
+        generate_test_workload_instance_name_with_params, generate_test_workload_named,
+        generate_test_workload_named_with_params, generate_test_workload_state,
+        generate_test_workload_state_with_agent, generate_test_workload_states_map_with_data,
+        generate_test_workload_with_params,
     };
     use common::commands::{AgentLoadStatus, ServerHello, UpdateWorkload, UpdateWorkloadState};
     use common::from_server_interface::FromServer;
@@ -862,6 +885,7 @@ mod tests {
 
     const SECOND_REQUEST_ID: &str = "request_id_2";
     const MESSAGE: &str = "message";
+    const CLI_CONNECTION_NAME: &str = "cli-conn-1234";
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-fails-on-invalid-startup-state~1]
@@ -2809,8 +2833,7 @@ mod tests {
 
         assert!(result.is_ok());
 
-        let expected_agent_map: AgentMapSpec =
-            generate_test_agent_map(fixtures::AGENT_NAMES[0]);
+        let expected_agent_map: AgentMapSpec = generate_test_agent_map(fixtures::AGENT_NAMES[0]);
 
         assert_eq!(expected_agent_map, server.agent_map);
     }
@@ -3098,19 +3121,18 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let cli_connection_name = "cli-conn-1234".to_string();
-        let cli_request_id = format!("{cli_connection_name}@cli-request-id-1");
+        let cli_request_id = format!("{CLI_CONNECTION_NAME}@cli-request-id-1");
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         server
             .log_campaign_store
             .expect_remove_cli_log_campaign_entry()
-            .with(mockall::predicate::eq(cli_connection_name.clone()))
+            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
             .once()
             .return_const(HashSet::from([cli_request_id.clone()]));
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        let result = to_server.goodbye(cli_connection_name).await;
+        let result = to_server.goodbye(CLI_CONNECTION_NAME.to_owned()).await;
         assert!(result.is_ok());
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
@@ -3382,6 +3404,13 @@ mod tests {
                 mockall::predicate::eq(state_diference_tree),
                 mockall::predicate::always(),
             )
+            .once()
+            .return_const(());
+
+        server
+            .event_handler
+            .expect_remove_subscribers_of_agent()
+            .with(mockall::predicate::eq(fixtures::AGENT_NAMES[0].to_owned()))
             .once()
             .return_const(());
 
@@ -3752,6 +3781,12 @@ mod tests {
 
         server
             .event_handler
+            .expect_remove_workload_subscriber()
+            .once()
+            .return_const(());
+
+        server
+            .event_handler
             .expect_send_events()
             .with(
                 mockall::predicate::always(),
@@ -3849,6 +3884,106 @@ mod tests {
         let update_agent_load_status_result =
             to_server.agent_load_status(new_agent_load_status).await;
         assert!(update_agent_load_status_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-removes-event-subscription-for-disconnected-cli~1]
+    #[tokio::test]
+    async fn utest_server_removes_event_subscriber_on_cli_disconnect() {
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .log_campaign_store
+            .expect_remove_cli_log_campaign_entry()
+            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
+            .once()
+            .return_const(HashSet::default());
+
+        server
+            .event_handler
+            .expect_remove_cli_subscriber()
+            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
+            .once()
+            .return_const(());
+
+        assert!(
+            to_server
+                .goodbye(CLI_CONNECTION_NAME.to_owned())
+                .await
+                .is_ok()
+        );
+        assert!(to_server.stop().await.is_ok());
+
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-removes-subscription-for-deleted-subscriber-workload~1]
+    #[tokio::test]
+    async fn utest_server_remove_subscription_for_deleted_subscriber_workload() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        server.server_state.expect_cleanup_state().return_const(());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .return_const(true);
+
+        let expected_state_difference_tree = StateDifferenceTree::new();
+        let mut state_comparator = MockStateComparator::default();
+        let state_difference_tree = expected_state_difference_tree.clone();
+        state_comparator
+            .expect_state_differences()
+            .once()
+            .return_once(|| state_difference_tree);
+
+        let mock_state_comparator = MockStateComparator::new_context();
+        mock_state_comparator
+            .expect()
+            .once()
+            .return_once(|_, _| state_comparator);
+
+        let removed_workload_state = generate_test_workload_state_with_agent(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::removed(),
+        );
+
+        server
+            .event_handler
+            .expect_remove_workload_subscriber()
+            .with(
+                mockall::predicate::eq(fixtures::AGENT_NAMES[0].to_owned()),
+                mockall::predicate::eq(fixtures::WORKLOAD_NAMES[0].to_owned()),
+            )
+            .once()
+            .return_const(());
+
+        server
+            .event_handler
+            .expect_send_events()
+            .once()
+            .return_const(());
+
+        let update_workload_state_result = to_server
+            .update_workload_state(vec![removed_workload_state])
+            .await;
+        assert!(update_workload_state_result.is_ok());
 
         drop(to_server);
         let result = server.start(None).await;

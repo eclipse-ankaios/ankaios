@@ -1308,6 +1308,24 @@ Needs:
 - impl
 - utest
 
+#### Server removes event subscription for disconnected cli
+`swdd~server-removes-event-subscription-for-disconnected-cli~1`
+
+Status: approved
+
+When the Ankaios server receives a `Goodbye` message from the channel provided by the communication middleware, the Ankaios Server shall request the EventHandler to remove the subscription of the cli by providing the cli connection name.
+
+Rationale:
+This serves to prevent subscription corpses that remain in the system when a client disconnects.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
 #### Server provides functionality to calculate state differences
 `swdd~server-calculates-state-differences~1`
 
@@ -1389,7 +1407,10 @@ The EventHandler shall provide the following methods to manage the subscriptions
 
 * adding a new subscriber by inserting a new entry with the subscriber's request ID as key and the subscriber's field masks as value
 * removing a subscriber
-* checking if there is any subscriber inside its internal event store.
+* checking if there is any subscriber inside its internal event store
+* removing all subscribers of a specific agent from its internal event store
+* removing all subscribers of a specific cli connection from its internal event store
+* removing a subscriber by its agent and workload name from the internal event store
 
 Comment:
 The event subscription store is an associative data structure.
@@ -1398,6 +1419,9 @@ One subscriber can subscribe to multiple field masks.
 Rationale:
 The EventHandler sends events to specific subscribers identified by their request ID.
 For efficiency, providing a check for existing subscribers allows to skip costly event related calculations if there are no subscribers available.
+Removing subscribers of an agent prevents subscription corpses that remain in the system when an Ankaios Agent managing workloads with event subscriptions disconnects.
+Removing the cli subscriptions prevents subscription corpses that remain in the system when the cli with event subscriptions disconnects.
+Removing the subscriber by agent and name prevents subscription corpses that remain in the system when the workload is removed.
 
 Tags:
 - EventHandler
