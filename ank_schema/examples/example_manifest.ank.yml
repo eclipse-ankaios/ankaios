@@ -22,24 +22,27 @@ workloads:
         - type: StateRule
           operation: Read
           filterMasks:
-            # TODO each item must not be empty TODO: what about being in r"^[a-zA-Z0-9_-]*$" and separated with points and having "*" wildcards?
-            - "*"
+            # each item must not be empty and be composed of a wildcard "*" or chars in [a-zA-Z0-9_-] separated with points "."
+            - "desiredState.workloads.*.agent"
         - type: LogRule
           workloadNames:
-            # TODO each item must be a valid workload name with at most one "*" wildcard somewhere
-            - "*"
+            # each item must be a valid workload name with at most one "*" wildcard in it and length of at most at most 64 characters (accounting the wildcard)
+            - "some*workload"
+            - "workload_prefix*"
+            - "*workload_suffix"
+            - "just_a_name"
     files:
       - mountPoint: /tmp/somefile.txt
         data: |
           some data
     configs:
-      # each key and value must be in r"^[a-zA-Z0-9_-]+$"
+      # each key and each value must be in r"^[a-zA-Z0-9_-]+$"
       my_config: mapping_of_objects
       arrays_of: arrays_of
     tags:
       owner: Ankaios team
 configs:
-# each key must be in r"^[a-zA-Z0-9_-]*$", but what about the sub-keys?
+  # each key (and sub key) must be in r"^[a-zA-Z0-9_-]+$" and be at most 63 characters
   can_be: simple_strings
   agents:
    - agent_A
