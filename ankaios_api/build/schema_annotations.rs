@@ -22,8 +22,44 @@ use tonic_prost_build::Builder;
 pub fn setup_schema_annotations(mut builder: Builder) -> Builder {
     builder = setup_state_annotations(builder);
     builder = setup_workload_related_annotations(builder);
-
+    builder = setup_constraint_annotations(builder);
     builder
+}
+
+fn setup_constraint_annotations(builder: Builder) -> Builder {
+    builder
+        .field_attribute(
+            "State.apiVersion",
+            format!(r#"#[spec_field_attr(#[schemars(regex(pattern = r"^{API_VERSION_1_0}$"))])]"#),
+        )
+        .field_attribute(
+            "WorkloadMap.workloads",
+            "#[spec_field_attr(#[schemars(schema_with = \"constrained_map_schema::<WorkloadSpec>\")])]",
+        )
+        .field_attribute(
+            "Workload.agent",
+            format!(r#"#[spec_field_attr(#[schemars(regex(pattern = r"^(?:{ALLOWED_CHAR_SET}*|\{{\{{{ALLOWED_CHAR_SET}+(?:\.{ALLOWED_CHAR_SET}+)*\}}\}})$"),length(min = 0, max = {MAX_FIELD_LENGTH}))])]"#)
+        )
+        .field_attribute(
+            "ConfigMappings.configs",
+            "#[spec_field_attr(#[schemars(schema_with = \"constrained_config_map\")])]",
+        )
+        .field_attribute(
+            "ConfigMap.configs",
+            "#[spec_field_attr(#[schemars(schema_with = \"constrained_map_schema::<ConfigItemSpec>\")])]",
+        )
+        .field_attribute(
+            "ConfigObject.fields",
+            "#[spec_field_attr(#[schemars(schema_with = \"constrained_map_schema::<ConfigItemSpec>\")])]",
+        )
+        .field_attribute(
+            "LogRule.workloadNames",
+        format!(r#"#[spec_field_attr(#[schemars(inner(regex(pattern = r"^(?:\*|{ALLOWED_CHAR_SET}*\*{ALLOWED_CHAR_SET}*|{ALLOWED_CHAR_SET}+)$"),length(min = 1, max = {})))])]"#, MAX_FIELD_LENGTH + 1) // + 1 to account for the star as it can match an empty character
+        )
+        .field_attribute(
+            "StateRule.filterMasks",
+        format!(r#"#[spec_field_attr(#[schemars(inner(regex(pattern = r"^(?:\*|{ALLOWED_CHAR_SET}+)(?:\.(?:\*|{ALLOWED_CHAR_SET}+))*$")))])]"#)
+        )
 }
 
 fn setup_state_annotations(builder: Builder) -> Builder {
@@ -36,8 +72,6 @@ fn setup_state_annotations(builder: Builder) -> Builder {
             "State",
             "#[spec_type_attr(#[serde(rename = \"desiredState\")])]",
         )
-        // TODO 313
-        .field_attribute("State.apiVersion", format!(r#"#[spec_field_attr(#[schemars(regex(pattern = r"^{API_VERSION_1_0}$"))])]"#))
         .message_attribute(
             "WorkloadMap",
             "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
@@ -46,44 +80,9 @@ fn setup_state_annotations(builder: Builder) -> Builder {
             "WorkloadMap",
             "#[spec_type_attr(#[serde(rename = \"workloadMap\")])]",
         )
-        // TODO 313
-        .field_attribute(
-            "WorkloadMap.workloads",
-            "#[spec_field_attr(#[schemars(schema_with = \"constrained_map_schema::<WorkloadSpec>\")])]",
-        )
         .message_attribute(
             "Workload",
             "#[spec_type_attr(#[serde(rename = \"workload\")])]",
-        )
-        // TODO 313
-        .field_attribute(
-            "Workload.agent",
-            format!(r#"#[spec_field_attr(#[schemars(regex(pattern = r"^(?:{ALLOWED_CHAR_SET}*|\{{\{{{ALLOWED_CHAR_SET}+(?:\.{ALLOWED_CHAR_SET}+)*\}}\}})$"),length(min = 0, max = {MAX_FIELD_LENGTH}))])]"#)
-        )
-        // TODO 313
-        .field_attribute(
-            "ConfigMappings.configs",
-            "#[spec_field_attr(#[schemars(schema_with = \"constrained_config_map\")])]",
-        )
-        // TODO 313
-        .field_attribute(
-            "ConfigMap.configs",
-            "#[spec_field_attr(#[schemars(schema_with = \"constrained_map_schema::<ConfigItemSpec>\")])]",
-        )
-        // TODO 313
-        .field_attribute(
-            "ConfigObject.fields",
-            "#[spec_field_attr(#[schemars(schema_with = \"constrained_map_schema::<ConfigItemSpec>\")])]",
-        )
-        .field_attribute(
-            "LogRule.workloadNames",
-            // TODO 313
-        format!(r#"#[spec_field_attr(#[schemars(inner(regex(pattern = r"^(?:\*|{ALLOWED_CHAR_SET}*\*{ALLOWED_CHAR_SET}*|{ALLOWED_CHAR_SET}+)$")))])]"#)
-        )
-        .field_attribute(
-            "StateRule.filterMasks",
-            // TODO 313
-        format!(r#"#[spec_field_attr(#[schemars(inner(regex(pattern = r"^(?:\*|{ALLOWED_CHAR_SET}+)(?:\.(?:\*|{ALLOWED_CHAR_SET}+))*$")))])]"#)
         )
         .message_attribute(
             "ConfigMap",
