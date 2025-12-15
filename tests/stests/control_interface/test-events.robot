@@ -107,11 +107,16 @@ Test events on configs
     Given the controller workload is allowed to read and write on *
 
     When the controller workload subscribes to the state of fields desiredState.configs
-    And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state_different_agent_add_dependencies_and_toplevel_configs.yaml" and update mask configs
-    And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state_update_toplevel_configs.yaml" and update mask desiredState.configs
+    And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state_different_agent_add_dependencies_and_toplevel_configs.yaml" and update mask desiredState.configs
     And the controller workload gets event for fields desiredState.configs
     And the last result has added fields desiredState.configs.some_config
     And the last result has no updated fields
+    And the last result has no removed fields
+
+    And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state_update_toplevel_configs.yaml" and update mask desiredState.configs
+    And the controller workload gets event for fields desiredState.configs
+    And the last result has no added fields
+    And the last result has updated fields desiredState.configs.some_config.some_sub_config.sub_param1 and desiredState.configs.some_config.param1
     And the last result has no removed fields
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/empty.yaml" and update mask desiredState.configs
