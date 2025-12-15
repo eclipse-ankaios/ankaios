@@ -19,13 +19,12 @@ import json
 import re
 import uuid
 import functools
-import os
 import signal
-import tempfile
+from fnmatch import fnmatch
 from robot.api import logger
 from robot.libraries.BuiltIn import BuiltIn
-from tempfile import TemporaryDirectory
-from os import path
+from tempfile import TemporaryDirectory, NamedTemporaryFile
+from os import path, unlink
 from typing import Union
 import shutil
 import tomllib
@@ -273,7 +272,7 @@ def wait_for_state_change_via_events(field_mask: str, condition_func: callable, 
 
     ank_path = path.join(ank_bin_dir, 'ank')
 
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.jsonl') as tmp_file:
+    with NamedTemporaryFile(mode='w+', delete=False, suffix='.jsonl') as tmp_file:
         tmp_filename = tmp_file.name
 
     stdout_file = None
@@ -351,7 +350,7 @@ def wait_for_state_change_via_events(field_mask: str, condition_func: callable, 
                 pass
         # Clean up temp file
         if path.exists(tmp_filename):
-            os.unlink(tmp_filename)
+            unlink(tmp_filename)
 
 
 def wait_for_execution_state_via_events(workload_name: str, agent_name: str, expected_state: str, timeout: float=10, ank_bin_dir: str=None) -> dict:
@@ -518,18 +517,22 @@ def find_control_interface_test_tag():
 
 def prepare_test_control_interface_workload():
     global control_interface_workload_config
+    global control_interface_result_expectations
     global manifest_files_location
     global next_manifest_number
     global control_interface_allow_rules
     global control_interface_deny_rules
     global logs_requests
+    global events_requests
 
     control_interface_workload_config = []
+    control_interface_result_expectations = []
     manifest_files_location = []
     next_manifest_number = 0
     control_interface_allow_rules = []
     control_interface_deny_rules = []
     logs_requests = {}
+    events_requests = {}
 
 
 def create_control_interface_config_for_test() -> TemporaryDirectory:
@@ -691,6 +694,16 @@ def internal_log_deny_control_interface(workload_names: str):
 ## Internal operations - control interface commands
 ###############################################################################
 
+@err_logging_decorator
+def internal_controller_wait_milliseconds(milliseconds: str):
+    global control_interface_workload_config
+
+    control_interface_workload_config.append({
+        "command": {
+            "type": "Timeout",
+            "duration_ms": int(milliseconds)
+        }
+    })
 
 @err_logging_decorator
 def internal_add_update_state_command(manifest: str, update_mask: str):
@@ -725,8 +738,14 @@ def internal_send_initial_hello(version: str):
 
 
 @err_logging_decorator
-def internal_add_get_state_command(field_mask: str):
+def internal_add_get_state_command(field_mask: str, subscribe_for_events: bool=False):
     global control_interface_workload_config
+    global events_requests
+
+    request_id = generate_request_id()
+    if subscribe_for_events:
+        events_requests[field_mask] = request_id
+
 
     field_mask = field_mask.replace(" and ", ", ").split(", ")
     if field_mask == [""]:
@@ -734,8 +753,71 @@ def internal_add_get_state_command(field_mask: str):
     control_interface_workload_config.append({
         "command": {
             "type": "GetState",
-            "field_mask": field_mask
+            "field_mask": field_mask,
+            "subscribe_for_events": subscribe_for_events,
+            "request_id": request_id
         }
+    })
+
+@err_logging_decorator
+def internal_add_cancel_events_command(field_mask: str):
+    global control_interface_workload_config
+
+    assert field_mask in events_requests, f"Workload names {field_mask} are not in previous events requests"
+    request_id = events_requests.get(field_mask)
+    control_interface_workload_config.append({
+        "command": {
+            "type": "CancelEvents",
+            "request_id": request_id
+        }
+    })
+
+@err_logging_decorator
+def internal_add_get_event_command(field_mask: str):
+    global control_interface_workload_config
+
+    assert field_mask in events_requests, f"Workload names {field_mask} are not in previous event subscription"
+    request_id = events_requests.get(field_mask)
+    control_interface_workload_config.append({
+        "command": {
+            "type": "GetEvent",
+            "request_id": request_id,
+        }
+    })
+
+@err_logging_decorator
+def internal_check_control_interface_workloads_in_last_result(workload_names: str):
+    global control_interface_result_expectations
+
+    workload_names = [m for m in workload_names.replace(" and ", ", ").split(", ") if m]
+    control_interface_result_expectations.append({
+        "response_number": len(control_interface_workload_config)-1,
+        "type": "exact_workloads",
+        "workload_names": workload_names}
+    )
+
+@err_logging_decorator
+def internal_check_control_interface_workload_fields_in_last_result(workload_name: str, field_names: str):
+    global control_interface_result_expectations
+
+    field_names = field_names.replace(" and ", ", ").split(", ")
+    control_interface_result_expectations.append({
+        "response_number": len(control_interface_workload_config)-1,
+        "type": "exact_workload_fields",
+        "workload_name": workload_name,
+        "field_names": field_names
+    })
+
+@err_logging_decorator
+def internal_check_control_interface_altered_fields_in_last_result(alteration_type: str, masks: str):
+    global control_interface_result_expectations
+
+    masks = [m for m in masks.replace(" and ", ", ").split(", ") if m]
+    control_interface_result_expectations.append({
+        "response_number": len(control_interface_workload_config)-1,
+        "type": "exact_altered_fields",
+        "alteration_type": alteration_type,
+        "masks": masks
     })
 
 
@@ -792,6 +874,8 @@ def internal_get_logs_command(workload_names: str):
     })
 
 
+
+
 @err_logging_decorator
 def internal_add_cancel_logs_request_command(workload_names: str):
     global control_interface_workload_config
@@ -818,11 +902,50 @@ def internal_check_all_control_interface_requests_succeeded(tmp_folder):
     output = read_yaml(output_file_path)
     logger.trace(output)
     for test_number, test_result in enumerate(output):
-        if test_result["result"]["type"] == "NoCheckNeeded":
+        if test_result["result"]["type"] == "OK":
             continue
         test_result = test_result["result"]["value"]["type"] == "Ok"
         assert test_result, \
             f"Expected request {test_number + 1} to succeed, but it failed"
+
+@err_logging_decorator
+def internal_check_all_result_expectations_succeeded(tmp_folder):
+    output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    for expectation in control_interface_result_expectations:
+        response_number = expectation["response_number"]
+        test_result = output[response_number]
+        if expectation["type"] == "exact_workloads":
+            expected_workload_names = expectation["workload_names"]
+            try:
+                actual_workload_names = list(test_result["result"]["value"]["value"][0]["desiredState"]["workloads"].keys())
+            except:
+                actual_workload_names = []
+            assert set(expected_workload_names) == set(actual_workload_names), f"Expected workloads {expected_workload_names} but found {actual_workload_names}"
+        elif expectation["type"] == "exact_workload_fields":
+            workload_name = expectation["workload_name"]
+            expected_field_names = expectation["field_names"]
+            try:
+                actual_field_names = [k for (k,v) in test_result["result"]["value"]["value"][0]["desiredState"]["workloads"][workload_name].items() if v is not None]
+            except:
+                actual_field_names = []
+            assert set(expected_field_names) == set(actual_field_names), f"Expected fields {expected_field_names} but found {actual_field_names}"
+        elif expectation["type"] == "exact_altered_fields":
+            alteration_type = expectation["alteration_type"]
+            expected_masks = expectation["masks"]
+            actual_masks = test_result["result"]["value"]["value"][1][alteration_type]
+            actual_masks_clone = actual_masks.copy()
+            for em in expected_masks:
+                failed = True
+                for i in range(len(actual_masks)):
+                    am = actual_masks[i]
+                    if fnmatch(am, em):
+                        failed = False
+                        del actual_masks[i]
+                        break
+                if failed:
+                    assert False, f"Expected {alteration_type} to match {expected_masks} but found {actual_masks_clone}"
+            if len(actual_masks) != 0:
+                assert False, f"Expected {alteration_type} to match {expected_masks} but found {actual_masks_clone}"
 
 @err_logging_decorator
 def internal_check_last_control_interface_request_failed(tmp_folder):

@@ -1289,6 +1289,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### Server removes event subscription
 `swdd~server-removes-event-subscription~1`
@@ -1307,6 +1308,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### Server removes event subscription for disconnected cli
 `swdd~server-removes-event-subscription-for-disconnected-cli~1`
@@ -1395,6 +1397,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### EventHandler handles event notifications
 
@@ -1450,6 +1453,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ##### EventHandler creates altered fields using the first difference tree
 `swdd~event-handler-creates-altered-fields-using-first-difference-tree~1`

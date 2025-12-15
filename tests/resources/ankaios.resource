@@ -699,6 +699,9 @@ Setup Ankaios for Control Interface test
     Prepare Test Control Interface Workload
     Retrieve current Ankaios version
 
+The controller workload wait for ${milliseconds} milliseconds
+    internal_controller_wait_milliseconds    ${milliseconds}
+
 The controller workload has no access rights
     The controller workload sends initial hello with correct version
 
@@ -745,12 +748,62 @@ The controller workload gets the state
 The controller workload gets the state of fields ${field_mask}
     internal_add_get_state_command    ${field_mask}
 
+The controller workload subscribes to the state of fields ${field_mask}
+    internal_add_get_state_command    ${field_mask}    true
+
+The controller workload gets event for fields ${field_mask}
+    internal_add_get_event_command    ${field_mask}
+
+The last result contains exactly the workloads ${workload_names}
+    internal_check_control_interface_workloads_in_last_result    ${workload_names}
+
+The last result contains no workloads
+    internal_check_control_interface_workloads_in_last_result    ${EMPTY}
+
+In the last result the workload ${workload_name} has exactly the fields ${field_names}
+    internal_check_control_interface_workload_fields_in_last_result    ${workload_name}    ${field_names}
+
+The last result has added fields ${field_names}
+    internal_check_control_interface_altered_fields_in_last_result    addedFields    ${field_names}
+
+The last result has no added fields
+    internal_check_control_interface_altered_fields_in_last_result    addedFields    ${EMPTY}
+
+The last result has updated fields ${field_names}
+    internal_check_control_interface_altered_fields_in_last_result    updatedFields    ${field_names}
+
+The last result has no updated fields
+    internal_check_control_interface_altered_fields_in_last_result    updatedFields    ${EMPTY}
+
+The last result has removed fields ${field_names}
+    internal_check_control_interface_altered_fields_in_last_result    removedFields    ${field_names}
+
+The last result has no removed fields
+    internal_check_control_interface_altered_fields_in_last_result    removedFields    ${EMPTY}
+
+The controller workload cancels events for fields ${field_mask}
+    internal_add_cancel_events_command    ${field_mask}
+
 The controller workload requests shall all succeed
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_all_control_interface_requests_succeeded    ${ankaios_config_folder.name}
+    internal_check_all_result_expectations_succeeded    ${ankaios_config_folder.name}
+
+The controller workload requests shall all succeed with second agent
+    ${ankaios_config_folder}=    create_control_interface_config_for_test
+    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios agent is started with name "${AGENT_NAME}"
+    BuiltIn.Sleep    1s
+    Ankaios agent is started with name "${AGENT_2_NAME}"
+    # we do no want the agent to send a second update of its state, which would be send after 1 second
+    BuiltIn.Sleep    500ms
+    Ankaios agent with name "${AGENT_2_NAME}" is terminated
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
+    internal_check_all_control_interface_requests_succeeded    ${ankaios_config_folder.name}
+    internal_check_all_result_expectations_succeeded    ${ankaios_config_folder.name}
 
 The controller workload last request shall fail
     ${ankaios_config_folder}=    create_control_interface_config_for_test
