@@ -20,6 +20,16 @@ pub const PREVIOUS_API_VERSION: &str = API_VERSION_0_1;
 
 pub mod control_api {
     // [impl->swdd~control-api-provides-control-interface-definitions~1]
+    // [impl->swdd~ank-base-provides-object-definitions~1]
+    // [impl->swdd~api-add-conditions-for-dependencies~1]
+    // [impl->swdd~api-workload-state-identification~1]
+    // [impl->swdd~api-workload-states-supported-states~1]
+    // [impl->swdd~api-workload-state-additional-information~1]
+    // [impl->swdd~api-supports-restart-policies~1]
+    // [impl->swdd~api-provides-spec-object-definitions~1]
+    // [impl->swdd~api-conversions-between-ank-base-and-spec~1]
+    // [impl->swdd~api-object-serialization~1]
+
     tonic::include_proto!("control_api"); // The string specified here must match the proto package name
 }
 

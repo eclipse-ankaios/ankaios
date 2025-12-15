@@ -137,7 +137,7 @@ Test Ankaios apply workload specification without agent name
     Then the last command shall finish with an error
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~common-agent-naming-convention~3]
+# [stest->swdd~api-agent-naming-convention~1]
 Test Ankaios apply workload specification with empty agent name
     [Setup]   Run Keywords    Setup Ankaios
     # Preconditions
@@ -151,7 +151,7 @@ Test Ankaios apply workload specification with empty agent name
     [Teardown]    Clean up Ankaios
 
 #[stest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
-# [stest->swdd~common-agent-naming-convention~3]
+# [stest->swdd~api-agent-naming-convention~1]
 Test Ankaios apply workload with empty agent name cli argument
   [Setup]   Run Keywords    Setup Ankaios
   # Preconditions

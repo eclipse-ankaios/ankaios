@@ -1721,7 +1721,6 @@ Rationale: The agent must be able to recognize when all inter-workload dependenc
 
 Tags:
 - DependencyStateValidator
-- AddCondition
 
 Needs:
 - impl
@@ -1747,36 +1746,12 @@ Rationale: The agent must be able to recognize when all workloads of an inter-wo
 
 Tags:
 - DependencyStateValidator
-- DeleteCondition
 
 Needs:
 - impl
 - utest
 
 ### Restart policies of workloads
-
-#### Agent supports restart policies
-`swdd~agent-supports-restart-policies~1`
-
-Status: approved
-
-The Ankaios agent shall support the following restart policies for a workload:
-
-* `NEVER`: The workload is never restarted. Once the container exits, it remains in the exited state.
-* `ON_FAILURE`: If the workload exits with a non-zero exit code, it will be restarted.
-* `ALWAYS`: The workload is restarted upon termination, regardless of the exit code.
-
-Comment:
-The default restart policy is `NEVER`.
-
-Rationale:
-In some cases, workloads must remain operational at all times, even if they fail or exit successfully.
-
-Tags:
-
-Needs:
-- impl
-- utest
 
 #### WorkloadControlLoop checks workload state validity
 `swdd~workload-control-loop-checks-workload-state-validity~1`
@@ -1800,7 +1775,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop receives a new valid workload state, then the WorkloadControlLoop shall detect a restart of a workload by comparing the workload's RestartPolicy with the received ExecutionState of that workload according to the following table:
+When the WorkloadControlLoop receives a new valid workload state, then the WorkloadControlLoop shall detect that a restart of a workload is required by comparing the workload's RestartPolicy with the received ExecutionState of that workload according to the following table:
 
 | RestartPolicy | ExecutionState                      |
 |---------------|-------------------------------------|

@@ -14,6 +14,10 @@
 
 use tonic_prost_build::Builder;
 
+// [impl->swdd~api-provides-spec-object-definitions~1]
+// [impl->swdd~api-conversions-between-ank-base-and-spec~1]
+// [impl->swdd~api-object-serialization~1]
+
 /// This function provides the proto objects with annotations required for the
 /// generation of the spec objects.
 ///
