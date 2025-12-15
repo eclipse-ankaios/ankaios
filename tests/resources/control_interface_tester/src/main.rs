@@ -675,7 +675,7 @@ impl Connection {
             ResponseContent::EventsCancelAccepted(logs_response) => Ok(
                 TestResultEnum::EventsCancelResponse(TagSerializedResult::Ok(logs_response)),
             ),
-            ResponseContent::Error(error) => Ok(TestResultEnum::LogEntriesResponse(
+            ResponseContent::Error(error) => Ok(TestResultEnum::EventEntryResponse(
                 TagSerializedResult::Err(error.message),
             )),
             response_content => Err(CommandError::GenericError(format!(
