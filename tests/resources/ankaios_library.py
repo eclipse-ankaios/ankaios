@@ -24,7 +24,7 @@ from fnmatch import fnmatch
 from robot.api import logger
 from robot.libraries.BuiltIn import BuiltIn
 from tempfile import TemporaryDirectory, NamedTemporaryFile
-from os import path, unlink
+from os import path, unlink, environ
 from typing import Union
 import shutil
 import tomllib
@@ -268,7 +268,7 @@ def get_pod_id_by_pod_name_from_podman(pod_name: str) -> str:
 
 def wait_for_state_change_via_events(field_mask: str, condition_func: callable, timeout: float=10, ank_bin_dir: str=None) -> dict:
     if ank_bin_dir is None:
-        ank_bin_dir = os.environ.get('ANK_BIN_DIR', '.')
+        ank_bin_dir = environ.get('ANK_BIN_DIR', '.')
 
     ank_path = path.join(ank_bin_dir, 'ank')
 
@@ -932,7 +932,10 @@ def internal_check_all_result_expectations_succeeded(tmp_folder):
         elif expectation["type"] == "exact_altered_fields":
             alteration_type = expectation["alteration_type"]
             expected_masks = expectation["masks"]
-            actual_masks = test_result["result"]["value"]["value"][1][alteration_type]
+            try:
+                actual_masks = test_result["result"]["value"]["value"][1][alteration_type]
+            except KeyError:
+                actual_masks = []
             actual_masks_clone = actual_masks.copy()
             for em in expected_masks:
                 failed = True
