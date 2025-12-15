@@ -18,6 +18,7 @@ pub const ANKAIOS_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const API_VERSION_0_1: &str = "v0.1";
 pub const CURRENT_API_VERSION: &str = API_VERSION_1_0;
 pub const PREVIOUS_API_VERSION: &str = API_VERSION_0_1;
+pub const CONSTRAINT_FIELD_DESCRIPTION: &str = "Only a-z, A-Z, 0-9 chars, underscore (_), and hyphen (-) allowed. Maximum length is 63 characters.";
 
 pub mod control_api {
     // [impl->swdd~control-api-provides-control-interface-definitions~1]

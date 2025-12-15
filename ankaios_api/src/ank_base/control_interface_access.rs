@@ -12,11 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ALLOWED_CHAR_SET;
 use crate::ank_base::{
     AccessRightsRuleEnumSpec, AccessRightsRuleSpec, ControlInterfaceAccessSpec, LogRuleSpec,
     ReadWriteEnum, StateRuleSpec,
-    workload::{validate_wildcard_workload_name_format, validate_workload_name_format},
+    workload::{validate_wildcard_workload_filter_format, validate_workload_name_format},
 };
+use regex::Regex;
 
 pub const WILDCARD_SYMBOL: &str = "*";
 
@@ -65,6 +67,17 @@ impl AccessRightsRuleEnumSpec {
                                 .to_string(),
                         );
                     }
+
+                    let filter_re = Regex::new(&format!(
+                        r"^(?:\*|{ALLOWED_CHAR_SET}+)(?:\.(?:\*|{ALLOWED_CHAR_SET}+))*$"
+                    ))
+                    .map_err(|_| "Internal error. Invalid regular expression.")?;
+
+                    if !filter_re.is_match(filter) {
+                        return Err(format!(
+                            "Unsupported filter mask '{filter}'. Only \".\" separated sequences allowed where each part is either a wildcard \"*\" or chars in [a-zA-Z0-9_-]"
+                        ));
+                    }
                     Ok(())
                 })?;
             }
@@ -85,7 +98,7 @@ impl AccessRightsRuleEnumSpec {
 
         match (first_match, last_match) {
             (Some(first), Some(last)) if first == last => {
-                validate_wildcard_workload_name_format(workload_name, first)
+                validate_wildcard_workload_filter_format(workload_name, first)
             }
             (Some(_), Some(_)) => {
                 return Err(format!("Expected at most one '{WILDCARD_SYMBOL}' symbol."));
@@ -121,11 +134,27 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn test_access_rights_state_rule_validate_fails_on_invalid_characters() {
+        let invalid_state_rule_part =
+            AccessRightsRuleSpec::state_rule(ReadWriteEnum::RwWrite, vec!["valid.prefix.invalid%part".to_string()]);
+        assert!(invalid_state_rule_part.validate_format().is_err_and(|x| x.contains("Unsupported filter mask 'valid.prefix.invalid%part'.")));
+
+        let invalid_state_rule_not_only_wildcard =
+            AccessRightsRuleSpec::state_rule(ReadWriteEnum::RwWrite, vec!["valid.prefix.invalid*part".to_string()]);
+        assert!(invalid_state_rule_not_only_wildcard.validate_format().is_err_and(|x| x.contains("Unsupported filter mask 'valid.prefix.invalid*part'.")));
+    }
+
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_access_rights_state_rule_validate_success() {
-        let state_rule =
+        let simple_state_rule =
             AccessRightsRuleSpec::state_rule(ReadWriteEnum::RwWrite, vec!["some".to_string()]);
+
+        assert!(simple_state_rule.validate_format().is_ok());
+
+        let state_rule =
+            AccessRightsRuleSpec::state_rule(ReadWriteEnum::RwWrite, vec!["some.*.bla.*".to_string()]);
 
         assert!(state_rule.validate_format().is_ok());
     }

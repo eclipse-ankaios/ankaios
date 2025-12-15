@@ -13,60 +13,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{AddCondition, ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadSpec};
-use crate::helpers::serialize_to_ordered_map;
-use crate::{ALLOWED_CHAR_SET, CURRENT_API_VERSION, MAX_FIELD_LENGTH, PREVIOUS_API_VERSION};
+use crate::helpers::{
+    serialize_to_ordered_map, validate_field_not_empty, validate_field_pattern,
+    validate_max_field_length, validate_max_length_filter,
+};
+use crate::{CONSTRAINT_FIELD_DESCRIPTION, CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 
-use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+
 use serde_yaml::Value;
 use std::collections::HashMap;
-
-pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]*$"; // TODO 313 shouldn't this be a + instead of * ?
-pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
-pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
-pub const CONSTRAINT_FIELD_DESCRIPTION: &str = "Only a-z, A-Z, 0-9 chars, underscore (_), and hyphen (-) allowed. Maximum length is 63 characters.";
-
-// TODO 313 this is now more restrictive than the validate functions
-pub fn constrained_config_map(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
-    serde_json::from_value(json!({
-        "type": "object",
-        "propertyNames": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": MAX_FIELD_LENGTH,
-            "pattern": STR_RE_WORKLOAD,
-            "description": CONSTRAINT_FIELD_DESCRIPTION
-        },
-        "additionalProperties": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": MAX_FIELD_LENGTH,
-            "pattern": STR_RE_WORKLOAD,
-            "description": CONSTRAINT_FIELD_DESCRIPTION
-        },
-    }))
-    .expect("Ill formed JSON schema.")
-}
-
-pub fn constrained_map_schema<T: schemars::JsonSchema>(
-    generator: &mut schemars::SchemaGenerator,
-) -> schemars::Schema {
-    let value_schema = generator.subschema_for::<T>();
-
-    serde_json::from_value(json!({
-        "type": "object",
-        "propertyNames": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": MAX_FIELD_LENGTH,
-            "pattern": STR_RE_WORKLOAD,
-            "description": CONSTRAINT_FIELD_DESCRIPTION
-        },
-        "additionalProperties": value_schema
-    }))
-    .unwrap()
-}
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct WorkloadNamed {
@@ -92,63 +48,36 @@ impl From<(String, WorkloadSpec)> for WorkloadNamed {
 }
 
 // [impl->swdd~common-access-rules-logs-workload-names-convention~1]
-pub fn validate_wildcard_workload_name_format(
-    workload_name: &str,
+pub fn validate_wildcard_workload_filter_format(
+    workload_filter: &str,
     wildcard_pos: usize,
 ) -> Result<(), String> {
-    let prefix = &workload_name[..wildcard_pos];
-    let suffix = &workload_name[wildcard_pos + 1..];
+    let prefix = &workload_filter[..wildcard_pos];
+    let suffix = &workload_filter[wildcard_pos + 1..];
 
-    validate_workload_name_pattern(prefix)
-        .and_then(|_| validate_workload_name_pattern(suffix))
-        .and_then(|_| validate_workload_name_length(prefix.len() + suffix.len()))
-        .map_err(|err| format!("Unsupported workload name with wildcard '{workload_name}'. {err}"))
+    validate_field_not_empty(workload_filter)
+        .and_then(|_| validate_max_length_filter(workload_filter))
+        .and_then(|_| validate_field_pattern(prefix))
+        .and_then(|_| validate_field_pattern(suffix))
+        .map_err(|err| {
+            format!("Unsupported workload name filter with wildcard '{workload_filter}'. {err}")
+        })
 }
 
 // [impl->swdd~common-workload-naming-convention~1]
 pub fn validate_workload_name_format(workload_name: &str) -> Result<(), String> {
-    let length = workload_name.len();
-    validate_workload_name_pattern(workload_name)
-        .and_then(|_| validate_workload_name_not_empty(length))
-        .and_then(|_| validate_workload_name_length(length))
+    validate_field_not_empty(workload_name)
+        .and_then(|_| validate_field_pattern(workload_name))
+        .and_then(|_| validate_max_field_length(workload_name))
         .map_err(|err| format!("Unsupported workload name '{workload_name}'. {err}"))
-}
-
-fn validate_workload_name_pattern(workload_name: &str) -> Result<(), String> {
-    let re_workloads = Regex::new(STR_RE_WORKLOAD).unwrap();
-    if !re_workloads.is_match(workload_name) {
-        Err(format!(
-            "Expected to have characters in {ALLOWED_CHAR_SET}."
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-fn validate_workload_name_length(length: usize) -> Result<(), String> {
-    if length > MAX_FIELD_LENGTH {
-        Err(format!(
-            "Length {length} exceeds the maximum limit of {MAX_FIELD_LENGTH} characters."
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-fn validate_workload_name_not_empty(length: usize) -> Result<(), String> {
-    if length == 0 {
-        Err("Is empty.".into())
-    } else {
-        Ok(())
-    }
 }
 
 // [impl->swdd~common-agent-naming-convention~3]
 fn validate_agent_name_format(agent_name: &str) -> Result<(), String> {
-    let re_agent = Regex::new(STR_RE_AGENT).unwrap();
-    if !re_agent.is_match(agent_name) {
+    // Empty agent names are allowed and indicate a not scheduled workload
+    if validate_field_pattern(agent_name).is_err() {
         Err(format!(
-            "Unsupported agent name. Received '{agent_name}', expected to have characters in {ALLOWED_CHAR_SET}"
+            "Unsupported agent name '{agent_name}'. {CONSTRAINT_FIELD_DESCRIPTION}"
         ))
     } else {
         Ok(())
@@ -162,19 +91,20 @@ impl WorkloadSpec {
 
     // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
     pub fn validate_config_reference_format(&self) -> Result<(), String> {
-        let re_config_references = Regex::new(STR_RE_CONFIG_REFERENCES).unwrap();
         for (config_alias, referenced_config) in self.configs.configs.iter() {
-            if !re_config_references.is_match(config_alias) {
-                return Err(format!(
-                    "Unsupported config alias. Received '{config_alias}', expected to have characters in {STR_RE_CONFIG_REFERENCES}"
-                ));
-            }
+            validate_field_not_empty(config_alias)
+                .and_then(|_| validate_max_field_length(config_alias))
+                .and_then(|_| validate_field_pattern(config_alias))
+                .map_err(|_| {
+                    format!(
+                        "Unsupported config alias '{config_alias}'. {CONSTRAINT_FIELD_DESCRIPTION}"
+                    )
+                })?;
 
-            if !re_config_references.is_match(referenced_config) {
-                return Err(format!(
-                    "Unsupported config reference key. Received '{referenced_config}', expected to have characters in {STR_RE_CONFIG_REFERENCES}"
-                ));
-            }
+            validate_field_not_empty(referenced_config)
+                .and_then(|_| validate_max_field_length(referenced_config))
+                .and_then(|_| validate_field_pattern(referenced_config))
+                .map_err(|_| format!("Unsupported config reference key '{referenced_config}'. {CONSTRAINT_FIELD_DESCRIPTION}"))?;
         }
         Ok(())
     }
@@ -295,7 +225,7 @@ pub fn validate_tags(
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
-    use super::validate_workload_name_format;
+    use super::{CONSTRAINT_FIELD_DESCRIPTION, validate_workload_name_format};
 
     use crate::ank_base::{
         AddCondition, DeleteCondition, ExecutionStateSpec, FulfilledBy, RestartPolicy,
@@ -319,9 +249,7 @@ mod tests {
         assert_eq!(
             workload_spec.validate_config_reference_format(),
             Err(format!(
-                "Unsupported config reference key. Received '{}', expected to have characters in {}",
-                invalid_config_reference_key,
-                super::STR_RE_CONFIG_REFERENCES
+                "Unsupported config reference key '{invalid_config_reference_key}'. {CONSTRAINT_FIELD_DESCRIPTION}",
             ))
         );
     }
@@ -480,7 +408,7 @@ mod tests {
             Err(format!(
                 "Unsupported workload name '{}'. Expected to have characters in {}.",
                 workload_with_wrong_name.instance_name.workload_name(),
-                super::ALLOWED_CHAR_SET
+                crate::ALLOWED_CHAR_SET
             ))
         );
     }
@@ -497,9 +425,9 @@ mod tests {
         assert_eq!(
             workload_with_wrong_agent_name.validate_fields_format(),
             Err(format!(
-                "Unsupported agent name. Received '{}', expected to have characters in {}",
+                "Unsupported agent name '{}'. {}",
                 workload_with_wrong_agent_name.instance_name.agent_name(),
-                super::ALLOWED_CHAR_SET
+                CONSTRAINT_FIELD_DESCRIPTION
             ))
         );
     }
@@ -530,7 +458,7 @@ mod tests {
                 "Unsupported workload name '{}'. Length {} exceeds the maximum limit of {} characters.",
                 workload_name,
                 workload_name.len(),
-                super::MAX_FIELD_LENGTH,
+                crate::MAX_FIELD_LENGTH,
             ))
         );
     }
@@ -538,18 +466,18 @@ mod tests {
     #[test]
     fn utest_validate_wildcard_workload_name_format_success() {
         let workload_name = "valid*Workload_Name-1";
-        assert!(super::validate_wildcard_workload_name_format(workload_name, 5).is_ok());
+        assert!(super::validate_wildcard_workload_filter_format(workload_name, 5).is_ok());
     }
 
     #[test]
     fn utest_validate_wildcard_workload_name_format_failure() {
         let workload_name = "inva!lid*Workload+Name@1";
         assert_eq!(
-            super::validate_wildcard_workload_name_format(workload_name, 6),
+            super::validate_wildcard_workload_filter_format(workload_name, 6),
             Err(format!(
-                "Unsupported workload name with wildcard '{}'. Expected to have characters in {}.",
+                "Unsupported workload name filter with wildcard '{}'. Expected to have characters in {}.",
                 workload_name,
-                super::ALLOWED_CHAR_SET
+                crate::ALLOWED_CHAR_SET
             ))
         );
     }

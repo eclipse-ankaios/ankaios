@@ -15,10 +15,10 @@
 // [impl->swdd~ank-base-provides-object-definitions~1]
 tonic::include_proto!("ank_base"); // The string specified here must match the proto package name
 
-use crate::helpers::tag_adapter_deserializer;
-
-pub use crate::helpers::serialize_option_to_ordered_map;
-pub use crate::helpers::serialize_to_ordered_map;
+pub(crate) use crate::helpers::{
+    constrained_config_map, constrained_map_schema, serialize_to_ordered_map,
+    tag_adapter_deserializer,
+};
 
 pub(crate) mod workload_instance_name;
 pub use workload_instance_name::{
@@ -32,11 +32,7 @@ pub use access_rights_rule::AccessRightsRuleEnumSpec;
 pub use control_interface_access::WILDCARD_SYMBOL;
 
 pub(crate) mod workload;
-pub use workload::{
-    DeleteCondition, DeletedWorkload, FulfilledBy, STR_RE_AGENT,
-    STR_RE_CONFIG_REFERENCES, WorkloadNamed, constrained_config_map, constrained_map_schema,
-    validate_tags,
-};
+pub use workload::{DeleteCondition, DeletedWorkload, FulfilledBy, WorkloadNamed, validate_tags};
 
 pub(crate) mod workload_state;
 pub use execution_state::{ExecutionStateEnum, ExecutionStateEnumSpec};
