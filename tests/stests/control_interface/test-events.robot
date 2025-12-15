@@ -25,6 +25,10 @@ Test Teardown    Clean up Ankaios
 
 *** Test Cases ***
 
+# [stest->swdd~server-stores-new-event-subscription~1]
+# [stest->swdd~server-removes-event-subscription~1]
+# [stest->swdd~server-sends-state-differences-as-events~1]
+# [stest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
 Test events no wildcard
     Given the controller workload is allowed to read and write on *
 
@@ -53,6 +57,10 @@ Test events no wildcard
     When the controller workload cancels events for fields desiredState.workloads.simple
     Then the controller workload requests shall all succeed
 
+# [stest->swdd~server-stores-new-event-subscription~1]
+# [stest->swdd~server-removes-event-subscription~1]
+# [stest->swdd~server-sends-state-differences-as-events~1]
+# [stest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
 Test events workload name wildcard only get agent
     Given the controller workload is allowed to read and write on *
 
@@ -81,6 +89,10 @@ Test events workload name wildcard only get agent
     When the controller workload cancels events for fields desiredState.workloads.*.agent
     Then the controller workload requests shall all succeed
 
+# [stest->swdd~server-stores-new-event-subscription~1]
+# [stest->swdd~server-removes-event-subscription~1]
+# [stest->swdd~server-sends-state-differences-as-events~1]
+# [stest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
 Test events with multiple wildcards
     Given the controller workload is allowed to read and write on *
 
@@ -103,6 +115,10 @@ Test events with multiple wildcards
     When the controller workload cancels events for fields desiredState.workloads.*.*.some_other_workload
     Then the controller workload requests shall all succeed
 
+# [stest->swdd~server-stores-new-event-subscription~1]
+# [stest->swdd~server-removes-event-subscription~1]
+# [stest->swdd~server-sends-state-differences-as-events~1]
+# [stest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
 Test events on configs
     Given the controller workload is allowed to read and write on *
 
@@ -129,6 +145,10 @@ Test events on configs
     When the controller workload cancels events for fields desiredState.configs
     Then the controller workload requests shall all succeed
 
+# [stest->swdd~server-stores-new-event-subscription~1]
+# [stest->swdd~server-removes-event-subscription~1]
+# [stest->swdd~server-sends-state-differences-as-events~1]
+# [stest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
 Test events on configs two wildcards
     Given the controller workload is allowed to read and write on *
 
@@ -155,6 +175,10 @@ Test events on configs two wildcards
     When the controller workload cancels events for fields desiredState.configs.*.*
     Then the controller workload requests shall all succeed
 
+# [stest->swdd~server-stores-new-event-subscription~1]
+# [stest->swdd~server-removes-event-subscription~1]
+# [stest->swdd~server-sends-state-differences-as-events~1]
+# [stest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
 Test events on workload states
     Given the controller workload is allowed to read and write on *
     And The controller workload wait for 1000 milliseconds
@@ -192,6 +216,10 @@ Test events on workload states
     Then the controller workload requests shall all succeed
 
 
+# [stest->swdd~server-stores-new-event-subscription~1]
+# [stest->swdd~server-removes-event-subscription~1]
+# [stest->swdd~server-sends-state-differences-as-events~1]
+# [stest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
 Test events on agents
     Given the controller workload is allowed to read and write on *
 
