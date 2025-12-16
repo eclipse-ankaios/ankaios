@@ -38,7 +38,7 @@ fn setup_constraint_annotations(builder: Builder) -> Builder {
         )
         .field_attribute(
             "Workload.agent",
-            format!(r#"#[spec_field_attr(#[schemars(regex(pattern = r"^(?:{ALLOWED_CHAR_SET}*|\{{\{{{ALLOWED_CHAR_SET}+(?:\.{ALLOWED_CHAR_SET}+)*\}}\}})$"),length(min = 0, max = {MAX_FIELD_LENGTH}))])]"#)
+            format!(r#"#[spec_field_attr(#[schemars(regex(pattern = r"^(?:{ALLOWED_CHAR_SET}*\{{\{{{ALLOWED_CHAR_SET}+(?:\.{ALLOWED_CHAR_SET}+)*\}}\}})*{ALLOWED_CHAR_SET}*$"),length(min = 0))])]"#)
         )
         .field_attribute(
             "ConfigMappings.configs",
