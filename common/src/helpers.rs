@@ -17,12 +17,6 @@ use crate::std_extensions::IllegalStateResult;
 use semver::Version;
 
 // [impl->swdd~common-helper-methods~1]
-pub fn try_into_vec<S, T, E>(input: Vec<S>) -> Result<Vec<T>, E>
-where
-    T: TryFrom<S, Error = E>,
-{
-    input.into_iter().map(|x| x.try_into()).collect()
-}
 
 // [impl->swdd~common-version-checking~1]
 pub fn check_version_compatibility(version: impl AsRef<str>) -> Result<(), String> {
