@@ -362,7 +362,11 @@ def wait_for_state_change_via_events(field_mask: str, condition_func: Callable[[
 
 
 def wait_for_execution_state_via_events(workload_name: str, agent_name: str, expected_state: str, timeout: float=10, ank_bin_dir: str=None) -> dict:
-    def condition(event):
+    def condition(event: dict, agent_name: str, workload_name: str, expected_state: str):
+        """
+        Condition fulfilled if:
+        - the specified workload has the expected state.
+        """
         complete_state = event.get('completeState', {})
         workload_states = complete_state.get('workloadStates', {})
         agent_workloads = workload_states.get(agent_name, {})
@@ -381,14 +385,14 @@ def wait_for_execution_state_via_events(workload_name: str, agent_name: str, exp
     logger.trace(f"Waiting for workload '{workload_name}' on agent '{agent_name}' to reach state '{expected_state}'")
     return wait_for_state_change_via_events(
         field_mask="workloadStates",
-        condition_func=condition,
+        condition_func=lambda event: condition(event, agent_name, workload_name, expected_state),
         timeout=timeout,
         ank_bin_dir=ank_bin_dir
     )
 
 
 def wait_for_initial_execution_state_via_events(agent_name: str, timeout: float=10, ank_bin_dir: str=None) -> dict:
-    def condition(event, agent):
+    def condition(event: dict, agent_name: str):
         """
         Condition fulfilled if:
         - specified agent is connected
@@ -396,7 +400,7 @@ def wait_for_initial_execution_state_via_events(agent_name: str, timeout: float=
         """
         complete_state = event.get('completeState', {})
         workload_states = complete_state.get('workloadStates', {})
-        agent_workloads = workload_states.get(agent, {})
+        agent_workloads = workload_states.get(agent_name, {})
 
         if not agent_workloads:
             return False
@@ -411,7 +415,7 @@ def wait_for_initial_execution_state_via_events(agent_name: str, timeout: float=
                     logger.trace(f"Workload {workload_name} still in Pending(Initial)")
                     return False
 
-        logger.trace(f"All workloads on agent '{agent}' have left Pending(Initial)")
+        logger.trace(f"All workloads on agent '{agent_name}' have left Pending(Initial)")
         return True
 
     logger.trace(f"Waiting for all workloads on agent '{agent_name}' to leave Pending(Initial) state")
@@ -424,7 +428,12 @@ def wait_for_initial_execution_state_via_events(agent_name: str, timeout: float=
 
 
 def wait_for_workload_removal_via_events(workload_name: str, agent_name: str, timeout: float=10, ank_bin_dir: str=None) -> dict:
-    def condition(event):
+    def condition(event: dict, agent_name: str, workload_name: str):
+        """
+        Condition fulfilled if the specified workload is not found or has been removed.
+        Providing a name will limit the search to only that agent, otherwise it will
+        be searched through all agents.
+        """
         removed_fields = event.get('removedFields', [])
         for field in removed_fields:
             if workload_name in field and 'workloadStates' in field:
@@ -455,7 +464,7 @@ def wait_for_workload_removal_via_events(workload_name: str, agent_name: str, ti
     logger.trace(f"Waiting for workload '{workload_name}' to be removed from agent '{agent_name}'")
     return wait_for_state_change_via_events(
         field_mask="workloadStates",
-        condition_func=condition,
+        condition_func=lambda event: condition(event, agent_name, workload_name),
         timeout=timeout,
         ank_bin_dir=ank_bin_dir
     )

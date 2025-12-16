@@ -1072,7 +1072,7 @@ the last command shall finish with exit code "${exit_code}"
 
 user starts event listener with format "${format}" and field mask "${field_mask}" in background
     ${field_mask_arg}=    Set Variable If    "${field_mask}" == ""    ${EMPTY}    ${field_mask}
-    ${cmd}=    Set Variable If    "${field_mask}" == ""    %{ANK_BIN_DIR}${/}ank -k get events -o ${format}    %{ANK_BIN_DIR}${/}ank -k get events ${field_mask_arg} -o ${format}
+    ${cmd}=    Set Variable If    "${field_mask}" == ""    %{ANK_BIN_DIR}${/}ank -k get events -o ${format}    %{ANK_BIN_DIR}${/}ank -k get events \"${field_mask_arg}\" -o ${format}
     Start Process    ${cmd}    shell=True    stdout=target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/events_error.txt    alias=event-listener
 
 the event output shall contain workload "${workload_name}"
