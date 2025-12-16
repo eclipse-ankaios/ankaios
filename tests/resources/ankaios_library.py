@@ -25,7 +25,7 @@ from robot.api import logger
 from robot.libraries.BuiltIn import BuiltIn
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from os import path, unlink, environ
-from typing import Union
+from typing import Callable, Union
 import shutil
 import tomllib
 
@@ -266,7 +266,15 @@ def get_pod_id_by_pod_name_from_podman(pod_name: str) -> str:
     return pod_id
 
 
-def wait_for_state_change_via_events(field_mask: str, condition_func: callable, timeout: float=10, ank_bin_dir: str=None) -> dict:
+def wait_for_state_change_via_events(field_mask: str, condition_func: Callable[[dict], bool], timeout: float=10, ank_bin_dir: str=None) -> dict:
+    """
+    Method starts the ank cli, listening for events and checks
+    whether a specific condition is met, which is provided through
+    the `condition_func` argument.
+
+    Returns:
+        The event that fulfilled the condition, None otherwise.
+    """
     if ank_bin_dir is None:
         ank_bin_dir = environ.get('ANK_BIN_DIR', '.')
 
@@ -380,10 +388,15 @@ def wait_for_execution_state_via_events(workload_name: str, agent_name: str, exp
 
 
 def wait_for_initial_execution_state_via_events(agent_name: str, timeout: float=10, ank_bin_dir: str=None) -> dict:
-    def condition(event):
+    def condition(event, agent):
+        """
+        Condition fulfilled if:
+        - specified agent is connected
+        - all workloads of the agent have left the Pending(Initial) state
+        """
         complete_state = event.get('completeState', {})
         workload_states = complete_state.get('workloadStates', {})
-        agent_workloads = workload_states.get(agent_name, {})
+        agent_workloads = workload_states.get(agent, {})
 
         if not agent_workloads:
             return False
@@ -398,13 +411,13 @@ def wait_for_initial_execution_state_via_events(agent_name: str, timeout: float=
                     logger.trace(f"Workload {workload_name} still in Pending(Initial)")
                     return False
 
-        logger.trace(f"All workloads on agent '{agent_name}' have left Pending(Initial)")
+        logger.trace(f"All workloads on agent '{agent}' have left Pending(Initial)")
         return True
 
     logger.trace(f"Waiting for all workloads on agent '{agent_name}' to leave Pending(Initial) state")
     return wait_for_state_change_via_events(
         field_mask="workloadStates",
-        condition_func=condition,
+        condition_func=lambda event: condition(event, agent_name),
         timeout=timeout,
         ank_bin_dir=ank_bin_dir
     )
@@ -1286,7 +1299,7 @@ def user_waits_for_all_workloads_to_start_via_events(agent_name: str, timeout: s
         timeout=timeout_float
     )
 
-    assert result is not None, \
+    assert result is None, \
         f"Timeout waiting for all workloads on agent '{agent_name}' to leave Pending(Initial) state"
 
     logger.trace(f"All workloads on agent '{agent_name}' have started")
