@@ -2,14 +2,14 @@ apiVersion: v1
 workloads:
   # each key must be in r"^[a-zA-Z0-9_-]+$" and be at most 63 characters
   hello1:
-    agent: ""
+    agent: 'agent_A'
     runtime: podman
     runtimeConfig: |
       image: hello-world:latest
     restartPolicy: NEVER
   test_workload:
-    # each key must be either in r"^[a-zA-Z0-9_-]*$" or be a variable reference like "{{variables.2.VAR_NAME}}"
-    agent: '{{arrays_of.items.2.which.can.be.mappings.again.2}}'
+    # each key must be either in r"^[a-zA-Z0-9_-]*$" or be a variable reference like "{{variables.2.VAR_NAME}} or a combination of both"
+    agent: 'prefix-{{arrays_of.items.2.which.can.be.mappings.again.2}}-suffix'
     runtime: podman
     runtimeConfig: |
       image: alpine:latest
