@@ -1480,6 +1480,27 @@ Needs:
 - impl
 - utest
 
+##### EventHandler creates altered fields from first difference tree upon empty subscriber mask
+`swdd~event-handler-uses-first-difference-tree-upon-empty-subscriber-mask~1`
+
+Status: approved
+
+When the EventHandler creates the altered fields based on the subscriber's field mask
+and the subscriber's field mask is empty, the EventHandler shall create the altered field masks by returning all paths from the first difference tree.
+
+Comment:
+Alternative usage to subscribing to all fields using a wildcard (`*`).
+
+Rationale:
+The empty subscriber mask indicates that the subscriber wants to receive all changes in the state.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
 ##### EventHandler creates altered fields using the full difference tree
 `swdd~event-handler-creates-altered-fields-using-full-difference-tree~1`
 

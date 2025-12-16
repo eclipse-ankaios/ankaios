@@ -221,6 +221,7 @@ fn create_altered_fields_matching_subscriber_masks(
     let mut altered_field_masks = Vec::new();
     let empty_mapping = serde_yaml::Mapping::new();
 
+    // [impl->swdd~event-handler-uses-first-difference-tree-upon-empty-subscriber-mask~1]
     if subscriber_field_masks.is_empty() {
         // No masks provided -> return all paths from the first difference tree
         return collect_all_leaf_paths_iterative(&Value::Mapping(difference_tree.clone()));
@@ -952,5 +953,44 @@ mod tests {
             &["root.child1.grandchild1.non_existing".into()],
         );
         assert!(altered_fields.is_empty());
+    }
+
+    // [utest->swdd~event-handler-uses-first-difference-tree-upon-empty-subscriber-mask~1]
+    #[test]
+    fn utest_collect_altered_fields_matching_subscriber_masks_with_empty_subscriber_masks() {
+        let first_difference_tree_yaml = r#"
+        root:
+            child1:
+                grandchild1: null
+            child2:
+                grandchild2: null
+        "#;
+
+        let full_difference_tree_yaml = r#"
+        root:
+            child1:
+                grandchild1:
+                    great_grandchild: null
+            child2:
+                grandchild2:
+                    great_grandchild: null
+        "#;
+
+        let first_difference_tree: serde_yaml::Mapping =
+            serde_yaml::from_str(first_difference_tree_yaml).unwrap();
+
+        let full_difference_tree: serde_yaml::Mapping =
+            serde_yaml::from_str(full_difference_tree_yaml).unwrap();
+
+        // empty subscriber masks should return all paths from the first difference tree
+        let altered_fields = create_altered_fields_matching_subscriber_masks(
+            &full_difference_tree,
+            &first_difference_tree,
+            &[],
+        );
+
+        assert_eq!(altered_fields.len(), 2);
+        assert!(altered_fields.contains(&"root.child1.grandchild1".to_owned()));
+        assert!(altered_fields.contains(&"root.child2.grandchild2".to_owned()));
     }
 }
