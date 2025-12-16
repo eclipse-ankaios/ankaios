@@ -116,9 +116,14 @@ impl WorkloadNamed {
     // [impl->swdd~common-access-rules-filter-mask-convention~1]
     pub fn validate_fields_format(&self) -> Result<(), String> {
         validate_workload_name_format(self.instance_name.workload_name())?;
-        validate_agent_name_format(self.instance_name.agent_name())?;
-        // TODO: should we compare the agents from instance_name and workload.agent instead of checking the format again?
         validate_agent_name_format(&self.workload.agent)?;
+        if self.instance_name.agent_name() != self.workload.agent {
+            return Err(format!(
+                "Internal error. Mismatch between workload instance name agent '{}' and workload agent field '{}'.",
+                self.instance_name.agent_name(),
+                self.workload.agent
+            ));
+        }
         self.workload.control_interface_access.validate_format()?;
         Ok(())
     }
