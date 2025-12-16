@@ -1114,7 +1114,7 @@ Needs:
 
 Status: approved
 
-When the CLI is listening for events and encounters an error response from the server, a termination signal (SIGINT, SIGTERM, SIGHUP, or SIGQUIT), or a connection interruption, the CLI shall report the error condition and gracefully terminate.
+When the CLI is listening for events and encounters an error response from the server, a termination signal, or a connection interruption, the CLI shall report the error condition and gracefully terminate.
 
 Tags:
 - ServerConnection
