@@ -198,5 +198,142 @@ mod tests {
         assert_eq!(deserialized_map, adapted_map_vec);
     }
 
-    // TODO #313 add unit tests for the validators
+    #[test]
+    fn utest_validate_field_pattern() {
+        assert!(validate_field_pattern("valid_Name-123").is_ok());
+        assert!(validate_field_pattern("invalid%name").is_err());
+    }
+
+    #[test]
+    fn utest_validate_field_not_empty() {
+        assert!(validate_field_not_empty("not_empty").is_ok());
+        assert!(validate_field_not_empty("").is_err());
+    }
+
+    #[test]
+    fn utest_validate_max_field_length() {
+        let valid_value = "a".repeat(MAX_FIELD_LENGTH);
+        assert!(validate_max_field_length(&valid_value).is_ok());
+        let invalid_value = "a".repeat(MAX_FIELD_LENGTH + 1);
+        assert!(validate_max_field_length(&invalid_value).is_err());
+    }
+
+    #[test]
+    fn utest_validate_max_length_filter() {
+        let valid_value = "a".repeat(MAX_FIELD_LENGTH + 1);
+        assert!(validate_max_length_filter(&valid_value).is_ok());
+        let invalid_value = "a".repeat(MAX_FIELD_LENGTH + 2);
+        assert!(validate_max_length_filter(&invalid_value).is_err());
+    }
+
+    #[test]
+    fn utest_constrained_config_map_schema() {
+        let schema = constrained_config_map(&mut schemars::SchemaGenerator::default());
+
+        assert!(
+            schema
+                .get("propertyNames")
+                .unwrap()
+                .get("pattern")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .contains(&format!("^{ALLOWED_CHAR_SET}+$"))
+        );
+        assert_eq!(
+            schema
+                .get("propertyNames")
+                .unwrap()
+                .get("maxLength")
+                .unwrap()
+                .as_u64()
+                .unwrap(),
+            MAX_FIELD_LENGTH as u64
+        );
+        assert_eq!(
+            schema
+                .get("propertyNames")
+                .unwrap()
+                .get("minLength")
+                .unwrap()
+                .as_u64()
+                .unwrap(),
+            1
+        );
+
+        assert!(
+            schema
+                .get("additionalProperties")
+                .unwrap()
+                .get("pattern")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .contains(&format!("^{ALLOWED_CHAR_SET}+$"))
+        );
+        assert_eq!(
+            schema
+                .get("additionalProperties")
+                .unwrap()
+                .get("maxLength")
+                .unwrap()
+                .as_u64()
+                .unwrap(),
+            MAX_FIELD_LENGTH as u64
+        );
+        assert_eq!(
+            schema
+                .get("additionalProperties")
+                .unwrap()
+                .get("minLength")
+                .unwrap()
+                .as_u64()
+                .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn utest_constrained_map_schema() {
+        let schema = constrained_map_schema::<String>(&mut schemars::SchemaGenerator::default());
+
+        assert!(
+            schema
+                .get("propertyNames")
+                .unwrap()
+                .get("pattern")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .contains(&format!("^{ALLOWED_CHAR_SET}+$"))
+        );
+        assert_eq!(
+            schema
+                .get("propertyNames")
+                .unwrap()
+                .get("maxLength")
+                .unwrap()
+                .as_u64()
+                .unwrap(),
+            MAX_FIELD_LENGTH as u64
+        );
+        assert_eq!(
+            schema
+                .get("propertyNames")
+                .unwrap()
+                .get("minLength")
+                .unwrap()
+                .as_u64()
+                .unwrap(),
+            1
+        );
+
+        assert!(
+            schema
+                .get("additionalProperties")
+                .unwrap()
+                .get("pattern")
+                .is_none()
+        );
+    }
 }
