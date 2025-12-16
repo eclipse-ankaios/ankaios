@@ -44,5 +44,9 @@
         "tag:yaml.org,2002:python/name:materialx.emoji.twemoji",
         "tag:yaml.org,2002:python/name:pymdownx.superfences.fence_code_format"
     ],
-    "plantuml.jar": "/usr/local/bin/plantuml.jar"
+    "plantuml.jar": "/usr/local/bin/plantuml.jar",
+    "protobuf.diagnostics.namingConventions": false,
+    "protobuf.includes": [
+        "/workspaces/ankaios/ankaios_api/proto"
+    ]
 }
