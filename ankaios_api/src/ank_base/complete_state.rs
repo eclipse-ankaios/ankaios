@@ -39,6 +39,7 @@ impl StateSpec {
         Ok(())
     }
 
+    // [impl->swdd~api-version-checks~1]
     fn validate_api_version(&self) -> Result<(), String> {
         match self.api_version.as_str() {
             CURRENT_API_VERSION => Ok(()),
@@ -55,6 +56,7 @@ impl StateSpec {
         }
     }
 
+    // [impl->swdd~api-config-item-key-naming-convention~1]
     fn validate_config_map(
         regex: &Regex,
         config_map: &HashMap<String, ConfigItemSpec>,
@@ -89,7 +91,7 @@ impl StateSpec {
             .map_err(|_| "Internal error. Invalid regular expression.")?;
         Self::validate_config_map(&re_config_items, &self.configs.configs)?;
 
-        // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+        // [impl->swdd~api-config-aliases-and-config-reference-keys-naming-convention~1]
         self.workloads
             .workloads
             .values()
@@ -106,10 +108,6 @@ impl StateSpec {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
-
-// [utest->swdd~common-conversions-between-ankaios-and-proto~1]
-// [utest->swdd~common-object-representation~1]
-// [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
     use super::{CONSTRAINT_FIELD_DESCRIPTION, PREVIOUS_API_VERSION};
@@ -124,6 +122,7 @@ mod tests {
 
     const INVALID_CONFIG_KEY: &str = "invalid%key";
 
+    // [utest->swdd~api-object-serialization~1]
     #[test]
     fn utest_serialize_state_into_ordered_output() {
         // input: random sorted state
@@ -144,6 +143,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~api-version-checks~1]
     #[test]
     fn utest_state_accepts_compatible_state() {
         let mut state_compatible_version = StateSpec::default();
@@ -159,6 +159,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~api-version-checks~1]
     #[test]
     fn utest_state_rejects_incompatible_state_on_api_version() {
         let api_version = "incompatible_version".to_string();
@@ -198,7 +199,7 @@ mod tests {
         assert_eq!(deserialization_result, "missing field `apiVersion`");
     }
 
-    // [utest->swdd~common-config-item-key-naming-convention~1]
+    // [utest->swdd~api-config-item-key-naming-convention~1]
     #[test]
     fn utest_validate_configs_format_compatible_config_item_keys_and_config_references() {
         let workload = generate_test_workload();
@@ -213,7 +214,7 @@ mod tests {
         assert_eq!(StateSpec::validate_configs_format(&state), Ok(()));
     }
 
-    // [utest->swdd~common-config-item-key-naming-convention~1]
+    // [utest->swdd~api-config-item-key-naming-convention~1]
     #[test]
     fn utest_validate_configs_format_incompatible_config_item_key() {
         let state = StateSpec {
@@ -235,7 +236,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    // [utest->swdd~api-config-aliases-and-config-reference-keys-naming-convention~1]
     #[test]
     fn utest_validate_configs_format_incompatible_workload_config_alias() {
         let mut workload: WorkloadSpec = generate_test_workload();

@@ -14,7 +14,5 @@
 
 // [impl->swdd~common-object-representation~1]
 
-// [impl->swdd~common-conversions-between-ankaios-and-proto~1]
-
 mod agent_name;
 pub use agent_name::AgentName;

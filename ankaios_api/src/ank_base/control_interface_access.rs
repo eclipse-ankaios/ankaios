@@ -23,7 +23,7 @@ use regex::Regex;
 pub const WILDCARD_SYMBOL: &str = "*";
 
 impl ControlInterfaceAccessSpec {
-    // [impl->swdd~common-access-rules-filter-mask-convention~1]
+    // [impl->swdd~api-access-rules-filter-mask-convention~1]
     pub fn validate_format(&self) -> Result<(), String> {
         self.allow_rules
             .iter()
@@ -58,7 +58,7 @@ impl AccessRightsRuleSpec {
 impl AccessRightsRuleEnumSpec {
     fn validate_format(&self) -> Result<(), String> {
         match self {
-            // [impl->swdd~common-access-rules-filter-mask-convention~1]
+            // [impl->swdd~api-access-rules-filter-mask-convention~1]
             AccessRightsRuleEnumSpec::StateRule(state_rule) => {
                 state_rule.filter_masks.iter().try_for_each(|filter| {
                     if filter.is_empty() {
@@ -81,7 +81,7 @@ impl AccessRightsRuleEnumSpec {
                     Ok(())
                 })?;
             }
-            // [impl->swdd~common-access-rules-logs-workload-names-convention~1]
+            // [impl->swdd~api-access-rules-logs-workload-names-convention~1]
             AccessRightsRuleEnumSpec::LogRule(log_rule) => {
                 log_rule.workload_names.iter().try_for_each(|name| {
                     Self::validate_log_rule_workload_name_pattern_format(name)
@@ -91,7 +91,7 @@ impl AccessRightsRuleEnumSpec {
         Ok(())
     }
 
-    // [impl->swdd~common-access-rules-logs-workload-names-convention~1]
+    // [impl->swdd~api-access-rules-logs-workload-names-convention~1]
     fn validate_log_rule_workload_name_pattern_format(workload_name: &str) -> Result<(), String> {
         let first_match = workload_name.find(WILDCARD_SYMBOL);
         let last_match = workload_name.rfind(WILDCARD_SYMBOL);
@@ -123,7 +123,7 @@ mod tests {
     use crate::ank_base::{AccessRightsRuleSpec, ReadWriteEnum};
     use crate::test_utils::generate_test_control_interface_access;
 
-    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    // [utest->swdd~api-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_access_rights_state_rule_validate_fails() {
         let empty_state_rule =
@@ -145,7 +145,7 @@ mod tests {
         assert!(invalid_state_rule_not_only_wildcard.validate_format().is_err_and(|x| x.contains("Unsupported filter mask 'valid.prefix.invalid*part'.")));
     }
 
-    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    // [utest->swdd~api-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_access_rights_state_rule_validate_success() {
         let simple_state_rule =
@@ -159,7 +159,7 @@ mod tests {
         assert!(state_rule.validate_format().is_ok());
     }
 
-    // [utest->swdd~common-access-rules-logs-workload-names-convention~1]
+    // [utest->swdd~api-access-rules-logs-workload-names-convention~1]
     #[test]
     fn utest_access_rights_log_rule_validate_success() {
         const MAX_PREFIX: &str = "123456789012345678901234567890";
@@ -207,7 +207,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-access-rules-logs-workload-names-convention~1]
+    // [utest->swdd~api-access-rules-logs-workload-names-convention~1]
     #[test]
     fn utest_access_rights_log_rule_validate_fails() {
         const TOO_LONG_PREFIX: &str = "123456789012345678901234567890";
@@ -275,7 +275,7 @@ mod tests {
         AccessRightsRuleSpec::log_rule(vec![workload_name.to_string()])
     }
 
-    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    // [utest->swdd~api-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_control_interface_access_validate_fails_on_empty_allow_rule_filter() {
         let mut control_interface_access = generate_test_control_interface_access();
@@ -291,7 +291,7 @@ mod tests {
         ));
     }
 
-    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    // [utest->swdd~api-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_control_interface_access_validate_fails_on_empty_deny_rule_filter() {
         let mut control_interface_access = generate_test_control_interface_access();
@@ -307,7 +307,7 @@ mod tests {
         ));
     }
 
-    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    // [utest->swdd~api-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_control_interface_access_validate_success() {
         let control_interface_access = generate_test_control_interface_access();

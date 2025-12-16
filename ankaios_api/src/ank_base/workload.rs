@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::{AddCondition, ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadSpec};
+use crate::ank_base::{WorkloadInstanceNameSpec, WorkloadSpec};
 use crate::helpers::{
     serialize_to_ordered_map, validate_field_not_empty, validate_field_pattern,
     validate_max_field_length, validate_max_length_filter,
@@ -47,7 +47,7 @@ impl From<(String, WorkloadSpec)> for WorkloadNamed {
     }
 }
 
-// [impl->swdd~common-access-rules-logs-workload-names-convention~1]
+// [impl->swdd~api-access-rules-logs-workload-names-convention~1]
 pub fn validate_wildcard_workload_filter_format(
     workload_filter: &str,
     wildcard_pos: usize,
@@ -64,7 +64,7 @@ pub fn validate_wildcard_workload_filter_format(
         })
 }
 
-// [impl->swdd~common-workload-naming-convention~1]
+// [impl->swdd~api-workload-naming-convention~1]
 pub fn validate_workload_name_format(workload_name: &str) -> Result<(), String> {
     validate_field_not_empty(workload_name)
         .and_then(|_| validate_field_pattern(workload_name))
@@ -72,7 +72,7 @@ pub fn validate_workload_name_format(workload_name: &str) -> Result<(), String> 
         .map_err(|err| format!("Unsupported workload name '{workload_name}'. {err}"))
 }
 
-// [impl->swdd~common-agent-naming-convention~3]
+// [impl->swdd~api-agent-naming-convention~1]
 fn validate_agent_name_format(agent_name: &str) -> Result<(), String> {
     // Empty agent names are allowed and indicate a not scheduled workload
     if validate_field_pattern(agent_name).is_err() {
@@ -85,11 +85,12 @@ fn validate_agent_name_format(agent_name: &str) -> Result<(), String> {
 }
 
 impl WorkloadSpec {
+    // [impl->swdd~api-workload-needs-control-interface~1]
     pub fn needs_control_interface(&self) -> bool {
         !self.control_interface_access.allow_rules.is_empty()
     }
 
-    // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    // [impl->swdd~api-config-aliases-and-config-reference-keys-naming-convention~1]
     pub fn validate_config_reference_format(&self) -> Result<(), String> {
         for (config_alias, referenced_config) in self.configs.configs.iter() {
             validate_field_not_empty(config_alias)
@@ -111,9 +112,9 @@ impl WorkloadSpec {
 }
 
 impl WorkloadNamed {
-    // [impl->swdd~common-workload-naming-convention~1]
-    // [impl->swdd~common-agent-naming-convention~3]
-    // [impl->swdd~common-access-rules-filter-mask-convention~1]
+    // [impl->swdd~api-workload-naming-convention~1]
+    // [impl->swdd~api-agent-naming-convention~1]
+    // [impl->swdd~api-access-rules-filter-mask-convention~1]
     pub fn validate_fields_format(&self) -> Result<(), String> {
         validate_workload_name_format(self.instance_name.workload_name())?;
         validate_agent_name_format(&self.workload.agent)?;
@@ -129,11 +130,7 @@ impl WorkloadNamed {
     }
 }
 
-pub trait FulfilledBy<T> {
-    fn fulfilled_by(&self, other: &T) -> bool;
-}
-
-// [impl->swdd~common-object-serialization~1]
+// [impl->swdd~api-object-serialization~1]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
 pub struct DeletedWorkload {
     pub instance_name: WorkloadInstanceNameSpec,
@@ -141,37 +138,12 @@ pub struct DeletedWorkload {
     pub dependencies: HashMap<String, DeleteCondition>,
 }
 
-// [impl->swdd~workload-delete-conditions-for-dependencies~1]
+// [impl->swdd~api-delete-conditions-for-dependencies~1]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DeleteCondition {
     DelCondRunning = 0,
     DelCondNotPendingNorRunning = 1,
-}
-
-impl FulfilledBy<ExecutionStateSpec> for AddCondition {
-    // [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
-    fn fulfilled_by(&self, other: &ExecutionStateSpec) -> bool {
-        match self {
-            AddCondition::AddCondRunning => (*other).is_running(),
-            AddCondition::AddCondSucceeded => (*other).is_succeeded(),
-            AddCondition::AddCondFailed => (*other).is_failed(),
-        }
-    }
-}
-
-impl FulfilledBy<ExecutionStateSpec> for DeleteCondition {
-    // [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
-    fn fulfilled_by(&self, other: &ExecutionStateSpec) -> bool {
-        if other.is_waiting_to_start() {
-            return true;
-        }
-
-        match self {
-            DeleteCondition::DelCondNotPendingNorRunning => (*other).is_not_pending_nor_running(),
-            DeleteCondition::DelCondRunning => (*other).is_running(),
-        }
-    }
 }
 
 impl TryFrom<i32> for DeleteCondition {
@@ -225,24 +197,19 @@ pub fn validate_tags(
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~common-conversions-between-ankaios-and-proto~1]
-// [utest->swdd~common-object-representation~1]
-// [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
     use super::{CONSTRAINT_FIELD_DESCRIPTION, validate_workload_name_format};
 
     use crate::ank_base::{
-        AddCondition, DeleteCondition, ExecutionStateSpec, FulfilledBy, RestartPolicy,
+        AddCondition, DeleteCondition
     };
-    use crate::test_utils::generate_test_deleted_workload_with_params;
     use crate::test_utils::{
-        fixtures, generate_test_workload, generate_test_workload_named,
-        generate_test_workload_named_with_params,
+        fixtures, generate_test_deleted_workload_with_params, generate_test_workload, generate_test_workload_named, generate_test_workload_named_with_params
     };
 
     // one test for a failing case, other cases are tested on the caller side to not repeat test code
-    // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    // [utest->swdd~api-config-aliases-and-config-reference-keys-naming-convention~1]
     #[test]
     fn utest_validate_config_reference_format_invalid_config_reference_key() {
         let invalid_config_reference_key = "invalid%key";
@@ -259,7 +226,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~workload-add-conditions-for-dependencies~1]
+    // [utest->swdd~api-add-conditions-for-dependencies~1]
     #[test]
     fn utest_add_condition_from_int() {
         assert_eq!(
@@ -280,7 +247,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~workload-delete-conditions-for-dependencies~1]
+    // [utest->swdd~api-delete-conditions-for-dependencies~1]
     #[test]
     fn utest_delete_condition_from_int() {
         assert_eq!(
@@ -299,6 +266,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~api-object-serialization~1]
     #[test]
     fn utest_serialize_deleted_workload_into_ordered_output() {
         let mut deleted_workload = generate_test_deleted_workload_with_params(
@@ -326,51 +294,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
-    #[test]
-    fn utest_add_condition_fulfilled_by_fulfilled() {
-        let add_condition = AddCondition::AddCondRunning;
-        assert!(add_condition.fulfilled_by(&ExecutionStateSpec::running()));
-
-        let add_condition = AddCondition::AddCondSucceeded;
-        assert!(add_condition.fulfilled_by(&ExecutionStateSpec::succeeded()));
-
-        let add_condition = AddCondition::AddCondFailed;
-        assert!(
-            add_condition.fulfilled_by(&ExecutionStateSpec::failed("some failure".to_string()))
-        );
-    }
-
-    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
-    #[test]
-    fn utest_delete_condition_fulfilled_by() {
-        let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
-        assert!(delete_condition.fulfilled_by(&ExecutionStateSpec::succeeded()));
-
-        let delete_condition = DeleteCondition::DelCondRunning;
-        assert!(delete_condition.fulfilled_by(&ExecutionStateSpec::running()));
-
-        let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
-        assert!(delete_condition.fulfilled_by(&ExecutionStateSpec::waiting_to_start()));
-    }
-
-    // [utest->swdd~agent-supports-restart-policies~1]
-    #[test]
-    fn utest_restart_to_int() {
-        assert_eq!(RestartPolicy::try_from(0).unwrap(), RestartPolicy::Never);
-        assert_eq!(
-            RestartPolicy::try_from(1).unwrap(),
-            RestartPolicy::OnFailure
-        );
-        assert_eq!(RestartPolicy::try_from(2).unwrap(), RestartPolicy::Always);
-
-        assert_eq!(
-            RestartPolicy::try_from(100),
-            Err(prost::UnknownEnumValue(100))
-        );
-    }
-
-    // [utest->swdd~common-workload-needs-control-interface~1]
+    // [utest->swdd~api-workload-needs-control-interface~1]
     #[test]
     fn utest_needs_control_interface() {
         let mut workload = generate_test_workload(); // Generates with control interface access
@@ -380,16 +304,16 @@ mod tests {
         assert!(!workload.needs_control_interface());
     }
 
-    // [utest->swdd~common-workload-naming-convention~1]
-    // [utest->swdd~common-agent-naming-convention~3]
-    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    // [utest->swdd~api-workload-naming-convention~1]
+    // [utest->swdd~api-agent-naming-convention~1]
+    // [utest->swdd~api-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_workload_validate_fields_format_success() {
         let compatible_workload = generate_test_workload_named();
         assert!(compatible_workload.validate_fields_format().is_ok());
     }
 
-    // [utest->swdd~common-workload-naming-convention~1]
+    // [utest->swdd~api-workload-naming-convention~1]
     #[test]
     fn utest_validate_workload_name_format_empty_workload_name() {
         let workload_name = "".to_string();
@@ -399,7 +323,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-workload-naming-convention~1]
+    // [utest->swdd~api-workload-naming-convention~1]
     #[test]
     fn utest_workload_validate_fields_incompatible_workload_name() {
         let workload_with_wrong_name = generate_test_workload_named_with_params(
@@ -418,7 +342,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-agent-naming-convention~3]
+    // [utest->swdd~api-agent-naming-convention~1]
     #[test]
     fn utest_workload_validate_fields_incompatible_agent_name() {
         let workload_with_wrong_agent_name = generate_test_workload_named_with_params(
@@ -437,7 +361,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-agent-naming-convention~3]
+    // [utest->swdd~api-agent-naming-convention~1]
     #[test]
     fn utest_workload_with_valid_empty_agent_name() {
         let workload_with_valid_missing_agent_name = generate_test_workload_named_with_params(
@@ -453,7 +377,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-workload-naming-convention~1]
+    // [utest->swdd~api-workload-naming-convention~1]
     #[test]
     fn utest_validate_workload_name_format_inordinately_long_workload_name() {
         let workload_name = "workload_name_is_too_long_for_ankaios_to_accept_it_and_I_don_t_know_what_else_to_write".to_string();
@@ -468,12 +392,14 @@ mod tests {
         );
     }
 
+    // [utest->swdd~api-access-rules-logs-workload-names-convention~1]
     #[test]
     fn utest_validate_wildcard_workload_name_format_success() {
         let workload_name = "valid*Workload_Name-1";
         assert!(super::validate_wildcard_workload_filter_format(workload_name, 5).is_ok());
     }
 
+    // [utest->swdd~api-access-rules-logs-workload-names-convention~1]
     #[test]
     fn utest_validate_wildcard_workload_name_format_failure() {
         let workload_name = "inva!lid*Workload+Name@1";

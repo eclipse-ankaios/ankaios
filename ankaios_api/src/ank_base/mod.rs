@@ -32,7 +32,8 @@ pub use access_rights_rule::AccessRightsRuleEnumSpec;
 pub use control_interface_access::WILDCARD_SYMBOL;
 
 pub(crate) mod workload;
-pub use workload::{DeleteCondition, DeletedWorkload, FulfilledBy, WorkloadNamed, validate_tags};
+
+pub use workload::{DeleteCondition, DeletedWorkload, WorkloadNamed, validate_tags};
 
 pub(crate) mod workload_state;
 pub use execution_state::{ExecutionStateEnum, ExecutionStateEnumSpec};

@@ -15,10 +15,39 @@
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 
-use ankaios_api::ank_base::{DeletedWorkload, FulfilledBy, WorkloadNamed};
+use ankaios_api::ank_base::{
+    AddCondition, DeleteCondition, DeletedWorkload, ExecutionStateSpec, WorkloadNamed,
+};
 
 #[cfg(test)]
 use mockall::automock;
+
+// [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
+fn is_add_condition_fulfilled_by_state(
+    add_cond: &AddCondition,
+    state: &ExecutionStateSpec,
+) -> bool {
+    match add_cond {
+        AddCondition::AddCondRunning => (*state).is_running(),
+        AddCondition::AddCondSucceeded => (*state).is_succeeded(),
+        AddCondition::AddCondFailed => (*state).is_failed(),
+    }
+}
+
+// [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
+fn is_del_condition_fulfilled_by_state(
+    del_cond: &DeleteCondition,
+    state: &ExecutionStateSpec,
+) -> bool {
+    if state.is_waiting_to_start() {
+        return true;
+    }
+
+    match del_cond {
+        DeleteCondition::DelCondNotPendingNorRunning => (*state).is_not_pending_nor_running(),
+        DeleteCondition::DelCondRunning => (*state).is_running(),
+    }
+}
 
 pub struct DependencyStateValidator {}
 
@@ -39,7 +68,7 @@ impl DependencyStateValidator {
                     .get_state_of_workload(dependency_name)
                     .is_some_and(|wl_state| {
                         // [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
-                        add_condition.fulfilled_by(wl_state)
+                        is_add_condition_fulfilled_by_state(add_condition, wl_state)
                     })
             })
     }
@@ -57,7 +86,7 @@ impl DependencyStateValidator {
                     .get_state_of_workload(dependency_name)
                     .is_none_or(|wl_state| {
                         // [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
-                        delete_condition.fulfilled_by(wl_state)
+                        is_del_condition_fulfilled_by_state(delete_condition, wl_state)
                     })
             })
     }
@@ -77,6 +106,7 @@ mod tests {
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
 
     use ankaios_api::ank_base::{DeleteCondition, ExecutionStateSpec};
+
     use ankaios_api::test_utils::{
         generate_test_deleted_workload_with_dependencies,
         generate_test_deleted_workload_with_params, generate_test_workload_named, fixtures,
