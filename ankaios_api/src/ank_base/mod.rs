@@ -17,7 +17,7 @@ tonic::include_proto!("ank_base"); // The string specified here must match the p
 
 pub(crate) use crate::helpers::{
     constrained_config_map, constrained_map_schema, serialize_to_ordered_map,
-    tag_adapter_deserializer,
+    tag_adapter_deserializer, trim_string,
 };
 
 pub(crate) mod workload_instance_name;

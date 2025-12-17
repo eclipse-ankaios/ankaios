@@ -445,7 +445,7 @@ message LogRule {
  */
 enum ReadWriteEnum {
   RW_NOTHING = 0; // Allow nothing
-  RW_READ = 1;  // Allow read
+  RW_READ = 1; // Allow read
   RW_WRITE = 2; // Allow write
   RW_READ_WRITE = 5; // Allow read and write
 }

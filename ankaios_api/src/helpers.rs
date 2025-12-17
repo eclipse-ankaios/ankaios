@@ -13,11 +13,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use regex::Regex;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::json;
 use std::collections::{BTreeMap, HashMap};
 
 use crate::{ALLOWED_CHAR_SET, CONSTRAINT_FIELD_DESCRIPTION, MAX_FIELD_LENGTH};
+
+pub fn trim_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    Ok(s.trim().to_string())
+}
 
 pub fn serialize_to_ordered_map<S, T: Serialize>(
     value: &HashMap<String, T>,
@@ -159,6 +167,22 @@ pub fn validate_max_length_filter(value: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn utest_trim_string() {
+        let yaml = r#"
+            key: "   some value   "
+        "#;
+
+        #[derive(Deserialize)]
+        struct TestStruct {
+            #[serde(deserialize_with = "trim_string")]
+            key: String,
+        }
+
+        let deserialized: TestStruct = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(deserialized.key, "some value");
+    }
 
     #[test]
     fn utest_serialize_to_ordered_map() {
