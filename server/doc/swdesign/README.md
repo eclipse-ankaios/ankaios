@@ -564,6 +564,7 @@ When the Ankaios Server responses to a GetCompleteState request and the request 
 the response includes the filed `api_version` and the fields listed in the `field_mask`.
 
 Comment:
+If the `field_mask` is empty, the response includes all fields of the CompleteState.
 If the fields listed in the `field_mask` contain templated strings, they are returned unrendered.
 
 Tags:
