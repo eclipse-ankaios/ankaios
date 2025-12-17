@@ -12,10 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use ankaios_api::ank_base::{STR_RE_AGENT, WorkloadStateSpec};
-use common::communications_client::CommunicationsClient;
+use ankaios_api::{ALLOWED_CHAR_SET, ank_base::WorkloadStateSpec};
 use common::objects::AgentName;
 use common::to_server_interface::ToServer;
+use common::{communications_client::CommunicationsClient, std_extensions::IllegalStateResult};
 use generic_polling_state_checker::GenericPollingStateChecker;
 use grpc::security::TLSConfig;
 use regex::Regex;
@@ -101,7 +101,7 @@ pub fn validate_agent_name(agent_name: &str) -> Result<(), String> {
         ));
     }
 
-    let re = Regex::new(STR_RE_AGENT).unwrap();
+    let re = Regex::new(&format!(r"^{ALLOWED_CHAR_SET}+$")).unwrap_or_illegal_state();
 
     if re.is_match(agent_name) {
         Ok(())

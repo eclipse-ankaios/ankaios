@@ -116,7 +116,7 @@ enum AddCondition {
  * This is usually answered with a [CompleteState](#completestate) message.
  */
 message CompleteStateRequest {
-    repeated string fieldMask = 1; // A list of symbolic field paths within the State message structure e.g. 'desiredState.workloads.nginx'.
+    repeated string fieldMask = 1; // A list of symbolic field paths within the State message structure, e.g., 'desiredState.workloads.nginx'.
 }
 
 /*
@@ -127,7 +127,7 @@ message CompleteStateRequest {
  */
 message UpdateStateRequest {
     CompleteState newState = 1; // The new state of the Ankaios system.
-    repeated string updateMask = 2; // A list of symbolic field paths within the state message structure e.g. 'desiredState.workloads.nginx' to specify what to be updated.
+    repeated string updateMask = 2; // A list of symbolic field paths within the state message structure, e.g., 'desiredState.workloads.nginx' to specify what to be updated.
 }
 
 /*
@@ -322,15 +322,15 @@ message State {
 }
 
 /*
- * This is a workaround for proto not supporting optional maps
+ * A mapping from a workload name to a workload configuration.
+ *
+ * Workload names shall not be empty nor be longer then 63 symbols
+ * and can contain only regular characters, digits and the symbols "-" and "_".
  */
 message WorkloadMap {
     /*
-     * A mapping from workload name to workload configurations.
-     *
-     * Workload names shall not be shorter than 1 symbol longer then 63 symbols
-     * and can contain only regular characters, digits, the "-" and "_" symbols.
-     */
+    * This is a workaround for proto not supporting optional maps.
+    */
     map<string, Workload> workloads = 1;
 }
 
@@ -338,13 +338,23 @@ message WorkloadMap {
  * A message containing the configuration of a workload.
  */
 message Workload {
-    optional string agent = 1; // The name of the owning Agent.
+    /*
+     * The name of the owning agent.
+     *
+     * Agent names shall not be longer then 63 symbols and can contain
+     * only regular characters, digits and the symbols "-" and "_".
+     * An empty agent name indicates that the workload is not scheduled.
+     *
+     * Agent names can also be templates referencing configuration values,
+     * e.g., "{{agent_name}}" or "{{agent_name_prefix}}-agent1"
+     */
+    optional string agent = 1;
     optional RestartPolicy restartPolicy = 2; // An enum value that defines the condition under which a workload is restarted.
     Dependencies dependencies = 3; // A map of workload names and expected states to enable a synchronized start of the workload.
     Tags tags = 4; // A map of tag names.
     optional string runtime = 5; // The name of the runtime e.g. podman.
     optional string runtimeConfig  = 6; // The configuration information specific to the runtime.
-    ControlInterfaceAccess controlInterfaceAccess = 7;
+    ControlInterfaceAccess controlInterfaceAccess = 7; // The authorization rules for accessing the control interface.
     ConfigMappings configs = 8; // A mapping containing the configurations assigned to the workload.
     Files files = 9; // A list of files assigned to the workload.
 }
@@ -406,14 +416,28 @@ message AccessRightsRule {
  */
 message StateRule {
   ReadWriteEnum operation = 1; // Defines which actions are allowed
-  repeated string filterMasks = 2; // Paths defining what can be accessed. Segments of path can be a wildcard "*".
+  /*
+   * Paths defining the parts of the complete state that can be accessed.
+   *
+   * Each item must not be empty and be composed of a wildcard "*" or regular
+   * characters, digits and the symbols "-" and "_" separated with points ".",
+   * e.g., desiredState.workloads.*.agent
+   */
+  repeated string filterMasks = 2;
 }
 
 /*
  * Message containing a rule for getting workload logs.
  */
 message LogRule {
-  repeated string workloadNames = 1; // The names of the workloads the rule applies to. If empty, the rule does not apply to any workload. Wildcard "*" can be used to match all workloads.
+  /*
+   * The names of the workloads the rule applies to.
+   *
+   * The item cannot not be empty and must represent a valid workload name with
+   * at most one wildcard "*" matching zero or multiple characters.
+   * The length must be at most 64 characters (accounting the wildcard).
+   */
+  repeated string workloadNames = 1;
 }
 
 /*
@@ -427,9 +451,15 @@ enum ReadWriteEnum {
 }
 
 /*
- * This is a workaround for proto not supporting optional maps
+ * This is a workaround for proto not supporting optional maps.
  */
 message ConfigMappings {
+    /*
+     * A message containing the configuration mappings assigned to a workload.
+     *
+     * The keys and the values cannot be empty nor be longer than 63 symbols and
+     * can contain only regular characters, digits and the symbols "-" and "_".
+     */
     map<string, string> configs = 1;
 }
 
@@ -452,19 +482,22 @@ message File {
 }
 
 /*
- * This is a workaround for proto not supporting optional maps
+ * Configuration values which can be referenced in workload configurations
+ * by mapping them the configs field of the workload definition.
  */
 message ConfigMap {
     /*
-     * Configuration values which can be referenced in workload configurations
-     * by mapping them the configs field of the workload definition.
+     * This is a workaround for proto not supporting optional maps.
      */
     map<string, ConfigItem> configs = 1;
 }
 
 /*
- * A configuration can be a simple string or a mapping or an array
+ * A configuration mapping that can be a simple string, a mapping or an array
  * of other configurations items.
+ *
+ * The keys cannot be empty nor be longer than 63 symbols and
+ * can contain only regular characters, digits and the symbols "-" and "_".
  */
 message ConfigItem {
     oneof ConfigItemEnum {
@@ -479,7 +512,12 @@ message ConfigArray {
     repeated ConfigItem values = 1; // An array of configuration items.
 }
 
-// A container for the mapping of config items.
+/*
+ * A mapping of configuration items.
+ *
+ * The keys cannot be empty nor be longer than 63 symbols and
+ * can contain only regular characters, digits and the symbols "-" and "_".
+ */
 message ConfigObject {
     map<string, ConfigItem> fields = 1; // A mapping of configuration items.
 }
