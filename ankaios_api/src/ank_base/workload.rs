@@ -202,7 +202,7 @@ mod tests {
     use super::{CONSTRAINT_FIELD_DESCRIPTION, validate_workload_name_format};
 
     use crate::ank_base::{
-        AddCondition, DeleteCondition
+        AddCondition, DeleteCondition, WILDCARD_SYMBOL
     };
     use crate::test_utils::{
         fixtures, generate_test_deleted_workload_with_params, generate_test_workload, generate_test_workload_named, generate_test_workload_named_with_params
@@ -396,15 +396,19 @@ mod tests {
     #[test]
     fn utest_validate_wildcard_workload_name_format_success() {
         let workload_name = "valid*Workload_Name-1";
-        assert!(super::validate_wildcard_workload_filter_format(workload_name, 5).is_ok());
+        let index = workload_name.find(WILDCARD_SYMBOL).unwrap();
+
+        assert!(super::validate_wildcard_workload_filter_format(workload_name, index).is_ok());
     }
 
     // [utest->swdd~api-access-rules-logs-workload-names-convention~1]
     #[test]
     fn utest_validate_wildcard_workload_name_format_failure() {
         let workload_name = "inva!lid*Workload+Name@1";
+        let index = workload_name.find(WILDCARD_SYMBOL).unwrap();
+
         assert_eq!(
-            super::validate_wildcard_workload_filter_format(workload_name, 6),
+            super::validate_wildcard_workload_filter_format(workload_name, index),
             Err(format!(
                 "Unsupported workload name filter with wildcard '{}'. Expected to have characters in {}.",
                 workload_name,
