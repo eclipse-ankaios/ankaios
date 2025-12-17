@@ -185,7 +185,12 @@ impl EventHandler {
                         workload_states_map,
                         agent_map,
                     )
-                    .unwrap_or_illegal_state();
+                    .unwrap_or_else(|err| {
+                        log::error!(
+                            "Failed to get complete state differences for subscriber '{request_id}': '{err}'",
+                        );
+                        Default::default()
+                    });
 
                 log::debug!(
                     "Sending event to subscriber '{request_id}' with altered fields: {altered_fields:?} and complete state differences: {complete_state_differences:?}",
@@ -215,6 +220,13 @@ fn create_altered_fields_matching_subscriber_masks(
 ) -> Vec<String> {
     let mut altered_field_masks = Vec::new();
     let empty_mapping = serde_yaml::Mapping::new();
+
+    // [impl->swdd~event-handler-uses-first-difference-tree-upon-empty-subscriber-mask~1]
+    if subscriber_field_masks.is_empty() {
+        // No masks provided -> return all paths from the first difference tree
+        return collect_all_leaf_paths_iterative(&Value::Mapping(difference_tree.clone()));
+    }
+
     for subscriber_mask in subscriber_field_masks {
         let mut stack_task = vec![(
             difference_tree,
@@ -342,7 +354,7 @@ pub fn collect_all_leaf_paths_iterative(start_node: &Value) -> Vec<String> {
     let mut stack = vec![(start_node, String::new())];
     while let Some((current_tree_value, current_tree_path)) = stack.pop() {
         match current_tree_value {
-            Value::Mapping(current_node) if !current_node.is_empty() => {
+            Value::Mapping(current_node) => {
                 for (next_key, next_tree_value) in current_node {
                     let Value::String(converted_next_key) = next_key else {
                         continue; // the difference tree only contains string keys
@@ -352,7 +364,6 @@ pub fn collect_all_leaf_paths_iterative(start_node: &Value) -> Vec<String> {
                     stack.push((next_tree_value, next_tree_path));
                 }
             }
-            // Any non-mapping or empty mapping is treated as a leaf node
             _ => {
                 tree_paths.push(current_tree_path);
             }
@@ -942,5 +953,44 @@ mod tests {
             &["root.child1.grandchild1.non_existing".into()],
         );
         assert!(altered_fields.is_empty());
+    }
+
+    // [utest->swdd~event-handler-uses-first-difference-tree-upon-empty-subscriber-mask~1]
+    #[test]
+    fn utest_collect_altered_fields_matching_subscriber_masks_with_empty_subscriber_masks() {
+        let first_difference_tree_yaml = r#"
+        root:
+            child1:
+                grandchild1: null
+            child2:
+                grandchild2: null
+        "#;
+
+        let full_difference_tree_yaml = r#"
+        root:
+            child1:
+                grandchild1:
+                    great_grandchild: null
+            child2:
+                grandchild2:
+                    great_grandchild: null
+        "#;
+
+        let first_difference_tree: serde_yaml::Mapping =
+            serde_yaml::from_str(first_difference_tree_yaml).unwrap();
+
+        let full_difference_tree: serde_yaml::Mapping =
+            serde_yaml::from_str(full_difference_tree_yaml).unwrap();
+
+        // empty subscriber masks should return all paths from the first difference tree
+        let altered_fields = create_altered_fields_matching_subscriber_masks(
+            &full_difference_tree,
+            &first_difference_tree,
+            &[],
+        );
+
+        assert_eq!(altered_fields.len(), 2);
+        assert!(altered_fields.contains(&"root.child1.grandchild1".to_owned()));
+        assert!(altered_fields.contains(&"root.child2.grandchild2".to_owned()));
     }
 }
