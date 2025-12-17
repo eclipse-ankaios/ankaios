@@ -151,6 +151,7 @@ fn setup_spec_workload(builder: Builder) -> Builder {
         .field_attribute("Workload.tags", "#[spec_default]")
         .field_attribute("Workload.runtime", "#[spec_mandatory]")
         .field_attribute("Workload.runtimeConfig", "#[spec_mandatory]")
+        .field_attribute("Workload.runtimeConfig", r#"#[spec_field_attr(#[serde(deserialize_with = "trim_string")])]"#)
         .field_attribute("Workload.controlInterfaceAccess", "#[spec_default]")
         .field_attribute("Workload.configs", "#[spec_default]")
         .field_attribute("Workload.files", "#[spec_default]")
