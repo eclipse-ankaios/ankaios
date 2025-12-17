@@ -136,7 +136,7 @@ pub fn update_request_obj(
                 "The provided path does not exist! This may be caused by improper naming. Names expected to have characters in '{ALLOWED_CHAR_SET}'"
             ));
         }
-        let cur_workload = cur_obj.get(workload_path).unwrap();
+        let cur_workload = cur_obj.get(workload_path).unwrap_or_unreachable();
         if req_obj.get(workload_path).is_none() {
             let _ = req_obj.set(workload_path, cur_workload.clone());
         } else {
