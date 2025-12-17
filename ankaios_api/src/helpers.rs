@@ -12,8 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::{BTreeMap, HashMap};
+
+pub fn trim_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    Ok(s.trim().to_string())
+}
 
 pub fn serialize_option_to_ordered_map<S, T: Serialize>(
     value: &Option<HashMap<String, T>>,
@@ -83,6 +91,22 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn utest_trim_string() {
+        let yaml = r#"
+            key: "   some value   "
+        "#;
+
+        #[derive(Deserialize)]
+        struct TestStruct {
+            #[serde(deserialize_with = "trim_string")]
+            key: String,
+        }
+
+        let deserialized: TestStruct = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(deserialized.key, "some value");
+    }
 
     #[test]
     fn utest_serialize_option_to_ordered_map() {

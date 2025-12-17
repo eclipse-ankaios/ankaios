@@ -15,7 +15,7 @@
 // [impl->swdd~ank-base-provides-object-definitions~1]
 tonic::include_proto!("ank_base"); // The string specified here must match the proto package name
 
-use crate::helpers::tag_adapter_deserializer;
+use crate::helpers::{tag_adapter_deserializer, trim_string};
 
 pub use crate::helpers::serialize_option_to_ordered_map;
 pub use crate::helpers::serialize_to_ordered_map;
