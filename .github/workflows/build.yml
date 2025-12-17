@@ -58,7 +58,7 @@ jobs:
           GH_ACTOR: ${{ github.actor }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
+          set -eu
           SRC_HASH="$(./tools/control_interface_workload_hash.sh)"
           IMAGE="ghcr.io/eclipse-ankaios/control_interface_tester:${SRC_HASH}"
           echo "Checking availability of ${IMAGE}"
