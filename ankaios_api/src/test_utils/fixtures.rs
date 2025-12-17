@@ -28,11 +28,11 @@ pub const RUN_FOLDER: &str = "/run/folder";
 
 // The the RUNTIME_CONFIGS' hashes matches the WORKLOAD_IDS with the corresponding index
 pub const RUNTIME_CONFIGS: [&str; 2] = [
-    "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n",
+    "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]",
     "image: ghcr.io/eclipse-ankaios/tests/sleepy:latest",
 ];
 pub const WORKLOAD_IDS: [&str; 2] = [
-    "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
+    "78f601438bac8f126dae9b7b75f25b752610f70c02605fa5f348d416bd8ff5ce",
     "f54d78fd9c57d2ec8ee16bb5571410d8370979784b2ae0dc7b645f01d9e2ee21",
 ];
 
