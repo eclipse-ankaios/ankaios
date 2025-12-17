@@ -22,6 +22,7 @@ use ankaios_api::{
 };
 use ankaios_api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use common::state_manipulation::{Object, Path};
+use common::std_extensions::UnreachableOption;
 use std::collections::HashSet;
 
 #[cfg(test)]
