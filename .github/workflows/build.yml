@@ -35,6 +35,9 @@ jobs:
     name: Build and run system tests Linux amd64
     if: ${{ always() }}
     needs: vendor
+    permissions:
+      contents: read
+      packages: write
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.5
@@ -50,6 +53,28 @@ jobs:
         run: |
           mkdir -p target/robot_tests_result
           chown vscode target/robot_tests_result
+      - name: Ensure control_interface_tester image is available (build and push if missing)
+        env:
+          GH_ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SRC_HASH="$(./tools/control_interface_workload_hash.sh)"
+          IMAGE="ghcr.io/eclipse-ankaios/control_interface_tester:${SRC_HASH}"
+          echo "Checking availability of ${IMAGE}"
+          if ! podman pull "${IMAGE}"; then
+            echo "Image not found remotely. Building ${IMAGE}..."
+            podman build -t "${IMAGE}" --build-arg=SRC_HASH="${SRC_HASH}" -f tests/resources/control_interface_tester/Dockerfile .
+            echo "Attempting login to ghcr.io for push..."
+            if [ -n "${GH_TOKEN:-}" ] && [ -n "${GH_ACTOR:-}" ]; then
+              echo "${GH_TOKEN}" | podman login ghcr.io -u "${GH_ACTOR}" --password-stdin || echo "Login failed; will skip push."
+              podman push "${IMAGE}" || echo "Push failed (likely due to permissions on PRs); continuing without pushing."
+            else
+              echo "No GitHub token/actor available; skipping push."
+            fi
+          else
+            echo "Using existing image ${IMAGE}"
+          fi
       - name: Run system tests in pull request verification
         if: ${{ github.event_name == 'pull_request' }}
         run: |
@@ -59,8 +84,8 @@ jobs:
       - name: Run all system tests
         if: ${{ github.event_name != 'pull_request' }}
         run: |
-            echo "Event name is '${{ github.event_name }}', all system tests are executed."
-            su vscode -c "tools/run_robot_tests.sh tests"
+          echo "Event name is '${{ github.event_name }}', all system tests are executed."
+          su vscode -c "tools/run_robot_tests.sh tests"
       - uses: actions/upload-artifact@v4.3.3
         if: success() || failure()
         with:
@@ -133,7 +158,6 @@ jobs:
         with:
           name: code-coverage
           path: target/llvm-cov/html
-
 
   build_linux_amd64_debian_package:
     name: Build Linux amd64 debian package
