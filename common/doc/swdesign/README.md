@@ -143,6 +143,97 @@ Needs:
 - impl
 - utest
 
+### State manipulation
+
+Provides methods for accessing or updating parts of objects, as used by field masks.
+
+#### State manipulation uses period separated paths
+`swdd~common-state-manipulation-path~1`
+
+Status: approved
+
+The state manipulation methods of the Common library shall use paths separated by the '.' symbols.
+
+Tags:
+- CommonStateManipulation
+
+Needs:
+- impl
+- utest
+
+#### State manipulation allows to set values
+`swdd~common-state-manipulation-set~1`
+
+Status: approved
+
+The Common library shall provide a method to set the value of an object at a certain path.
+
+Tags:
+- CommonStateManipulation
+
+Needs:
+- impl
+- utest
+
+#### State manipulation set operation adds missing objects
+`swdd~common-state-manipulation-set-add-missing-objects~1`
+
+Status: approved
+
+When setting the value of an object at a certain path, the Common library shall add missing intermediate objects as empty objects followed by the newly added value.
+
+Tags:
+- CommonStateManipulation
+
+Needs:
+- impl
+- utest
+
+#### State manipulation allows to remove values
+`swdd~common-state-manipulation-remove~1`
+
+Status: approved
+
+The Common library shall provide a method to remove the value of an object at a certain path.
+
+Tags:
+- CommonStateManipulation
+
+Needs:
+- impl
+- utest
+
+#### State manipulation allows to get values
+`swdd~common-state-manipulation-get~1`
+
+Status: approved
+
+The Common library shall provide a method to get the value of an object at a certain path.
+
+Tags:
+- CommonStateManipulation
+
+Needs:
+- impl
+- utest
+
+#### State manipulation provides functionality to expand wildcards
+`swdd~common-state-manipulation-expand-wildcards~1`
+
+Status: approved
+
+The Common library shall provide a method for expanding paths containing wildcards ('*') as segments, using an existing object.
+
+Comment:
+The result is a list of all paths valid for the given object, resulting from replacing wildcard segments with any possible segment.
+
+Tags:
+- CommonStateManipulation
+
+Needs:
+- impl
+- utest
+
 ## Data view
 
 ## Error management view

@@ -193,8 +193,6 @@ impl ConfigRenderer {
             files: rendered_files,
         })
     }
-
-    // fn render_file_content(self, file_content: &FileContentSpec, wl_config_map: &HashMap<&String, &ConfigItem>) -> Result<FileContentSpec, ConfigRenderError> {
 }
 
 //////////////////////////////////////////////////////////////////////////////
