@@ -329,7 +329,7 @@ message State {
  */
 message WorkloadMap {
     /*
-    * This is a workaround for proto not supporting optional maps
+    * This is a workaround for proto not supporting optional maps.
     */
     map<string, Workload> workloads = 1;
 }
@@ -451,7 +451,7 @@ enum ReadWriteEnum {
 }
 
 /*
- * This is a workaround for proto not supporting optional maps
+ * This is a workaround for proto not supporting optional maps.
  */
 message ConfigMappings {
     /*
@@ -487,7 +487,7 @@ message File {
  */
 message ConfigMap {
     /*
-     * This is a workaround for proto not supporting optional maps 1
+     * This is a workaround for proto not supporting optional maps.
      */
     map<string, ConfigItem> configs = 1;
 }
