@@ -3415,7 +3415,7 @@ This is usually answered with a <a href="#completestate">CompleteState</a> messa
 <td>fieldMask</td>
 <td><a href="#string">string</a></td>
 <td>repeated</td>
-<td>A list of symbolic field paths within the State message structure e.g. &#39;desiredState.workloads.nginx&#39;.</td>
+<td>A list of symbolic field paths within the State message structure, e.g., &#39;desiredState.workloads.nginx&#39;.</td>
 </tr>
 </tbody>
 </table>
@@ -3442,8 +3442,10 @@ This is usually answered with a <a href="#completestate">CompleteState</a> messa
 </table>
 <p><a name="ank_base-ConfigItem"></a></p>
 <h3 id="configitem">ConfigItem<a class="headerlink" href="#configitem" title="Permanent link">&para;</a></h3>
-<p>A configuration can be a simple string or a mapping or an array
+<p>A configuration mapping that can be a simple string, a mapping or an array
 of other configurations items.</p>
+<p>The keys cannot be empty nor be longer than 63 symbols and
+can contain only regular characters, digits and the symbols &#34;-&#34; and &#34;_&#34;.</p>
 <table>
 <thead>
 <tr>
@@ -3476,7 +3478,8 @@ of other configurations items.</p>
 </table>
 <p><a name="ank_base-ConfigMap"></a></p>
 <h3 id="configmap">ConfigMap<a class="headerlink" href="#configmap" title="Permanent link">&para;</a></h3>
-<p>This is a workaround for proto not supporting optional maps</p>
+<p>Configuration values which can be referenced in workload configurations
+by mapping them the configs field of the workload definition.</p>
 <table>
 <thead>
 <tr>
@@ -3491,7 +3494,7 @@ of other configurations items.</p>
 <td>configs</td>
 <td><a href="#ank_base-ConfigMap-ConfigsEntry">ConfigMap.ConfigsEntry</a></td>
 <td>repeated</td>
-<td>Configuration values which can be referenced in workload configurations by mapping them the configs field of the workload definition.</td>
+<td>This is a workaround for proto not supporting optional maps.</td>
 </tr>
 </tbody>
 </table>
@@ -3523,7 +3526,7 @@ of other configurations items.</p>
 </table>
 <p><a name="ank_base-ConfigMappings"></a></p>
 <h3 id="configmappings">ConfigMappings<a class="headerlink" href="#configmappings" title="Permanent link">&para;</a></h3>
-<p>This is a workaround for proto not supporting optional maps</p>
+<p>This is a workaround for proto not supporting optional maps.</p>
 <table>
 <thead>
 <tr>
@@ -3538,10 +3541,11 @@ of other configurations items.</p>
 <td>configs</td>
 <td><a href="#ank_base-ConfigMappings-ConfigsEntry">ConfigMappings.ConfigsEntry</a></td>
 <td>repeated</td>
-<td></td>
+<td>A message containing the configuration mappings assigned to a workload.</td>
 </tr>
 </tbody>
 </table>
+<p>The keys and the values cannot be empty nor be longer than 63 symbols and can contain only regular characters, digits and the symbols &#34;-&#34; and &#34;_&#34;. |</p>
 <p><a name="ank_base-ConfigMappings-ConfigsEntry"></a></p>
 <h3 id="configmappingsconfigsentry">ConfigMappings.ConfigsEntry<a class="headerlink" href="#configmappingsconfigsentry" title="Permanent link">&para;</a></h3>
 <table>
@@ -3570,7 +3574,9 @@ of other configurations items.</p>
 </table>
 <p><a name="ank_base-ConfigObject"></a></p>
 <h3 id="configobject">ConfigObject<a class="headerlink" href="#configobject" title="Permanent link">&para;</a></h3>
-<p>A container for the mapping of config items.</p>
+<p>A mapping of configuration items.</p>
+<p>The keys cannot be empty nor be longer than 63 symbols and
+can contain only regular characters, digits and the symbols &#34;-&#34; and &#34;_&#34;.</p>
 <table>
 <thead>
 <tr>
@@ -4037,10 +4043,11 @@ This level is needed as a workload could be running more than once on one agent 
 <td>workloadNames</td>
 <td><a href="#string">string</a></td>
 <td>repeated</td>
-<td>The names of the workloads the rule applies to. If empty, the rule does not apply to any workload. Wildcard &#34;*&#34; can be used to match all workloads.</td>
+<td>The names of the workloads the rule applies to.</td>
 </tr>
 </tbody>
 </table>
+<p>The item cannot not be empty and must represent a valid workload name with at most one wildcard &#34;*&#34; matching zero or multiple characters. The length must be at most 64 characters (accounting the wildcard). |</p>
 <p><a name="ank_base-LogsCancelAccepted"></a></p>
 <h3 id="logscancelaccepted">LogsCancelAccepted<a class="headerlink" href="#logscancelaccepted" title="Permanent link">&para;</a></h3>
 <p>A message indicating that the request for canceling the log collection was accepted.
@@ -4300,10 +4307,11 @@ The response content depends on the request content previously sent to the Ankai
 <td>filterMasks</td>
 <td><a href="#string">string</a></td>
 <td>repeated</td>
-<td>Paths defining what can be accessed. Segments of path can be a wildcard &#34;*&#34;.</td>
+<td>Paths defining the parts of the complete state that can be accessed.</td>
 </tr>
 </tbody>
 </table>
+<p>Each item must not be empty and be composed of a wildcard &#34;<em>&#34; or regular characters, digits and the symbols &#34;-&#34; and &#34;_&#34; separated with points &#34;.&#34;, e.g., desiredState.workloads.</em>.agent |</p>
 <p><a name="ank_base-Tags"></a></p>
 <h3 id="tags">Tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h3>
 <p>This is a workaround for proto not supporting optional maps.</p>
@@ -4377,7 +4385,7 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>updateMask</td>
 <td><a href="#string">string</a></td>
 <td>repeated</td>
-<td>A list of symbolic field paths within the state message structure e.g. &#39;desiredState.workloads.nginx&#39; to specify what to be updated.</td>
+<td>A list of symbolic field paths within the state message structure, e.g., &#39;desiredState.workloads.nginx&#39; to specify what to be updated.</td>
 </tr>
 </tbody>
 </table>
@@ -4425,58 +4433,20 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>agent</td>
 <td><a href="#string">string</a></td>
 <td>optional</td>
-<td>The name of the owning Agent.</td>
-</tr>
-<tr>
-<td>restartPolicy</td>
-<td><a href="#ank_base-RestartPolicy">RestartPolicy</a></td>
-<td>optional</td>
-<td>An enum value that defines the condition under which a workload is restarted.</td>
-</tr>
-<tr>
-<td>dependencies</td>
-<td><a href="#ank_base-Dependencies">Dependencies</a></td>
-<td></td>
-<td>A map of workload names and expected states to enable a synchronized start of the workload.</td>
-</tr>
-<tr>
-<td>tags</td>
-<td><a href="#ank_base-Tags">Tags</a></td>
-<td></td>
-<td>A map of tag names.</td>
-</tr>
-<tr>
-<td>runtime</td>
-<td><a href="#string">string</a></td>
-<td>optional</td>
-<td>The name of the runtime e.g. podman.</td>
-</tr>
-<tr>
-<td>runtimeConfig</td>
-<td><a href="#string">string</a></td>
-<td>optional</td>
-<td>The configuration information specific to the runtime.</td>
-</tr>
-<tr>
-<td>controlInterfaceAccess</td>
-<td><a href="#ank_base-ControlInterfaceAccess">ControlInterfaceAccess</a></td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td>configs</td>
-<td><a href="#ank_base-ConfigMappings">ConfigMappings</a></td>
-<td></td>
-<td>A mapping containing the configurations assigned to the workload.</td>
-</tr>
-<tr>
-<td>files</td>
-<td><a href="#ank_base-Files">Files</a></td>
-<td></td>
-<td>A list of files assigned to the workload.</td>
+<td>The name of the owning agent.</td>
 </tr>
 </tbody>
 </table>
+<p>Agent names shall not be longer then 63 symbols and can contain only regular characters, digits and the symbols &#34;-&#34; and &#34;_&#34;. An empty agent name indicates that the workload is not scheduled.</p>
+<p>Agent names can also be templates referencing configuration values, e.g., &#34;{{agent_name}}&#34; or &#34;{{agent_name_prefix}}-agent1&#34; |
+| restartPolicy | <a href="#ank_base-RestartPolicy">RestartPolicy</a> | optional | An enum value that defines the condition under which a workload is restarted. |
+| dependencies | <a href="#ank_base-Dependencies">Dependencies</a> |  | A map of workload names and expected states to enable a synchronized start of the workload. |
+| tags | <a href="#ank_base-Tags">Tags</a> |  | A map of tag names. |
+| runtime | <a href="#string">string</a> | optional | The name of the runtime e.g. podman. |
+| runtimeConfig | <a href="#string">string</a> | optional | The configuration information specific to the runtime. |
+| controlInterfaceAccess | <a href="#ank_base-ControlInterfaceAccess">ControlInterfaceAccess</a> |  | The authorization rules for accessing the control interface. |
+| configs | <a href="#ank_base-ConfigMappings">ConfigMappings</a> |  | A mapping containing the configurations assigned to the workload. |
+| files | <a href="#ank_base-Files">Files</a> |  | A list of files assigned to the workload. |</p>
 <p><a name="ank_base-WorkloadInstanceName"></a></p>
 <h3 id="workloadinstancename">WorkloadInstanceName<a class="headerlink" href="#workloadinstancename" title="Permanent link">&para;</a></h3>
 <p>A message describing the unique instance name of a workload</p>
@@ -4512,7 +4482,9 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 </table>
 <p><a name="ank_base-WorkloadMap"></a></p>
 <h3 id="workloadmap">WorkloadMap<a class="headerlink" href="#workloadmap" title="Permanent link">&para;</a></h3>
-<p>This is a workaround for proto not supporting optional maps</p>
+<p>A mapping from a workload name to a workload configuration.</p>
+<p>Workload names shall not be empty nor be longer then 63 symbols
+and can contain only regular characters, digits and the symbols &#34;-&#34; and &#34;_&#34;.</p>
 <table>
 <thead>
 <tr>
@@ -4527,11 +4499,10 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>workloads</td>
 <td><a href="#ank_base-WorkloadMap-WorkloadsEntry">WorkloadMap.WorkloadsEntry</a></td>
 <td>repeated</td>
-<td>A mapping from workload name to workload configurations.</td>
+<td>This is a workaround for proto not supporting optional maps.</td>
 </tr>
 </tbody>
 </table>
-<p>Workload names shall not be shorter than 1 symbol longer then 63 symbols and can contain only regular characters, digits, the &#34;-&#34; and &#34;_&#34; symbols. |</p>
 <p><a name="ank_base-WorkloadMap-WorkloadsEntry"></a></p>
 <h3 id="workloadmapworkloadsentry">WorkloadMap.WorkloadsEntry<a class="headerlink" href="#workloadmapworkloadsentry" title="Permanent link">&para;</a></h3>
 <table>
