@@ -464,6 +464,23 @@ Needs:
 - impl
 - utest
 
+#### Agent allows only enabled runtimes
+`swdd~agent-allows-enabled-runtimes~1`
+
+Status: approved
+
+The Ankaios agent shall support enabling a specific set of runtimes through the config file, alternatively configurable via the environment variable `ANK_RUNTIMES` which has higher priority.
+
+Rationale:
+This allows the users to configure which runtimes are allowed on a specific agent, thus needing to make sure only the matching binaries are present.
+
+Tags:
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
 #### Agent uses specified runtime connector
 `swdd~agent-uses-specified-runtime~1`
 
