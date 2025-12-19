@@ -16,4 +16,6 @@ pub(crate) mod containerd_log_fetcher;
 mod containerd_runtime;
 mod containerd_runtime_config;
 mod nerdctl_cli;
-pub use containerd_runtime::{ContainerdRuntime, ContainerdWorkloadId};
+pub use containerd_runtime::{
+    CONTAINERD_RUNTIME_NAME as NAME, ContainerdRuntime, ContainerdWorkloadId,
+};

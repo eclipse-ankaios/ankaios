@@ -53,7 +53,7 @@ use agent_manager::AgentManager;
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
 use runtime_connectors::{
-    GenericRuntimeFacade, RuntimeConnector, RuntimeFacade,
+    GenericRuntimeFacade, RuntimeConnector, RuntimeFacade, SUPPORTED_RUNTIMES,
     containerd::{ContainerdRuntime, ContainerdWorkloadId},
     podman::{PodmanRuntime, PodmanWorkloadId},
     podman_kube::{PodmanKubeRuntime, PodmanKubeWorkloadId},
@@ -90,6 +90,18 @@ fn handle_agent_config(config_path: &Option<String>, default_path: &str) -> Agen
             }
         }
     }
+}
+
+macro_rules! register_runtime {
+    ($map:expr, $runtime_instance:expr, $workload_id_type:ty, $run_path:expr) => {{
+        let runtime = Box::new($runtime_instance);
+        let runtime_name = runtime.name();
+        let podman_facade = Box::new(GenericRuntimeFacade::<
+            $workload_id_type,
+            GenericPollingStateChecker,
+        >::new(runtime, $run_path));
+        $map.insert(runtime_name, podman_facade);
+    }};
 }
 
 // [impl->swdd~agent-naming-convention~1]
@@ -146,33 +158,31 @@ async fn main() {
     )
     .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
 
-    // [impl->swdd~agent-supports-podman~2]
-    let podman_runtime = Box::new(PodmanRuntime {});
-    let podman_runtime_name = podman_runtime.name();
-    let podman_facade = Box::new(GenericRuntimeFacade::<
-        PodmanWorkloadId,
-        GenericPollingStateChecker,
-    >::new(podman_runtime, run_directory.get_path()));
     let mut runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>> = HashMap::new();
-    runtime_facade_map.insert(podman_runtime_name, podman_facade);
+
+    // [impl->swdd~agent-supports-podman~2]
+    register_runtime!(
+        runtime_facade_map,
+        PodmanRuntime {},
+        PodmanWorkloadId,
+        run_directory.get_path()
+    );
 
     // [impl->swdd~agent-supports-podman-kube-runtime~1]
-    let podman_kube_runtime = Box::new(PodmanKubeRuntime {});
-    let podman_kube_runtime_name = podman_kube_runtime.name();
-    let podman_kube_facade = Box::new(GenericRuntimeFacade::<
+    register_runtime!(
+        runtime_facade_map,
+        PodmanKubeRuntime {},
         PodmanKubeWorkloadId,
-        GenericPollingStateChecker,
-    >::new(podman_kube_runtime, run_directory.get_path()));
-    runtime_facade_map.insert(podman_kube_runtime_name, podman_kube_facade);
+        run_directory.get_path()
+    );
 
     // [impl->swdd~agent-supports-containerd~1]
-    let containerd_runtime = Box::new(ContainerdRuntime {});
-    let containerd_runtime_name = containerd_runtime.name();
-    let containerd_facade = Box::new(GenericRuntimeFacade::<
+    register_runtime!(
+        runtime_facade_map,
+        ContainerdRuntime {},
         ContainerdWorkloadId,
-        GenericPollingStateChecker,
-    >::new(containerd_runtime, run_directory.get_path()));
-    runtime_facade_map.insert(containerd_runtime_name, containerd_facade);
+        run_directory.get_path()
+    );
 
     // The RuntimeManager currently directly gets the server ToServerInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
