@@ -469,7 +469,7 @@ Needs:
 
 Status: approved
 
-The Ankaios agent shall support enabling a specific set of runtimes through the config file, alternatively configurable via the environment variable `ANK_RUNTIMES` which has higher priority.
+The Ankaios agent shall support enabling a specific set of runtimes through the config file, with a fallback to all available runtimes if no valid ones were configured.
 
 Rationale:
 This allows the users to configure which runtimes are allowed on a specific agent, thus needing to make sure only the matching binaries are present.
