@@ -54,9 +54,9 @@ use agent_manager::AgentManager;
 use crate::runtime_manager::RuntimeManager;
 use runtime_connectors::{
     GenericRuntimeFacade, RuntimeConnector, RuntimeFacade, SUPPORTED_RUNTIMES,
-    containerd::{ContainerdRuntime, ContainerdWorkloadId},
-    podman::{PodmanRuntime, PodmanWorkloadId},
-    podman_kube::{PodmanKubeRuntime, PodmanKubeWorkloadId},
+    containerd::{self, ContainerdRuntime, ContainerdWorkloadId},
+    podman::{self, PodmanRuntime, PodmanWorkloadId},
+    podman_kube::{self, PodmanKubeRuntime, PodmanKubeWorkloadId},
 };
 
 const BUFFER_SIZE: usize = 20;
@@ -92,18 +92,6 @@ fn handle_agent_config(config_path: &Option<String>, default_path: &str) -> Agen
     }
 }
 
-macro_rules! register_runtime {
-    ($map:expr, $runtime_instance:expr, $workload_id_type:ty, $run_path:expr) => {{
-        let runtime = Box::new($runtime_instance);
-        let runtime_name = runtime.name();
-        let podman_facade = Box::new(GenericRuntimeFacade::<
-            $workload_id_type,
-            GenericPollingStateChecker,
-        >::new(runtime, $run_path));
-        $map.insert(runtime_name, podman_facade);
-    }};
-}
-
 // [impl->swdd~agent-naming-convention~1]
 pub fn validate_agent_name(agent_name: &str) -> Result<(), String> {
     const EXPECTED_AGENT_NAME_FORMAT: &str = "It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.";
@@ -122,6 +110,48 @@ pub fn validate_agent_name(agent_name: &str) -> Result<(), String> {
             "Agent name '{agent_name}' is invalid. {EXPECTED_AGENT_NAME_FORMAT}",
         ))
     }
+}
+
+pub fn validate_runtimes(config_runtimes: &Option<Vec<String>>) -> Vec<&str> {
+    match config_runtimes {
+        Some(configured_runtimes) => {
+            let mut valid_runtimes = Vec::new();
+
+            for runtime in configured_runtimes {
+                if SUPPORTED_RUNTIMES.contains(&runtime.as_str()) {
+                    valid_runtimes.push(runtime.as_str());
+                } else {
+                    log::warn!("Configured runtime '{runtime}' is not supported.");
+                }
+            }
+
+            if valid_runtimes.is_empty() {
+                log::warn!("No valid runtimes configured. Falling back to all supported runtimes.");
+                SUPPORTED_RUNTIMES.to_vec()
+            } else {
+                log::debug!("Runtimes configured: {valid_runtimes:?}");
+                valid_runtimes
+            }
+        }
+        None => {
+            log::debug!(
+                "No runtimes configured. Using all supported runtimes: {SUPPORTED_RUNTIMES:?}"
+            );
+            SUPPORTED_RUNTIMES.to_vec()
+        }
+    }
+}
+
+macro_rules! register_runtime {
+    ($map:expr, $runtime_instance:expr, $workload_id_type:ty, $run_path:expr) => {{
+        let runtime = Box::new($runtime_instance);
+        let runtime_name = runtime.name();
+        let podman_facade = Box::new(GenericRuntimeFacade::<
+            $workload_id_type,
+            GenericPollingStateChecker,
+        >::new(runtime, $run_path));
+        $map.insert(runtime_name, podman_facade);
+    }};
 }
 
 #[tokio::main]
@@ -160,29 +190,42 @@ async fn main() {
 
     let mut runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>> = HashMap::new();
 
-    // [impl->swdd~agent-supports-podman~2]
-    register_runtime!(
-        runtime_facade_map,
-        PodmanRuntime {},
-        PodmanWorkloadId,
-        run_directory.get_path()
-    );
-
-    // [impl->swdd~agent-supports-podman-kube-runtime~1]
-    register_runtime!(
-        runtime_facade_map,
-        PodmanKubeRuntime {},
-        PodmanKubeWorkloadId,
-        run_directory.get_path()
-    );
-
-    // [impl->swdd~agent-supports-containerd~1]
-    register_runtime!(
-        runtime_facade_map,
-        ContainerdRuntime {},
-        ContainerdWorkloadId,
-        run_directory.get_path()
-    );
+    // [impl->swdd~agent-allows-enabled-runtimes~1]
+    let runtimes_to_register: Vec<&str> = validate_runtimes(&agent_config.runtimes);
+    for runtime_name in runtimes_to_register {
+        match runtime_name {
+            podman::NAME => {
+                // [impl->swdd~agent-supports-podman~2]
+                register_runtime!(
+                    runtime_facade_map,
+                    PodmanRuntime {},
+                    PodmanWorkloadId,
+                    run_directory.get_path()
+                );
+            }
+            podman_kube::NAME => {
+                // [impl->swdd~agent-supports-podman-kube-runtime~1]
+                register_runtime!(
+                    runtime_facade_map,
+                    PodmanKubeRuntime {},
+                    PodmanKubeWorkloadId,
+                    run_directory.get_path()
+                );
+            }
+            containerd::NAME => {
+                // [impl->swdd~agent-supports-containerd~1]
+                register_runtime!(
+                    runtime_facade_map,
+                    ContainerdRuntime {},
+                    ContainerdWorkloadId,
+                    run_directory.get_path()
+                );
+            }
+            _ => {
+                log::error!("Unexpected runtime name to register: {runtime_name}");
+            }
+        }
+    }
 
     // The RuntimeManager currently directly gets the server ToServerInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
@@ -252,6 +295,7 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
+    use super::{SUPPORTED_RUNTIMES, validate_agent_name, validate_runtimes};
     use crate::{AgentConfig, agent_config::DEFAULT_AGENT_CONFIG_FILE_PATH, handle_agent_config};
     use ankaios_api::test_utils::fixtures;
 
@@ -318,7 +362,7 @@ mod tests {
     #[test]
     fn utest_validate_agent_name_ok() {
         let name = "test_AgEnt-name1_56";
-        assert!(super::validate_agent_name(name).is_ok());
+        assert!(validate_agent_name(name).is_ok());
     }
 
     // [utest->swdd~agent-naming-convention~1]
@@ -326,7 +370,7 @@ mod tests {
     fn utest_validate_agent_name_fail() {
         let invalid_agent_names = ["a.b", "a_b_%#", "a b"];
         for name in invalid_agent_names {
-            let result = super::validate_agent_name(name);
+            let result = validate_agent_name(name);
             assert!(result.is_err());
             assert!(
                 result
@@ -335,12 +379,42 @@ mod tests {
             );
         }
 
-        let result = super::validate_agent_name("");
+        let result = validate_agent_name("");
         assert!(result.is_err());
         assert!(
             result
                 .unwrap_err()
                 .contains("Empty agent name is not allowed.")
         );
+    }
+
+    // [utest->swdd~agent-allows-enabled-runtimes~1]
+    #[test]
+    fn utest_validate_runtimes() {
+        let runtimes_len = SUPPORTED_RUNTIMES.len();
+
+        assert_eq!(validate_runtimes(&None).len(), runtimes_len);
+        assert_eq!(validate_runtimes(&Some(Vec::new())).len(), runtimes_len);
+
+        let all_valid_runtimes = Some(SUPPORTED_RUNTIMES.iter().map(|s| s.to_string()).collect());
+        assert_eq!(validate_runtimes(&all_valid_runtimes).len(), runtimes_len);
+
+        let single_runtime = Some(vec![SUPPORTED_RUNTIMES[0].to_string()]);
+        let result = validate_runtimes(&single_runtime);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], SUPPORTED_RUNTIMES[0]);
+
+        let invalid_runtime = Some(vec!["invalid_runtime".to_string()]);
+        assert_eq!(validate_runtimes(&invalid_runtime).len(), runtimes_len);
+
+        let mixed_runtimes = Some(vec![
+            SUPPORTED_RUNTIMES[0].to_string(),
+            "invalid_runtime".to_string(),
+            SUPPORTED_RUNTIMES[2].to_string(),
+        ]);
+        let result = validate_runtimes(&mixed_runtimes);
+        assert_eq!(result.len(), 2);
+        assert!(result.contains(&SUPPORTED_RUNTIMES[0]));
+        assert!(result.contains(&SUPPORTED_RUNTIMES[2]));
     }
 }
