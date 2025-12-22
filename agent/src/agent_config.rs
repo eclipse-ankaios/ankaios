@@ -76,6 +76,8 @@ pub struct AgentConfig {
     pub run_folder: String,
     #[serde(default)]
     pub insecure: bool,
+    #[serde(default)]
+    pub runtimes: Option<Vec<String>>,
     ca_pem: Option<String>,
     crt_pem: Option<String>,
     key_pem: Option<String>,
@@ -92,6 +94,7 @@ impl Default for AgentConfig {
             server_url: get_default_url(),
             run_folder: get_default_run_folder(),
             insecure: bool::default(),
+            runtimes: None,
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
