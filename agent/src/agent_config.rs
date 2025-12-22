@@ -20,6 +20,7 @@ use common::std_extensions::UnreachableOption;
 use grpc::security::read_pem_file;
 
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fmt;
 use std::fs::read_to_string;
 use std::path::PathBuf;
@@ -76,6 +77,8 @@ pub struct AgentConfig {
     pub run_folder: String,
     #[serde(default)]
     pub insecure: bool,
+    #[serde(default)]
+    pub tags: HashMap<String, String>,
     ca_pem: Option<String>,
     crt_pem: Option<String>,
     key_pem: Option<String>,
@@ -92,6 +95,7 @@ impl Default for AgentConfig {
             server_url: get_default_url(),
             run_folder: get_default_run_folder(),
             insecure: bool::default(),
+            tags: HashMap::new(),
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
@@ -173,6 +177,12 @@ impl AgentConfig {
             self.key_pem = Some(key_pem_path.to_owned());
             let key_pem_content = read_pem_file(key_pem_path, true).unwrap_or_default();
             self.key_pem_content = Some(key_pem_content);
+        }
+
+        if let Some(tags) = &args.tags {
+            for (key, value) in tags {
+                self.tags.insert(key.clone(), value.clone());
+            }
         }
     }
 }
@@ -265,6 +275,7 @@ mod tests {
             server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
             run_folder: Some(DEFAULT_RUN_FOLDER.to_string()),
             insecure: Some(false),
+            tags: None,
             ca_pem: Some(fixtures::CA_PEM_PATH.to_string()),
             crt_pem: Some(fixtures::CRT_PEM_PATH.to_string()),
             key_pem: Some(fixtures::KEY_PEM_PATH.to_string()),
@@ -277,8 +288,14 @@ mod tests {
         assert_eq!(agent_config.run_folder, DEFAULT_RUN_FOLDER.to_string());
         assert!(!agent_config.insecure);
         assert_eq!(agent_config.ca_pem, Some(fixtures::CA_PEM_PATH.to_string()));
-        assert_eq!(agent_config.crt_pem, Some(fixtures::CRT_PEM_PATH.to_string()));
-        assert_eq!(agent_config.key_pem, Some(fixtures::KEY_PEM_PATH.to_string()));
+        assert_eq!(
+            agent_config.crt_pem,
+            Some(fixtures::CRT_PEM_PATH.to_string())
+        );
+        assert_eq!(
+            agent_config.key_pem,
+            Some(fixtures::KEY_PEM_PATH.to_string())
+        );
     }
 
     // [utest->swdd~agent-loads-config-file~1]
@@ -307,6 +324,7 @@ mod tests {
             server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
             run_folder: Some(DEFAULT_RUN_FOLDER.to_string()),
             insecure: Some(false),
+            tags: None,
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
@@ -373,6 +391,76 @@ mod tests {
         assert_eq!(
             agent_config.key_pem_content,
             Some(fixtures::KEY_PEM_CONTENT.to_string())
+        );
+    }
+
+    #[test]
+    fn utest_agent_config_update_with_tags_from_cli() {
+        let mut agent_config = AgentConfig::default();
+
+        let args = Arguments {
+            config_path: None,
+            agent_name: None,
+            server_url: None,
+            run_folder: None,
+            insecure: None,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
+            tags: Some(vec![
+                ("cpu".to_string(), "x86_64".to_string()),
+                ("location".to_string(), "cloud".to_string()),
+            ]),
+        };
+
+        agent_config.update_with_args(&args);
+
+        assert_eq!(agent_config.tags.len(), 2);
+        assert_eq!(agent_config.tags.get("cpu"), Some(&"x86_64".to_string()));
+        assert_eq!(
+            agent_config.tags.get("location"),
+            Some(&"cloud".to_string())
+        );
+    }
+
+    #[test]
+    fn utest_agent_config_cli_tags_override_config_tags() {
+        let mut agent_config = AgentConfig::default();
+
+        agent_config
+            .tags
+            .insert("cpu".to_string(), "arm64".to_string());
+        agent_config
+            .tags
+            .insert("camera".to_string(), "available".to_string());
+
+        // CLI tags should override matching keys
+        let args = Arguments {
+            config_path: None,
+            agent_name: None,
+            server_url: None,
+            run_folder: None,
+            insecure: None,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
+            tags: Some(vec![
+                ("cpu".to_string(), "x86_64".to_string()),     // Override
+                ("location".to_string(), "cloud".to_string()), // New
+            ]),
+        };
+
+        agent_config.update_with_args(&args);
+
+        assert_eq!(agent_config.tags.len(), 3);
+        assert_eq!(agent_config.tags.get("cpu"), Some(&"x86_64".to_string())); // Overridden
+        assert_eq!(
+            agent_config.tags.get("camera"),
+            Some(&"available".to_string())
+        );
+        assert_eq!(
+            agent_config.tags.get("location"),
+            Some(&"cloud".to_string())
         );
     }
 }
