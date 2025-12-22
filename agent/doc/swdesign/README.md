@@ -2133,7 +2133,7 @@ When the podman runtime connector is called to create a workload and an existing
 * start a `GenericPollingStateChecker` to check the workload state
 
 Rationale:
-Starting a stopped container is much faster than creating a new container bundle and starting that. Short startup times are ususally crucial for automotive.
+Starting a stopped container is much faster than creating a new container bundle and starting that. Short startup times are usually crucial for automotive.
 
 Tags:
 - PodmanRuntimeConnector
@@ -3750,7 +3750,7 @@ Needs:
 - impl
 - utest
 
-#### Error returned on denied Control Interface request contains requst ID
+#### Error returned on denied Control Interface request contains request ID
 `swdd~agent-responses-to-denied-request-from-control-interface-contains-request-id~1`
 
 Status: approved
@@ -4182,7 +4182,7 @@ When the WorkloadLogFacade is triggered by the AgentManager to start the log col
 * add a log subscription entry with a reference to the spawned task to the SubscriptionStore
 
 Comment:
-The LogFetching runners are moved to the spawned asynchronous task. When the task is canceled, the runners are dropped which stoppes them automatically.
+The LogFetching runners are moved to the spawned asynchronous task. When the task is canceled, the runners are dropped which stops them automatically.
 
 Rationale:
 Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection is finished.
