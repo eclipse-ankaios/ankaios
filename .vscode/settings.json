@@ -18,6 +18,7 @@
         "protobuf",
         "schemars",
         "serde",
+        "stest",
         "Substate",
         "swdd",
         "templating",
