@@ -17,7 +17,7 @@ use super::rendered_workloads::RenderedWorkloads;
 
 use ankaios_api::ank_base::{
     AgentAttributesSpec, AgentStatusSpec, CompleteState, CompleteStateRequestSpec,
-    CompleteStateSpec, CpuUsageSpec, DeletedWorkload, FreeMemorySpec, StateSpec,
+    CompleteStateSpec, CpuUsageSpec, DeletedWorkload, FreeMemorySpec, StateSpec, TagsSpec,
     WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use common::state_manipulation::{Object, Path};
@@ -259,13 +259,14 @@ impl ServerState {
     }
 
     // [impl->swdd~server-state-stores-agent-in-complete-state~1]
-    pub fn add_agent(&mut self, agent_name: String) {
+    pub fn add_agent(&mut self, agent_name: String, tags: TagsSpec) {
         self.state
             .agents
             .agents
             .entry(agent_name)
             .or_insert(AgentAttributesSpec {
-                ..Default::default()
+                status: Default::default(),
+                tags,
             });
     }
 
@@ -360,14 +361,14 @@ mod tests {
 
     use ankaios_api::ank_base::{
         AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec,
-        ConfigItemEnumSpec, ConfigItemSpec, ConfigMapSpec, ConfigObjectSpec,
-        DeletedWorkload, StateSpec, Workload, WorkloadInstanceNameSpec,
-        WorkloadMapSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
+        ConfigItemEnumSpec, ConfigItemSpec, ConfigMapSpec, ConfigObjectSpec, DeletedWorkload,
+        StateSpec, Workload, WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadNamed,
+        WorkloadStateSpec, WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_agent_map, generate_test_complete_state, generate_test_config_map,
-        generate_test_proto_complete_state, generate_test_workload,
-        generate_test_workload_named_with_params, generate_test_workload_with_params, fixtures,
+        fixtures, generate_test_agent_map, generate_test_agent_tags, generate_test_complete_state,
+        generate_test_config_map, generate_test_proto_complete_state, generate_test_workload,
+        generate_test_workload_named_with_params, generate_test_workload_with_params,
     };
     use common::commands::AgentLoadStatus;
     use mockall::predicate;
@@ -523,7 +524,10 @@ mod tests {
         let request_complete_state = CompleteStateRequestSpec {
             field_mask: vec![
                 format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]),
-                format!("desiredState.workloads.{}.agent", fixtures::WORKLOAD_NAMES[2]),
+                format!(
+                    "desiredState.workloads.{}.agent",
+                    fixtures::WORKLOAD_NAMES[2]
+                ),
             ],
         };
 
@@ -1602,7 +1606,7 @@ mod tests {
     #[test]
     fn utest_add_agent() {
         let mut server_state = ServerState::default();
-        server_state.add_agent(AGENT_A.to_string());
+        server_state.add_agent(AGENT_A.to_string(), generate_test_agent_tags());
         server_state.update_agent_resource_availability(AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
             cpu_usage: fixtures::CPU_USAGE_SPEC,

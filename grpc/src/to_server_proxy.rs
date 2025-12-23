@@ -316,8 +316,8 @@ mod tests {
         WorkloadState,
     };
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_workload_named,
-        generate_test_workload_state_with_agent, fixtures,
+        fixtures, generate_test_complete_state, generate_test_workload_named,
+        generate_test_workload_state_with_agent,
     };
 
     use common::commands;
@@ -754,7 +754,10 @@ mod tests {
         let request_complete_state = CompleteStateRequestSpec { field_mask: vec![] };
 
         let request_complete_state_result = server_tx
-            .request_complete_state(fixtures::REQUEST_ID.to_owned(), request_complete_state.clone())
+            .request_complete_state(
+                fixtures::REQUEST_ID.to_owned(),
+                request_complete_state.clone(),
+            )
             .await;
         assert!(request_complete_state_result.is_ok());
 
@@ -1177,6 +1180,7 @@ mod tests {
                     to_server_enum: Some(ToServerEnum::AgentHello(crate::AgentHello {
                         agent_name: fixtures::AGENT_NAMES[0].to_string(),
                         protocol_version: common::ANKAIOS_VERSION.into(),
+                        tags: None,
                     })),
                 }),
                 Some(grpc_api::ToServer {

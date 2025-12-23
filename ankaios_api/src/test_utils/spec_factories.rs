@@ -16,10 +16,10 @@ use super::fixtures;
 use crate::ank_base::{
     AccessRightsRuleSpec, AddCondition, AgentAttributesSpec, AgentMapSpec, AgentStatusSpec,
     CompleteStateSpec, ConfigItemEnumSpec, ConfigItemSpec, ConfigMapSpec, ConfigMappingsSpec,
-    ControlInterfaceAccessSpec, DependenciesSpec, ExecutionStateSpec,
-    FileContentSpec, FileSpec, FilesSpec, ReadWriteEnum, RestartPolicy, StateSpec,
-    TagsSpec, WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadMapSpec,
-    WorkloadNamed, WorkloadSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
+    ControlInterfaceAccessSpec, DependenciesSpec, ExecutionStateSpec, FileContentSpec, FileSpec,
+    FilesSpec, ReadWriteEnum, RestartPolicy, StateSpec, TagsSpec, WorkloadInstanceNameBuilder,
+    WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadNamed, WorkloadSpec, WorkloadStateSpec,
+    WorkloadStatesMapSpec,
 };
 use std::collections::HashMap;
 
@@ -63,8 +63,14 @@ pub fn generate_test_state() -> StateSpec {
         api_version: fixtures::API_VERSION.into(),
         workloads: WorkloadMapSpec {
             workloads: HashMap::from([
-                (fixtures::WORKLOAD_NAMES[0].to_owned(), generate_test_workload()),
-                (fixtures::WORKLOAD_NAMES[1].to_owned(), generate_test_workload()),
+                (
+                    fixtures::WORKLOAD_NAMES[0].to_owned(),
+                    generate_test_workload(),
+                ),
+                (
+                    fixtures::WORKLOAD_NAMES[1].to_owned(),
+                    generate_test_workload(),
+                ),
             ]),
         },
         configs: Default::default(),
@@ -151,7 +157,11 @@ pub fn generate_test_workload_state(
     workload_name: &str,
     execution_state: ExecutionStateSpec,
 ) -> WorkloadStateSpec {
-    generate_test_workload_state_with_agent(workload_name, fixtures::AGENT_NAMES[0], execution_state)
+    generate_test_workload_state_with_agent(
+        workload_name,
+        fixtures::AGENT_NAMES[0],
+        execution_state,
+    )
 }
 
 // ## AgentMapSpec fixtures ##
@@ -163,7 +173,7 @@ pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMapSpec {
         .entry(agent_name.into())
         .or_insert(AgentAttributesSpec {
             status: Some(generate_test_agent_status()),
-            ..Default::default()
+            tags: generate_test_agent_tags(),
         });
     agent_map
 }
@@ -178,7 +188,7 @@ pub fn generate_test_agent_map_from_workloads(workloads: &[WorkloadSpec]) -> Age
                 .entry(agent_name.to_owned())
                 .or_insert(AgentAttributesSpec {
                     status: Some(generate_test_agent_status()),
-                    ..Default::default()
+                    tags: generate_test_agent_tags(),
                 });
             agent_map
         })
@@ -188,6 +198,12 @@ pub fn generate_test_agent_status() -> AgentStatusSpec {
     AgentStatusSpec {
         cpu_usage: Some(fixtures::CPU_USAGE_SPEC),
         free_memory: Some(fixtures::FREE_MEMORY_SPEC),
+    }
+}
+
+pub fn generate_test_agent_tags() -> TagsSpec {
+    TagsSpec {
+        tags: HashMap::from([("type".to_string(), "agent".to_string())]),
     }
 }
 
@@ -371,7 +387,11 @@ pub fn generate_test_workload_with_params(
     agent_name: impl Into<String>,
     runtime_name: impl Into<String>,
 ) -> WorkloadSpec {
-    generate_test_workload_with_runtime_config(agent_name, runtime_name, fixtures::RUNTIME_CONFIGS[0])
+    generate_test_workload_with_runtime_config(
+        agent_name,
+        runtime_name,
+        fixtures::RUNTIME_CONFIGS[0],
+    )
 }
 
 pub fn generate_test_workload_with_runtime_config(
