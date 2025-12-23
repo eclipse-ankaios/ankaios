@@ -762,22 +762,15 @@ mod tests {
                 .entry(
                     "agents",
                     Mapping::default().entry(
-                        "agents",
-                        Mapping::default().entry(
-                            agent_name,
-                            Mapping::default()
-                                .entry(
-                                    "status",
-                                    Mapping::default()
-                                        .entry("cpu_usage", 50)
-                                        .entry("free_memory", 1024),
-                                )
-                                .entry(
-                                    "tags",
-                                    Mapping::default()
-                                        .entry("tags", Mapping::default().entry("type", "agent")),
-                                ),
-                        ),
+                        agent_name,
+                        Mapping::default()
+                            .entry(
+                                "status",
+                                Mapping::default()
+                                    .entry("cpu_usage", 50)
+                                    .entry("free_memory", 1024),
+                            )
+                            .entry("tags", Mapping::default().entry("type", "agent")),
                     ),
                 )
         }
