@@ -699,6 +699,7 @@ the last command shall not list the config "${config_name}"
     Run Keyword And Expect Error    Config name ${config_name} does not exist in the list    the last command shall list the config "${config_name}"
 
 Setup Ankaios for Control Interface test
+    Find Control Interface Test Tag
     Setup Ankaios
     Prepare Test Control Interface Workload
     Retrieve current Ankaios version
