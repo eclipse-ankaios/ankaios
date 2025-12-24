@@ -17,7 +17,7 @@ use super::rendered_workloads::RenderedWorkloads;
 
 use ankaios_api::ank_base::{
     AgentAttributesSpec, AgentStatusSpec, CompleteState, CompleteStateRequestSpec,
-    CompleteStateSpec, CpuUsageSpec, DeletedWorkload, FreeMemorySpec, StateSpec, TagsSpec,
+    CompleteStateSpec, CpuUsageSpec, DeletedWorkload, FreeMemorySpec, TagsSpec,
     WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use common::state_manipulation::{Object, Path};
@@ -244,13 +244,13 @@ impl ServerState {
                     self.delete_graph
                         .apply_delete_conditions_to(&mut deleted_workloads);
 
-                    self.set_desired_state(new_templated_state.desired_state);
+                    self.set_complete_state(new_templated_state);
                     self.rendered_workloads = new_rendered_workloads;
                     Ok(Some((added_workloads, deleted_workloads)))
                 } else {
-                    // update state with changed fields not affecting workloads, e.g. config items
+                    // update state with changed fields not affecting workloads, e.g. config items or agent tags
                     // [impl->swdd~server-state-updates-state-on-unmodified-workloads~1]
-                    self.set_desired_state(new_templated_state.desired_state);
+                    self.set_complete_state(new_templated_state);
                     Ok(None)
                 }
             }
@@ -342,8 +342,14 @@ impl ServerState {
         })
     }
 
-    fn set_desired_state(&mut self, new_desired_state: StateSpec) {
-        self.state.desired_state = new_desired_state;
+    fn set_complete_state(&mut self, new_complete_state: CompleteStateSpec) {
+        self.state.desired_state = new_complete_state.desired_state;
+
+        for (agent_name, new_agent_attributes) in new_complete_state.agents.agents {
+            if let Some(existing_agent) = self.state.agents.agents.get_mut(&agent_name) {
+                existing_agent.tags = new_agent_attributes.tags;
+            }
+        }
     }
 }
 
@@ -366,9 +372,10 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{
-        AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec,
-        ConfigItemEnumSpec, ConfigItemSpec, ConfigMapSpec, ConfigObjectSpec, DeletedWorkload,
-        StateSpec, Workload, WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadNamed,
+        AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState,
+        CompleteStateRequestSpec, CompleteStateSpec, ConfigItemEnumSpec, ConfigItemSpec,
+        ConfigMapSpec, ConfigObjectSpec, CpuUsageSpec, DeletedWorkload, FreeMemorySpec, StateSpec,
+        TagsSpec, Workload, WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadNamed,
         WorkloadStateSpec, WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
@@ -1707,6 +1714,124 @@ mod tests {
 
         assert!(server_state.contains_connected_agent(fixtures::AGENT_NAMES[0]));
         assert!(!server_state.contains_connected_agent(fixtures::AGENT_NAMES[1]));
+    }
+
+    #[test]
+    fn utest_set_complete_state_only_updates_tags_for_existing_agents() {
+        const OTHER_CPU_USAGE: u32 = 75;
+        const OTHER_FREE_MEMORY: u64 = 512;
+        let mut initial_agents = AgentMapSpec::default();
+
+        initial_agents.agents.insert(
+            fixtures::AGENT_NAMES[0].to_string(),
+            AgentAttributesSpec {
+                status: Some(AgentStatusSpec {
+                    cpu_usage: Some(fixtures::CPU_USAGE_SPEC),
+                    free_memory: Some(fixtures::FREE_MEMORY_SPEC),
+                }),
+                tags: TagsSpec {
+                    tags: HashMap::from([
+                        ("type".to_string(), "AI-agent".to_string()),
+                        ("location".to_string(), "online".to_string()),
+                    ]),
+                },
+            },
+        );
+
+        initial_agents.agents.insert(
+            fixtures::AGENT_NAMES[1].to_string(),
+            AgentAttributesSpec {
+                status: Some(AgentStatusSpec {
+                    cpu_usage: Some(CpuUsageSpec {
+                        cpu_usage: OTHER_CPU_USAGE,
+                    }),
+                    free_memory: Some(FreeMemorySpec {
+                        free_memory: OTHER_FREE_MEMORY,
+                    }),
+                }),
+                tags: TagsSpec {
+                    tags: HashMap::from([("type".to_string(), "watchdog".to_string())]),
+                },
+            },
+        );
+
+        let mut server_state = ServerState {
+            state: CompleteStateSpec {
+                agents: initial_agents,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut updated_agents = AgentMapSpec::default();
+
+        updated_agents.agents.insert(
+            fixtures::AGENT_NAMES[0].to_string(),
+            AgentAttributesSpec {
+                status: Some(AgentStatusSpec {
+                    // Status changed
+                    cpu_usage: Some(CpuUsageSpec { cpu_usage: 99 }),
+                    free_memory: Some(FreeMemorySpec { free_memory: 1 }),
+                }),
+                tags: TagsSpec {
+                    tags: HashMap::from([
+                        ("location".to_string(), "on-car".to_string()), // Updated
+                        ("new_tag".to_string(), "value".to_string()),   // Added
+                                                                        // "type" removed
+                    ]),
+                },
+            },
+        );
+
+        // New agent added manually
+        updated_agents
+            .agents
+            .insert("new_agent".to_string(), AgentAttributesSpec::default());
+
+        let new_state = CompleteStateSpec {
+            agents: updated_agents,
+            ..Default::default()
+        };
+
+        server_state.set_complete_state(new_state);
+
+        let final_agents = &server_state.state.agents.agents;
+
+        let agent_a = final_agents.get(fixtures::AGENT_NAMES[0]).unwrap();
+        assert_eq!(
+            agent_a.tags.tags,
+            HashMap::from([
+                ("location".to_string(), "on-car".to_string()),
+                ("new_tag".to_string(), "value".to_string()),
+            ])
+        );
+        assert_eq!(
+            agent_a.status,
+            Some(AgentStatusSpec {
+                cpu_usage: Some(fixtures::CPU_USAGE_SPEC),
+                free_memory: Some(fixtures::FREE_MEMORY_SPEC),
+            }),
+        );
+
+        // Should still be here, unmodified
+        let agent_b = final_agents.get(fixtures::AGENT_NAMES[1]).unwrap();
+        assert_eq!(
+            agent_b.status,
+            Some(AgentStatusSpec {
+                cpu_usage: Some(CpuUsageSpec {
+                    cpu_usage: OTHER_CPU_USAGE
+                }),
+                free_memory: Some(FreeMemorySpec {
+                    free_memory: OTHER_FREE_MEMORY
+                }),
+            }),
+        );
+        assert_eq!(
+            agent_b.tags.tags,
+            HashMap::from([("type".to_string(), "watchdog".to_string()),])
+        );
+
+        assert!(!final_agents.contains_key("new_agent"));
+        assert_eq!(final_agents.len(), 2);
     }
 
     fn generate_test_old_state() -> CompleteStateSpec {
