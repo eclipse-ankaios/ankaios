@@ -345,6 +345,7 @@ impl ServerState {
     fn set_complete_state(&mut self, new_complete_state: CompleteStateSpec) {
         self.state.desired_state = new_complete_state.desired_state;
 
+        // [impl->swdd~server-state-updates-agent-tags~1]
         for (agent_name, new_agent_attributes) in new_complete_state.agents.agents {
             if let Some(existing_agent) = self.state.agents.agents.get_mut(&agent_name) {
                 existing_agent.tags = new_agent_attributes.tags;
@@ -1716,6 +1717,7 @@ mod tests {
         assert!(!server_state.contains_connected_agent(fixtures::AGENT_NAMES[1]));
     }
 
+    // [utest->swdd~server-state-updates-agent-tags~1]
     #[test]
     fn utest_set_complete_state_only_updates_tags_for_existing_agents() {
         const OTHER_CPU_USAGE: u32 = 75;
