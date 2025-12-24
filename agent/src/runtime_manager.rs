@@ -684,11 +684,11 @@ mod tests {
         WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_control_interface_access,
-        generate_test_deleted_workload_with_dependencies,
+        fixtures, generate_test_agent_tags, generate_test_complete_state,
+        generate_test_control_interface_access, generate_test_deleted_workload_with_dependencies,
         generate_test_deleted_workload_with_params, generate_test_proto_complete_state,
         generate_test_workload_named, generate_test_workload_named_with_params,
-        generate_test_workload_with_params, fixtures,
+        generate_test_workload_with_params,
     };
     use common::to_server_interface::ToServerReceiver;
 
@@ -1272,9 +1272,10 @@ mod tests {
             )
             .build();
 
-        runtime_manager
-            .workloads
-            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), MockWorkload::default()); // workload is known
+        runtime_manager.workloads.insert(
+            fixtures::WORKLOAD_NAMES[0].to_owned(),
+            MockWorkload::default(),
+        ); // workload is known
 
         let expected_added_workloads: Vec<ReusableWorkload> =
             added_workloads.clone().into_reusable_workloads();
@@ -2319,7 +2320,11 @@ mod tests {
         let request_id: String = fixtures::REQUEST_ID.to_string();
         let workloads = [(
             fixtures::WORKLOAD_NAMES[0],
-            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::RUNTIME_NAMES[0]).into(),
+            generate_test_workload_with_params(
+                fixtures::AGENT_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
+            )
+            .into(),
         )];
         let mut complete_state = generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {
@@ -2352,7 +2357,7 @@ mod tests {
                         cpu_usage: Some(ank_base::CpuUsage::from(fixtures::CPU_USAGE_SPEC)),
                         free_memory: Some(ank_base::FreeMemory::from(fixtures::FREE_MEMORY_SPEC)),
                     }),
-                    ..Default::default()
+                    tags: Some(generate_test_agent_tags().into()),
                 },
             )]),
         });

@@ -1,0 +1,15 @@
+apiVersion: v1
+agents:
+  agent_A:
+    status:
+      cpu_usage: 99
+      free_memory: 1
+    tags:
+      location: on-car
+      new_tag: value
+  agent_C:
+    status:
+      cpu_usage: 10
+      free_memory: 2048
+    tags:
+      should: be_ignored

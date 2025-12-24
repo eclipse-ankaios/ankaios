@@ -39,6 +39,10 @@ pub struct Arguments {
     #[arg(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANKAGENT_INSECURE")]
     /// Flag to disable TLS communication between Ankaios agent and server.
     pub insecure: Option<bool>,
+    #[arg(short = 't', long = "tag", value_parser = parse_key_val, action = ArgAction::Append)]
+    /// Agent tags as key=value pairs. Can be specified multiple times.
+    /// Example: --tag cpu=x86_64 --tag location=cloud
+    pub tags: Option<Vec<(String, String)>>,
     #[arg(long = "ca_pem", env = "ANKAGENT_CA_PEM")]
     /// Path to agent ca pem file.
     pub ca_pem: Option<String>,
@@ -48,6 +52,14 @@ pub struct Arguments {
     #[arg(long = "key_pem", env = "ANKAGENT_KEY_PEM")]
     /// Path to agent key pem file.
     pub key_pem: Option<String>,
+}
+
+/// Parse a single key-value pair
+fn parse_key_val(s: &str) -> Result<(String, String), String> {
+    let pos = s
+        .find('=')
+        .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{s}`"))?;
+    Ok((s[..pos].to_string(), s[pos + 1..].to_string()))
 }
 
 pub fn parse() -> Arguments {

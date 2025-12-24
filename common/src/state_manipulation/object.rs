@@ -296,8 +296,8 @@ mod tests {
     use super::Object;
     use ankaios_api::ank_base::{CompleteStateSpec, ExecutionStateSpec, StateSpec};
     use ankaios_api::test_utils::{
-        generate_test_agent_map_from_workloads, generate_test_state_from_workloads,
-        generate_test_workload_named, generate_test_workload_states_map_with_data, fixtures,
+        fixtures, generate_test_agent_map_from_workloads, generate_test_state_from_workloads,
+        generate_test_workload_named, generate_test_workload_states_map_with_data,
     };
 
     use serde_yaml::Value;
@@ -418,7 +418,8 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
+                if let Some(Value::Mapping(workload_1)) =
+                    workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
                 {
                     workload_1.insert("update_strategy".into(), "AT_MOST_ONCE".into());
                 }
@@ -451,7 +452,8 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
+                if let Some(Value::Mapping(workload_1)) =
+                    workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
                 {
                     workload_1.insert("new_key".into(), "new value".into());
                 }
@@ -484,7 +486,8 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
+                if let Some(Value::Mapping(workload_1)) =
+                    workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
                 {
                     let new_entry = object::Mapping::default().entry("new_key", "new value");
                     workload_1.insert("new_map".into(), new_entry.into());
@@ -518,7 +521,8 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
+                if let Some(Value::Mapping(workload_1)) =
+                    workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
                 {
                     workload_1.remove("access_rights");
                 }
@@ -529,8 +533,8 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res =
-            actual.remove(&format!("workloads.{}.access_rights", fixtures::WORKLOAD_NAMES[0]).into());
+        let res = actual
+            .remove(&format!("workloads.{}.access_rights", fixtures::WORKLOAD_NAMES[0]).into());
 
         assert!(res.is_ok());
         assert!(
@@ -551,8 +555,8 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res =
-            actual.remove(&format!("workloads.{}.non_existing", fixtures::WORKLOAD_NAMES[0]).into());
+        let res = actual
+            .remove(&format!("workloads.{}.non_existing", fixtures::WORKLOAD_NAMES[0]).into());
 
         assert!(res.is_ok());
         assert_eq!(actual, expected);
@@ -584,8 +588,13 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual
-            .remove(&format!("workloads.{}.agent.not_map.key", fixtures::WORKLOAD_NAMES[0]).into());
+        let res = actual.remove(
+            &format!(
+                "workloads.{}.agent.not_map.key",
+                fixtures::WORKLOAD_NAMES[0]
+            )
+            .into(),
+        );
 
         assert!(res.is_err());
         assert_eq!(actual, expected);
@@ -613,7 +622,8 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = data.get(&format!("workloads.{}.restartPolicy", fixtures::WORKLOAD_NAMES[0]).into());
+        let res =
+            data.get(&format!("workloads.{}.restartPolicy", fixtures::WORKLOAD_NAMES[0]).into());
 
         assert!(res.is_some());
         assert_eq!(res.expect(""), &serde_yaml::Value::from("ALWAYS"));
@@ -625,7 +635,8 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = data.get(&format!("workloads.{}.non_existing", fixtures::WORKLOAD_NAMES[0]).into());
+        let res =
+            data.get(&format!("workloads.{}.non_existing", fixtures::WORKLOAD_NAMES[0]).into());
 
         assert!(res.is_none());
     }
@@ -636,7 +647,8 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = data.get(&format!("workloads.{}.agent.not_map", fixtures::WORKLOAD_NAMES[0]).into());
+        let res =
+            data.get(&format!("workloads.{}.agent.not_map", fixtures::WORKLOAD_NAMES[0]).into());
 
         assert!(res.is_none());
     }
@@ -750,18 +762,15 @@ mod tests {
                 .entry(
                     "agents",
                     Mapping::default().entry(
-                        "agents",
-                        Mapping::default().entry(
-                            agent_name,
-                            Mapping::default()
-                                .entry(
-                                    "status",
-                                    Mapping::default()
-                                        .entry("cpu_usage", 50)
-                                        .entry("free_memory", 1024),
-                                )
-                                .entry("tags", Value::Null),
-                        ),
+                        agent_name,
+                        Mapping::default()
+                            .entry(
+                                "status",
+                                Mapping::default()
+                                    .entry("cpu_usage", 50)
+                                    .entry("free_memory", 1024),
+                            )
+                            .entry("tags", Mapping::default().entry("type", "agent")),
                     ),
                 )
         }
