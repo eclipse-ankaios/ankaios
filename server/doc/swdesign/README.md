@@ -1074,6 +1074,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### Server cleans up state
 `swdd~server-cleans-up-state~1`

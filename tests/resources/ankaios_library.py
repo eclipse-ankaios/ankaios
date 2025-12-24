@@ -710,6 +710,49 @@ def internal_check_workload_files_exists(complete_state_json, workload_name, age
         workload_file_host_path = path.join(tmp_directory, workload_folder_name, "files", relative_mount_point)
         assert path.exists(workload_file_host_path), f"the workload file for {workload_name} does not exist"
 
+
+@err_logging_decorator
+def agent_shall_have_tag(state_output: str, agent_name: str, tag_key: str, tag_value: str):
+    state = yaml.safe_load(state_output)
+    logger.trace(f"State: {state}")
+
+    assert "agents" in state, f"No 'agents' section found in state"
+    assert agent_name in state["agents"], f"Agent '{agent_name}' not found in state"
+
+    agent = state["agents"][agent_name]
+    assert "tags" in agent, f"Agent '{agent_name}' has no 'tags' field"
+
+    tags = agent["tags"]
+    assert tag_key in tags, f"Tag '{tag_key}' not found in agent '{agent_name}' tags. Available tags: {list(tags.keys())}"
+
+    actual_value = tags[tag_key]
+    assert actual_value == tag_value, f"Tag '{tag_key}' has value '{actual_value}', expected '{tag_value}'"
+
+
+@err_logging_decorator
+def agent_shall_not_have_tag(state_output: str, agent_name: str, tag_key: str):
+    state = yaml.safe_load(state_output)
+    logger.trace(f"State: {state}")
+
+    assert "agents" in state, f"No 'agents' section found in state"
+    assert agent_name in state["agents"], f"Agent '{agent_name}' not found in state"
+
+    agent = state["agents"][agent_name]
+
+    if "tags" in agent:
+        tags = agent["tags"]
+        assert tag_key not in tags, f"Tag '{tag_key}' should not exist but was found in agent '{agent_name}' with value '{tags[tag_key]}'"
+
+
+@err_logging_decorator
+def agent_shall_not_exist(state_output: str, agent_name: str):
+    state = yaml.safe_load(state_output)
+    logger.trace(f"State: {state}")
+
+    if "agents" in state:
+        assert agent_name not in state["agents"], f"Agent '{agent_name}' should not exist but was found in state"
+
+
 def get_instance_name_from_ankaios_workload_states(workload_states: str, workload_name: str) -> str:
     workload_states_dict = json_to_dict(workload_states)
 
