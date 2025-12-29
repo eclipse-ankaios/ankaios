@@ -74,7 +74,7 @@ impl WorkloadControlLoop {
                         // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
                         if Self::restart_policy_matches_execution_state(&control_loop_state.workload_named.workload.restart_policy, &new_workload_state.execution_state) {
                             // [impl->swdd~workload-control-loop-handles-workload-restarts~2]
-                            control_loop_state = Self::restart_workload_on_runtime(control_loop_state).await;
+                            control_loop_state = Self::restart_workload_on_runtime(control_loop_state, &new_workload_state.execution_state).await;
                         }
                     }
 
@@ -106,6 +106,7 @@ impl WorkloadControlLoop {
                                 control_loop_state,
                                 runtime_workload_config,
                                 control_interface_path,
+                                None,
                             )
                             .await;
 
@@ -182,6 +183,7 @@ impl WorkloadControlLoop {
 
     async fn restart_workload_on_runtime<WorkloadId, StChecker>(
         control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+        execution_state: &ExecutionStateSpec,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
@@ -199,12 +201,21 @@ impl WorkloadControlLoop {
         let workload_named = control_loop_state.workload_named.clone();
         let control_interface_path = control_loop_state.control_interface_path.clone();
 
+        // Check if we can reuse the bundle: workload succeeded and has a workload_id
+        let reusable_workload_id =
+            if execution_state.is_succeeded() && control_loop_state.workload_id.is_some() {
+                control_loop_state.workload_id.clone()
+            } else {
+                None
+            };
+
         // update the workload with its existing config since a restart is represented by an update operation
         // [impl->swdd~workload-control-loop-restarts-workloads-using-update~1]
         Self::update_workload_on_runtime(
             control_loop_state,
             Some(Box::new(workload_named)),
             control_interface_path,
+            reusable_workload_id,
         )
         .await
     }
@@ -477,6 +488,7 @@ impl WorkloadControlLoop {
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         new_workload_named: Option<Box<WorkloadNamed>>,
         control_interface_path: Option<ControlInterfacePath>,
+        reusable_workload_id: Option<WorkloadId>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
@@ -489,7 +501,16 @@ impl WorkloadControlLoop {
         )
         .await;
 
-        if let Some(old_id) = control_loop_state.workload_id.take() {
+        // If we have a reusable workload ID, skip deletion and preserve the bundle
+        if reusable_workload_id.is_some() {
+            log::debug!(
+                "Reusing bundle for workload '{}' due to restart policy",
+                control_loop_state.instance_name().workload_name()
+            );
+            if let Some(old_checker) = control_loop_state.state_checker.take() {
+                old_checker.stop_checker().await;
+            }
+        } else if let Some(old_id) = control_loop_state.workload_id.take() {
             if let Err(err) = control_loop_state.runtime.delete_workload(&old_id).await {
                 Self::send_workload_state_to_agent(
                     &control_loop_state.to_agent_workload_state_sender,
@@ -711,7 +732,7 @@ mod tests {
         WorkloadInstanceNameSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_workload_named, generate_test_workload_state_with_workload_named, fixtures,
+        fixtures, generate_test_workload_named, generate_test_workload_state_with_workload_named,
     };
 
     use mockall::{lazy_static, predicate};
@@ -767,9 +788,13 @@ mod tests {
             RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
             RuntimeCall::CreateWorkload(
                 new_workload.clone(),
+                None,
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
-                Ok((fixtures::WORKLOAD_IDS[0].to_string(), new_mock_state_checker)),
+                Ok((
+                    fixtures::WORKLOAD_IDS[0].to_string(),
+                    new_mock_state_checker,
+                )),
             ),
             // Since we also send a delete command to exit the control loop properly, the new workload
             // will also be deleted. This also tests if the new workload id was properly stored.
@@ -968,9 +993,13 @@ mod tests {
             RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
             RuntimeCall::CreateWorkload(
                 new_workload.clone(),
+                None,
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
-                Ok((fixtures::WORKLOAD_IDS[0].to_string(), new_mock_state_checker)),
+                Ok((
+                    fixtures::WORKLOAD_IDS[0].to_string(),
+                    new_mock_state_checker,
+                )),
             ),
             // Delete the new updated workload to exit the infinite loop
             RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
@@ -1080,9 +1109,13 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
                 new_workload.clone(),
+                None,
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
-                Ok((fixtures::WORKLOAD_IDS[0].to_string(), new_mock_state_checker)),
+                Ok((
+                    fixtures::WORKLOAD_IDS[0].to_string(),
+                    new_mock_state_checker,
+                )),
             ),
             // Since we also send a delete command to exit the control loop properly, the new workload
             // will also be deleted. This also tests if the new workload id was properly stored.
@@ -1393,9 +1426,13 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
                 workload.clone(),
+                None,
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
-                Ok((fixtures::WORKLOAD_IDS[0].to_string(), new_mock_state_checker)),
+                Ok((
+                    fixtures::WORKLOAD_IDS[0].to_string(),
+                    new_mock_state_checker,
+                )),
             ),
             // Since we also send a delete command to exit the control loop properly, the new workload
             // will also be deleted. This also tests if the new workload id was properly stored.
@@ -1846,9 +1883,13 @@ mod tests {
             RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())), // delete operation of the restarted workload
             RuntimeCall::CreateWorkload(
                 workload.clone(),
+                None,
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
-                Ok((fixtures::WORKLOAD_IDS[1].to_string(), new_mock_state_checker)),
+                Ok((
+                    fixtures::WORKLOAD_IDS[1].to_string(), // new workload id after restart
+                    new_mock_state_checker,
+                )),
             ),
             RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[1].to_string(), Ok(())),
         ]);
@@ -1891,6 +1932,109 @@ mod tests {
             .return_once(|| mock_retry_token);
 
         // clone the control loop state's internally created workload state sender used by the state checker
+        let state_checker_wl_state_sender = control_loop_state
+            .state_checker_workload_state_sender
+            .clone();
+
+        let workload_state = generate_test_workload_state_with_workload_named(
+            &workload,
+            ExecutionStateSpec::failed("test error".to_owned()),
+        );
+
+        state_checker_wl_state_sender
+            .report_workload_execution_state(
+                &workload_state.instance_name,
+                workload_state.execution_state.clone(),
+            )
+            .await;
+
+        assert!(
+            timeout(
+                Duration::from_millis(100),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
+
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
+        runtime_mock.assert_all_expectations();
+    }
+
+    #[tokio::test]
+    async fn utest_restart_workload_with_bundle_reuse() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
+        let (workload_state_forward_tx, _workload_state_forward_rx) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
+
+        let mut workload = generate_test_workload_named();
+        workload.workload.files = Default::default();
+
+        let mut old_mock_state_checker = StubStateChecker::new();
+        old_mock_state_checker.panic_if_not_stopped();
+
+        let mut new_mock_state_checker = StubStateChecker::new();
+        new_mock_state_checker.panic_if_not_stopped();
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock.expect(vec![
+            RuntimeCall::CreateWorkload(
+                workload.clone(),
+                Some(fixtures::WORKLOAD_IDS[0].to_string()), // reuse the existing ID
+                Some(fixtures::PIPES_LOCATION.into()),
+                HashMap::default(),
+                Ok((
+                    fixtures::WORKLOAD_IDS[0].to_string(),
+                    new_mock_state_checker,
+                )),
+            ),
+            RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
+        ]);
+
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
+        mock_remove_dir.expect().returning(|_| Ok(()));
+
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
+            workload_command_sender.delete().await.unwrap();
+        });
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_named(workload.clone())
+            .workload_state_sender(workload_state_forward_tx.clone())
+            .run_folder(fixtures::RUN_FOLDER.into())
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender2)
+            .build()
+            .unwrap();
+
+        control_loop_state.workload_id = Some(fixtures::WORKLOAD_IDS[0].into());
+        control_loop_state.state_checker = Some(old_mock_state_checker);
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .once()
+            .return_const(());
+        let mock_retry_token = MockRetryToken {
+            valid: true,
+            has_been_called: false,
+        };
+        control_loop_state
+            .retry_manager
+            .expect_new_token()
+            .once()
+            .return_once(|| mock_retry_token);
+
         let state_checker_wl_state_sender = control_loop_state
             .state_checker_workload_state_sender
             .clone();
@@ -2055,8 +2199,12 @@ mod tests {
         runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
             workload.clone(),
             None,
+            None,
             expected_mount_point_mappings.clone(),
-            Ok((fixtures::WORKLOAD_IDS[0].to_string(), StubStateChecker::new())),
+            Ok((
+                fixtures::WORKLOAD_IDS[0].to_string(),
+                StubStateChecker::new(),
+            )),
         )]);
 
         let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
@@ -2186,6 +2334,7 @@ mod tests {
         runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
             workload.clone(),
             None,
+            None,
             HashMap::default(),
             Err(RuntimeError::Unsupported("unsupported error".to_string())),
         )]);
@@ -2260,6 +2409,7 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
             workload.clone(),
+            None,
             Some(fixtures::PIPES_LOCATION.into()),
             HashMap::default(),
             Err(crate::runtime_connectors::RuntimeError::Create(
@@ -2362,6 +2512,7 @@ mod tests {
             RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
             RuntimeCall::CreateWorkload(
                 new_workload.clone(),
+                None,
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
                 Err(crate::runtime_connectors::RuntimeError::Create(
@@ -2453,9 +2604,13 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
                 workload.clone(),
+                None,
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
-                Ok((fixtures::WORKLOAD_IDS[0].to_string(), StubStateChecker::new())),
+                Ok((
+                    fixtures::WORKLOAD_IDS[0].to_string(),
+                    StubStateChecker::new(),
+                )),
             ),
             RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
         ]);
@@ -2604,6 +2759,7 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
                 workload.clone(),
+                None,
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
                 Err(crate::runtime_connectors::RuntimeError::Create(

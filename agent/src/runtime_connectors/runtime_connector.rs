@@ -247,6 +247,7 @@ pub mod test {
         GetReusableWorkloads(AgentName, Result<Vec<ReusableWorkloadState>, RuntimeError>),
         CreateWorkload(
             WorkloadNamed,
+            Option<String>,
             Option<PathBuf>,
             HashMap<PathBuf, PathBuf>,
             Result<(String, StubStateChecker), RuntimeError>,
@@ -385,7 +386,7 @@ pub mod test {
         async fn create_workload(
             &self,
             runtime_workload_config: WorkloadNamed,
-            _reusable_workload_id: Option<String>,
+            reusable_workload_id: Option<String>,
             control_interface_path: Option<PathBuf>,
             _update_state_tx: WorkloadStateSender,
             host_workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
@@ -393,10 +394,12 @@ pub mod test {
             match self.get_expected_call() {
                 RuntimeCall::CreateWorkload(
                     expected_runtime_workload_config,
+                    expected_reusable_workload_id,
                     expected_control_interface_path,
                     expected_host_workload_file_path_mappings,
                     result,
                 ) if expected_runtime_workload_config == runtime_workload_config
+                    && expected_reusable_workload_id == reusable_workload_id
                     && expected_control_interface_path == control_interface_path
                     && host_workload_file_path_mappings
                         == expected_host_workload_file_path_mappings =>
