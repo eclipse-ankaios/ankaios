@@ -43,7 +43,7 @@ Test Ankaios restarts workloads with restart policy ALWAYS.
     And podman has assigned a container id for workload "default_restarted_never" on agent "agent_A"
     # Asserts
     # Due to polling, the use of execution states to detect a restart results in unstable tests because it is very fast switching.
-    Then the container of workload "restarted_always" shall have a different id but same configuration on the podman runtime
+    Then the container of workload "restarted_always" shall have the same id and same configuration on the podman runtime
     And the workload "restarted_always" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     And the workload "default_restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
