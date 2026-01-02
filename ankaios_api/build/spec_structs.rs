@@ -14,6 +14,10 @@
 
 use tonic_prost_build::Builder;
 
+// [impl->swdd~api-provides-spec-object-definitions~1]
+// [impl->swdd~api-conversions-between-ank-base-and-spec~1]
+// [impl->swdd~api-object-serialization~1]
+
 /// This function provides the proto objects with annotations required for the
 /// generation of the spec objects.
 ///
@@ -147,6 +151,7 @@ fn setup_spec_workload(builder: Builder) -> Builder {
         .field_attribute("Workload.tags", "#[spec_default]")
         .field_attribute("Workload.runtime", "#[spec_mandatory]")
         .field_attribute("Workload.runtimeConfig", "#[spec_mandatory]")
+        .field_attribute("Workload.runtimeConfig", r#"#[spec_field_attr(#[serde(deserialize_with = "trim_string")])]"#)
         .field_attribute("Workload.controlInterfaceAccess", "#[spec_default]")
         .field_attribute("Workload.configs", "#[spec_default]")
         .field_attribute("Workload.files", "#[spec_default]")

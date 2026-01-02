@@ -153,6 +153,20 @@ Tags:
 Needs:
 - impl
 
+#### Server validates desired state api version
+`swdd~server-validates-desired-state-api-version~1`
+
+Status: approved
+
+When the Ankaios server receives a `desiredState`, the server shall validate the API version of the `desiredState`.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+
 #### Server validates tags format in startup manifest
 `swdd~server-validates-startup-manifest-tags-format~1`
 
@@ -713,7 +727,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server gets an UpdateStateRequest, the server shall enforce the desired state field conventions defined in the common library.
+When the Ankaios Server gets an UpdateStateRequest, the server shall enforce the desired state field conventions defined in the Ankaios API.
 
 Comment:
 We need to check the names of both the workload and agent names in order to ensure the proper function of the filtering.

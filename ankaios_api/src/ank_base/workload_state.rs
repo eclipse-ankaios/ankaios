@@ -49,6 +49,7 @@ impl ExecutionStateSpec {
         &self.execution_state_enum
     }
 
+    // [impl->swdd~api-workload-state-transitions~1]
     pub fn transition(&self, incoming: ExecutionStateSpec) -> ExecutionStateSpec {
         match (&self.state(), &incoming.state()) {
             (
@@ -269,14 +270,12 @@ impl Display for ExecutionStateSpec {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~common-conversions-between-ankaios-and-proto~1]
-// [utest->swdd~common-object-representation~1]
 #[cfg(test)]
 mod tests {
     use super::NO_MORE_RETRIES_MSG;
     use crate::ank_base::ExecutionStateSpec;
 
-    // [utest->swdd~common-workload-state-transitions~1]
+    // [utest->swdd~api-workload-state-transitions~1]
     #[test]
     fn utest_execution_state_transition_hysteresis() {
         assert_eq!(
@@ -322,8 +321,8 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-workload-state-additional-information~1]
-    // [utest->swdd~common-workload-states-supported-states~1]
+    // [utest->swdd~api-workload-state-additional-information~1]
+    // [utest->swdd~api-workload-states-supported-states~1]
     #[test]
     fn utest_execution_state_to_string_basic_mapping() {
         let additional_info = "some additional info";

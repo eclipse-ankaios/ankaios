@@ -12,11 +12,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::{
-    CompleteStateResponse, CompleteStateSpec, STR_RE_CONFIG_REFERENCES, StateSpec,
-};
+use std::collections::HashMap;
 
-use crate::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
+use crate::ank_base::{
+    CompleteStateResponse, CompleteStateSpec, ConfigItemEnumSpec, ConfigItemSpec, StateSpec,
+};
+use crate::{
+    ALLOWED_CHAR_SET, CONSTRAINT_FIELD_DESCRIPTION, CURRENT_API_VERSION, MAX_FIELD_LENGTH,
+    PREVIOUS_API_VERSION,
+};
 use regex::Regex;
 
 impl Default for StateSpec {
@@ -37,6 +41,7 @@ impl StateSpec {
         Ok(())
     }
 
+    // [impl->swdd~api-version-checks~1]
     fn validate_api_version(&self) -> Result<(), String> {
         match self.api_version.as_str() {
             CURRENT_API_VERSION => Ok(()),
@@ -53,18 +58,42 @@ impl StateSpec {
         }
     }
 
-    // [impl->swdd~common-config-item-key-naming-convention~1]
-    fn validate_configs_format(&self) -> Result<(), String> {
-        let re_config_items = Regex::new(STR_RE_CONFIG_REFERENCES).unwrap();
-        for config_key in self.configs.configs.keys() {
-            if !re_config_items.is_match(config_key.as_str()) {
+    // [impl->swdd~api-config-item-key-naming-convention~1]
+    fn validate_config_map(
+        regex: &Regex,
+        config_map: &HashMap<String, ConfigItemSpec>,
+    ) -> Result<(), String> {
+        for (key, value) in config_map {
+            if key.len() > MAX_FIELD_LENGTH || !regex.is_match(key) {
                 return Err(format!(
-                    "Unsupported config item key. Received '{config_key}', expected to have characters in {STR_RE_CONFIG_REFERENCES}"
+                    "Unsupported config item key '{key}'. {CONSTRAINT_FIELD_DESCRIPTION}"
                 ));
             }
-        }
 
-        // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+            match &value.config_item_enum {
+                ConfigItemEnumSpec::Array(arr) => {
+                    for item in &arr.values {
+                        if let ConfigItemEnumSpec::Object(nested) = &item.config_item_enum {
+                            Self::validate_config_map(regex, &nested.fields)?;
+                        }
+                    }
+                }
+                ConfigItemEnumSpec::Object(nested) => {
+                    Self::validate_config_map(regex, &nested.fields)?
+                }
+                ConfigItemEnumSpec::String(_) => {}
+            }
+        }
+        Ok(())
+    }
+
+    // [impl->swdd~common-config-item-key-naming-convention~1]
+    fn validate_configs_format(&self) -> Result<(), String> {
+        let re_config_items = Regex::new(&format!(r"^{ALLOWED_CHAR_SET}+$"))
+            .map_err(|_| "Internal error. Invalid regular expression.")?;
+        Self::validate_config_map(&re_config_items, &self.configs.configs)?;
+
+        // [impl->swdd~api-config-aliases-and-config-reference-keys-naming-convention~1]
         self.workloads
             .workloads
             .values()
@@ -90,24 +119,21 @@ impl From<CompleteStateSpec> for CompleteStateResponse {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
-
-// [utest->swdd~common-conversions-between-ankaios-and-proto~1]
-// [utest->swdd~common-object-representation~1]
-// [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
-    use crate::PREVIOUS_API_VERSION;
+    use super::{CONSTRAINT_FIELD_DESCRIPTION, PREVIOUS_API_VERSION};
     use crate::ank_base::{
         ConfigMap, ConfigMapSpec, State, StateSpec, WorkloadMap, WorkloadMapSpec, WorkloadSpec,
     };
     use crate::test_utils::{
-        generate_test_config_item, generate_test_config_map, generate_test_state,
-        generate_test_workload, fixtures,
+        fixtures, generate_test_config_item, generate_test_config_map, generate_test_state,
+        generate_test_workload,
     };
     use std::collections::HashMap;
 
     const INVALID_CONFIG_KEY: &str = "invalid%key";
 
+    // [utest->swdd~api-object-serialization~1]
     #[test]
     fn utest_serialize_state_into_ordered_output() {
         // input: random sorted state
@@ -116,14 +142,19 @@ mod tests {
         // serialize to sorted output
         let sorted_state_string = serde_yaml::to_string(&ankaios_state).unwrap();
 
-        let index_workload1 = sorted_state_string.find(fixtures::WORKLOAD_NAMES[0]).unwrap();
-        let index_workload2 = sorted_state_string.find(fixtures::WORKLOAD_NAMES[1]).unwrap();
+        let index_workload1 = sorted_state_string
+            .find(fixtures::WORKLOAD_NAMES[0])
+            .unwrap();
+        let index_workload2 = sorted_state_string
+            .find(fixtures::WORKLOAD_NAMES[1])
+            .unwrap();
         assert!(
             index_workload1 < index_workload2,
             "expected sorted workloads."
         );
     }
 
+    // [utest->swdd~api-version-checks~1]
     #[test]
     fn utest_state_accepts_compatible_state() {
         let mut state_compatible_version = StateSpec::default();
@@ -139,6 +170,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~api-version-checks~1]
     #[test]
     fn utest_state_rejects_incompatible_state_on_api_version() {
         let api_version = "incompatible_version".to_string();
@@ -178,7 +210,7 @@ mod tests {
         assert_eq!(deserialization_result, "missing field `apiVersion`");
     }
 
-    // [utest->swdd~common-config-item-key-naming-convention~1]
+    // [utest->swdd~api-config-item-key-naming-convention~1]
     #[test]
     fn utest_validate_configs_format_compatible_config_item_keys_and_config_references() {
         let workload = generate_test_workload();
@@ -193,7 +225,7 @@ mod tests {
         assert_eq!(StateSpec::validate_configs_format(&state), Ok(()));
     }
 
-    // [utest->swdd~common-config-item-key-naming-convention~1]
+    // [utest->swdd~api-config-item-key-naming-convention~1]
     #[test]
     fn utest_validate_configs_format_incompatible_config_item_key() {
         let state = StateSpec {
@@ -210,14 +242,12 @@ mod tests {
         assert_eq!(
             StateSpec::validate_configs_format(&state),
             Err(format!(
-                "Unsupported config item key. Received '{}', expected to have characters in {}",
-                INVALID_CONFIG_KEY,
-                super::STR_RE_CONFIG_REFERENCES
+                "Unsupported config item key '{INVALID_CONFIG_KEY}'. {CONSTRAINT_FIELD_DESCRIPTION}",
             ))
         );
     }
 
-    // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    // [utest->swdd~api-config-aliases-and-config-reference-keys-naming-convention~1]
     #[test]
     fn utest_validate_configs_format_incompatible_workload_config_alias() {
         let mut workload: WorkloadSpec = generate_test_workload();
@@ -237,9 +267,7 @@ mod tests {
         assert_eq!(
             StateSpec::validate_configs_format(&state),
             Err(format!(
-                "Unsupported config alias. Received '{}', expected to have characters in {}",
-                INVALID_CONFIG_KEY,
-                super::STR_RE_CONFIG_REFERENCES
+                "Unsupported config alias '{INVALID_CONFIG_KEY}'. {CONSTRAINT_FIELD_DESCRIPTION}",
             ))
         );
     }

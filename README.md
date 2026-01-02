@@ -35,3 +35,15 @@ This project welcomes contributions and suggestions. Before contributing, make s
 Eclipse Ankaios is licensed using the Apache License Version 2.0.
 
 <!-- markdownlint-disable-file MD041 -->
+
+## Funding
+
+Partly funded by
+
+<img src="logo/BMWK-EU_Gefoerdert2023_en_RGB.png" alt="BMWK EU funded" width="300" style="display:block; margin:0.5rem 0">
+
+*The publication was partly written within the Shift2SDV project (GA number 101194245) which is supported by the Chips Joint Undertaking and its members, including top-funding by the national authorities of Austria, Denmark, Germany, Greece, Finland, Italy, Netherlands, Poland, Portugal, Spain, Turkey.*
+
+*Co-funded by the European Union. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the Chips Joint Undertaking. Neither the European Union nor the granting authorities can be held responsible for them.*
+
+<img src="logo/chips-ju.png" alt="Chips JU" width="350" style="display:block; margin:0;">

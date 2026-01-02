@@ -19,7 +19,7 @@ use crate::ank_base::{
 };
 use std::collections::hash_map::Entry;
 
-// [impl->swdd~state-map-for-workload-execution-states~2]
+// [impl->swdd~api-state-map-for-workload-execution-states~1]
 impl WorkloadStatesMapSpec {
     pub fn new() -> WorkloadStatesMapSpec {
         Default::default()
@@ -195,7 +195,8 @@ impl From<WorkloadStatesMap> for Vec<WorkloadState> {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~state-map-for-workload-execution-states~2]
+
+// [utest->swdd~api-state-map-for-workload-execution-states~1]
 #[cfg(test)]
 mod tests {
     use crate::ank_base::{
