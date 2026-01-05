@@ -101,7 +101,7 @@ RUN mkdir -p -m 2777 $RUSTUP_HOME \
 
 # required for Podman
 VOLUME /var/lib/containers
-# required for containerd 
+# required for containerd
 VOLUME /var/lib/containerd
 
 COPY containers.conf /etc/containers/containers.conf
@@ -153,7 +153,8 @@ USER ${USERNAME}
 # Install cargo cli tools
 RUN cargo install cargo-llvm-cov --locked; \
     cargo install cargo-deb --locked; \
-    cargo install cargo-nextest --locked; \
+    # latest nextest version supporting our current rust toolchain version
+    cargo install cargo-nextest@0.9.114 --locked; \
     cargo install cargo-deny --locked; \
     cargo install cargo-about --locked
 
