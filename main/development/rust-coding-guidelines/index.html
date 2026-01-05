@@ -17,8 +17,11 @@
         <link rel="next" href="../changing-the-api/">
       
       
+        
+      
+      
       <link rel="icon" href="../../assets/favicon128x128.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.17">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
@@ -26,10 +29,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.7e37652d.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -56,34 +59,18 @@
 
     
     
-      
-        <meta  property="og:type"  content="website" >
-      
-        <meta  property="og:title"  content="Rust coding guidelines - Eclipse Ankaios" >
-      
-        <meta  property="og:description"  content="None" >
-      
-        <meta  property="og:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/development/rust-coding-guidelines.png" >
-      
-        <meta  property="og:image:type"  content="image/png" >
-      
-        <meta  property="og:image:width"  content="1200" >
-      
-        <meta  property="og:image:height"  content="630" >
-      
-        <meta  property="og:url"  content="https://eclipse-ankaios.github.io/ankaios/main/development/rust-coding-guidelines/" >
-      
-        <meta  name="twitter:card"  content="summary_large_image" >
-      
-        <meta  name="twitter:title"  content="Rust coding guidelines - Eclipse Ankaios" >
-      
-        <meta  name="twitter:description"  content="None" >
-      
-        <meta  name="twitter:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/development/rust-coding-guidelines.png" >
-      
-    
-    
-  </head>
+  
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Rust coding guidelines - Eclipse Ankaios" />
+<meta property="og:image" content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/development/rust-coding-guidelines.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:url" content="https://eclipse-ankaios.github.io/ankaios/main/development/rust-coding-guidelines/" />
+<meta property="twitter:card" content="summary_large_image" />
+<meta property="twitter:title" content="Rust coding guidelines - Eclipse Ankaios" />
+<meta property="twitter:image" content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/development/rust-coding-guidelines.png" />
+</head>
   
   
     
@@ -244,7 +231,7 @@
         <a href="https://github.com/eclipse-ankaios/ankaios" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
     eclipse-ankaios/ankaios
@@ -419,7 +406,7 @@
       <a href="https://github.com/eclipse-ankaios/ankaios" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
     eclipse-ankaios/ankaios
@@ -441,9 +428,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Welcome
+  
+
     
   </span>
+  
   
 
       </a>
@@ -463,9 +455,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Architecture
+  
+
     
   </span>
+  
   
 
       </a>
@@ -501,9 +498,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Usage
+  
+
     
   </span>
+  
   
 
             <span class="md-nav__icon md-icon"></span>
@@ -512,7 +514,11 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
-            Usage
+            
+  
+    Usage
+  
+
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -528,9 +534,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Installation
+  
+
     
   </span>
+  
   
 
       </a>
@@ -551,9 +562,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Quickstart
+  
+
     
   </span>
+  
   
 
       </a>
@@ -574,9 +590,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Tutorial: Sending and receiving vehicle signals
+  
+
     
   </span>
+  
   
 
       </a>
@@ -597,9 +618,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Tutorial: Manage a fleet of vehicles from the cloud
+  
+
     
   </span>
+  
   
 
       </a>
@@ -620,9 +646,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Awesome Ankaios
+  
+
     
   </span>
+  
   
 
       </a>
@@ -643,9 +674,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Setting up Ankaios with mTLS
+  
+
     
   </span>
+  
   
 
       </a>
@@ -666,9 +702,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Shell completion
+  
+
     
   </span>
+  
   
 
       </a>
@@ -705,9 +746,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Manifest
+  
+
     
   </span>
+  
   
 
             <span class="md-nav__icon md-icon"></span>
@@ -716,7 +762,11 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3_8">
             <span class="md-nav__icon md-icon"></span>
-            Manifest
+            
+  
+    Manifest
+  
+
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -732,9 +782,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Config objects
+  
+
     
   </span>
+  
   
 
       </a>
@@ -755,9 +810,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Workload files
+  
+
     
   </span>
+  
   
 
       </a>
@@ -802,9 +862,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Upgrading
+  
+
     
   </span>
+  
   
 
             <span class="md-nav__icon md-icon"></span>
@@ -813,7 +878,11 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3_9">
             <span class="md-nav__icon md-icon"></span>
-            Upgrading
+            
+  
+    Upgrading
+  
+
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -829,9 +898,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Upgrading v0.6 to v0.7
+  
+
     
   </span>
+  
   
 
       </a>
@@ -852,9 +926,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Upgrading v0.5 to v0.6
+  
+
     
   </span>
+  
   
 
       </a>
@@ -875,9 +954,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Upgrading v0.4 to v0.5
+  
+
     
   </span>
+  
   
 
       </a>
@@ -898,9 +982,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Upgrading v0.3 to v0.4
+  
+
     
   </span>
+  
   
 
       </a>
@@ -921,9 +1010,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Upgrading v0.2 to v0.3
+  
+
     
   </span>
+  
   
 
       </a>
@@ -975,9 +1069,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Reference
+  
+
     
   </span>
+  
   
 
             <span class="md-nav__icon md-icon"></span>
@@ -986,7 +1085,11 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
-            Reference
+            
+  
+    Reference
+  
+
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -1002,9 +1105,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Startup manifest
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1025,9 +1133,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Interacting with Ankaios
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1048,9 +1161,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Working with CompleteState
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1071,9 +1189,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Control interface
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1094,9 +1217,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Inter-workload dependencies
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1117,9 +1245,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Restart Policy
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1140,9 +1273,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Resource usage
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1163,9 +1301,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Glossary
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1186,9 +1329,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Configuration files
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1209,9 +1357,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Protobuf data structures
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1260,9 +1413,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Contributing
+  
+
     
   </span>
+  
   
 
             <span class="md-nav__icon md-icon"></span>
@@ -1271,7 +1429,11 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
-            Contributing
+            
+  
+    Contributing
+  
+
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -1287,9 +1449,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Build
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1319,9 +1486,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Rust coding guidelines
+  
+
     
   </span>
+  
   
 
           <span class="md-nav__icon md-icon"></span>
@@ -1332,9 +1504,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Rust coding guidelines
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1357,7 +1534,9 @@
         <li class="md-nav__item">
   <a href="#clean-code" class="md-nav__link">
     <span class="md-ellipsis">
-      Clean code
+      
+        Clean code
+      
     </span>
   </a>
   
@@ -1366,7 +1545,9 @@
         <li class="md-nav__item">
   <a href="#naming-conventions" class="md-nav__link">
     <span class="md-ellipsis">
-      Naming conventions
+      
+        Naming conventions
+      
     </span>
   </a>
   
@@ -1375,7 +1556,9 @@
         <li class="md-nav__item">
   <a href="#logging-conventions" class="md-nav__link">
     <span class="md-ellipsis">
-      Logging conventions
+      
+        Logging conventions
+      
     </span>
   </a>
   
@@ -1385,7 +1568,9 @@
           <li class="md-nav__item">
   <a href="#log-format-of-internal-objects" class="md-nav__link">
     <span class="md-ellipsis">
-      Log format of internal objects
+      
+        Log format of internal objects
+      
     </span>
   </a>
   
@@ -1394,7 +1579,9 @@
           <li class="md-nav__item">
   <a href="#log-format-of-multiline-log-messages" class="md-nav__link">
     <span class="md-ellipsis">
-      Log format of multiline log messages
+      
+        Log format of multiline log messages
+      
     </span>
   </a>
   
@@ -1403,7 +1590,9 @@
           <li class="md-nav__item">
   <a href="#choose-a-suitable-log-severity" class="md-nav__link">
     <span class="md-ellipsis">
-      Choose a suitable log severity
+      
+        Choose a suitable log severity
+      
     </span>
   </a>
   
@@ -1417,7 +1606,9 @@
         <li class="md-nav__item">
   <a href="#unit-test-convenience-rules" class="md-nav__link">
     <span class="md-ellipsis">
-      Unit test convenience rules
+      
+        Unit test convenience rules
+      
     </span>
   </a>
   
@@ -1427,7 +1618,9 @@
           <li class="md-nav__item">
   <a href="#test-mockobject-generation" class="md-nav__link">
     <span class="md-ellipsis">
-      Test mock/object generation
+      
+        Test mock/object generation
+      
     </span>
   </a>
   
@@ -1441,7 +1634,9 @@
         <li class="md-nav__item">
   <a href="#advanced-rules" class="md-nav__link">
     <span class="md-ellipsis">
-      Advanced rules
+      
+        Advanced rules
+      
     </span>
   </a>
   
@@ -1451,7 +1646,9 @@
           <li class="md-nav__item">
   <a href="#don-t-reinvent-the-wheel" class="md-nav__link">
     <span class="md-ellipsis">
-      Don' t reinvent the wheel
+      
+        Don' t reinvent the wheel
+      
     </span>
   </a>
   
@@ -1460,7 +1657,9 @@
           <li class="md-nav__item">
   <a href="#prefer-error-propagation" class="md-nav__link">
     <span class="md-ellipsis">
-      Prefer error propagation
+      
+        Prefer error propagation
+      
     </span>
   </a>
   
@@ -1469,7 +1668,9 @@
           <li class="md-nav__item">
   <a href="#avoid-unwrap-and-expect" class="md-nav__link">
     <span class="md-ellipsis">
-      Avoid unwrap and expect
+      
+        Avoid unwrap and expect
+      
     </span>
   </a>
   
@@ -1478,7 +1679,9 @@
           <li class="md-nav__item">
   <a href="#prefer-while-let-over-match-in-loops" class="md-nav__link">
     <span class="md-ellipsis">
-      Prefer while-let over match in loops
+      
+        Prefer while-let over match in loops
+      
     </span>
   </a>
   
@@ -1487,7 +1690,9 @@
           <li class="md-nav__item">
   <a href="#prefer-lazily-evaluated-functional-chaining" class="md-nav__link">
     <span class="md-ellipsis">
-      Prefer lazily evaluated functional chaining
+      
+        Prefer lazily evaluated functional chaining
+      
     </span>
   </a>
   
@@ -1496,7 +1701,9 @@
           <li class="md-nav__item">
   <a href="#avoid-exhaustive-nested-code" class="md-nav__link">
     <span class="md-ellipsis">
-      Avoid exhaustive nested code
+      
+        Avoid exhaustive nested code
+      
     </span>
   </a>
   
@@ -1505,7 +1712,9 @@
           <li class="md-nav__item">
   <a href="#follow-common-rust-principles-and-idioms" class="md-nav__link">
     <span class="md-ellipsis">
-      Follow common Rust principles and idioms
+      
+        Follow common Rust principles and idioms
+      
     </span>
   </a>
   
@@ -1514,7 +1723,9 @@
           <li class="md-nav__item">
   <a href="#avoid-common-anti-patterns" class="md-nav__link">
     <span class="md-ellipsis">
-      Avoid common anti-patterns
+      
+        Avoid common anti-patterns
+      
     </span>
   </a>
   
@@ -1523,7 +1734,9 @@
           <li class="md-nav__item">
   <a href="#dont-make-sync-code-async" class="md-nav__link">
     <span class="md-ellipsis">
-      Don't make sync code async
+      
+        Don't make sync code async
+      
     </span>
   </a>
   
@@ -1532,7 +1745,9 @@
           <li class="md-nav__item">
   <a href="#dont-mix-sync-and-async-code-without-proper-consideration" class="md-nav__link">
     <span class="md-ellipsis">
-      Don’t mix sync and async code without proper consideration
+      
+        Don’t mix sync and async code without proper consideration
+      
     </span>
   </a>
   
@@ -1546,7 +1761,9 @@
         <li class="md-nav__item">
   <a href="#further-readings" class="md-nav__link">
     <span class="md-ellipsis">
-      Further Readings
+      
+        Further Readings
+      
     </span>
   </a>
   
@@ -1573,9 +1790,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Changing the API
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1596,9 +1818,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Unit verification
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1619,9 +1846,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Unit tests with cargo-nextest
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1642,9 +1874,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Test coverage
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1665,9 +1902,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     System tests
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1688,9 +1930,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Requirement tracing
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1711,9 +1958,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Requirement description template
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1734,9 +1986,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Extending the dev container
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1757,9 +2014,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     CI/CD
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1780,9 +2042,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     CI/CD - Release
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1803,9 +2070,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Eclipse self-service
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1826,9 +2098,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Documentation guidelines
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1856,9 +2133,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Support
+  
+
     
   </span>
+  
   
 
       </a>
@@ -1895,7 +2177,9 @@
         <li class="md-nav__item">
   <a href="#clean-code" class="md-nav__link">
     <span class="md-ellipsis">
-      Clean code
+      
+        Clean code
+      
     </span>
   </a>
   
@@ -1904,7 +2188,9 @@
         <li class="md-nav__item">
   <a href="#naming-conventions" class="md-nav__link">
     <span class="md-ellipsis">
-      Naming conventions
+      
+        Naming conventions
+      
     </span>
   </a>
   
@@ -1913,7 +2199,9 @@
         <li class="md-nav__item">
   <a href="#logging-conventions" class="md-nav__link">
     <span class="md-ellipsis">
-      Logging conventions
+      
+        Logging conventions
+      
     </span>
   </a>
   
@@ -1923,7 +2211,9 @@
           <li class="md-nav__item">
   <a href="#log-format-of-internal-objects" class="md-nav__link">
     <span class="md-ellipsis">
-      Log format of internal objects
+      
+        Log format of internal objects
+      
     </span>
   </a>
   
@@ -1932,7 +2222,9 @@
           <li class="md-nav__item">
   <a href="#log-format-of-multiline-log-messages" class="md-nav__link">
     <span class="md-ellipsis">
-      Log format of multiline log messages
+      
+        Log format of multiline log messages
+      
     </span>
   </a>
   
@@ -1941,7 +2233,9 @@
           <li class="md-nav__item">
   <a href="#choose-a-suitable-log-severity" class="md-nav__link">
     <span class="md-ellipsis">
-      Choose a suitable log severity
+      
+        Choose a suitable log severity
+      
     </span>
   </a>
   
@@ -1955,7 +2249,9 @@
         <li class="md-nav__item">
   <a href="#unit-test-convenience-rules" class="md-nav__link">
     <span class="md-ellipsis">
-      Unit test convenience rules
+      
+        Unit test convenience rules
+      
     </span>
   </a>
   
@@ -1965,7 +2261,9 @@
           <li class="md-nav__item">
   <a href="#test-mockobject-generation" class="md-nav__link">
     <span class="md-ellipsis">
-      Test mock/object generation
+      
+        Test mock/object generation
+      
     </span>
   </a>
   
@@ -1979,7 +2277,9 @@
         <li class="md-nav__item">
   <a href="#advanced-rules" class="md-nav__link">
     <span class="md-ellipsis">
-      Advanced rules
+      
+        Advanced rules
+      
     </span>
   </a>
   
@@ -1989,7 +2289,9 @@
           <li class="md-nav__item">
   <a href="#don-t-reinvent-the-wheel" class="md-nav__link">
     <span class="md-ellipsis">
-      Don' t reinvent the wheel
+      
+        Don' t reinvent the wheel
+      
     </span>
   </a>
   
@@ -1998,7 +2300,9 @@
           <li class="md-nav__item">
   <a href="#prefer-error-propagation" class="md-nav__link">
     <span class="md-ellipsis">
-      Prefer error propagation
+      
+        Prefer error propagation
+      
     </span>
   </a>
   
@@ -2007,7 +2311,9 @@
           <li class="md-nav__item">
   <a href="#avoid-unwrap-and-expect" class="md-nav__link">
     <span class="md-ellipsis">
-      Avoid unwrap and expect
+      
+        Avoid unwrap and expect
+      
     </span>
   </a>
   
@@ -2016,7 +2322,9 @@
           <li class="md-nav__item">
   <a href="#prefer-while-let-over-match-in-loops" class="md-nav__link">
     <span class="md-ellipsis">
-      Prefer while-let over match in loops
+      
+        Prefer while-let over match in loops
+      
     </span>
   </a>
   
@@ -2025,7 +2333,9 @@
           <li class="md-nav__item">
   <a href="#prefer-lazily-evaluated-functional-chaining" class="md-nav__link">
     <span class="md-ellipsis">
-      Prefer lazily evaluated functional chaining
+      
+        Prefer lazily evaluated functional chaining
+      
     </span>
   </a>
   
@@ -2034,7 +2344,9 @@
           <li class="md-nav__item">
   <a href="#avoid-exhaustive-nested-code" class="md-nav__link">
     <span class="md-ellipsis">
-      Avoid exhaustive nested code
+      
+        Avoid exhaustive nested code
+      
     </span>
   </a>
   
@@ -2043,7 +2355,9 @@
           <li class="md-nav__item">
   <a href="#follow-common-rust-principles-and-idioms" class="md-nav__link">
     <span class="md-ellipsis">
-      Follow common Rust principles and idioms
+      
+        Follow common Rust principles and idioms
+      
     </span>
   </a>
   
@@ -2052,7 +2366,9 @@
           <li class="md-nav__item">
   <a href="#avoid-common-anti-patterns" class="md-nav__link">
     <span class="md-ellipsis">
-      Avoid common anti-patterns
+      
+        Avoid common anti-patterns
+      
     </span>
   </a>
   
@@ -2061,7 +2377,9 @@
           <li class="md-nav__item">
   <a href="#dont-make-sync-code-async" class="md-nav__link">
     <span class="md-ellipsis">
-      Don't make sync code async
+      
+        Don't make sync code async
+      
     </span>
   </a>
   
@@ -2070,7 +2388,9 @@
           <li class="md-nav__item">
   <a href="#dont-mix-sync-and-async-code-without-proper-consideration" class="md-nav__link">
     <span class="md-ellipsis">
-      Don’t mix sync and async code without proper consideration
+      
+        Don’t mix sync and async code without proper consideration
+      
     </span>
   </a>
   
@@ -2084,7 +2404,9 @@
         <li class="md-nav__item">
   <a href="#further-readings" class="md-nav__link">
     <span class="md-ellipsis">
-      Further Readings
+      
+        Further Readings
+      
     </span>
   </a>
   
@@ -2100,6 +2422,7 @@
           
           
             <div class="md-content" data-md-component="content">
+              
               <article class="md-content__inner md-typeset">
                 
                   
@@ -2452,9 +2775,6 @@ Avoid mixing async with sync code unless there is a good reason to do so.</p>
 
 
 
-  
-  
-
 
 
 
@@ -2573,10 +2893,11 @@ Avoid mixing async with sync code unless there is a good reason to do so.</p>
     
     
       
-      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "navigation.top", "content.code.copy", "content.code.annotate", "content.action.edit", "content.tabs.link", "navigation.footer"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "navigation.top", "content.code.copy", "content.code.annotate", "content.action.edit", "content.tabs.link", "navigation.footer"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.92b07e13.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
