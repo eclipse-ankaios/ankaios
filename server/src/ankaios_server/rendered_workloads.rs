@@ -76,8 +76,11 @@ where
 mod tests {
     use super::RenderedWorkloads;
     use ankaios_api::{
+        CONSTRAINT_FIELD_DESCRIPTION,
         ank_base::{AccessRightsRuleEnumSpec, WorkloadNamed, WorkloadSpec},
-        test_utils::{fixtures, generate_test_workload, generate_test_workload_instance_name_with_name},
+        test_utils::{
+            fixtures, generate_test_workload, generate_test_workload_instance_name_with_name,
+        },
     };
 
     #[test]
@@ -161,9 +164,7 @@ mod tests {
 
         assert_eq!(
             rendered_workloads.validate().unwrap_err(),
-            format!(
-                "Unsupported agent name. Received '{agent_name}', expected to have characters in [a-zA-Z0-9_-]"
-            )
+            format!("Unsupported agent name '{agent_name}'. {CONSTRAINT_FIELD_DESCRIPTION}")
         );
     }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2025 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -12,7 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// [impl->swdd~common-object-representation~1]
-
-mod agent_name;
-pub use agent_name::AgentName;
+pub const API_VERSION_1_0: &str = "v1";
+pub const MAX_FIELD_LENGTH: usize = 63;
+pub const ALLOWED_CHAR_SET: &str = "[a-zA-Z0-9_-]";

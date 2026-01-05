@@ -90,6 +90,7 @@ Test Control Interface closes connection when initial hello missing
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~server-desired-state-field-conventions~1]
+# [stest->swdd~api-access-rules-filter-mask-convention~1]
 Test workload with empty Control Interface access field mask rejected
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
