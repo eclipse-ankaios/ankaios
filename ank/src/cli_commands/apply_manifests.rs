@@ -16,9 +16,13 @@ use super::{CliCommands, InputSourcePair};
 use crate::cli_error::CliError;
 use crate::{cli::ApplyArgs, output, output_debug};
 
-use ankaios_api::ank_base::{ALLOWED_SYMBOLS, CompleteStateSpec, StateSpec, validate_tags};
+use ankaios_api::{
+    ALLOWED_CHAR_SET,
+    ank_base::{CompleteStateSpec, StateSpec, validate_tags},
+};
 use ankaios_api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use common::state_manipulation::{Object, Path};
+use common::std_extensions::UnreachableOption;
 use std::collections::HashSet;
 
 #[cfg(test)]
@@ -130,10 +134,10 @@ pub fn update_request_obj(
         let workload_name = &workload_path.parts()[WORKLOAD_LEVEL];
         if !cur_obj.check_if_provided_path_exists(workload_path) {
             return Err(format!(
-                "The provided path does not exist! This may be caused by improper naming. Names expected to have characters in '{ALLOWED_SYMBOLS}'"
+                "The provided path does not exist! This may be caused by improper naming. Names expected to have characters in '{ALLOWED_CHAR_SET}'"
             ));
         }
-        let cur_workload = cur_obj.get(workload_path).unwrap();
+        let cur_workload = cur_obj.get(workload_path).unwrap_or_unreachable();
         if req_obj.get(workload_path).is_none() {
             let _ = req_obj.set(workload_path, cur_workload.clone());
         } else {

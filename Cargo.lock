@@ -115,6 +115,7 @@ dependencies = [
  "regex",
  "schemars",
  "serde",
+ "serde_json",
  "serde_yaml",
  "sha256",
  "spec_macros",

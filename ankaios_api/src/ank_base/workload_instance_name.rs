@@ -127,6 +127,7 @@ impl Display for WorkloadInstanceNameSpec {
     }
 }
 
+// [impl->swdd~api-workload-execution-instance-naming~1]
 impl WorkloadInstanceNameBuilder {
     pub fn agent_name(mut self, agent_name: impl Into<String>) -> Self {
         self.agent_name = agent_name.into();
@@ -165,7 +166,7 @@ mod tests {
     use super::WorkloadInstanceNameSpec;
     use crate::test_utils::fixtures;
 
-    // [utest->swdd~common-workload-execution-instance-naming~1]
+    // [utest->swdd~api-workload-execution-instance-naming~1]
     #[test]
     fn utest_workload_execution_instance_name_builder() {
         let workload_name = fixtures::WORKLOAD_NAMES[0];
