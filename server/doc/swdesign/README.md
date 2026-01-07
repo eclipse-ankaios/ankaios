@@ -1389,7 +1389,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server successfully updates its internal state after receiving one of the following `ToServer` messages:
+When the Ankaios Server successfully updates its internal state upon a provided startup manifest or after receiving one of the following `ToServer` messages:
 - `UpdateStateRequest`
 - `AgentHello`
 - `AgentGone`
@@ -1402,7 +1402,7 @@ the Ankaios Server shall:
 * request the EventHandler to send events for state differences to event subscribers.
 
 Comments:
-The state changes include internal changes to the desiredState, agents and workload states maps. The following `ToServer` messages are covered:
+The state changes include internal changes to the desiredState, agents and workload states maps.
 
 Tags:
 - AnkaiosServer

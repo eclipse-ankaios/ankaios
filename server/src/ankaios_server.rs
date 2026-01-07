@@ -102,7 +102,7 @@ impl AnkaiosServer {
 
             match self
                 .server_state
-                .update(state_generation_result.new_desired_state)
+                .update(state_generation_result.new_desired_state.clone())
             {
                 Ok(Some(added_deleted_workloads)) => {
                     let added_workloads = added_deleted_workloads.added_workloads;
@@ -123,6 +123,34 @@ impl AnkaiosServer {
                 Err(err) => {
                     // [impl->swdd~server-fails-on-invalid-startup-state~1]
                     return Err(err.to_string());
+                }
+            }
+
+            if self.event_handler.has_subscribers() {
+                // [impl->swdd~server-sends-state-differences-as-events~1]
+                // state changes must be calculated after every update since only config item can be changed as well
+                let old_state = CompleteStateSpec::default();
+
+                let new_state = CompleteStateSpec {
+                    desired_state: state_generation_result.new_desired_state,
+                    workload_states: self.workload_states_map.clone(),
+                    ..Default::default()
+                };
+
+                let state_comparator = StateComparator::new(old_state, new_state);
+
+                let state_difference_tree = state_comparator.state_differences();
+
+                if !state_difference_tree.is_empty() {
+                    self.event_handler
+                        .send_events(
+                            &self.server_state,
+                            &self.workload_states_map,
+                            &self.agent_map,
+                            state_difference_tree,
+                            &self.to_agents,
+                        )
+                        .await;
                 }
             }
         } else {
