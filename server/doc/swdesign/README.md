@@ -314,9 +314,9 @@ The Ankaios server shall support the following cli arguments all of which contai
 
 | Argument    | Environment variable | Description                                 |
 |-------------|----------------------|---------------------------------------------|
-| `--ca_pem`  | `ANKSERVER_CA_PEM`    | file path to the root certificate authority |
-| `--crt_pem` | `ANKSERVER_CRT_PEM`   | file path to the certificate                |
-| `--key_pem` | `ANKSERVER_KEY_PEM`   | file path to the key                        |
+| `--ca_pem`  | `ANKSERVER_CA_PEM`   | file path to the root certificate authority |
+| `--crt_pem` | `ANKSERVER_CRT_PEM`  | file path to the certificate                |
+| `--key_pem` | `ANKSERVER_KEY_PEM`  | file path to the key                        |
 
 Comment:
 The PEM file format is a text-based, human-readable format. PEM files can contain certificates, private keys, public keys and even certificate chains, making them more versatile compared to other formats.
@@ -878,7 +878,7 @@ Rationale:
 This ensures the validity of certain file layouts that rely on the indentation level of the content when replacing the template with a multi-line config value.
 
 Comment:
-To support keeping the line indentation, a customized templated string syntax is used: `{{> indent content=<config_item_reference>}}` where `conifg_item_reference` is the path to the referenced config value.
+To support keeping the line indentation, a customized templated string syntax is used: `{{> indent content=<config_item_reference>}}` where `config_item_reference` is the path to the referenced config value.
 
 Tags:
 - ConfigRenderer
