@@ -99,6 +99,7 @@ dependencies = [
  "log",
  "mockall",
  "mockall_double",
+ "regex",
  "serde",
  "serde_yaml",
  "tempfile",
