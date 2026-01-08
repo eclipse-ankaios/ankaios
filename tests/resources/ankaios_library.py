@@ -401,12 +401,14 @@ def wait_for_initial_execution_state_via_events(agent_name: str, timeout: float=
         complete_state = event.get('completeState', {})
         workload_states = complete_state.get('workloadStates', {})
         agent_workloads = workload_states.get(agent_name, {})
+        logger.trace(f"Complete state: {complete_state}")
+        logger.trace(f"Agent workloads: {agent_workloads}")
 
         if not agent_workloads:
             return False
 
         for workload_name, workload in agent_workloads.items():
-            for instance_id, instance_state in workload.items():
+            for _, instance_state in workload.items():
                 state = instance_state.get('state', '')
                 sub_state = instance_state.get('subState', '')
                 current_state = f"{state}({sub_state})" if sub_state else state
@@ -451,7 +453,7 @@ def wait_for_workload_removal_via_events(workload_name: str, agent_name: str, ti
                 return True
         else:
             found = False
-            for agent, workloads in workload_states.items():
+            for _, workloads in workload_states.items():
                 if workload_name in workloads:
                     found = True
                     break
@@ -1308,7 +1310,7 @@ def user_waits_for_all_workloads_to_start_via_events(agent_name: str, timeout: s
         timeout=timeout_float
     )
 
-    assert result is None, \
+    assert result is not None, \
         f"Timeout waiting for all workloads on agent '{agent_name}' to leave Pending(Initial) state"
 
     logger.trace(f"All workloads on agent '{agent_name}' have started")

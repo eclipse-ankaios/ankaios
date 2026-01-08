@@ -23,6 +23,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct EventOutput {
     pub timestamp: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -89,7 +90,6 @@ impl CliCommands {
         event: &CompleteStateResponse,
         output_format: &OutputFormat,
     ) -> Result<(), CliError> {
-
         let event_output: EventOutput = event.into();
 
         // [impl->swdd~cli-supports-multiple-output-types-for-events~1]
