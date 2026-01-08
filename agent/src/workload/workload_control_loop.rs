@@ -106,7 +106,7 @@ impl WorkloadControlLoop {
                                 control_loop_state,
                                 runtime_workload_config,
                                 control_interface_path,
-                                None,
+                                false,
                             )
                             .await;
 
@@ -201,21 +201,13 @@ impl WorkloadControlLoop {
         let workload_named = control_loop_state.workload_named.clone();
         let control_interface_path = control_loop_state.control_interface_path.clone();
 
-        // Check if we can reuse the bundle: workload succeeded and has a workload_id
-        let reusable_workload_id =
-            if execution_state.is_succeeded() && control_loop_state.workload_id.is_some() {
-                control_loop_state.workload_id.clone()
-            } else {
-                None
-            };
-
         // update the workload with its existing config since a restart is represented by an update operation
         // [impl->swdd~workload-control-loop-restarts-workloads-using-update~1]
         Self::update_workload_on_runtime(
             control_loop_state,
             Some(Box::new(workload_named)),
             control_interface_path,
-            reusable_workload_id,
+            execution_state.is_succeeded(),
         )
         .await
     }
@@ -488,7 +480,7 @@ impl WorkloadControlLoop {
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         new_workload_named: Option<Box<WorkloadNamed>>,
         control_interface_path: Option<ControlInterfacePath>,
-        reusable_workload_id: Option<WorkloadId>,
+        is_succeeded: bool,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
@@ -501,8 +493,8 @@ impl WorkloadControlLoop {
         )
         .await;
 
-        // If we have a reusable workload ID, skip deletion and preserve the bundle
-        if reusable_workload_id.is_some() {
+        // If the workload succeeded and has a workload ID, skip deletion and preserve the bundle
+        if is_succeeded && control_loop_state.workload_id.is_some() {
             log::debug!(
                 "Reusing bundle for workload '{}' due to restart policy",
                 control_loop_state.instance_name().workload_name()
