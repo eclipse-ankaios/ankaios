@@ -74,6 +74,7 @@ impl CliCommands {
             .subscribe_and_listen_for_events(object_field_mask)
             .await?;
 
+        // [impl->swdd~cli-handles-event-subscription-errors~1]
         while let Some(event) = self
             .server_connection
             .receive_next_event(&mut subscription)
