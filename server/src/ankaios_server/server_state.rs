@@ -15,6 +15,7 @@
 use super::cycle_check;
 use super::rendered_workloads::RenderedWorkloads;
 
+use ankaios_api::ALLOWED_CHAR_SET;
 use ankaios_api::ank_base::{
     AgentAttributesSpec, AgentStatusSpec, CompleteState, CompleteStateRequestSpec,
     CompleteStateSpec, CpuUsageSpec, DeletedWorkload, FreeMemorySpec, StateSpec,
@@ -116,14 +117,13 @@ pub type AddedDeletedWorkloads = Option<(Vec<WorkloadNamed>, Vec<DeletedWorkload
 fn include_both_state_and_substate_filters(filters: &mut Vec<String>) {
     let state_suffix = ".state";
     let substate_suffix = ".subState";
+    let state_regex = format!(r"^workloadStates(\.{ALLOWED_CHAR_SET}+){{3}}");
 
-    let execution_state_regex = regex::Regex::new(&format!(
-        r"^workloadStates(\.[a-zA-Z0-9_-]+){{3}}{}$",
-        regex::escape(state_suffix)
-    ))
-    .unwrap_or_illegal_state();
+    let execution_state_regex =
+        regex::Regex::new(&format!(r"{state_regex}{}$", regex::escape(state_suffix)))
+            .unwrap_or_illegal_state();
     let execution_substate_regex = regex::Regex::new(&format!(
-        r"^workloadStates(\.[a-zA-Z0-9_-]+){{3}}{}$",
+        r"{state_regex}{}$",
         regex::escape(substate_suffix)
     ))
     .unwrap_or_illegal_state();
@@ -645,7 +645,10 @@ mod tests {
         let request_complete_state = CompleteStateRequestSpec {
             field_mask: vec![
                 format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]),
-                format!("desiredState.workloads.{}.agent", fixtures::WORKLOAD_NAMES[2]),
+                format!(
+                    "desiredState.workloads.{}.agent",
+                    fixtures::WORKLOAD_NAMES[2]
+                ),
             ],
         };
 
