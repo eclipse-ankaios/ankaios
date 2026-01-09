@@ -605,7 +605,6 @@ Tags:
 Needs:
 - impl
 - utest
-- stest
 
 ##### Server filters GetCompleteState requests with wildcards
 `swdd~server-filters-get-complete-state-result-with-wildcards~1`
