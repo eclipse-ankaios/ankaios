@@ -132,23 +132,21 @@ fn include_both_state_and_substate_filters(filters: &mut Vec<String>) {
         s[..s.len() - old_suffix.len()].to_string() + new_suffix
     }
 
-    let mut new_filters = Vec::new();
+    let current_length = filters.len();
 
-    for filter in filters.iter() {
-        if execution_state_regex.is_match(filter) {
-            let substate_filter = replace_suffix(filter, state_suffix, substate_suffix);
+    for i in 0..current_length {
+        if execution_state_regex.is_match(&filters[i]) {
+            let substate_filter = replace_suffix(&filters[i], state_suffix, substate_suffix);
             if !filters.contains(&substate_filter) {
-                new_filters.push(substate_filter);
+                filters.push(substate_filter);
             }
-        } else if execution_substate_regex.is_match(filter) {
-            let state_filter = replace_suffix(filter, substate_suffix, state_suffix);
+        } else if execution_substate_regex.is_match(&filters[i]) {
+            let state_filter = replace_suffix(&filters[i], substate_suffix, state_suffix);
             if !filters.contains(&state_filter) {
-                new_filters.push(state_filter);
+                filters.push(state_filter);
             }
         }
     }
-
-    filters.extend(new_filters);
 }
 
 #[cfg_attr(test, automock)]
