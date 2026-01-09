@@ -15,6 +15,7 @@
 use crate::ANKAIOS_VERSION;
 use crate::std_extensions::IllegalStateResult;
 use semver::Version;
+use std::error::Error;
 
 // [impl->swdd~common-helper-methods~1]
 
@@ -43,6 +44,20 @@ pub fn check_version_compatibility(version: impl AsRef<str>) -> Result<(), Strin
         "Unsupported protocol version '{}'. Currently supported '{supported_version}'",
         version.as_ref()
     ))
+}
+
+/// Parse a single key-value pair from a string in the format "KEY=VALUE"
+pub fn parse_key_val<K, V>(s: &str) -> Result<(K, V), Box<dyn Error + Send + Sync + 'static>>
+where
+    K: std::str::FromStr,
+    K::Err: Error + Send + Sync + 'static,
+    V: std::str::FromStr,
+    V::Err: Error + Send + Sync + 'static,
+{
+    let pos = s
+        .find('=')
+        .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{s}`"))?;
+    Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -89,5 +104,19 @@ mod tests {
         // When a major version is released, we can update the test here and expect an Ok().
         assert_eq!(0, version.major);
         assert!(check_version_compatibility(version.to_string()).is_err())
+    }
+
+    // [utest->swdd~common-helper-methods~1]
+    #[test]
+    fn utest_parse_key_val() {
+        let result: Result<(String, String), _> = super::parse_key_val("cpu=x86_64");
+        assert!(result.is_ok());
+        let (key, value) = result.unwrap();
+        assert_eq!(key, "cpu");
+        assert_eq!(value, "x86_64");
+
+        let result: Result<(String, String), _> = super::parse_key_val("invalid_no_equals");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("no `=` found"));
     }
 }
