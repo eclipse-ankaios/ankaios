@@ -1087,18 +1087,22 @@ When the user invokes the CLI with a request to get events, the CLI shall subscr
 
 Tags:
 - ServerConnection
+- CliCommands
 
 Needs:
 - impl
 - utest
 - stest
 
-#### CLI receives and processes events
+#### CLI processes received events
 `swdd~cli-receives-events~1`
 
 Status: approved
 
-When the CLI has subscribed for events, the CLI shall continuously receive state change events from the Ankaios server, skip the initial complete state response as it represents a baseline snapshot, process only messages matching the subscription request ID, and ignore all other messages.
+When the CLI is subscribed to events, the CLI shall:
+* continuously receive state change events from the Ankaios server
+* skip the initial complete state response as it represents a baseline snapshot
+* process only messages matching the subscription request ID with ignoring all other messages.
 
 Tags:
 - ServerConnection
@@ -1114,7 +1118,8 @@ Needs:
 
 Status: approved
 
-When the CLI is listening for events and encounters an error response from the server, a termination signal, or a connection interruption, the CLI shall report the error condition and gracefully terminate.
+When the CLI listens for events and encounters an error response from the server, a termination signal, or a connection interruption,
+the CLI shall gracefully terminate with an appropriate error message.
 
 Tags:
 - ServerConnection
@@ -1130,7 +1135,10 @@ Needs:
 
 Status: approved
 
-When the CLI receives an event from the Ankaios server, the CLI shall output the event with an RFC3339 formatted timestamp, altered fields information (added, updated, and removed fields), and the complete state using the same state representation format as the `get state` command.
+When the CLI receives an event from the Ankaios server, the CLI shall output the event with:
+* an RFC3339 formatted timestamp
+* altered fields information (added, updated, and removed fields)
+* the complete state using the same state representation format as the `get state` command.
 
 Tags:
 - CliCommands
@@ -1148,7 +1156,6 @@ Status: approved
 When the CLI receives events from the Ankaios server, the CLI shall support presenting the events in both YAML (default) and JSON formats as specified by the output format command-line argument.
 
 Tags:
-- Cli
 - CliCommands
 
 Needs:
