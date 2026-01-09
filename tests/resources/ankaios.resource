@@ -1108,11 +1108,11 @@ the event output shall contain desiredState
 the event output shall contain altered fields with removed workloads
     Event Output Shall Contain Altered Fields With Removed Workloads    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
 
-all workloads of agent "${agent_name}" shall start via events
-    User Waits For All Workloads To Start Via Events    ${agent_name}    60
+all workloads of agent "${agent_names}" shall start via events
+    User Waits For All Workloads To Start Via Events    ${agent_names}    60
 
-all workloads of agent "${agent_name}" shall start via events within "${timeout}" seconds
-    User Waits For All Workloads To Start Via Events    ${agent_name}    ${timeout}
+all workloads of agent "${agent_names}" shall start via events within "${timeout}" seconds
+    User Waits For All Workloads To Start Via Events    ${agent_names}    ${timeout}
 
 the workload "${workload_name}" shall reach state "${expected_state}" on agent "${agent_name}" via events
     User Waits For Workload To Reach State Via Events    ${workload_name}    ${agent_name}    ${expected_state}    60

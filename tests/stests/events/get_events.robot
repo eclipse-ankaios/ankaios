@@ -155,9 +155,8 @@ Test Ankaios CLI get events with workload deletion
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
     And Ankaios agent is started with name "agent_B"
-    And all workloads of agent "agent_B" shall start via events
+    And all workloads of agent "agent_A and agent_B" shall start via events
     # Actions
     When user starts event listener with format "json" and field mask "desiredState.workloads" in background
     And the user waits "3" seconds

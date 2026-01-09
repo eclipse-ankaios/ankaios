@@ -391,16 +391,20 @@ def wait_for_execution_state_via_events(workload_name: str, agent_name: str, exp
     )
 
 
-def wait_for_initial_execution_state_via_events(agent_name: str, timeout: float=10, ank_bin_dir: str=None) -> dict:
+def wait_for_initial_execution_state_via_events(agent_names: list[str], timeout: float=10, ank_bin_dir: str=None) -> dict:
     def condition(event: dict, agent_name: str):
         """
         Condition fulfilled if:
-        - specified agent is connected
-        - all workloads of the agent have left the Pending(Initial) state
+        - specified agents are connected
+        - all workloads of the agents have left the Pending(Initial) state
         """
-        complete_state = event.get('completeState', {})
-        workload_states = complete_state.get('workloadStates', {})
-        agent_workloads = workload_states.get(agent_name, {})
+        complete_state: dict = event.get('completeState', {})
+        workload_states: dict = complete_state.get('workloadStates', {})
+        agent_workloads: dict = {}
+        for agent_name in agent_names:
+            if agent_name in workload_states:
+                agent_workloads = workload_states.get(agent_name, {})
+                break
         logger.trace(f"Complete state: {complete_state}")
         logger.trace(f"Agent workloads: {agent_workloads}")
 
@@ -420,10 +424,10 @@ def wait_for_initial_execution_state_via_events(agent_name: str, timeout: float=
         logger.trace(f"All workloads on agent '{agent_name}' have left Pending(Initial)")
         return True
 
-    logger.trace(f"Waiting for all workloads on agent '{agent_name}' to leave Pending(Initial) state")
+    logger.trace(f"Waiting for all workloads on agents '{agent_names}' to leave Pending(Initial) state")
     return wait_for_state_change_via_events(
         field_mask="workloadStates",
-        condition_func=lambda event: condition(event, agent_name),
+        condition_func=lambda event: condition(event, agent_names),
         timeout=timeout,
         ank_bin_dir=ank_bin_dir
     )
@@ -1303,17 +1307,20 @@ def user_waits_for_workload_to_reach_state_via_events(workload_name: str, agent_
 
 
 @err_logging_decorator
-def user_waits_for_all_workloads_to_start_via_events(agent_name: str, timeout: str="10"):
+def user_waits_for_all_workloads_to_start_via_events(agent_names: str, timeout: str="10"):
+    # Support multiple agent names separated by 'and'
     timeout_float = float(timeout)
+    agent_names_split = [agent_names.strip() for agent_names in agent_names.split('and')]
+    logger.trace(f"Waiting for all workloads on agents {agent_names_split} to leave Pending(Initial) state")
     result = wait_for_initial_execution_state_via_events(
-        agent_name=agent_name,
+        agent_names=agent_names_split,
         timeout=timeout_float
     )
 
     assert result is not None, \
-        f"Timeout waiting for all workloads on agent '{agent_name}' to leave Pending(Initial) state"
+        f"Timeout waiting for all workloads on agents '{agent_names_split}' to leave Pending(Initial) state"
 
-    logger.trace(f"All workloads on agent '{agent_name}' have started")
+    logger.trace(f"All workloads on agents '{agent_names_split}' have started")
 
 
 @err_logging_decorator
