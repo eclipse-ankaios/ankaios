@@ -200,7 +200,7 @@ impl WorkloadControlLoop {
         let workload_named = control_loop_state.workload_named.clone();
         let control_interface_path = control_loop_state.control_interface_path.clone();
 
-        // TODO req link
+        // [impl->swdd~workload-control-loop-reuses-bundle-on-successful-restart~1]
         if execution_state.is_succeeded() && control_loop_state.workload_id.is_some() {
             Self::restart_workload_with_bundle_reuse(
                 control_loop_state,
@@ -585,7 +585,7 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    // TODO req link
+    // [impl->swdd~workload-control-loop-reuses-bundle-on-successful-restart~1]
     async fn restart_workload_with_bundle_reuse<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         new_workload_named: Option<Box<WorkloadNamed>>,
@@ -2008,6 +2008,9 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
+    // [utest->swdd~workload-control-loop-handles-workload-restarts~2]
+    // [utest->swdd~workload-control-loop-reuses-bundle-on-successful-restart~1]
     #[tokio::test]
     async fn utest_restart_workload_with_bundle_reuse() {
         let _ = env_logger::builder().is_test(true).try_init();
