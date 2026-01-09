@@ -108,7 +108,7 @@ For a detailed usage example, you can take a look in the [api crate](../api), bu
 This proc macro was needed as prost generates Rust code with fields having the `i32` type instead the intended one and only adds internal prost annotations for how the serialization to and from protobuf shall be done.
 As we want to also serialize and deserialize to YAML and JSON for handling Ankaios manifests provided to the Ankaios server and the `ank` CLI, we need some custom serializers and deserializers.
 
-To spare the manual effort on writing these function and annotaing accordingly, we wrote the `fix_enum_serialization` proc macro.
+To spare the manual effort on writing these function and annotating accordingly, we wrote the `fix_enum_serialization` proc macro.
 
 ### Usage of `fix_enum_serialization`
 

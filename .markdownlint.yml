@@ -16,3 +16,6 @@ MD033:
 
 # Disables code block style checks because of syntax for "!!! Note"
 MD046: false
+
+# Disable the need for descriptive text of links
+MD059: false
