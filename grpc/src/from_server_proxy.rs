@@ -439,14 +439,14 @@ mod tests {
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
 
     use ankaios_api::ank_base::{
-        self, CompleteState, Dependencies, ExecutionStateSpec, LogsRequestSpec, Response,
-        ResponseContent, State, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec,
-        WorkloadMap,
+        self, CompleteState, CompleteStateResponse, Dependencies, ExecutionStateSpec,
+        LogsRequestSpec, Response, ResponseContent, State, Workload, WorkloadInstanceName,
+        WorkloadInstanceNameSpec, WorkloadMap,
     };
     use ankaios_api::test_utils::{
-        generate_test_deleted_workload_with_params, generate_test_workload,
+        fixtures, generate_test_deleted_workload_with_params, generate_test_workload,
         generate_test_workload_named_with_params, generate_test_workload_state_with_agent,
-        generate_test_workload_with_params, fixtures,
+        generate_test_workload_with_params,
     };
     use common::from_server_interface::{self, FromServerInterface};
 
@@ -912,7 +912,7 @@ mod tests {
         };
 
         let complete_state_result = to_manager
-            .complete_state(prefixed_my_request_id, test_complete_state.clone())
+            .complete_state(prefixed_my_request_id, test_complete_state.clone(), None)
             .await;
         assert!(complete_state_result.is_ok());
 
@@ -929,11 +929,15 @@ mod tests {
             result.from_server_enum,
             Some(FromServerEnum::Response(Response {
                 request_id,
-                response_content: Some(ResponseContent::CompleteState(CompleteState{
-                    desired_state: Some(desired_state), ..}))
+                response_content: Some(ResponseContent::CompleteStateResponse(complete_state))
 
             })) if request_id == my_request_id
-            && desired_state == test_complete_state.desired_state.unwrap()
+            && matches!(
+                &*complete_state,
+                CompleteStateResponse{
+                    complete_state: Some(ank_base::CompleteState{desired_state: Some(desired_state), ..},),
+                    ..
+                } if *desired_state == test_complete_state.desired_state.unwrap())
         ));
     }
 
@@ -1070,7 +1074,12 @@ mod tests {
 
         let proto_response = Response {
             request_id: my_request_id.clone(),
-            response_content: Some(ResponseContent::CompleteState(proto_complete_state)),
+            response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                CompleteStateResponse {
+                    complete_state: Some(proto_complete_state),
+                    ..Default::default()
+                },
+            ))),
         };
 
         // simulate the reception of an update workload state grpc from server message
@@ -1098,12 +1107,17 @@ mod tests {
             result,
             from_server_interface::FromServer::Response(Response {
                 request_id,
-                response_content: Some(ResponseContent::CompleteState(
+                response_content: Some(ResponseContent::CompleteStateResponse(
                     complete_state
                 ))
-            }) if request_id == my_request_id &&
-            complete_state.desired_state == expected_test_complete_state.desired_state &&
-            complete_state.workload_states == expected_test_complete_state.workload_states
+            }) if request_id == my_request_id
+                && matches!(
+                    &*complete_state,
+                    CompleteStateResponse{
+                        complete_state: Some(complete_state),
+                         ..
+                    } if complete_state.desired_state == expected_test_complete_state.desired_state
+                        && complete_state.workload_states == expected_test_complete_state.workload_states)
         ));
     }
 
