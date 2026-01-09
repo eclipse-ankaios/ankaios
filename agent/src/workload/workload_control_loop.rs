@@ -106,7 +106,6 @@ impl WorkloadControlLoop {
                                 control_loop_state,
                                 runtime_workload_config,
                                 control_interface_path,
-                                false,
                             )
                             .await;
 
@@ -201,15 +200,24 @@ impl WorkloadControlLoop {
         let workload_named = control_loop_state.workload_named.clone();
         let control_interface_path = control_loop_state.control_interface_path.clone();
 
-        // update the workload with its existing config since a restart is represented by an update operation
-        // [impl->swdd~workload-control-loop-restarts-workloads-using-update~1]
-        Self::update_workload_on_runtime(
-            control_loop_state,
-            Some(Box::new(workload_named)),
-            control_interface_path,
-            execution_state.is_succeeded(),
-        )
-        .await
+        // TODO req link
+        if execution_state.is_succeeded() && control_loop_state.workload_id.is_some() {
+            Self::restart_workload_with_bundle_reuse(
+                control_loop_state,
+                Some(Box::new(workload_named)),
+                control_interface_path,
+            )
+            .await
+        } else {
+            // update the workload with its existing config since a restart is represented by an update operation
+            // [impl->swdd~workload-control-loop-restarts-workloads-using-update~1]
+            Self::update_workload_on_runtime(
+                control_loop_state,
+                Some(Box::new(workload_named)),
+                control_interface_path,
+            )
+            .await
+        }
     }
 
     fn is_same_workload(
@@ -480,7 +488,6 @@ impl WorkloadControlLoop {
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         new_workload_named: Option<Box<WorkloadNamed>>,
         control_interface_path: Option<ControlInterfacePath>,
-        is_succeeded: bool,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
@@ -493,16 +500,7 @@ impl WorkloadControlLoop {
         )
         .await;
 
-        // If the workload succeeded and has a workload ID, skip deletion and preserve the bundle
-        if is_succeeded && control_loop_state.workload_id.is_some() {
-            log::debug!(
-                "Reusing bundle for workload '{}' due to restart policy",
-                control_loop_state.instance_name().workload_name()
-            );
-            if let Some(old_checker) = control_loop_state.state_checker.take() {
-                old_checker.stop_checker().await;
-            }
-        } else if let Some(old_id) = control_loop_state.workload_id.take() {
+        if let Some(old_id) = control_loop_state.workload_id.take() {
             if let Err(err) = control_loop_state.runtime.delete_workload(&old_id).await {
                 Self::send_workload_state_to_agent(
                     &control_loop_state.to_agent_workload_state_sender,
@@ -561,6 +559,62 @@ impl WorkloadControlLoop {
             ExecutionStateSpec::removed(),
         )
         .await;
+
+        // [impl->swdd~agent-workload-control-loop-executes-update-delete-only~1]
+        if let Some(named) = new_workload_named {
+            // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
+            control_loop_state.workload_named = *named;
+            control_loop_state.control_interface_path = control_interface_path;
+
+            Self::send_workload_state_to_agent(
+                &control_loop_state.to_agent_workload_state_sender,
+                control_loop_state.instance_name(),
+                ExecutionStateSpec::starting_triggered(),
+            )
+            .await;
+
+            let retry_token = control_loop_state.retry_manager.new_token();
+
+            control_loop_state = Self::create_workload_on_runtime(
+                control_loop_state,
+                retry_token,
+                Self::send_retry_for_workload,
+            )
+            .await;
+        }
+        control_loop_state
+    }
+
+    // TODO req link
+    async fn restart_workload_with_bundle_reuse<WorkloadId, StChecker>(
+        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+        new_workload_named: Option<Box<WorkloadNamed>>,
+        control_interface_path: Option<ControlInterfacePath>,
+    ) -> ControlLoopState<WorkloadId, StChecker>
+    where
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
+        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+    {
+        log::debug!(
+            "Reusing bundle and workload files for workload '{}' due to restart policy",
+            control_loop_state.instance_name().workload_name()
+        );
+        if let Some(old_checker) = control_loop_state.state_checker.take() {
+            old_checker.stop_checker().await;
+        }
+
+        let new_workload_named = if let Some(new_named) = new_workload_named {
+            if !Self::is_same_workload(control_loop_state.instance_name(), &new_named.instance_name)
+            {
+                let workload_dir = control_loop_state
+                    .instance_name()
+                    .pipes_folder_name(&control_loop_state.run_folder);
+                Self::delete_folder(&workload_dir).await;
+            }
+            Some(new_named)
+        } else {
+            None
+        };
 
         // [impl->swdd~agent-workload-control-loop-executes-update-delete-only~1]
         if let Some(named) = new_workload_named {
