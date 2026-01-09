@@ -15,6 +15,7 @@
 use super::cycle_check;
 use super::rendered_workloads::RenderedWorkloads;
 
+use ankaios_api::ALLOWED_CHAR_SET;
 use ankaios_api::ank_base::{
     AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec, DeletedWorkload,
     StateSpec, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
@@ -124,6 +125,42 @@ pub struct AddedDeletedWorkloads {
     pub deleted_workloads: Vec<DeletedWorkload>,
 }
 
+// [impl->swdd~server-filters-get-complete-state-workload-state-substate~1]
+fn include_both_state_and_substate_filters(filters: &mut Vec<String>) {
+    let state_suffix = ".state";
+    let substate_suffix = ".subState";
+    let state_regex = format!(r"^workloadStates(\.{ALLOWED_CHAR_SET}+){{3}}");
+
+    let execution_state_regex =
+        regex::Regex::new(&format!(r"{state_regex}{}$", regex::escape(state_suffix)))
+            .unwrap_or_illegal_state();
+    let execution_substate_regex = regex::Regex::new(&format!(
+        r"{state_regex}{}$",
+        regex::escape(substate_suffix)
+    ))
+    .unwrap_or_illegal_state();
+
+    fn replace_suffix(s: &str, old_suffix: &str, new_suffix: &str) -> String {
+        s[..s.len() - old_suffix.len()].to_string() + new_suffix
+    }
+
+    let current_length = filters.len();
+
+    for i in 0..current_length {
+        if execution_state_regex.is_match(&filters[i]) {
+            let substate_filter = replace_suffix(&filters[i], state_suffix, substate_suffix);
+            if !filters.contains(&substate_filter) {
+                filters.push(substate_filter);
+            }
+        } else if execution_substate_regex.is_match(&filters[i]) {
+            let state_filter = replace_suffix(&filters[i], substate_suffix, state_suffix);
+            if !filters.contains(&state_filter) {
+                filters.push(state_filter);
+            }
+        }
+    }
+}
+
 #[cfg_attr(test, automock)]
 impl ServerState {
     const API_VERSION_FILTER_MASK: &'static str = "desiredState.apiVersion";
@@ -148,10 +185,13 @@ impl ServerState {
             let mut filters = request_complete_state.field_mask;
             if filters
                 .iter()
-                .any(|field| field.starts_with(Self::DESIRED_STATE_FIELD_MASK_PART))
+                .any(|filter| filter.starts_with(Self::DESIRED_STATE_FIELD_MASK_PART))
             {
                 filters.push(Self::API_VERSION_FILTER_MASK.to_owned());
             }
+
+            // [impl->swdd~server-filters-get-complete-state-workload-state-substate~1]
+            include_both_state_and_substate_filters(&mut filters);
 
             let current_complete_state: Object =
                 current_complete_state.try_into().unwrap_or_illegal_state();
@@ -339,14 +379,7 @@ impl ServerState {
 #[cfg(test)]
 mod tests {
     use super::ServerState;
-    use crate::ankaios_server::{
-        config_renderer::{ConfigRenderError, MockConfigRenderer},
-        delete_graph::MockDeleteGraph,
-        rendered_workloads::RenderedWorkloads,
-        server_state::{
-            AddedDeletedWorkloads, UpdateStateError, extract_added_and_deleted_workloads,
-        },
-    };
+    use std::collections::HashMap;
 
     use ankaios_api::ank_base::{
         AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec, DeletedWorkload,
@@ -361,7 +394,14 @@ mod tests {
         generate_test_workload_with_params,
     };
 
-    use std::collections::HashMap;
+    use crate::ankaios_server::{
+        config_renderer::{ConfigRenderError, MockConfigRenderer},
+        delete_graph::MockDeleteGraph,
+        rendered_workloads::RenderedWorkloads,
+        server_state::{
+            AddedDeletedWorkloads, UpdateStateError, extract_added_and_deleted_workloads,
+        },
+    };
 
     fn generate_rendered_workloads_from_state(state: &StateSpec) -> RenderedWorkloads {
         RenderedWorkloads(
@@ -402,6 +442,93 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    // [utest->swdd~server-filters-get-complete-state-workload-state-substate~1]
+    #[test]
+    fn test_include_both_state_and_substate_filters() {
+        let mut filters = vec![
+            "workloadStates.agent_A.workload_A.1234.state".to_string(),
+            "workloadStates.agent_A.workload_B.5678.subState".to_string(),
+            "workloadStates.agent_A.state_workload_A.1234.state".to_string(),
+            "desiredState.workloads.workload_C".to_string(),
+            "workloadStates.agent_A.workload_D.12345678.state".to_string(),
+            "workloadStates.agent_A.workload_D.12345678.subState".to_string(),
+        ];
+
+        super::include_both_state_and_substate_filters(&mut filters);
+
+        let expected_filters = vec![
+            "workloadStates.agent_A.workload_A.1234.state".to_string(),
+            "workloadStates.agent_A.workload_B.5678.subState".to_string(),
+            "workloadStates.agent_A.state_workload_A.1234.state".to_string(),
+            "desiredState.workloads.workload_C".to_string(),
+            "workloadStates.agent_A.workload_D.12345678.state".to_string(),
+            "workloadStates.agent_A.workload_D.12345678.subState".to_string(),
+            "workloadStates.agent_A.workload_A.1234.subState".to_string(),
+            "workloadStates.agent_A.workload_B.5678.state".to_string(),
+            "workloadStates.agent_A.state_workload_A.1234.subState".to_string(),
+        ];
+
+        assert_eq!(filters, expected_filters);
+    }
+
+    // [utest->swdd~server-filters-get-complete-state-workload-state-substate~1]
+    #[test]
+    fn test_get_complete_state_by_field_mask_workload_state_with_substate_only() {
+        let w1 = generate_test_workload_named();
+
+        let server_state = ServerState {
+            state: generate_test_complete_state(vec![w1.clone()]),
+            ..Default::default()
+        };
+
+        let request_complete_state = CompleteStateRequestSpec {
+            field_mask: vec![format!(
+                "workloadStates.{}.{}.{}.subState",
+                fixtures::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::WORKLOAD_IDS[0]
+            )],
+            subscribe_for_events: false,
+        };
+
+        let mut workload_state_map = WorkloadStatesMapSpec::default();
+        workload_state_map
+            .process_new_states(from_map_to_vec(server_state.state.workload_states.clone()));
+
+        let received_complete_state = server_state
+            .get_complete_state_by_field_mask(
+                request_complete_state,
+                &workload_state_map,
+                &AgentMapSpec::default(),
+            )
+            .unwrap();
+
+        let mut expected_workload_states = ankaios_api::ank_base::WorkloadStatesMap::default();
+        expected_workload_states
+            .agent_state_map
+            .entry(fixtures::AGENT_NAMES[0].to_owned())
+            .or_default()
+            .wl_name_state_map
+            .entry(fixtures::WORKLOAD_NAMES[0].to_owned())
+            .or_default()
+            .id_state_map
+            .entry(fixtures::WORKLOAD_IDS[0].to_owned())
+            .or_insert(ankaios_api::ank_base::ExecutionState {
+                additional_info: None,
+                execution_state_enum: Some(ankaios_api::ank_base::ExecutionStateEnum::Running(
+                    ankaios_api::ank_base::Running::Ok as i32,
+                )),
+            });
+
+        let expected_complete_state = CompleteState {
+            desired_state: None,
+            workload_states: Some(expected_workload_states),
+            agents: None,
+        };
+
+        assert_eq!(received_complete_state, expected_complete_state);
     }
 
     // [utest->swdd~server-provides-interface-get-complete-state~2]
