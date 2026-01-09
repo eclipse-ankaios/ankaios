@@ -229,7 +229,16 @@ impl AgentManager {
         // [impl->swdd~agent-manager-hysteresis_on-workload-states-of-its-workloads~1]
         if let Some(old_execution_state) = self
             .workload_state_store
-            .get_state_of_workload(new_workload_state.instance_name.workload_name())
+            .get_states_of_workload(new_workload_state.instance_name.workload_name())
+            .and_then(|states| {
+                states.iter().find_map(|x| {
+                    if x.instance_name == new_workload_state.instance_name {
+                        Some(&x.execution_state)
+                    } else {
+                        None
+                    }
+                })
+            })
         {
             new_workload_state.execution_state =
                 old_execution_state.transition(new_workload_state.execution_state);
@@ -298,8 +307,8 @@ mod tests {
 
     use ankaios_api::ank_base::{self, ExecutionStateSpec, LogsRequestSpec};
     use ankaios_api::test_utils::{
-        generate_test_workload_named, generate_test_workload_named_with_params,
-        generate_test_workload_state_with_agent, fixtures,
+        fixtures, generate_test_workload_named, generate_test_workload_named_with_params,
+        generate_test_workload_state_with_agent,
     };
     use common::{
         commands::UpdateWorkloadState,
@@ -560,7 +569,7 @@ mod tests {
 
         mock_wl_state_store.states_storage.insert(
             fixtures::WORKLOAD_NAMES[0].to_string(),
-            ExecutionStateSpec::stopping_requested(),
+            vec![wl_state_after_hysteresis.clone()],
         );
 
         mock_wl_state_store

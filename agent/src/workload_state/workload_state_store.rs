@@ -12,12 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadStateSpec};
+use ankaios_api::ank_base::WorkloadStateSpec;
 use std::collections::HashMap;
 #[cfg(test)]
 use std::collections::VecDeque;
 
-type WorkloadStates = HashMap<String, ExecutionStateSpec>;
+type WorkloadStates = HashMap<String, Vec<WorkloadStateSpec>>;
 
 pub struct WorkloadStateStore {
     states_storage: WorkloadStates,
@@ -30,20 +30,34 @@ impl WorkloadStateStore {
         }
     }
 
-    pub fn get_state_of_workload<'a>(
+    pub fn get_states_of_workload<'a>(
         &'a self,
         workload_name: &str,
-    ) -> Option<&'a ExecutionStateSpec> {
+    ) -> Option<&'a Vec<WorkloadStateSpec>> {
         self.states_storage.get(workload_name)
     }
 
-    pub fn update_workload_state(&mut self, workload_state: WorkloadStateSpec) {
-        let workload_name = workload_state.instance_name.workload_name().to_owned();
-        if !workload_state.execution_state.is_removed() {
-            self.states_storage
-                .insert(workload_name, workload_state.execution_state);
+    pub fn update_workload_state(&mut self, new_state: WorkloadStateSpec) {
+        let workload_name = new_state.instance_name.workload_name().to_owned();
+
+        if new_state.execution_state.is_removed() {
+
+            if let Some(workload_states) = self.states_storage.get_mut(&workload_name) {
+                workload_states.retain(|state| state.instance_name != new_state.instance_name);
+
+                if workload_states.is_empty() {
+                    self.states_storage.remove(&workload_name);
+                }
+            }
         } else {
-            self.states_storage.remove(&workload_name);
+            let workload_states = self.states_storage
+                .entry(workload_name)
+                .or_default();
+
+            match workload_states.iter_mut().find(|state| state.instance_name == new_state.instance_name) {
+                Some(existing_state) => *existing_state = new_state,
+                None => workload_states.push(new_state),
+            }
         }
     }
 }
@@ -69,7 +83,7 @@ pub fn mock_parameter_storage_new_returns(mock_parameter_storage: MockWorkloadSt
 #[derive(Default)]
 pub struct MockWorkloadStateStore {
     pub expected_update_workload_state_parameters: VecDeque<WorkloadStateSpec>,
-    pub states_storage: HashMap<String, ExecutionStateSpec>,
+    pub states_storage: HashMap<String, Vec<WorkloadStateSpec>>,
 }
 
 #[cfg(test)]
@@ -93,10 +107,10 @@ impl MockWorkloadStateStore {
         );
     }
 
-    pub fn get_state_of_workload<'a>(
+    pub fn get_states_of_workload<'a>(
         &'a self,
         workload_name: &str,
-    ) -> Option<&'a ExecutionStateSpec> {
+    ) -> Option<&'a Vec<WorkloadStateSpec>> {
         self.states_storage.get(workload_name)
     }
 }
@@ -112,7 +126,7 @@ impl Drop for MockWorkloadStateStore {
 mod tests {
     use super::WorkloadStateStore;
     use ankaios_api::ank_base::ExecutionStateSpec;
-    use ankaios_api::test_utils::{generate_test_workload_state_with_agent, fixtures};
+    use ankaios_api::test_utils::{fixtures, generate_test_workload_state_with_agent};
 
     #[test]
     fn utest_update_storage_empty_storage_add_one() {
@@ -130,7 +144,7 @@ mod tests {
             storage
                 .states_storage
                 .get(test_update.instance_name.workload_name()),
-            Some(&ExecutionStateSpec::running())
+            Some(&vec![test_update.clone()])
         );
 
         let mut removed_update = test_update.clone();
@@ -174,19 +188,19 @@ mod tests {
 
         storage.states_storage.insert(
             test_update.instance_name.workload_name().to_owned(),
-            test_update.execution_state.clone(),
+            vec![test_update.clone()],
         );
 
         let mut updated_record = test_update.clone();
         updated_record.execution_state = ExecutionStateSpec::succeeded();
 
-        storage.update_workload_state(updated_record);
+        storage.update_workload_state(updated_record.clone());
 
         assert_eq!(
             storage
                 .states_storage
                 .get(test_update.instance_name.workload_name()),
-            Some(&ExecutionStateSpec::succeeded())
+            Some(&vec![updated_record.clone()])
         );
     }
 
@@ -205,24 +219,24 @@ mod tests {
             &agent_name_b,
             ExecutionStateSpec::running(),
         );
-        storage.update_workload_state(test_update1);
+        storage.update_workload_state(test_update1.clone());
 
         let test_update2 = generate_test_workload_state_with_agent(
             &workload_name_2,
             &agent_name_a,
             ExecutionStateSpec::failed("Some error"),
         );
-        storage.update_workload_state(test_update2);
+        storage.update_workload_state(test_update2.clone());
 
         assert_eq!(storage.states_storage.len(), 2);
         assert_eq!(
             storage.states_storage.get(&workload_name_1),
-            Some(&ExecutionStateSpec::running())
+            Some(&vec![test_update1.clone()])
         );
 
         assert_eq!(
             storage.states_storage.get(&workload_name_2),
-            Some(&ExecutionStateSpec::failed("Some error"))
+            Some(&vec![test_update2.clone()])
         );
 
         let test_update3 = generate_test_workload_state_with_agent(
@@ -231,39 +245,53 @@ mod tests {
             ExecutionStateSpec::starting("Some info"),
         );
 
-        storage.update_workload_state(test_update3);
+        storage.update_workload_state(test_update3.clone());
 
         assert_eq!(
             storage.states_storage.get(&workload_name_1),
-            Some(&ExecutionStateSpec::starting("Some info"))
+            Some(&vec![test_update3.clone()])
         );
     }
 
     #[test]
     fn utest_get_state_of_workload() {
         let mut parameter_storage = WorkloadStateStore::new();
-        parameter_storage.states_storage.insert(
-            fixtures::WORKLOAD_NAMES[0].to_owned(),
+        let wl_state = generate_test_workload_state_with_agent(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::running(),
+        );
+        parameter_storage
+            .states_storage
+            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), vec![wl_state]);
+
+        let expected_state = generate_test_workload_state_with_agent(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         );
 
         assert_eq!(
-            Some(&ExecutionStateSpec::running()),
-            parameter_storage.get_state_of_workload(fixtures::WORKLOAD_NAMES[0])
+            Some(&vec![expected_state]),
+            parameter_storage.get_states_of_workload(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
     #[test]
     fn utest_get_state_of_workload_not_existing_workload() {
         let mut parameter_storage = WorkloadStateStore::new();
-        parameter_storage.states_storage.insert(
-            fixtures::WORKLOAD_NAMES[0].to_owned(),
+        let wl_state = generate_test_workload_state_with_agent(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         );
+        parameter_storage
+            .states_storage
+            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), vec![wl_state]);
 
         assert!(
             parameter_storage
-                .get_state_of_workload("unknown workload")
+                .get_states_of_workload("unknown workload")
                 .is_none()
         );
     }

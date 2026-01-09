@@ -17,12 +17,22 @@ use crate::workload_state::workload_state_store::WorkloadStateStore;
 
 use ankaios_api::ank_base::{
     AddCondition, DeleteCondition, DeletedWorkload, ExecutionStateSpec, WorkloadNamed,
+    WorkloadStateSpec,
 };
 
 #[cfg(test)]
 use mockall::automock;
 
 // [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
+fn is_add_condition_fulfilled_by_any_state(
+    add_cond: &AddCondition,
+    state: &[WorkloadStateSpec],
+) -> bool {
+    state.iter().any(|wl_state| {
+        is_add_condition_fulfilled_by_state(add_cond, &wl_state.execution_state)
+    })
+}
+
 fn is_add_condition_fulfilled_by_state(
     add_cond: &AddCondition,
     state: &ExecutionStateSpec,
@@ -35,6 +45,14 @@ fn is_add_condition_fulfilled_by_state(
 }
 
 // [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
+fn is_del_condition_fulfilled_by_any_state(
+    del_cond: &DeleteCondition,
+    state: &[WorkloadStateSpec],
+) -> bool {
+    state.iter().all(|wl_state| {
+        is_del_condition_fulfilled_by_state(del_cond, &wl_state.execution_state)
+    })
+}
 fn is_del_condition_fulfilled_by_state(
     del_cond: &DeleteCondition,
     state: &ExecutionStateSpec,
@@ -65,10 +83,10 @@ impl DependencyStateValidator {
             // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
             .all(|(dependency_name, add_condition)| {
                 workload_state_db
-                    .get_state_of_workload(dependency_name)
+                    .get_states_of_workload(dependency_name)
                     .is_some_and(|wl_state| {
                         // [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
-                        is_add_condition_fulfilled_by_state(add_condition, wl_state)
+                        is_add_condition_fulfilled_by_any_state(add_condition, wl_state)
                     })
             })
     }
@@ -83,10 +101,10 @@ impl DependencyStateValidator {
             // [impl->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
             .all(|(dependency_name, delete_condition)| {
                 workload_state_db
-                    .get_state_of_workload(dependency_name)
+                    .get_states_of_workload(dependency_name)
                     .is_none_or(|wl_state| {
                         // [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
-                        is_del_condition_fulfilled_by_state(delete_condition, wl_state)
+                        is_del_condition_fulfilled_by_any_state(delete_condition, wl_state)
                     })
             })
     }
@@ -108,11 +126,12 @@ mod tests {
     use ankaios_api::ank_base::{DeleteCondition, ExecutionStateSpec};
 
     use ankaios_api::test_utils::{
-        generate_test_deleted_workload_with_dependencies,
-        generate_test_deleted_workload_with_params, generate_test_workload_named, fixtures,
+        fixtures, generate_test_deleted_workload_with_dependencies,
+        generate_test_deleted_workload_with_params, generate_test_workload_named, generate_test_workload_state_with_agent,
     };
 
     use std::collections::HashMap;
+    use std::vec;
 
     // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
     // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
@@ -124,11 +143,15 @@ mod tests {
             ankaios_api::ank_base::AddCondition::AddCondRunning,
         )]);
 
-        let execution_state = ExecutionStateSpec::running();
+        let wl_state = generate_test_workload_state_with_agent(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::running(),
+        );
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
-            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), execution_state);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), vec![wl_state]);
 
         assert!(DependencyStateValidator::create_fulfilled(
             &workload,
@@ -170,11 +193,15 @@ mod tests {
     fn utest_create_fulfilled_unfulfilled_execution_state() {
         let workload = generate_test_workload_named();
 
-        let execution_state = ExecutionStateSpec::succeeded();
+        let wl_state = generate_test_workload_state_with_agent(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::succeeded(),
+        );
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
-            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), execution_state);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), vec![wl_state]);
 
         assert!(!DependencyStateValidator::create_fulfilled(
             &workload,
@@ -195,11 +222,15 @@ mod tests {
             )]),
         );
 
-        let execution_state = ExecutionStateSpec::succeeded();
+        let wl_state = generate_test_workload_state_with_agent(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::succeeded(),
+        );
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
-            .insert(fixtures::WORKLOAD_NAMES[1].to_owned(), execution_state);
+            .insert(fixtures::WORKLOAD_NAMES[1].to_owned(), vec![wl_state]);
 
         assert!(DependencyStateValidator::delete_fulfilled(
             &deleted_workload_with_dependencies,
@@ -220,11 +251,15 @@ mod tests {
             )]),
         );
 
-        let execution_state = ExecutionStateSpec::running();
+        let wl_state = generate_test_workload_state_with_agent(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::running(),
+        );
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
-            .insert(fixtures::WORKLOAD_NAMES[1].to_owned(), execution_state);
+            .insert(fixtures::WORKLOAD_NAMES[1].to_owned(), vec![wl_state]);
 
         assert!(!DependencyStateValidator::delete_fulfilled(
             &deleted_workload_with_dependencies,
@@ -235,8 +270,10 @@ mod tests {
     // [utest->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
     #[test]
     fn utest_delete_fulfilled_no_dependencies() {
-        let mut deleted_workload =
-            generate_test_deleted_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::WORKLOAD_NAMES[0]);
+        let mut deleted_workload = generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+        );
 
         deleted_workload.dependencies.clear(); // no inter-workload dependencies
 
