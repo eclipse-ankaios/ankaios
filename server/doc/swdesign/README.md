@@ -589,6 +589,24 @@ Needs:
 - impl
 - utest
 
+##### Server filters GetCompleteState requests for workload state and substate
+`swdd~server-filters-get-complete-state-workload-state-substate~1`
+
+Status: approved
+
+When the Ankaios Server responses to a GetCompleteState request and the request `field_mask` is only for the `state` or the `subState` of a workload,
+the response includes both the `state` and the `subState`.
+
+Rationale:
+The `state` and `subState` fields are internally represented as enum variant with a value and are thus inseparable.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+
 ##### Server includes RequestID in the ControlInterface response
 `swdd~server-includes-id-in-control-interface-response~1`
 
