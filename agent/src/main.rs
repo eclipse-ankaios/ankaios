@@ -112,7 +112,7 @@ pub fn validate_agent_name(agent_name: &str) -> Result<(), String> {
     }
 }
 
-pub fn validate_runtimes(config_runtimes: &Option<Vec<String>>) -> Vec<&str> {
+pub fn validate_runtimes(config_runtimes: &Option<Vec<String>>) -> Result<Vec<&str>, String> {
     match config_runtimes {
         Some(configured_runtimes) => {
             let mut valid_runtimes = Vec::new();
@@ -126,18 +126,19 @@ pub fn validate_runtimes(config_runtimes: &Option<Vec<String>>) -> Vec<&str> {
             }
 
             if valid_runtimes.is_empty() {
-                log::warn!("No valid runtimes configured. Falling back to all supported runtimes.");
-                SUPPORTED_RUNTIMES.to_vec()
+                Err(format!(
+                    "No valid runtimes configured. Supported runtimes: {SUPPORTED_RUNTIMES:?}"
+                ))
             } else {
                 log::debug!("Runtimes configured: {valid_runtimes:?}");
-                valid_runtimes
+                Ok(valid_runtimes)
             }
         }
         None => {
             log::debug!(
                 "No runtimes configured. Using all supported runtimes: {SUPPORTED_RUNTIMES:?}"
             );
-            SUPPORTED_RUNTIMES.to_vec()
+            Ok(SUPPORTED_RUNTIMES.to_vec())
         }
     }
 }
@@ -191,7 +192,8 @@ async fn main() {
     let mut runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>> = HashMap::new();
 
     // [impl->swdd~agent-allows-enabled-runtimes~1]
-    let runtimes_to_register: Vec<&str> = validate_runtimes(&agent_config.runtimes);
+    let runtimes_to_register: Vec<&str> =
+        validate_runtimes(&agent_config.runtimes).unwrap_or_exit("Invalid runtime configuration");
     for runtime_name in runtimes_to_register {
         match runtime_name {
             podman::NAME => {
@@ -393,26 +395,35 @@ mod tests {
     fn utest_validate_runtimes() {
         let runtimes_len = SUPPORTED_RUNTIMES.len();
 
-        assert_eq!(validate_runtimes(&None).len(), runtimes_len);
-        assert_eq!(validate_runtimes(&Some(Vec::new())).len(), runtimes_len);
+        assert_eq!(validate_runtimes(&None).unwrap().len(), runtimes_len);
+
+        let empty_runtimes_list = Some(Vec::new());
+        let result = validate_runtimes(&empty_runtimes_list);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("No valid runtimes configured"));
 
         let all_valid_runtimes = Some(SUPPORTED_RUNTIMES.iter().map(|s| s.to_string()).collect());
-        assert_eq!(validate_runtimes(&all_valid_runtimes).len(), runtimes_len);
+        assert_eq!(
+            validate_runtimes(&all_valid_runtimes).unwrap().len(),
+            runtimes_len
+        );
 
         let single_runtime = Some(vec![SUPPORTED_RUNTIMES[0].to_string()]);
-        let result = validate_runtimes(&single_runtime);
+        let result = validate_runtimes(&single_runtime).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], SUPPORTED_RUNTIMES[0]);
 
         let invalid_runtime = Some(vec!["invalid_runtime".to_string()]);
-        assert_eq!(validate_runtimes(&invalid_runtime).len(), runtimes_len);
+        let result = validate_runtimes(&invalid_runtime);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("No valid runtimes configured"));
 
         let mixed_runtimes = Some(vec![
             SUPPORTED_RUNTIMES[0].to_string(),
             "invalid_runtime".to_string(),
             SUPPORTED_RUNTIMES[2].to_string(),
         ]);
-        let result = validate_runtimes(&mixed_runtimes);
+        let result = validate_runtimes(&mixed_runtimes).unwrap();
         assert_eq!(result.len(), 2);
         assert!(result.contains(&SUPPORTED_RUNTIMES[0]));
         assert!(result.contains(&SUPPORTED_RUNTIMES[2]));
