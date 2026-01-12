@@ -261,7 +261,7 @@ Test Ankaios Podman Update workload with current API version
     And Podman has deleted all existing volumes
     And Ankaios insecure server is started with config "${CONFIGS_DIR}/default_deprecated_api.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And all workloads of agent "agent_A" shall start via events
     # Actions
     When user triggers "ank -k apply ${CONFIGS_DIR}/default.yaml"
     And user triggers "ank -k get workloads"

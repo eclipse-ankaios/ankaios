@@ -118,7 +118,7 @@ Test Ankaios podman-kube workload restart after update without a Control Interfa
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple_kube_with_control.yaml"
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "${agent_name}" have an initial execution state
+    And all workloads of agent "${agent_name}" shall start via events
     And podman kube has assigned an id for pod "simple-pod" of workload "simple-kube" on agent "${agent_name}"
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/simple_kube.yaml"
@@ -132,7 +132,7 @@ Test Ankaios podman-kube workload restart after update with a Control Interface 
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple_kube.yaml"
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "${agent_name}" have an initial execution state
+    And all workloads of agent "${agent_name}" shall start via events
     And the mount point for the control interface has not been generated for ${agent_name}
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/simple_kube_with_control.yaml"
@@ -147,7 +147,7 @@ Test target path from control interface access is limited to the designated pod 
     # Preconditions
     And Ankaios server is started with config "${CONFIGS_DIR}/multi_container_podman_kube.yaml"
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "${agent_name}" have an initial execution state
+    And all workloads of agent "${agent_name}" shall start via events
     And the workload "simple" shall have the execution state "Running(Ok)" on agent "${agent_name}"
     And the mount point for the control interface has been generated for ${agent_name}
     # Asserts

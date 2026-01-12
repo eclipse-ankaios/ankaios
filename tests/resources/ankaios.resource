@@ -336,15 +336,6 @@ containerd has deleted all existing containers
 containerd has terminated all existing containers
     Run Process    nerdctl    stop    $(nerdctl    ps    --all    --quiet    --no-trunc)    timeout=20    shell=True
 
-all workloads of agent "${agent_name}" have an initial execution state
-    ${list_result}=    Wait For Initial Execution State
-    ...    %{ANK_BIN_DIR}${/}ank get workloads
-    ...    ${agent_name}
-    ...    60
-    Should Not Be Empty
-    ...    ${list_result}
-    ...    msg=Timeout: Workloads on agent '${agent_name}' do not have the expected initial execution states!
-
 user triggers "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}
     Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]

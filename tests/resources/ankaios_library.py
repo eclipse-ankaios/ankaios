@@ -307,18 +307,26 @@ def wait_for_state_change_via_events(field_mask: str, condition_func: Callable[[
         while (get_time_secs() - start_time) < timeout:
             if process.poll() is not None:
                 stderr = process.stderr.read()
-                logger.warn(f"Event listener process terminated: {stderr}")
                 if "could not connect to ankaios server" in stderr.lower():
                     # when the server is not yet available, restart the process until the timeout is reached
+                    if stdout_file:
+                        stdout_file.close()
                     process.terminate()
                     process.wait(timeout=2)
+                    if path.exists(tmp_filename):
+                        unlink(tmp_filename)
+
+                    stdout_file = open(tmp_filename, 'w', buffering=1)
                     process = subprocess.Popen(
                         cmd,
                         stdout=stdout_file,
                         stderr=subprocess.PIPE,
                         text=True
                     )
-                else: break
+                    logger.warn("Restarted event listener process. This might happen and does not indicate a test failure.")
+                else:
+                    logger.warn(f"Event listener process terminated: {stderr}")
+                    break
 
             if stdout_file:
                 stdout_file.flush()
@@ -381,8 +389,9 @@ def wait_for_execution_state_via_events(workload_name: str, agent_name: str, exp
         workload_states = complete_state.get('workloadStates', {})
         agent_workloads = workload_states.get(agent_name, {})
         workload = agent_workloads.get(workload_name, {})
+        logger.warn(f"Workload states for {workload_name} on {agent_name}: {workload}")
 
-        for instance_id, instance_state in workload.items():
+        for _, instance_state in workload.items():
             state = instance_state.get('state', '')
             sub_state = instance_state.get('subState', '')
             current_state = f"{state}({sub_state})" if sub_state else state
@@ -484,27 +493,6 @@ def wait_for_workload_removal_via_events(workload_name: str, agent_name: str, ti
         timeout=timeout,
         ank_bin_dir=ank_bin_dir
     )
-
-
-def wait_for_initial_execution_state(command: str, agent_name: str, timeout: float=10, next_try_in_sec: float=0.25):
-        start_time = get_time_secs()
-        logger.trace(run_command("ps aux | grep ank").stdout)
-        logger.trace(run_command("podman ps -a").stdout)
-        res = run_command(command)
-        table = table_to_list(res.stdout if res else "")
-        logger.trace(table)
-        while (get_time_secs() - start_time) < timeout:
-            if table and all([(len(row["EXECUTION STATE"].strip()) > 0 and row["EXECUTION STATE"].strip() != "Pending(Initial)") for row in filter(lambda r: r["AGENT"] == agent_name, table)]):
-                return table
-
-            time.sleep(next_try_in_sec)
-            logger.trace(run_command("ps aux | grep ank").stdout)
-            logger.trace(run_command("podman ps -a").stdout)
-            res = run_command(command)
-            logger.trace(res)
-            table = table_to_list(res.stdout if res else "")
-            logger.trace(table)
-        return list()
 
 
 def workload_with_execution_state(table: list, workload_name: str, expected_state: str) -> list:
