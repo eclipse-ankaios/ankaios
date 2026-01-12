@@ -16,8 +16,8 @@ use super::cycle_check;
 use super::rendered_workloads::RenderedWorkloads;
 
 use ankaios_api::ank_base::{
-    AgentAttributesSpec, AgentStatusSpec, CompleteState, CompleteStateRequestSpec,
-    CompleteStateSpec, CpuUsageSpec, DeletedWorkload, FreeMemorySpec, TagsSpec,
+    AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateRequestSpec,
+    CompleteStateSpec, CpuUsageSpec, DeletedWorkload, FreeMemorySpec, StateSpec, TagsSpec,
     WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use common::state_manipulation::{Object, Path};
@@ -244,13 +244,16 @@ impl ServerState {
                     self.delete_graph
                         .apply_delete_conditions_to(&mut deleted_workloads);
 
-                    self.set_complete_state(new_templated_state);
+                    self.set_desired_state(new_templated_state.desired_state);
+                    self.set_agent_tags(new_templated_state.agents);
+
                     self.rendered_workloads = new_rendered_workloads;
                     Ok(Some((added_workloads, deleted_workloads)))
                 } else {
                     // update state with changed fields not affecting workloads, e.g. config items or agent tags
                     // [impl->swdd~server-state-updates-state-on-unmodified-workloads~1]
-                    self.set_complete_state(new_templated_state);
+                    self.set_desired_state(new_templated_state.desired_state);
+                    self.set_agent_tags(new_templated_state.agents);
                     Ok(None)
                 }
             }
@@ -342,11 +345,13 @@ impl ServerState {
         })
     }
 
-    fn set_complete_state(&mut self, new_complete_state: CompleteStateSpec) {
-        self.state.desired_state = new_complete_state.desired_state;
+    fn set_desired_state(&mut self, new_desired_state: StateSpec) {
+        self.state.desired_state = new_desired_state;
+    }
 
-        // [impl->swdd~server-state-updates-agent-tags~1]
-        for (agent_name, new_agent_attributes) in new_complete_state.agents.agents {
+    // [impl->swdd~server-state-updates-agent-tags~1]
+    fn set_agent_tags(&mut self, agent_map: AgentMapSpec) {
+        for (agent_name, new_agent_attributes) in agent_map.agents {
             if let Some(existing_agent) = self.state.agents.agents.get_mut(&agent_name) {
                 existing_agent.tags = new_agent_attributes.tags;
             }
@@ -1794,7 +1799,7 @@ mod tests {
             ..Default::default()
         };
 
-        server_state.set_complete_state(new_state);
+        server_state.set_agent_tags(new_state.agents);
 
         let final_agents = &server_state.state.agents.agents;
 
