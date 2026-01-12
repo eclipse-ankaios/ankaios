@@ -24,7 +24,7 @@ use crate::control_interface::authorizer::Authorizer;
 
 use ankaios_api::ank_base::{
     DeletedWorkload, ExecutionStateSpec, LogsRequestSpec, Response, WorkloadInstanceNameSpec,
-    WorkloadNamed, WorkloadStateSpec,
+    WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use common::{
     objects::AgentName, request_id_prepending::detach_prefix_from_request_id,
@@ -42,8 +42,6 @@ use crate::runtime_connectors::GenericRuntimeFacade;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::scheduler::WorkloadScheduler;
 
-#[cfg_attr(test, mockall_double::double)]
-use crate::workload_state::workload_state_store::WorkloadStateStore;
 use crate::{
     runtime_connectors::RuntimeFacade,
     workload_operation::{ReusableWorkload, WorkloadOperation},
@@ -113,7 +111,7 @@ impl RuntimeManager {
     // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     pub async fn update_workloads_on_fulfilled_dependencies(
         &mut self,
-        workload_state_db: &WorkloadStateStore,
+        workload_state_db: &WorkloadStatesMapSpec,
     ) {
         let workload_operations = self
             .workload_queue
@@ -129,7 +127,7 @@ impl RuntimeManager {
         &mut self,
         added_workloads: Vec<ReusableWorkload>,
         deleted_workloads: Vec<DeletedWorkload>,
-        workload_state_db: &WorkloadStateStore,
+        workload_state_db: &WorkloadStatesMapSpec,
     ) {
         let workload_operations: Vec<WorkloadOperation> =
             self.transform_into_workload_operations(added_workloads, deleted_workloads);
@@ -149,7 +147,7 @@ impl RuntimeManager {
     pub async fn handle_server_hello(
         &mut self,
         added_workloads: Vec<WorkloadNamed>,
-        workload_state_db: &WorkloadStateStore,
+        workload_state_db: &WorkloadStatesMapSpec,
     ) {
         log::info!(
             "Received the server hello with '{}' added workloads.",
@@ -169,7 +167,7 @@ impl RuntimeManager {
         &mut self,
         added_workloads: Vec<WorkloadNamed>,
         deleted_workloads: Vec<DeletedWorkload>,
-        workload_state_db: &WorkloadStateStore,
+        workload_state_db: &WorkloadStatesMapSpec,
     ) {
         log::info!(
             "Received a new desired state with '{}' added and '{}' deleted workloads.",
@@ -677,11 +675,10 @@ mod tests {
     use crate::workload_operation::ReusableWorkload;
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
     use crate::workload_state::WorkloadStateReceiver;
-    use crate::workload_state::workload_state_store::MockWorkloadStateStore;
 
     use ankaios_api::ank_base::{
         self, CompleteState, ExecutionStateSpec, LogsRequestSpec, Response, ResponseContent,
-        WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec,
+        WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_agent_tags, generate_test_complete_state,
@@ -810,7 +807,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &WorkloadStatesMapSpec::default())
             .await;
 
         assert!(
@@ -892,7 +889,7 @@ mod tests {
                 .build();
 
         runtime_manager
-            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &WorkloadStatesMapSpec::default())
             .await;
     }
 
@@ -967,7 +964,7 @@ mod tests {
                 .build();
 
         runtime_manager
-            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &WorkloadStatesMapSpec::default())
             .await;
         server_receiver.close();
 
@@ -1096,7 +1093,7 @@ mod tests {
 
         let added_workloads = vec![existing_workload];
         runtime_manager
-            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &WorkloadStatesMapSpec::default())
             .await;
 
         assert!(
@@ -1408,7 +1405,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_server_hello(vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(vec![], &WorkloadStatesMapSpec::default())
             .await;
 
         assert!(runtime_manager.workloads.is_empty());
@@ -1471,7 +1468,7 @@ mod tests {
             .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         runtime_manager
-            .handle_server_hello(vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(vec![], &WorkloadStatesMapSpec::default())
             .await;
 
         assert!(runtime_manager.workloads.is_empty());
@@ -1516,7 +1513,7 @@ mod tests {
                 .build();
 
         runtime_manager
-            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &WorkloadStatesMapSpec::default())
             .await;
 
         assert!(runtime_manager.workloads.is_empty());
@@ -1648,7 +1645,7 @@ mod tests {
 
         let added_workloads = vec![existing_workload];
         runtime_manager
-            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &WorkloadStatesMapSpec::default())
             .await;
 
         // the old workload is resumed followed by an update delete only
@@ -1738,7 +1735,7 @@ mod tests {
             .handle_update_workload(
                 added_workloads,
                 deleted_workloads,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -1835,7 +1832,7 @@ mod tests {
             .handle_update_workload(
                 added_workloads,
                 deleted_workloads,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
         server_receiver.close();
@@ -1913,7 +1910,7 @@ mod tests {
             .handle_update_workload(
                 added_workloads,
                 deleted_workloads,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -1988,7 +1985,7 @@ mod tests {
 
         let added_workloads = vec![new_workload];
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_update_workload(added_workloads, vec![], &WorkloadStatesMapSpec::default())
             .await;
 
         assert!(
@@ -2057,7 +2054,7 @@ mod tests {
 
         let added_workloads = vec![new_workload];
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_update_workload(added_workloads, vec![], &WorkloadStatesMapSpec::default())
             .await;
         server_receiver.close();
 
@@ -2103,7 +2100,7 @@ mod tests {
         let added_workloads: Vec<WorkloadNamed> = vec![generate_test_workload_named()];
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_update_workload(added_workloads, vec![], &WorkloadStatesMapSpec::default())
             .await;
         server_receiver.close();
 
@@ -2178,7 +2175,7 @@ mod tests {
             .handle_update_workload(
                 added_workloads,
                 deleted_workloads,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
         assert!(
@@ -2233,7 +2230,7 @@ mod tests {
             .handle_update_workload(
                 vec![],
                 deleted_workloads,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
         server_receiver.close();
@@ -2479,7 +2476,7 @@ mod tests {
                 .build();
 
         runtime_manager
-            .update_workloads_on_fulfilled_dependencies(&MockWorkloadStateStore::default())
+            .update_workloads_on_fulfilled_dependencies(&WorkloadStatesMapSpec::default())
             .await;
         server_receiver.close();
 
@@ -2522,7 +2519,7 @@ mod tests {
                 .build();
 
         runtime_manager
-            .update_workloads_on_fulfilled_dependencies(&MockWorkloadStateStore::default())
+            .update_workloads_on_fulfilled_dependencies(&WorkloadStatesMapSpec::default())
             .await;
         server_receiver.close();
 
@@ -2574,7 +2571,7 @@ mod tests {
             .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), workload_mock);
 
         runtime_manager
-            .update_workloads_on_fulfilled_dependencies(&MockWorkloadStateStore::default())
+            .update_workloads_on_fulfilled_dependencies(&WorkloadStatesMapSpec::default())
             .await;
         server_receiver.close();
 
@@ -2616,7 +2613,7 @@ mod tests {
             .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), workload_mock);
 
         runtime_manager
-            .update_workloads_on_fulfilled_dependencies(&MockWorkloadStateStore::default())
+            .update_workloads_on_fulfilled_dependencies(&WorkloadStatesMapSpec::default())
             .await;
         server_receiver.close();
 

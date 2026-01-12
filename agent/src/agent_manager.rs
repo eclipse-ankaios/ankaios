@@ -14,16 +14,13 @@
 
 use crate::{subscription_store::SubscriptionStore, workload_state::WorkloadStateReceiver};
 
-use ankaios_api::ank_base::WorkloadStateSpec;
+use ankaios_api::ank_base::{WorkloadStateSpec, WorkloadStatesMapSpec};
 use common::std_extensions::{GracefulExitResult, IllegalStateResult};
 use common::{
     commands::AgentLoadStatus,
     from_server_interface::{FromServer, FromServerReceiver},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
-
-#[cfg_attr(test, mockall_double::double)]
-use crate::workload_state::workload_state_store::WorkloadStateStore;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
@@ -45,7 +42,7 @@ pub struct AgentManager {
     from_server_receiver: FromServerReceiver,
     to_server: ToServerSender,
     workload_state_receiver: WorkloadStateReceiver,
-    workload_state_store: WorkloadStateStore,
+    workload_state_store: WorkloadStatesMapSpec,
     res_monitor: ResourceMonitor,
     subscription_store: SynchronizedSubscriptionStore,
 }
@@ -64,7 +61,7 @@ impl AgentManager {
             from_server_receiver,
             to_server,
             workload_state_receiver,
-            workload_state_store: WorkloadStateStore::new(),
+            workload_state_store: WorkloadStatesMapSpec::new(),
             res_monitor: ResourceMonitor::new(),
             subscription_store: Default::default(),
         }
@@ -156,7 +153,7 @@ impl AgentManager {
                             new_workload_state.instance_name.agent_name()
                         );
                         self.workload_state_store
-                            .update_workload_state(new_workload_state);
+                            .process_new_states(vec![new_workload_state]);
                     }
                     // [impl->swdd~agent-handles-update-workload-state-requests~1]
                     self.runtime_manager
@@ -229,7 +226,7 @@ impl AgentManager {
         // [impl->swdd~agent-manager-hysteresis_on-workload-states-of-its-workloads~1]
         if let Some(old_execution_state) = self
             .workload_state_store
-            .get_state_of_workload(new_workload_state.instance_name.workload_name())
+            .get_workload_state_for_workload(&new_workload_state.instance_name)
         {
             new_workload_state.execution_state =
                 old_execution_state.transition(new_workload_state.execution_state);
@@ -239,7 +236,7 @@ impl AgentManager {
 
         // [impl->swdd~agent-stores-workload-states-of-its-workloads~1]
         self.workload_state_store
-            .update_workload_state(new_workload_state.clone());
+            .process_new_states(vec![new_workload_state.clone()]);
 
         // notify the runtime manager s.t. dependencies and restarts can be handled
         // [impl->swdd~agent-handles-update-workload-state-requests~1]
@@ -291,15 +288,12 @@ mod tests {
     use crate::resource_monitor::MockResourceMonitor;
     use crate::subscription_store::generate_test_subscription_entry;
     use crate::workload_log_facade::MockWorkloadLogFacade;
-    use crate::workload_state::{
-        WorkloadStateSenderInterface,
-        workload_state_store::{MockWorkloadStateStore, mock_parameter_storage_new_returns},
-    };
+    use crate::workload_state::WorkloadStateSenderInterface;
 
     use ankaios_api::ank_base::{self, ExecutionStateSpec, LogsRequestSpec};
     use ankaios_api::test_utils::{
-        generate_test_workload_named, generate_test_workload_named_with_params,
-        generate_test_workload_state_with_agent, fixtures,
+        fixtures, generate_test_workload_named, generate_test_workload_named_with_params,
+        generate_test_workload_state_with_agent,
     };
     use common::{
         commands::UpdateWorkloadState,
@@ -321,9 +315,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let mock_wl_state_store_context = MockWorkloadStateStore::default();
-        mock_parameter_storage_new_returns(mock_wl_state_store_context);
 
         let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
         let (to_server, _) = channel(fixtures::TEST_CHANNEL_CAP);
@@ -399,12 +390,6 @@ mod tests {
             .once()
             .return_const(());
 
-        let mut mock_wl_state_store = MockWorkloadStateStore::default();
-        mock_wl_state_store
-            .expected_update_workload_state_parameters
-            .push_back(workload_state.clone());
-        mock_parameter_storage_new_returns(mock_wl_state_store);
-
         let mock_resource_monitor_context = MockResourceMonitor::new_context();
         mock_resource_monitor_context
             .expect()
@@ -419,14 +404,23 @@ mod tests {
             workload_state_receiver,
         );
 
-        let handle = tokio::spawn(async move { agent_manager.start().await });
+        let expected_state = workload_state.clone();
+        let handle = tokio::spawn(async move {
+            agent_manager.start().await;
+            assert_eq!(
+                agent_manager
+                    .workload_state_store
+                    .get_workload_state_for_workload(&expected_state.instance_name),
+                Some(&expected_state.execution_state)
+            );
+        });
 
         let update_workload_result = to_manager.update_workload_state(vec![workload_state]).await;
         assert!(update_workload_result.is_ok());
 
         // Terminate the infinite receiver loop
         to_manager.stop().await.unwrap();
-        assert!(join!(handle).0.is_ok());
+        handle.await.unwrap();
     }
 
     // [utest->swdd~agent-manager-listens-requests-from-server~1]
@@ -436,9 +430,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let mock_wl_state_store = MockWorkloadStateStore::default();
-        mock_parameter_storage_new_returns(mock_wl_state_store);
 
         let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
         let (to_server, _) = channel(fixtures::TEST_CHANNEL_CAP);
@@ -480,9 +471,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let mock_wl_state_store_context = MockWorkloadStateStore::default();
-        mock_parameter_storage_new_returns(mock_wl_state_store_context);
 
         let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
         let (to_server, _) = channel(fixtures::TEST_CHANNEL_CAP);
@@ -550,24 +538,17 @@ mod tests {
             ExecutionStateSpec::running(),
         );
 
-        let wl_state_after_hysteresis = generate_test_workload_state_with_agent(
+        let current_workload_state = generate_test_workload_state_with_agent(
             fixtures::WORKLOAD_NAMES[0],
             fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::stopping_requested(),
         );
 
-        let mut mock_wl_state_store = MockWorkloadStateStore::default();
-
-        mock_wl_state_store.states_storage.insert(
-            fixtures::WORKLOAD_NAMES[0].to_string(),
-            ExecutionStateSpec::stopping_requested(),
+        // Ensure that we send an updated state for the same workload instance
+        assert_eq!(
+            workload_state_incoming.instance_name,
+            current_workload_state.instance_name
         );
-
-        mock_wl_state_store
-            .expected_update_workload_state_parameters
-            .push_back(wl_state_after_hysteresis.clone());
-
-        mock_parameter_storage_new_returns(mock_wl_state_store);
 
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager
@@ -594,7 +575,18 @@ mod tests {
             workload_state_receiver,
         );
 
-        let handle = tokio::spawn(async move { agent_manager.start().await });
+        agent_manager.workload_state_store.process_new_states(vec![current_workload_state.clone()]);
+
+        let expected_state = current_workload_state.clone();
+        let handle = tokio::spawn(async move {
+            agent_manager.start().await;
+            assert_eq!(
+                agent_manager
+                    .workload_state_store
+                    .get_workload_state_for_workload(&expected_state.instance_name),
+                Some(&expected_state.execution_state)
+            );
+        });
 
         workload_state_sender
             .report_workload_execution_state(
@@ -604,7 +596,7 @@ mod tests {
             .await;
 
         let expected_workload_states = ToServer::UpdateWorkloadState(UpdateWorkloadState {
-            workload_states: vec![wl_state_after_hysteresis],
+            workload_states: vec![current_workload_state],
         });
         assert_eq!(
             Ok(Some(expected_workload_states)),
@@ -617,7 +609,7 @@ mod tests {
 
         // Terminate the infinite receiver loop
         to_manager.stop().await.unwrap();
-        assert!(join!(handle).0.is_ok());
+        handle.await.unwrap();
     }
 
     // [utest->swdd~agent-sends-node-resource-availability-to-server~1]
@@ -626,9 +618,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let mock_wl_state_store = MockWorkloadStateStore::default();
-        mock_parameter_storage_new_returns(mock_wl_state_store);
 
         let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
         let (to_server, mut server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
@@ -683,9 +672,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let mock_wl_state_store = MockWorkloadStateStore::default();
-        mock_parameter_storage_new_returns(mock_wl_state_store);
 
         let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
         let (to_server, _server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
@@ -768,9 +754,6 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock_wl_state_store = MockWorkloadStateStore::default();
-        mock_parameter_storage_new_returns(mock_wl_state_store);
-
         let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
         let (to_server, _server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
         let (_workload_state_sender, workload_state_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
@@ -815,9 +798,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let mock_wl_state_store = MockWorkloadStateStore::default();
-        mock_parameter_storage_new_returns(mock_wl_state_store);
 
         let (to_manager, manager_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
         let (to_server, _server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);

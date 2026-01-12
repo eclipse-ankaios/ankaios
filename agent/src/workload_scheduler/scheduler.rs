@@ -21,12 +21,9 @@ use crate::{
 };
 
 use ankaios_api::ank_base::{
-    DeletedWorkload, ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed,
+    DeletedWorkload, ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStatesMapSpec,
 };
 use std::{collections::HashMap, fmt::Display};
-
-#[cfg_attr(test, mockall_double::double)]
-use crate::workload_state::workload_state_store::WorkloadStateStore;
 
 #[cfg(test)]
 use mockall::automock;
@@ -68,7 +65,7 @@ impl WorkloadScheduler {
     pub async fn enqueue_filtered_workload_operations(
         &mut self,
         new_workload_operations: Vec<WorkloadOperation>,
-        workload_state_db: &WorkloadStateStore,
+        workload_state_db: &WorkloadStatesMapSpec,
     ) -> Vec<WorkloadOperation> {
         let mut ready_workload_operations: Vec<WorkloadOperation> = Vec::new();
         let notify_on_new_entry = true;
@@ -123,7 +120,7 @@ impl WorkloadScheduler {
     // [impl->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
     pub async fn next_workload_operations(
         &mut self,
-        workload_state_db: &WorkloadStateStore,
+        workload_state_db: &WorkloadStatesMapSpec,
     ) -> Vec<WorkloadOperation> {
         // clear the whole queue without deallocating memory
         let queue_entries: Vec<PendingEntry> = self
@@ -190,7 +187,7 @@ impl WorkloadScheduler {
     async fn enqueue_pending_create(
         &mut self,
         new_workload: ReusableWorkload,
-        workload_state_db: &WorkloadStateStore,
+        workload_state_db: &WorkloadStatesMapSpec,
         notify_on_new_entry: bool,
     ) -> Vec<WorkloadOperation> {
         let mut ready_workload_operations = Vec::new();
@@ -223,7 +220,7 @@ impl WorkloadScheduler {
         &mut self,
         new_workload_named: WorkloadNamed,
         deleted_workload: DeletedWorkload,
-        workload_state_db: &WorkloadStateStore,
+        workload_state_db: &WorkloadStatesMapSpec,
         notify_on_new_entry: bool,
     ) -> Vec<WorkloadOperation> {
         let mut ready_workload_operations = Vec::new();
@@ -286,7 +283,7 @@ impl WorkloadScheduler {
     async fn enqueue_pending_delete(
         &mut self,
         deleted_workload: DeletedWorkload,
-        workload_state_db: &WorkloadStateStore,
+        workload_state_db: &WorkloadStatesMapSpec,
         notify_on_new_entry: bool,
     ) -> Vec<WorkloadOperation> {
         let mut ready_workload_operations = Vec::new();
@@ -339,11 +336,11 @@ mod tests {
             dependency_state_validator::MockDependencyStateValidator, scheduler::PendingEntry,
         },
         workload_state::{
-            assert_execution_state_sequence, workload_state_store::MockWorkloadStateStore,
+            assert_execution_state_sequence
         },
     };
 
-    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadStateSpec};
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadStateSpec, WorkloadStatesMapSpec};
     use ankaios_api::test_utils::{
         generate_test_deleted_workload_with_params, generate_test_workload_named,
         generate_test_workload_state_with_workload_named, fixtures,
@@ -377,7 +374,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -429,7 +426,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -483,7 +480,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -533,7 +530,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -602,7 +599,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -669,7 +666,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -737,7 +734,7 @@ mod tests {
         workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -802,7 +799,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -847,7 +844,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -897,7 +894,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -932,7 +929,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockWorkloadStateStore::default(),
+                &WorkloadStatesMapSpec::default(),
             )
             .await;
 
@@ -979,7 +976,7 @@ mod tests {
         );
 
         let ready_workload_operations = workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert_eq!(
@@ -1037,7 +1034,7 @@ mod tests {
         );
 
         workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert_execution_state_sequence(
@@ -1077,7 +1074,7 @@ mod tests {
         );
 
         let ready_workload_operations = workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert!(ready_workload_operations.is_empty());
@@ -1115,7 +1112,7 @@ mod tests {
         );
 
         workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert!(workload_state_receiver.try_recv().is_err());
@@ -1146,7 +1143,7 @@ mod tests {
         );
 
         let ready_workload_operations = workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert!(ready_workload_operations.is_empty());
@@ -1183,7 +1180,7 @@ mod tests {
         );
 
         workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert!(workload_state_receiver.try_recv().is_err());
@@ -1225,7 +1222,7 @@ mod tests {
         );
 
         let ready_workload_operations = workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert!(ready_workload_operations.is_empty());
@@ -1273,7 +1270,7 @@ mod tests {
         );
 
         workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert!(workload_state_receiver.try_recv().is_err());
@@ -1315,7 +1312,7 @@ mod tests {
         );
 
         let ready_workload_operations = workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert!(ready_workload_operations.is_empty());
@@ -1364,7 +1361,7 @@ mod tests {
         );
 
         workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert!(workload_state_receiver.try_recv().is_err());
@@ -1397,7 +1394,7 @@ mod tests {
         );
 
         let ready_workload_operations = workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert_eq!(
@@ -1435,7 +1432,7 @@ mod tests {
         );
 
         let ready_workload_operations = workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert_eq!(
@@ -1482,7 +1479,7 @@ mod tests {
         );
 
         let ready_workload_operations = workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert_eq!(
@@ -1532,7 +1529,7 @@ mod tests {
         );
 
         let ready_workload_operations = workload_scheduler
-            .next_workload_operations(&MockWorkloadStateStore::default())
+            .next_workload_operations(&WorkloadStatesMapSpec::default())
             .await;
 
         assert_eq!(

@@ -20,5 +20,3 @@ pub use workload_state_sender::{
 
 #[cfg(test)]
 pub use workload_state_sender::assert_execution_state_sequence;
-
-pub mod workload_state_store;
