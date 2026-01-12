@@ -469,7 +469,7 @@ Needs:
 
 Status: approved
 
-The Ankaios agent shall support enabling a specific set of runtimes through the config file, with a fallback to all available runtimes if no valid ones were configured.
+The Ankaios agent shall support enabling a specific set of runtimes through the config file, with a fallback to all available runtimes if no whitelist is provided.
 
 Rationale:
 This allows the users to configure which runtimes are allowed on a specific agent, thus needing to make sure only the matching binaries are present.
