@@ -1830,6 +1830,24 @@ Needs:
 - impl
 - utest
 
+#### WorkloadControlLoop reuses bundle on successful workload restart
+`swdd~workload-control-loop-reuses-bundle-on-successful-restart~1`
+
+Status: approved
+
+When the WorkloadControlLoop executes a restart policy for a workload that has reached the ExecutionState `Succeeded`, then the WorkloadControlLoop shall reuse the existing bundle and workload files.
+
+Rationale:
+Reusing the bundle and workload files for successfully completed workloads improves restart performance by eliminating unnecessary deletion and recreation of resources that are already in the correct state. This optimization reduces I/O operations and restart time while maintaining system consistency.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
 #### WorkloadControlLoop restarts workloads using the update operation
 `swdd~workload-control-loop-restarts-workloads-using-update~1`
 
