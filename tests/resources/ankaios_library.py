@@ -308,7 +308,17 @@ def wait_for_state_change_via_events(field_mask: str, condition_func: Callable[[
             if process.poll() is not None:
                 stderr = process.stderr.read()
                 logger.warn(f"Event listener process terminated: {stderr}")
-                break
+                if "could not connect to ankaios server" in stderr.lower():
+                    # when the server is not yet available, restart the process until the timeout is reached
+                    process.terminate()
+                    process.wait(timeout=2)
+                    process = subprocess.Popen(
+                        cmd,
+                        stdout=stdout_file,
+                        stderr=subprocess.PIPE,
+                        text=True
+                    )
+                else: break
 
             if stdout_file:
                 stdout_file.flush()
