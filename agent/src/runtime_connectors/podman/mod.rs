@@ -15,4 +15,4 @@
 pub(crate) mod podman_log_fetcher;
 mod podman_runtime;
 mod podman_runtime_config;
-pub use podman_runtime::{PodmanRuntime, PodmanWorkloadId};
+pub use podman_runtime::{PODMAN_RUNTIME_NAME as NAME, PodmanRuntime, PodmanWorkloadId};

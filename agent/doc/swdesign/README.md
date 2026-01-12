@@ -464,6 +464,23 @@ Needs:
 - impl
 - utest
 
+#### Agent allows only enabled runtimes
+`swdd~agent-allows-enabled-runtimes~1`
+
+Status: approved
+
+The Ankaios agent shall support enabling a specific set of runtimes through the config file, with a fallback to all available runtimes if no whitelist is provided.
+
+Rationale:
+This allows the users to configure which runtimes are allowed on a specific agent, thus needing to make sure only the matching binaries are present.
+
+Tags:
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
 #### Agent uses specified runtime connector
 `swdd~agent-uses-specified-runtime~1`
 
@@ -1813,6 +1830,24 @@ Needs:
 - impl
 - utest
 
+#### WorkloadControlLoop reuses bundle on successful workload restart
+`swdd~workload-control-loop-reuses-bundle-on-successful-restart~1`
+
+Status: approved
+
+When the WorkloadControlLoop executes a restart policy for a workload that has reached the ExecutionState `Succeeded`, then the WorkloadControlLoop shall reuse the existing bundle and workload files.
+
+Rationale:
+Reusing the bundle and workload files for successfully completed workloads improves restart performance by eliminating unnecessary deletion and recreation of resources that are already in the correct state. This optimization reduces I/O operations and restart time while maintaining system consistency.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
 #### WorkloadControlLoop restarts workloads using the update operation
 `swdd~workload-control-loop-restarts-workloads-using-update~1`
 
@@ -2133,7 +2168,7 @@ When the podman runtime connector is called to create a workload and an existing
 * start a `GenericPollingStateChecker` to check the workload state
 
 Rationale:
-Starting a stopped container is much faster than creating a new container bundle and starting that. Short startup times are ususally crucial for automotive.
+Starting a stopped container is much faster than creating a new container bundle and starting that. Short startup times are usually crucial for automotive.
 
 Tags:
 - PodmanRuntimeConnector
@@ -3750,7 +3785,7 @@ Needs:
 - impl
 - utest
 
-#### Error returned on denied Control Interface request contains requst ID
+#### Error returned on denied Control Interface request contains request ID
 `swdd~agent-responses-to-denied-request-from-control-interface-contains-request-id~1`
 
 Status: approved
@@ -4182,7 +4217,7 @@ When the WorkloadLogFacade is triggered by the AgentManager to start the log col
 * add a log subscription entry with a reference to the spawned task to the SubscriptionStore
 
 Comment:
-The LogFetching runners are moved to the spawned asynchronous task. When the task is canceled, the runners are dropped which stoppes them automatically.
+The LogFetching runners are moved to the spawned asynchronous task. When the task is canceled, the runners are dropped which stops them automatically.
 
 Rationale:
 Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection is finished.

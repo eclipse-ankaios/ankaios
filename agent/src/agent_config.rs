@@ -78,6 +78,8 @@ pub struct AgentConfig {
     #[serde(default)]
     pub insecure: bool,
     #[serde(default)]
+    pub runtimes: Option<Vec<String>>,
+    #[serde(default)]
     pub tags: HashMap<String, String>,
     ca_pem: Option<String>,
     crt_pem: Option<String>,
@@ -95,6 +97,7 @@ impl Default for AgentConfig {
             server_url: get_default_url(),
             run_folder: get_default_run_folder(),
             insecure: bool::default(),
+            runtimes: None,
             tags: HashMap::new(),
             ca_pem: None,
             crt_pem: None,
