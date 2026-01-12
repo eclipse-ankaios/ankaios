@@ -1818,7 +1818,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop restarts a workload that has reached the ExecutionState `Succeeded`, then the WorkloadControlLoop shall reuse the existing bundle and workload files.
+When the WorkloadControlLoop executes a restart policy for a workload that has reached the ExecutionState `Succeeded`, then the WorkloadControlLoop shall reuse the existing bundle and workload files.
 
 Rationale:
 Reusing the bundle and workload files for successfully completed workloads improves restart performance by eliminating unnecessary deletion and recreation of resources that are already in the correct state. This optimization reduces I/O operations and restart time while maintaining system consistency.
