@@ -262,6 +262,7 @@ async fn main() {
     let mut communications_client = GRPCCommunicationsClient::new_agent_communication(
         agent_config.name.clone(),
         agent_config.server_url,
+        agent_config.tags,
         // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
         tls_config.unwrap_or_exit("Missing certificate file"),
     )

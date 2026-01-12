@@ -116,6 +116,7 @@ impl AgentConnection for GRPCAgentConnection {
             ToServerEnum::AgentHello(grpc_api::AgentHello {
                 agent_name,
                 protocol_version,
+                tags,
             }) => {
                 log::trace!("Received a hello from '{agent_name}'");
 
@@ -132,7 +133,10 @@ impl AgentConnection for GRPCAgentConnection {
                     self.agent_senders
                         .insert(&agent_name, new_agent_sender.to_owned());
                     // [impl->swdd~grpc-agent-connection-forwards-hello-to-ankaios-server~1]
-                    if let Err(error) = self.to_ankaios_server.agent_hello(agent_name.clone()).await
+                    if let Err(error) = self
+                        .to_ankaios_server
+                        .agent_hello(agent_name.clone(), tags.unwrap_or_default())
+                        .await
                     {
                         log::error!("Could not send agent hello: '{error}'");
                     }

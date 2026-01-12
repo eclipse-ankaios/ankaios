@@ -742,7 +742,7 @@ Needs:
 - impl
 - stest
 
-### Update Desired State
+### Update Server State
 
 The behavioral diagram of updating the desired state is shown in the chapter "UpdateState interface".
 
@@ -1075,6 +1075,24 @@ Tags:
 Needs:
 - impl
 - utest
+
+#### ServerState updates agent tags
+`swdd~server-state-updates-agent-tags~1`
+
+Status: approved
+
+When the ServerState receives a complete state update containing agents, the ServerState shall update only the tags of already registered agents.
+
+Comment:
+The ServerState ignores attempts to add new agents, remove existing agents, or modify agent status through state updates.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+- stest
 
 #### Server cleans up state
 `swdd~server-cleans-up-state~1`
