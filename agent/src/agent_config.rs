@@ -180,9 +180,7 @@ impl AgentConfig {
         }
 
         if let Some(tags) = &args.tags {
-            for (key, value) in tags {
-                self.tags.insert(key.clone(), value.clone());
-            }
+            self.tags = tags.iter().cloned().collect();
         }
     }
 }
@@ -398,6 +396,10 @@ mod tests {
     fn utest_agent_config_update_with_tags_from_cli() {
         let mut agent_config = AgentConfig::default();
 
+        agent_config
+            .tags
+            .insert("config_tag".to_string(), "config_value".to_string());
+
         let args = Arguments {
             config_path: None,
             agent_name: None,
@@ -407,60 +409,16 @@ mod tests {
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
-            tags: Some(vec![
-                ("cpu".to_string(), "x86_64".to_string()),
-                ("location".to_string(), "cloud".to_string()),
-            ]),
+            tags: Some(vec![("cli_tag".to_string(), "cli_value".to_string())]),
         };
 
         agent_config.update_with_args(&args);
 
-        assert_eq!(agent_config.tags.len(), 2);
-        assert_eq!(agent_config.tags.get("cpu"), Some(&"x86_64".to_string()));
+        assert_eq!(agent_config.tags.len(), 1);
         assert_eq!(
-            agent_config.tags.get("location"),
-            Some(&"cloud".to_string())
+            agent_config.tags.get("cli_tag"),
+            Some(&"cli_value".to_string())
         );
-    }
-
-    #[test]
-    fn utest_agent_config_cli_tags_override_config_tags() {
-        let mut agent_config = AgentConfig::default();
-
-        agent_config
-            .tags
-            .insert("cpu".to_string(), "arm64".to_string());
-        agent_config
-            .tags
-            .insert("camera".to_string(), "available".to_string());
-
-        // CLI tags should override matching keys
-        let args = Arguments {
-            config_path: None,
-            agent_name: None,
-            server_url: None,
-            run_folder: None,
-            insecure: None,
-            ca_pem: None,
-            crt_pem: None,
-            key_pem: None,
-            tags: Some(vec![
-                ("cpu".to_string(), "x86_64".to_string()),     // Override
-                ("location".to_string(), "cloud".to_string()), // New
-            ]),
-        };
-
-        agent_config.update_with_args(&args);
-
-        assert_eq!(agent_config.tags.len(), 3);
-        assert_eq!(agent_config.tags.get("cpu"), Some(&"x86_64".to_string())); // Overridden
-        assert_eq!(
-            agent_config.tags.get("camera"),
-            Some(&"available".to_string())
-        );
-        assert_eq!(
-            agent_config.tags.get("location"),
-            Some(&"cloud".to_string())
-        );
+        assert!(!agent_config.tags.contains_key("config_tag"));
     }
 }
