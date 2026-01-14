@@ -30,6 +30,7 @@ Test Ankaios workload successful start-up without a Control Interface access
 
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "${agent_name}" have left the initial execution state
     # Actions
@@ -43,6 +44,7 @@ Test Ankaios workload restart after update without a Control Interface access
 
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple_with_control.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "${agent_name}" have left the initial execution state
     # Actions
@@ -57,6 +59,7 @@ Test Ankaios workload restart after update with a Control Interface access
 
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "${agent_name}" have left the initial execution state
     And the mount point for the control interface has not been generated for ${agent_name}
@@ -72,6 +75,7 @@ Test Ankaios containerd workload restart after update with a Control Interface a
 
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple_containerd.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "${agent_name}" have left the initial execution state
     And the mount point for the control interface has not been generated for ${agent_name}
@@ -95,6 +99,7 @@ Test workload with empty Control Interface access field mask rejected
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "${agent_name}" have left the initial execution state
     # Actions
@@ -117,6 +122,7 @@ Test Ankaios podman-kube workload restart after update without a Control Interfa
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple_kube_with_control.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "${agent_name}" have left the initial execution state
     And podman kube has assigned an id for pod "simple-pod" of workload "simple-kube" on agent "${agent_name}"
@@ -131,6 +137,7 @@ Test Ankaios podman-kube workload restart after update with a Control Interface 
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple_kube.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "${agent_name}" have left the initial execution state
     And the mount point for the control interface has not been generated for ${agent_name}
@@ -146,6 +153,7 @@ Test target path from control interface access is limited to the designated pod 
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
     And Ankaios server is started with config "${CONFIGS_DIR}/multi_container_podman_kube.yaml"
+    And the CLI listens for workload states
     And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "${agent_name}" have left the initial execution state

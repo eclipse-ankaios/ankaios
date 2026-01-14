@@ -55,6 +55,7 @@ Test Ankaios CLI get events receives multiple sequential events
     # Preconditions
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -92,6 +93,7 @@ Test Ankaios CLI get events with workload state changes
     # Preconditions
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -100,7 +102,7 @@ Test Ankaios CLI get events with workload state changes
     And user triggers "ank -k apply ${CONFIGS_DIR}/nginx.yaml"
     And the user waits "3" seconds
     # Asserts
-    Then the event output shall contain workloadStates
+    Then the event output shall contain field name "workloadStates"
     And the event output shall be valid yaml format
     [Teardown]    Clean up Ankaios
 
@@ -113,6 +115,7 @@ Test Ankaios CLI get events includes timestamp in output
     # Preconditions
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -133,6 +136,7 @@ Test Ankaios CLI get events with empty field mask
     # Preconditions
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -141,8 +145,8 @@ Test Ankaios CLI get events with empty field mask
     And user triggers "ank -k apply ${CONFIGS_DIR}/nginx.yaml"
     And the user waits "5" seconds
     # Asserts
-    Then the event output shall contain desiredState
-    And the event output shall contain workloadStates
+    Then the event output shall contain field name "desiredState"
+    And the event output shall contain field name "workloadStates"
     [Teardown]    Clean up Ankaios
 
 
@@ -154,6 +158,7 @@ Test Ankaios CLI get events with workload deletion
     # Preconditions
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
     And all workloads of agent "agent_A and agent_B" have left the initial execution state

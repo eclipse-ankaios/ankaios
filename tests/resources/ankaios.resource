@@ -683,8 +683,6 @@ the last command shall only contain agent and runtime
     ${workloads}=    Get From Dictionary    ${desired_state}    workloads
     @{workloads}=    Get Dictionary Values   ${workloads}
     FOR    ${w}    IN   @{workloads}
-        # ${keys}=    Get Dictionary Keys    ${w}
-        # Should Be Equal    ${keys}   ${expected_keys}
         dictionary ${w} should have exact keys   @{expected_keys}
     END
 
@@ -1104,29 +1102,15 @@ the event output shall contain at least "${count}" events
 all events shall contain timestamp
     Each Event In Output Shall Contain Timestamp    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
 
-the event output shall contain workloadStates
-    Event Output Shall Contain WorkloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
-
-the event output shall contain desiredState
-    Event Output Shall Contain DesiredState    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+the event output shall contain field name "${field_name}"
+    Event Output Shall Contain Field Name    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt   ${field_name}
 
 the event output shall contain altered fields with removed workloads
     Event Output Shall Contain Altered Fields With Removed Workloads    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
 
 all workloads of agent "${agent_names}" have left the initial execution state
-    User Waits For All Workloads To Start Via Events    ${agent_names}    60
+    all workloads of agent "${agent_names}" have left the initial execution state within "10" seconds
 
 all workloads of agent "${agent_names}" have left the initial execution state within "${timeout}" seconds
-    User Waits For All Workloads To Start Via Events    ${agent_names}    ${timeout}
+    All Workloads Left Initial Execution State    agent_names=${agent_names}    timeout=${timeout}
 
-the workload "${workload_name}" shall reach state "${expected_state}" on agent "${agent_name}" via events
-    User Waits For Workload To Reach State Via Events    ${workload_name}    ${agent_name}    ${expected_state}    60
-
-the workload "${workload_name}" shall reach state "${expected_state}" on agent "${agent_name}" via events within "${timeout}" seconds
-    User Waits For Workload To Reach State Via Events    ${workload_name}    ${agent_name}    ${expected_state}    ${timeout}
-
-the workload "${workload_name}" shall not exist on agent "${agent_name}" via events
-    User Waits For Workload Removal Via Events    ${workload_name}    ${agent_name}    60
-
-the workload "${workload_name}" shall not exist on agent "${agent_name}" via events within "${timeout}" seconds
-    User Waits For Workload Removal Via Events    ${workload_name}    ${agent_name}    ${timeout}
