@@ -32,6 +32,7 @@ Test Ankaios outputs logs for multiple workloads with disabled follow mode
     Given Podman has deleted all existing containers
     # Actions
     When Ankaios server is started with config "${CONFIGS_DIR}/workload_logs.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
     # Asserts

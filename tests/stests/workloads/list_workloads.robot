@@ -25,6 +25,7 @@ Test Ankaios CLI get workloads
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_B"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A and agent_B" have left the initial execution state
@@ -44,6 +45,7 @@ Test Ankaios CLI get workloads with config files
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_B"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A and agent_B" have left the initial execution state

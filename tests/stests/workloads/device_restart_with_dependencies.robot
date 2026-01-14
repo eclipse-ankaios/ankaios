@@ -29,6 +29,7 @@ Resource            ../../resources/variables.resource
 # [stest->swdd~containerd-create-workload-starts-existing-workload~1]
 Test Ankaios restarts exited workloads on device restart with considering inter-workload dependencies
     [Documentation]    Restart not running workloads after a device restart with considering inter-workload dependencies
+    [Tags]    only
     [Setup]    Run Keywords    Setup Ankaios
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
@@ -36,6 +37,7 @@ Test Ankaios restarts exited workloads on device restart with considering inter-
     And containerd has deleted all existing containers
     # Actions
     When Ankaios server is started with config "${CONFIGS_DIR}/device_restart_with_dependencies.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
     And podman has assigned a container id for workload "filesystem_init" on agent "agent_A"
@@ -49,6 +51,7 @@ Test Ankaios restarts exited workloads on device restart with considering inter-
     And containerd has terminated all existing containers
     # Restart of Ankaios on full device restart
     And Ankaios server is started with config "${CONFIGS_DIR}/device_restart_with_dependencies_modified_web_service_init.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_B"
     And Ankaios agent is started with name "agent_A"
     # Asserts

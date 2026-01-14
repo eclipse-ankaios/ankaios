@@ -38,6 +38,7 @@ Test Ankaios CLI update workload for containerd runtime
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
     Given containerd has deleted all existing containers
     And Ankaios server is started with config "${default_state_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "10" seconds
     And the command "curl localhost:8081" finished with exit code "0" within "10" seconds

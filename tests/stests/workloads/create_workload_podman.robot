@@ -32,6 +32,7 @@ Test Ankaios Podman create workloads
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    And the CLI listens for workload states
     # Actions
     When Ankaios agent is started with name "agent_B"
     And Ankaios agent is started with name "agent_A"
@@ -55,6 +56,7 @@ Test Ankaios Podman create a container with custom name
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/create_workload_custom_name.yaml"
+    And the CLI listens for workload states
     # Actions
     When Ankaios agent is started with name "agent_A"
     # Asserts
