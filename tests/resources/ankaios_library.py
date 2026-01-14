@@ -1085,10 +1085,6 @@ def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bi
 
         ank_path = path.join(ank_bin_dir, 'ank')
 
-        with NamedTemporaryFile(mode='w+', delete=False, suffix='.jsonl') as tmp_file:
-            tmp_filename = tmp_file.name
-
-        stdout_file = None
         process = None
 
         cmd = [ank_path, '-k', 'get', 'events', '-o', 'json']
@@ -1097,92 +1093,71 @@ def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bi
 
         try:
             log_file_handle.write(f"Starting event listener: {' '.join(cmd)}\n")
-            stdout_file = open(tmp_filename, 'w', buffering=1)  # Line buffering
             process = subprocess.Popen(
                 cmd,
-                stdout=stdout_file,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                bufsize=1
             )
 
             start_time = get_time_secs()
-            last_position = 0
             first_event_received = False
 
             while (get_time_secs() - start_time) < timeout:
-                if process.poll() is not None:
+
+                EVENTS_RECEIVED.clear()
+                new_line = process.stdout.readline()  # blocks until a line or EOF
+
+                if new_line:
+                    try:
+                        event = json.loads(new_line)
+                        first_event_received = True
+                        log_file_handle.write(f"Received event: {event.get('timestamp', 'no timestamp')}\n")
+                        event_buffer.append(event)
+                        EVENTS_RECEIVED.set()
+                    except json.JSONDecodeError as e:
+                        log_file_handle.write(f"Failed to parse event line: {e}\n")
+                        pass
+                else:
                     stderr = process.stderr.read()
                     if "could not connect to ankaios server" in stderr.lower():
                         # when the server is not yet available, restart the process until the timeout is reached
-                        if stdout_file:
-                            stdout_file.close()
                         process.terminate()
                         process.wait(timeout=2)
-                        if path.exists(tmp_filename):
-                            unlink(tmp_filename)
 
-                        stdout_file = open(tmp_filename, 'w', buffering=1)
                         process = subprocess.Popen(
                             cmd,
-                            stdout=stdout_file,
+                            stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
-                            text=True
+                            text=True,
+                            bufsize=1
                         )
                         log_file_handle.write("Restarted event listener process. This might happen and does not indicate a test failure.\n")
                     else:
                         log_file_handle.write(f"Event listener process terminated: {stderr}\n")
                         break
 
-                if stdout_file:
-                    stdout_file.flush()
-
-                with open(tmp_filename, 'r') as f:
-                    f.seek(last_position)
-                    new_content = f.read()
-                    last_position = f.tell()
-
-                if new_content:
-                    for line in new_content.strip().split('\n'):
-                        if not line.strip():
-                            continue
-                        try:
-                            event = json.loads(line)
-                            first_event_received = True
-                            log_file_handle.write(f"Received event: {event.get('timestamp', 'no timestamp')}\n")
-                            event_buffer.append(event)
-                            EVENTS_RECEIVED.set()
-                        except json.JSONDecodeError as e:
-                            log_file_handle.write(f"Failed to parse event line: {e}\n")
-                            pass
-                else:
-                    EVENTS_RECEIVED.clear()
-                time.sleep(0.1)
 
             log_file_handle.write(f"Event waiting timed out after {timeout}s, first_event_received={first_event_received}\n")
             if not first_event_received:
                 log_file_handle.write(f"No events received from 'ank get events' after {timeout}s - possible connection or subscription issue\n")
-            if process and process.poll() is None:
+            if process:
                 process.send_signal(signal.SIGTERM)
                 process.wait(timeout=2)
 
             return None
         except Exception as e:
             log_file_handle.write(f"Error while listening for events: {e}\n")
-            pass
         finally:
             if log_file_handle:
                 log_file_handle.close()
-            if stdout_file:
-                stdout_file.close()
-            if process and process.poll() is None:
+            if process:
                 try:
                     process.terminate()
                     process.wait(timeout=2)
                 except:
                     pass
-            # Clean up temp file
-            if path.exists(tmp_filename):
-                unlink(tmp_filename)
 
     global EVENT_PROCESS
     global EVENT_BUFFER
