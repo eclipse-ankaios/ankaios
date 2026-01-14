@@ -1122,7 +1122,6 @@ def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bi
     EVENT_BUFFER = manager.list()
     EVENT_PROCESS = mp.Process(target=listen_with_timeout, args=(field_mask, EVENT_BUFFER, log_output_file, timeout_float, ank_bin_dir))
     EVENT_PROCESS.start()
-    # logger.trace(f"Started listening for events with process {EVENT_PROCESS}")
 
 @err_logging_decorator
 def unsubscribe_from_events():
