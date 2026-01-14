@@ -28,6 +28,7 @@ from os import path, unlink, environ
 from typing import Callable, Union
 import shutil
 import tomllib
+import multiprocessing as mp
 
 
 ###############################################################################
@@ -43,10 +44,13 @@ MANIFEST_TEMPLATE: str = "control_interface_workload.yaml.template"
 STARTUP_MANIFEST: str = "startup_config.yaml"
 DEFAULT_AGENT_NAME: str = "agent_A"
 FORCE_TRACE: bool = False
+EVENT_BUFFER: list = []
+EVENTS_RECEIVED = mp.Event()
+EVENT_PROCESS = None
 
 
 if FORCE_TRACE:
-    logger.trace = logger.info
+    logger.trace = logger.trace
 
 ###############################################################################
 ## General utils
@@ -1334,3 +1338,220 @@ def user_waits_for_workload_removal_via_events(workload_name: str, agent_name: s
         f"Timeout waiting for workload '{workload_name}' to be removed from agent '{agent_name}'"
 
     logger.trace(f"Workload '{workload_name}' has been removed")
+
+@err_logging_decorator
+def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bin_dir: str=None, timeout: str="10"):
+    timeout_float = float(timeout)
+    def listen_with_timeout(field_mask: str, event_buffer: list, log_output_file: str, timeout: float, ank_bin_dir: str=None):
+        # separate log file for the event process otherwise corrupted robot framework output.xml may occur because of concurrent writes
+        log_file_handle = open(log_output_file, 'w+', buffering=1)  # Line buffering
+        log_file_handle.write(f"Listening for events with timeout of {timeout_float} seconds\n")
+
+        if ank_bin_dir is None:
+            ank_bin_dir = environ.get('ANK_BIN_DIR', '.')
+
+        ank_path = path.join(ank_bin_dir, 'ank')
+
+        with NamedTemporaryFile(mode='w+', delete=False, suffix='.jsonl') as tmp_file:
+            tmp_filename = tmp_file.name
+
+        stdout_file = None
+        process = None
+
+        cmd = [ank_path, '-k', 'get', 'events', '-o', 'json']
+        if field_mask:
+            cmd.append(field_mask)
+
+        try:
+            log_file_handle.write(f"Starting event listener: {' '.join(cmd)}\n")
+            stdout_file = open(tmp_filename, 'w', buffering=1)  # Line buffering
+            process = subprocess.Popen(
+                cmd,
+                stdout=stdout_file,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+            start_time = get_time_secs()
+            last_position = 0
+            first_event_received = False
+
+            while (get_time_secs() - start_time) < timeout:
+                if process.poll() is not None:
+                    stderr = process.stderr.read()
+                    if "could not connect to ankaios server" in stderr.lower():
+                        # when the server is not yet available, restart the process until the timeout is reached
+                        if stdout_file:
+                            stdout_file.close()
+                        process.terminate()
+                        process.wait(timeout=2)
+                        if path.exists(tmp_filename):
+                            unlink(tmp_filename)
+
+                        stdout_file = open(tmp_filename, 'w', buffering=1)
+                        process = subprocess.Popen(
+                            cmd,
+                            stdout=stdout_file,
+                            stderr=subprocess.PIPE,
+                            text=True
+                        )
+                        log_file_handle.write("Restarted event listener process. This might happen and does not indicate a test failure.\n")
+                    else:
+                        log_file_handle.write(f"Event listener process terminated: {stderr}\n")
+                        break
+
+                if stdout_file:
+                    stdout_file.flush()
+
+                with open(tmp_filename, 'r') as f:
+                    f.seek(last_position)
+                    new_content = f.read()
+                    last_position = f.tell()
+
+                if new_content:
+                    for line in new_content.strip().split('\n'):
+                        if not line.strip():
+                            continue
+                        try:
+                            event = json.loads(line)
+                            first_event_received = True
+                            log_file_handle.write(f"Received event: {event.get('timestamp', 'no timestamp')}\n")
+                            event_buffer.append(event)
+                            EVENTS_RECEIVED.set()
+                        except json.JSONDecodeError as e:
+                            log_file_handle.write(f"Failed to parse event line: {e}\n")
+                            pass
+                else:
+                    EVENTS_RECEIVED.clear()
+                time.sleep(0.1)
+
+            log_file_handle.write(f"Event waiting timed out after {timeout}s, first_event_received={first_event_received}\n")
+            if not first_event_received:
+                log_file_handle.write(f"No events received from 'ank get events' after {timeout}s - possible connection or subscription issue\n")
+            if process and process.poll() is None:
+                process.send_signal(signal.SIGTERM)
+                process.wait(timeout=2)
+
+            return None
+        except Exception as e:
+            log_file_handle.write(f"Error while listening for events: {e}\n")
+            pass
+        finally:
+            if log_file_handle:
+                log_file_handle.close()
+            if stdout_file:
+                stdout_file.close()
+            if process and process.poll() is None:
+                try:
+                    process.terminate()
+                    process.wait(timeout=2)
+                except:
+                    pass
+            # Clean up temp file
+            if path.exists(tmp_filename):
+                unlink(tmp_filename)
+
+    global EVENT_PROCESS
+    global EVENT_BUFFER
+    manager = mp.Manager()
+    EVENT_BUFFER = manager.list()
+    EVENT_PROCESS = mp.Process(target=listen_with_timeout, args=(field_mask, EVENT_BUFFER, log_output_file, timeout_float, ank_bin_dir))
+    EVENT_PROCESS.start()
+    # logger.trace(f"Started listening for events with process {EVENT_PROCESS}")
+
+@err_logging_decorator
+def unsubscribe_from_events():
+    logger.trace(f"Unsubscribing from events.")
+    global EVENT_PROCESS
+    global EVENT_BUFFER
+    if EVENT_PROCESS:
+        EVENT_PROCESS.kill()
+        EVENT_PROCESS.join()
+    logger.trace(f"Event listener process terminated.")
+    del EVENT_BUFFER[:]
+
+def all_workloads_left_initial_execution_state(agent_names: str, timeout: str="10"):
+    """
+    Condition fulfilled if:
+    - specified agents are connected
+    - all workloads of the agents have left the Pending(Initial) state
+    """
+    global EVENTS_RECEIVED
+    global EVENT_BUFFER
+    global EVENT_PROCESS
+    logger.trace(f"Process is running: {EVENT_PROCESS}")
+    timeout_float = float(timeout)
+    agent_names = { agent_name.strip(): False for agent_name in agent_names.split('and') }
+    start_time = get_time_secs()
+    last_checked_index = 0
+
+    while (get_time_secs() - start_time) < float(timeout_float):
+        logger.trace(f"Event buffer {EVENT_BUFFER}")
+        for index in range(last_checked_index + 1, len(EVENT_BUFFER)):
+            event = EVENT_BUFFER[index]
+            for agent_name in agent_names.keys():
+                complete_state: dict = event.get('completeState', {})
+                workload_states: dict = complete_state.get('workloadStates', {})
+                agent_workloads = workload_states.get(agent_name, {})
+                logger.trace(f"Complete state: {complete_state}")
+                logger.trace(f"Agent workloads: {agent_workloads}")
+
+                for workload_name, workload in agent_workloads.items():
+                    agent_names[agent_name] = True
+                    for _, instance_state in workload.items():
+                        state = instance_state.get('state', '')
+                        sub_state = instance_state.get('subState', '')
+                        current_state = f"{state}({sub_state})" if sub_state else state
+
+                        if current_state == "Pending(Initial)" or current_state == "" or not current_state:
+                            logger.trace(f"Workload {workload_name} still in Pending(Initial)")
+                            agent_names[agent_name] = False
+                            break
+
+            last_checked_index = index
+        if all(agent_names.values()):
+            return True
+
+        remaining_time = timeout_float - (get_time_secs() - start_time)
+        if remaining_time > 0:
+            EVENTS_RECEIVED.wait(timeout=remaining_time)
+        else: break
+
+    return False
+
+def workload_has_execution_state(workload_name: str, agent_name: str, expected_state: str, timeout: str="10"):
+    """
+    Condition fulfilled if:
+    - specified agent is connected
+    - specified workload of the agent has reached the expected execution state
+    """
+    global EVENTS_RECEIVED
+    global EVENT_BUFFER
+    timeout_float = float(timeout)
+    start_time = get_time_secs()
+
+    while (get_time_secs() - start_time) < float(timeout_float):
+        for event in EVENT_BUFFER:
+            complete_state: dict = event.get('completeState', {})
+            workload_states: dict = complete_state.get('workloadStates', {})
+            agent_workloads = workload_states.get(agent_name, {})
+            workload = agent_workloads.get(workload_name, {})
+            logger.trace(f"Complete state: {complete_state}")
+            logger.trace(f"Agent workloads: {agent_workloads}")
+
+            for _, instance_state in workload.items():
+                state = instance_state.get('state', '')
+                sub_state = instance_state.get('subState', '')
+                current_state = f"{state}({sub_state})" if sub_state else state
+
+                logger.trace(f"Current state of workload '{workload_name}': {current_state}")
+
+                if current_state == expected_state:
+                    return True
+
+        remaining_time = timeout_float - (get_time_secs() - start_time)
+        if remaining_time > 0:
+            EVENTS_RECEIVED.wait(timeout=remaining_time)
+        else: break
+
+    return False

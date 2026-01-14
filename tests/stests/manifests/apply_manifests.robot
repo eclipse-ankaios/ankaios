@@ -63,6 +63,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest files
 
     # Preconditions
     Given Ankaios server is started with config "${simple_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -81,6 +82,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
 
     # Preconditions
     Given Ankaios server is started with config "${simple_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -98,6 +100,7 @@ Test Ankaios apply workload specification overwriting the agent names
 
     # Preconditions
     Given Ankaios server is started with config "${simple_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
     And all workloads of agent "agent_A" have left the initial execution state
@@ -114,6 +117,7 @@ Test Ankaios apply workload specification defining the agent names
 
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
     And all workloads of agent "agent_A" have left the initial execution state
@@ -129,6 +133,7 @@ Test Ankaios apply workload specification without agent name
     [Setup]   Run Keywords    Setup Ankaios
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -142,6 +147,7 @@ Test Ankaios apply workload specification with empty agent name
     [Setup]   Run Keywords    Setup Ankaios
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -156,6 +162,7 @@ Test Ankaios apply workload with empty agent name cli argument
   [Setup]   Run Keywords    Setup Ankaios
   # Preconditions
   Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+  And the CLI listens for workload states
   And Ankaios agent is started with name "agent_A"
   And all workloads of agent "agent_A" have left the initial execution state
   # Actions
@@ -173,6 +180,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest files for deleti
 
     # Preconditions
     Given Ankaios server is started with config "${manifest12_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -192,6 +200,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
 
     # Preconditions
     Given Ankaios server is started with config "${manifest1_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -209,6 +218,7 @@ Test Ankaios apply workload specifications in Ankaios manifest with templated fi
     # This test assumes that all containers in Podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started without config successfully
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/manifest_with_configs.yaml"
@@ -226,6 +236,7 @@ Test Ankaios apply workload specification with wrong api version
 
     # Preconditions
     Given Ankaios server is started with config "${simple_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -242,6 +253,7 @@ Test Ankaios apply workload specification with wrong api version format
 
     # Preconditions
     Given Ankaios server is started with config "${simple_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -253,13 +265,13 @@ Test Ankaios apply workload specification with wrong api version format
 # [stest->swdd~server-validates-startup-manifest-tags-format~1]
 Test Ankaios Podman Update workload with current API version
     [Setup]    Run Keywords    Setup Ankaios
-
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Podman has deleted all existing pods
     And Podman has deleted all existing volumes
     And Ankaios insecure server is started with config "${CONFIGS_DIR}/default_deprecated_api.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
@@ -281,6 +293,7 @@ Test Ankaios Podman Update workload with deprecated API version v0.1
     And Podman has deleted all existing pods
     And Podman has deleted all existing volumes
     And Ankaios server is started without config successfully
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k apply ${CONFIGS_DIR}/default_deprecated_api.yaml"

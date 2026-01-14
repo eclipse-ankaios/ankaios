@@ -38,6 +38,7 @@ Test Ankaios containerd restarts workloads with restart policy ALWAYS.
     Given containerd has deleted all existing containers
     # Actions
     When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies_containerd.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And containerd has assigned a container id for workload "restarted_always" on agent "agent_A"
     And containerd has assigned a container id for workload "restarted_never" on agent "agent_A"
@@ -60,6 +61,7 @@ Test Ankaios containerd restarts workloads with restart policy ON_FAILURE.
     Given containerd has deleted all existing containers
     # Actions
     When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies_containerd.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And containerd has assigned a container id for workload "restarted_on_failure" on agent "agent_A"
     # Asserts

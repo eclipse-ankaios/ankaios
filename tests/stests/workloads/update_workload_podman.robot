@@ -37,6 +37,7 @@ Test Ankaios CLI update workload
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${default_state_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     And the command "curl localhost:8081" finished with exit code "0"
@@ -57,6 +58,7 @@ Test Ankaios Podman update workload from empty state
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started without config successfully
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"

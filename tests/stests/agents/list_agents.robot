@@ -28,6 +28,7 @@ Test Ankaios CLI lists connected agents
     # This test assumes that all containers in Podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     # The agent_A is started and connected
     And all workloads of agent "agent_A" have left the initial execution state

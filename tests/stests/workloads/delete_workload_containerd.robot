@@ -32,6 +32,7 @@ Test Ankaios containerd remove workloads
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
     Given containerd has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default_containerd.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_B"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A and agent_B" have left the initial execution state

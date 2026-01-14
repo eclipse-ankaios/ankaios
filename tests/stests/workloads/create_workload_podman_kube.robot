@@ -35,6 +35,7 @@ Test Ankaios Podman create kube workload
     Given Podman has deleted all existing pods
     And Podman has deleted all existing volumes
     And Ankaios server is started with config "${CONFIGS_DIR}/kube.yaml"
+    And the CLI listens for workload states
     # Actions
     When Ankaios agent is started with name "agent_A"
     # Asserts

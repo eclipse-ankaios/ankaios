@@ -36,6 +36,7 @@ Test Ankaios start up with templated Ankaios manifest and update state with upda
     # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${start_up_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     And the command "curl localhost:8081" finished with exit code "0"

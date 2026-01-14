@@ -63,6 +63,7 @@ Setup Ankaios
     Setup Ankaios without MTLS Setup
 
 Clean up Ankaios
+    Unsubscribe From Events
     Terminate All Processes    kill=True
     Clean up Podman
     Clean up containerd
@@ -308,6 +309,7 @@ Ankaios agent is started with name "${agent_name}" and config file "${config_fil
     ...    alias=${agent_name}
 
 Ankaios server is terminated
+    Unsubscribe From Events
     Terminate Process    ank-server    kill=True
     ${server_running}=    Is Process Running    ank-server
     Should Not Be True    ${server_running}
@@ -363,18 +365,25 @@ user updates the state "${new_state_yaml_file}" with "${field_value}"
     Write Yaml    new_yaml=${new_config}    path=${new_state_yaml_file}
 
 the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}" within "${timeout}" seconds
-    @{list_result}=    Create List
-    IF    ${timeout} > 0
-        @{list_result}=    Wait For Execution State
-        ...    %{ANK_BIN_DIR}${/}ank get workloads
-        ...    ${workload_name}
-        ...    ${expected_agent_name}
-        ...    ${expected_execution_state}
-        ...    ${timeout}
+    IF    '${expected_execution_state}' == 'Pending(Initial)' # currently it is not possible to receive events for the initial state, so we need to poll the CLI here
+        ${start_time}=    Get Time Secs
+        WHILE    True
+            ${current_secs}=    Get Time Secs
+            ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+            IF    ${elapsed_secs} >= ${timeout}    BREAK
+
+            ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
+            @{list_result}=    table to list    ${command_result.stdout}
+            &{workload_table}=    table to dict    ${list_result}    WORKLOAD NAME
+            ${workload_entry}=    Get From Dictionary    ${workload_table}    ${workload_name}
+            ${execution_state}=    Get From Dictionary    ${workload_entry}    EXECUTION STATE
+            IF    '${execution_state}' == '${expected_execution_state}'    RETURN
+
+        END
+    ELSE
+        ${result}=    Workload Has Execution State    ${workload_name}    ${expected_agent_name}    ${expected_execution_state}    ${timeout}
+        Should Be True    ${result}    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' did not reach execution state '${expected_execution_state}' within '${timeout}' seconds!
     END
-    Should Not Be Empty
-    ...    ${list_result}
-    ...    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' does not have the execution state '${expected_execution_state}'!
 
 the workload "${workload_name}" shall not exist
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
@@ -778,6 +787,7 @@ The controller workload cancels events for fields ${field_mask}
 The controller workload requests shall all succeed
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_all_control_interface_requests_succeeded    ${ankaios_config_folder.name}
@@ -786,6 +796,7 @@ The controller workload requests shall all succeed
 The controller workload requests shall all succeed with second agent
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     BuiltIn.Sleep    1s
     Ankaios agent is started with name "${AGENT_2_NAME}"
@@ -799,6 +810,7 @@ The controller workload requests shall all succeed with second agent
 The controller workload last request shall fail
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_last_control_interface_request_failed    ${ankaios_config_folder.name}
@@ -806,6 +818,7 @@ The controller workload last request shall fail
 The controller workload requests shall all fail
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_all_control_interface_requests_failed    ${ankaios_config_folder.name}
@@ -813,6 +826,7 @@ The controller workload requests shall all fail
 The controller workload shall get a closed connection
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_control_interface_closed    ${ankaios_config_folder.name}
@@ -820,6 +834,7 @@ The controller workload shall get a closed connection
 The controller workload has no access to Control Interface
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_no_access_to_control_interface    ${ankaios_config_folder.name}
@@ -982,10 +997,6 @@ the workload state of workload "${workload_name}" shall contain an additional in
 
         Sleep    0.2s
     END
-    # ${workload_state}=    Get From Dictionary    ${result_dict}    ${workload_name}
-    # Should Contain Key    ${workload_state}    additionalInfo
-    # ${additional_info}=    Get From Dictionary    ${workload_state}    additionalInfo
-    # Should Contain    ${additional_info}    retries
 
 # ALIASES
 
@@ -1065,6 +1076,9 @@ user starts event listener with format "${format}" and field mask "${field_mask}
     ${field_mask_arg}=    Set Variable If    "${field_mask}" == ""    ${EMPTY}    ${field_mask}
     ${cmd}=    Set Variable If    "${field_mask}" == ""    %{ANK_BIN_DIR}${/}ank -k get events -o ${format}    %{ANK_BIN_DIR}${/}ank -k get events \"${field_mask_arg}\" -o ${format}
     Start Process    ${cmd}    shell=True    stdout=target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/events_error.txt    alias=event-listener
+
+the CLI listens for workload states
+    Listen For Events With Timeout    workloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/stest_event_logs.log    %{ANK_BIN_DIR}    60
 
 the event output shall contain workload "${workload_name}"
     Event Output Shall Contain Workload    ${workload_name}    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt

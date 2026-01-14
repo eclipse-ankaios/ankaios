@@ -34,6 +34,7 @@ Test Ankaios start up with templated Ankaios manifest keeping indentation level 
     Given Podman has deleted all existing pods
     And Podman has deleted all existing volumes
     And Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_multi_line_config.yaml"
+    And the CLI listens for workload states
     # Actions
     When Ankaios agent is started with name "agent_A"
     # Asserts
