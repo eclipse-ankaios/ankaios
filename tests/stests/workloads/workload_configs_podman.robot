@@ -37,7 +37,7 @@ Test Ankaios start up with templated Ankaios manifest and update state with upda
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${start_up_yaml_file}"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     And the command "curl localhost:8081" finished with exit code "0"
     # Actions
     When user triggers "ank -k set state desiredState.configs ${new_state_yaml_file}"

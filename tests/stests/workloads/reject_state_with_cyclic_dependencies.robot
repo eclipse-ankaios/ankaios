@@ -57,7 +57,7 @@ Test Ankaios CLI update state with cycle in interworkload dependencies is reject
     And Ankaios server is started with config "${default_state_yaml_file}"
     And Ankaios agent is started with name "agent_B"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A and agent_B" shall start via events
+    And all workloads of agent "agent_A and agent_B" have left the initial execution state
     # Actions
     And user triggers "ank -k set state ${new_state_yaml_file} desiredState.workloads.workload_C"
     # Asserts

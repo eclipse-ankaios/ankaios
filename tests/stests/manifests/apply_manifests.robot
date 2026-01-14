@@ -64,7 +64,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest files
     # Preconditions
     Given Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user triggers "ank -v apply ${manifest1_yaml_file} ${manifest2_yaml_file}"
     # Asserts
@@ -82,7 +82,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
     # Preconditions
     Given Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user triggers "ank apply -" passing "${manifest1_yaml_file}" through stdin
     # Asserts
@@ -100,7 +100,7 @@ Test Ankaios apply workload specification overwriting the agent names
     Given Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user triggers "ank apply --agent agent_B ${manifest1_yaml_file}"
     # Asserts
@@ -116,7 +116,7 @@ Test Ankaios apply workload specification defining the agent names
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user triggers "ank apply --agent agent_B ${CONFIGS_DIR}/manifest_no_agent_name.yaml"
     # Asserts
@@ -130,7 +130,7 @@ Test Ankaios apply workload specification without agent name
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/manifest_no_agent_name.yaml"
     # Asserts
@@ -143,7 +143,7 @@ Test Ankaios apply workload specification with empty agent name
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/manifest_empty_agent_name.yaml"
     # Asserts
@@ -157,7 +157,7 @@ Test Ankaios apply workload with empty agent name cli argument
   # Preconditions
   Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
   And Ankaios agent is started with name "agent_A"
-  And all workloads of agent "agent_A" shall start via events
+  And all workloads of agent "agent_A" have left the initial execution state
   # Actions
   When user triggers "ank apply --agent "" ${CONFIGS_DIR}/manifest_no_agent_name.yaml"
   # Asserts
@@ -174,7 +174,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest files for deleti
     # Preconditions
     Given Ankaios server is started with config "${manifest12_yaml_file}"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user triggers "ank apply -d ${manifest1_yaml_file} ${manifest2_yaml_file}"
     # Asserts
@@ -193,7 +193,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
     # Preconditions
     Given Ankaios server is started with config "${manifest1_yaml_file}"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user triggers "ank apply -d -" passing "${manifest1_yaml_file}" through stdin
     # Asserts
@@ -227,7 +227,7 @@ Test Ankaios apply workload specification with wrong api version
     # Preconditions
     Given Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user triggers "ank apply ${manifest_wrong_api_version}"
     # Asserts
@@ -243,7 +243,7 @@ Test Ankaios apply workload specification with wrong api version format
     # Preconditions
     Given Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user triggers "ank apply ${manifest_wrong_api_version_format}"
     # Asserts
@@ -261,7 +261,7 @@ Test Ankaios Podman Update workload with current API version
     And Podman has deleted all existing volumes
     And Ankaios insecure server is started with config "${CONFIGS_DIR}/default_deprecated_api.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user triggers "ank -k apply ${CONFIGS_DIR}/default.yaml"
     And user triggers "ank -k get workloads"

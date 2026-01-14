@@ -56,7 +56,7 @@ Test Ankaios CLI get events receives multiple sequential events
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user starts event listener with format "json" and field mask "" in background
     And the user waits "3" seconds
@@ -93,7 +93,7 @@ Test Ankaios CLI get events with workload state changes
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user starts event listener with format "yaml" and field mask "workloadStates" in background
     And the user waits "2" seconds
@@ -114,7 +114,7 @@ Test Ankaios CLI get events includes timestamp in output
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user starts event listener with format "json" and field mask "" in background
     And the user waits "3" seconds
@@ -134,7 +134,7 @@ Test Ankaios CLI get events with empty field mask
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" shall start via events
+    And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     When user starts event listener with format "yaml" and field mask "" in background
     And the user waits "3" seconds
@@ -156,7 +156,7 @@ Test Ankaios CLI get events with workload deletion
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
-    And all workloads of agent "agent_A and agent_B" shall start via events
+    And all workloads of agent "agent_A and agent_B" have left the initial execution state
     # Actions
     When user starts event listener with format "json" and field mask "desiredState.workloads" in background
     And the user waits "3" seconds
