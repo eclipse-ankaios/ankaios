@@ -1064,7 +1064,7 @@ Needs:
 
 Status: approved
 
-The Ankaios CLI shall provide a function to get real-time state change events from the Ankaios server with options to specify output format (JSON or YAML) and field mask for filtering events to specific parts of the state.
+The Ankaios CLI shall provide a function to get real-time state change events from the Ankaios server with a field mask as argument for filtering events to specific parts of the state.
 
 Rationale:
 The get events command enables users to monitor state changes in real-time, which is essential for observability and debugging in dynamic workload orchestration scenarios.
