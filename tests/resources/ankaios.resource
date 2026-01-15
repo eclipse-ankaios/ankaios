@@ -389,35 +389,25 @@ the workload "${workload_name}" shall not exist
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
     @{list_result}=    table to list    ${command_result.stdout}
     &{workload_table}=    table to dict    ${list_result}    WORKLOAD NAME
-    Dictionary Should Not Contain Key    ${workload_table}    ${workload_name}
+    Dictionary Should Not Contain Key    ${workload_table}    ${workload_name}    msg=msg=Timeout: Workload '${workload_name}' found, but shall not exist!
 
-the workload "${workload_name}" shall not exist on agent "${expected_agent_name}" within "${timeout}" seconds
+the workload "${workload_name}" shall never be created on agent "${expected_agent_name}" within "${timeout}" seconds
     Should Be True    ${timeout} >= 0    msg='timeout' must be greater than or equal to 0!
-    @{list_result}=    Create List
-    IF    ${timeout} >= 0
-        @{list_result}=    Wait For Workload Removal
-        ...    %{ANK_BIN_DIR}${/}ank get workloads
-        ...    ${workload_name}
-        ...    ${expected_agent_name}
-        ...    ${timeout}
-    END
-    Should Be Empty
-    ...    ${list_result}
+    ${result}=    Workload Has Execution State    ${workload_name}    ${expected_agent_name}    Pending(Starting)    ${timeout}
+    Should Be Equal
+    ...    ${result}
+    ...    ${False}
+    ...    msg=Timeout: Workload '${workload_name}' had an 'Pending(Initial)' workload state on agent '${expected_agent_name}' indicating that it exists!
+
+    the workload "${workload_name}" shall not exist
+
+the workload "${workload_name}" shall be removed and not exist on agent "${expected_agent_name}" within "${timeout}" seconds
+    Should Be True    ${timeout} >= 0    msg='timeout' must be greater than or equal to 0!
+    ${result}=    Workload Has Execution State    ${workload_name}    ${expected_agent_name}    Removed    ${timeout}
+    Should Be True
+    ...    ${result}
     ...    msg=Timeout: Workload '${workload_name}' found on agent '${expected_agent_name}'!
-
-the workload "${workload_name}" shall not exist within "${timeout}" seconds
-    Should Be True    ${timeout} >= 0    msg='timeout' must be greater than or equal to 0!
-    @{list_result}=    Create List
-    IF    ${timeout} >= 0
-        @{list_result}=    Wait For Workload Removal
-        ...    %{ANK_BIN_DIR}${/}ank get workloads
-        ...    ${workload_name}
-        ...    ""
-        ...    ${timeout}
-    END
-    Should Be Empty
-    ...    ${list_result}
-    ...    msg=Timeout: Workload '${workload_name}' found!
+    the workload "${workload_name}" shall not exist
 
 in the last result, the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}"
     @{list_result}=    table to list    ${CURRENT_RESULT.stdout}

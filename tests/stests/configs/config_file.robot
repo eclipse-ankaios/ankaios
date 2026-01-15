@@ -52,5 +52,5 @@ Test server config overwrite manifest with cli arguments
     And Ankaios insecure agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Asserts
-    Then the workload "simple" shall not exist on agent "agent_A" within "1" seconds
+    Then the workload "simple" shall never be created on agent "agent_A" within "1" seconds
     [Teardown]    Clean up Ankaios

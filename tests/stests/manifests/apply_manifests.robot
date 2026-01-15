@@ -185,11 +185,11 @@ Test Ankaios apply workload specifications via Ankaios Manifest files for deleti
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
-    When user triggers "ank apply -d ${manifest1_yaml_file} ${manifest2_yaml_file}"
+    When user triggers "ank --no-wait apply -d ${manifest1_yaml_file} ${manifest2_yaml_file}"
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "sleepy_from_manifest1" shall not exist within "20" seconds
-    And the workload "sleepy_from_manifest2" shall not exist within "20" seconds
+    And the workload "sleepy_from_manifest1" shall be removed and not exist on agent "agent_A" within "20" seconds
+    And the workload "sleepy_from_manifest2" shall be removed and not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-send-update-state~1]
@@ -205,10 +205,10 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
-    When user triggers "ank apply -d -" passing "${manifest1_yaml_file}" through stdin
+    When user triggers "ank --no-wait apply -d -" passing "${manifest1_yaml_file}" through stdin
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "sleepy_from_manifest1" shall not exist within "20" seconds
+    And the workload "sleepy_from_manifest1" shall be removed and not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-send-update-state~1]

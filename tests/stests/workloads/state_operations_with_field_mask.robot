@@ -42,7 +42,7 @@ Test Ankaios CLI update workload
     # Actions
     And user triggers "ank -k --no-wait set state desiredState.workloads.simple.agent ${new_state_yaml_file}"
     # Asserts
-    Then the workload "simple" shall not exist on agent "agent_A" within "20" seconds
+    Then the workload "simple" shall have the execution state "Removed" on agent "agent_A" within "20" seconds
     And podman shall not have a container for workload "simple" on agent "agent_A"
     [Teardown]    Clean up Ankaios
 
