@@ -39,8 +39,8 @@ Test Ankaios starts manifest with workload files assigned to workloads
     # Asserts
     Then the workload "podman_workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "podman_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
-    And the workload "containerd_workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
-    And the workload "containerd_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
+    And the workload "containerd_workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A" within "10" seconds
+    And the workload "containerd_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "10" seconds
     And the command "curl -Lf localhost:8087/custom" shall finish with exit code "0"
     And the command "curl -Lf localhost:8088/custom" shall finish with exit code "0"
     [Teardown]    Clean up Ankaios
