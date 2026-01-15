@@ -336,15 +336,6 @@ containerd has deleted all existing containers
 containerd has terminated all existing containers
     Run Process    nerdctl    stop    $(nerdctl    ps    --all    --quiet    --no-trunc)    timeout=20    shell=True
 
-all workloads of agent "${agent_name}" have an initial execution state
-    ${list_result}=    Wait For Initial Execution State
-    ...    %{ANK_BIN_DIR}${/}ank get workloads
-    ...    ${agent_name}
-    ...    60
-    Should Not Be Empty
-    ...    ${list_result}
-    ...    msg=Timeout: Workloads on agent '${agent_name}' do not have the expected initial execution states!
-
 user triggers "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}
     Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]
@@ -1069,3 +1060,59 @@ the last command shall finish with an error
 
 the last command shall finish with exit code "${exit_code}"
     the last command finished with exit code "${exit_code}"
+
+user starts event listener with format "${format}" and field mask "${field_mask}" in background
+    ${field_mask_arg}=    Set Variable If    "${field_mask}" == ""    ${EMPTY}    ${field_mask}
+    ${cmd}=    Set Variable If    "${field_mask}" == ""    %{ANK_BIN_DIR}${/}ank -k get events -o ${format}    %{ANK_BIN_DIR}${/}ank -k get events \"${field_mask_arg}\" -o ${format}
+    Start Process    ${cmd}    shell=True    stdout=target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/events_error.txt    alias=event-listener
+
+the event output shall contain workload "${workload_name}"
+    Event Output Shall Contain Workload    ${workload_name}    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+
+the event output shall be valid yaml format
+    Event Output Shall Be Valid Yaml Format    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+
+the event output shall be valid json format
+    Event Output Shall Be Valid Json Format    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+
+the event output shall contain timestamp
+    Event Output Shall Contain Timestamp    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+
+the event output shall contain timestamp in RFC3339 format
+    Event Output Shall Contain Timestamp In RFC3339 Format    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+
+the event output shall contain only desiredState workloads
+    Event Output Shall Contain Only DesiredState Workloads    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+
+the event output shall contain at least "${count}" events
+    Event Output Shall Contain At Least N Events    ${count}    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+
+all events shall contain timestamp
+    Each Event In Output Shall Contain Timestamp    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+
+the event output shall contain workloadStates
+    Event Output Shall Contain WorkloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+
+the event output shall contain desiredState
+    Event Output Shall Contain DesiredState    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+
+the event output shall contain altered fields with removed workloads
+    Event Output Shall Contain Altered Fields With Removed Workloads    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+
+all workloads of agent "${agent_names}" have left the initial execution state
+    User Waits For All Workloads To Start Via Events    ${agent_names}    60
+
+all workloads of agent "${agent_names}" have left the initial execution state within "${timeout}" seconds
+    User Waits For All Workloads To Start Via Events    ${agent_names}    ${timeout}
+
+the workload "${workload_name}" shall reach state "${expected_state}" on agent "${agent_name}" via events
+    User Waits For Workload To Reach State Via Events    ${workload_name}    ${agent_name}    ${expected_state}    60
+
+the workload "${workload_name}" shall reach state "${expected_state}" on agent "${agent_name}" via events within "${timeout}" seconds
+    User Waits For Workload To Reach State Via Events    ${workload_name}    ${agent_name}    ${expected_state}    ${timeout}
+
+the workload "${workload_name}" shall not exist on agent "${agent_name}" via events
+    User Waits For Workload Removal Via Events    ${workload_name}    ${agent_name}    60
+
+the workload "${workload_name}" shall not exist on agent "${agent_name}" via events within "${timeout}" seconds
+    User Waits For Workload Removal Via Events    ${workload_name}    ${agent_name}    ${timeout}

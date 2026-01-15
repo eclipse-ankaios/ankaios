@@ -77,6 +77,19 @@ fn annotate_complete_state(builder: Builder) -> Builder {
         )
         .field_attribute("ExecutionState.ExecutionStateEnum", "#[serde(flatten)]")
         .field_attribute("WorkloadStatesMap.agentStateMap", "#[serde(flatten)]")
+        // AlteredFields
+        .field_attribute(
+            "AlteredFields.addedFields",
+            "#[serde(skip_serializing_if = \"Vec::is_empty\")]",
+        )
+        .field_attribute(
+            "AlteredFields.updatedFields",
+            "#[serde(skip_serializing_if = \"Vec::is_empty\")]",
+        )
+        .field_attribute(
+            "AlteredFields.removedFields",
+            "#[serde(skip_serializing_if = \"Vec::is_empty\")]",
+        )
 }
 
 fn annotate_workload(builder: Builder) -> Builder {

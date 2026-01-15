@@ -28,9 +28,8 @@ Test Ankaios MTLS by providing PEM files via environment variables
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
     And Ankaios agent is started with name "agent_B"
-    And all workloads of agent "agent_B" have an initial execution state
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And all workloads of agent "agent_A and agent_B" have left the initial execution state
     # Actions
     When user triggers "ank get workloads"
     # Asserts
@@ -86,9 +85,8 @@ Test Ankaios insecure mode by providing --insecure command line arguments
     Given Podman has deleted all existing containers
     And Ankaios insecure server is started with config "${CONFIGS_DIR}/default.yaml"
     And Ankaios insecure agent is started with name "agent_B"
-    And all workloads of agent "agent_B" have an initial execution state
     And Ankaios insecure agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And all workloads of agent "agent_A and agent_B" have left the initial execution state
     # Actions
     When user triggers "ank --insecure get workloads"
     # # Asserts

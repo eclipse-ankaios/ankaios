@@ -19,12 +19,13 @@ import json
 import re
 import uuid
 import functools
+import signal
 from fnmatch import fnmatch
 from robot.api import logger
 from robot.libraries.BuiltIn import BuiltIn
-from tempfile import TemporaryDirectory
-from os import path
-from typing import Union
+from tempfile import TemporaryDirectory, NamedTemporaryFile
+from os import path, unlink, environ
+from typing import Callable, Union
 import shutil
 import tomllib
 
@@ -265,25 +266,233 @@ def get_pod_id_by_pod_name_from_podman(pod_name: str) -> str:
     return pod_id
 
 
-def wait_for_initial_execution_state(command: str, agent_name: str, timeout: float=10, next_try_in_sec: float=0.25):
-        start_time = get_time_secs()
-        logger.trace(run_command("ps aux | grep ank").stdout)
-        logger.trace(run_command("podman ps -a").stdout)
-        res = run_command(command)
-        table = table_to_list(res.stdout if res else "")
-        logger.trace(table)
-        while (get_time_secs() - start_time) < timeout:
-            if table and all([(len(row["EXECUTION STATE"].strip()) > 0 and row["EXECUTION STATE"].strip() != "Pending(Initial)") for row in filter(lambda r: r["AGENT"] == agent_name, table)]):
-                return table
+def wait_for_state_change_via_events(field_mask: str, condition_func: Callable[[dict], bool], timeout: float=10, ank_bin_dir: str=None) -> dict:
+    """
+    Method starts the ank cli, listening for events and checks
+    whether a specific condition is met, which is provided through
+    the `condition_func` argument.
 
-            time.sleep(next_try_in_sec)
-            logger.trace(run_command("ps aux | grep ank").stdout)
-            logger.trace(run_command("podman ps -a").stdout)
-            res = run_command(command)
-            logger.trace(res)
-            table = table_to_list(res.stdout if res else "")
-            logger.trace(table)
-        return list()
+    Returns:
+        The event that fulfilled the condition, None otherwise.
+    """
+    if ank_bin_dir is None:
+        ank_bin_dir = environ.get('ANK_BIN_DIR', '.')
+
+    ank_path = path.join(ank_bin_dir, 'ank')
+
+    with NamedTemporaryFile(mode='w+', delete=False, suffix='.jsonl') as tmp_file:
+        tmp_filename = tmp_file.name
+
+    stdout_file = None
+    process = None
+
+    try:
+        cmd = [ank_path, '-k', 'get', 'events', '-o', 'json']
+        if field_mask:
+            cmd.append(field_mask)
+
+        logger.trace(f"Starting event listener: {' '.join(cmd)}")
+        stdout_file = open(tmp_filename, 'w', buffering=1)  # Line buffering
+        process = subprocess.Popen(
+            cmd,
+            stdout=stdout_file,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        start_time = get_time_secs()
+        last_position = 0
+        first_event_received = False
+
+        while (get_time_secs() - start_time) < timeout:
+            if process.poll() is not None:
+                stderr = process.stderr.read()
+                if "could not connect to ankaios server" in stderr.lower():
+                    # when the server is not yet available, restart the process until the timeout is reached
+                    if stdout_file:
+                        stdout_file.close()
+                    process.terminate()
+                    process.wait(timeout=2)
+                    if path.exists(tmp_filename):
+                        unlink(tmp_filename)
+
+                    stdout_file = open(tmp_filename, 'w', buffering=1)
+                    process = subprocess.Popen(
+                        cmd,
+                        stdout=stdout_file,
+                        stderr=subprocess.PIPE,
+                        text=True
+                    )
+                    logger.warn("Restarted event listener process. This might happen and does not indicate a test failure.")
+                else:
+                    logger.warn(f"Event listener process terminated: {stderr}")
+                    break
+
+            if stdout_file:
+                stdout_file.flush()
+
+            with open(tmp_filename, 'r') as f:
+                f.seek(last_position)
+                new_content = f.read()
+                last_position = f.tell()
+
+            if new_content:
+                for line in new_content.strip().split('\n'):
+                    if not line.strip():
+                        continue
+                    try:
+                        event = json.loads(line)
+                        first_event_received = True
+                        logger.trace(f"Received event: {event.get('timestamp', 'no timestamp')}")
+
+                        if condition_func(event):
+                            logger.trace("Condition met!")
+                            if process and process.poll() is None:
+                                process.send_signal(signal.SIGTERM)
+                                process.wait(timeout=2)
+                            return event
+                    except json.JSONDecodeError as e:
+                        logger.warn(f"Failed to parse event line: {e}")
+
+            time.sleep(0.1)
+
+        logger.trace(f"Event waiting timed out after {timeout}s, first_event_received={first_event_received}")
+        if not first_event_received:
+            logger.warn(f"No events received from 'ank get events' after {timeout}s - possible connection or subscription issue")
+        if process and process.poll() is None:
+            process.send_signal(signal.SIGTERM)
+            process.wait(timeout=2)
+
+        return None
+
+    finally:
+        if stdout_file:
+            stdout_file.close()
+        if process and process.poll() is None:
+            try:
+                process.terminate()
+                process.wait(timeout=2)
+            except:
+                pass
+        # Clean up temp file
+        if path.exists(tmp_filename):
+            unlink(tmp_filename)
+
+
+def wait_for_execution_state_via_events(workload_name: str, agent_name: str, expected_state: str, timeout: float=10, ank_bin_dir: str=None) -> dict:
+    def condition(event: dict, agent_name: str, workload_name: str, expected_state: str):
+        """
+        Condition fulfilled if:
+        - the specified workload has the expected state.
+        """
+        complete_state = event.get('completeState', {})
+        workload_states = complete_state.get('workloadStates', {})
+        agent_workloads = workload_states.get(agent_name, {})
+        workload = agent_workloads.get(workload_name, {})
+        logger.warn(f"Workload states for {workload_name} on {agent_name}: {workload}")
+
+        for _, instance_state in workload.items():
+            state = instance_state.get('state', '')
+            sub_state = instance_state.get('subState', '')
+            current_state = f"{state}({sub_state})" if sub_state else state
+
+            logger.trace(f"Workload {workload_name} on {agent_name} current state: {current_state}")
+            if current_state == expected_state:
+                return True
+        return False
+
+    logger.trace(f"Waiting for workload '{workload_name}' on agent '{agent_name}' to reach state '{expected_state}'")
+    return wait_for_state_change_via_events(
+        field_mask="workloadStates",
+        condition_func=lambda event: condition(event, agent_name, workload_name, expected_state),
+        timeout=timeout,
+        ank_bin_dir=ank_bin_dir
+    )
+
+
+def wait_for_initial_execution_state_via_events(agent_names: list[str], timeout: float=10, ank_bin_dir: str=None) -> dict:
+    def condition(event: dict, agent_name: str):
+        """
+        Condition fulfilled if:
+        - specified agents are connected
+        - all workloads of the agents have left the Pending(Initial) state
+        """
+        complete_state: dict = event.get('completeState', {})
+        workload_states: dict = complete_state.get('workloadStates', {})
+        agent_workloads: dict = {}
+        for agent_name in agent_names:
+            if agent_name in workload_states:
+                agent_workloads = workload_states.get(agent_name, {})
+                break
+        logger.trace(f"Complete state: {complete_state}")
+        logger.trace(f"Agent workloads: {agent_workloads}")
+
+        if not agent_workloads:
+            return False
+
+        for workload_name, workload in agent_workloads.items():
+            for _, instance_state in workload.items():
+                state = instance_state.get('state', '')
+                sub_state = instance_state.get('subState', '')
+                current_state = f"{state}({sub_state})" if sub_state else state
+
+                if current_state == "Pending(Initial)" or current_state == "" or not current_state:
+                    logger.trace(f"Workload {workload_name} still in Pending(Initial)")
+                    return False
+
+        logger.trace(f"All workloads on agent '{agent_name}' have left Pending(Initial)")
+        return True
+
+    logger.trace(f"Waiting for all workloads on agents '{agent_names}' to leave Pending(Initial) state")
+    return wait_for_state_change_via_events(
+        field_mask="workloadStates",
+        condition_func=lambda event: condition(event, agent_names),
+        timeout=timeout,
+        ank_bin_dir=ank_bin_dir
+    )
+
+
+def wait_for_workload_removal_via_events(workload_name: str, agent_name: str, timeout: float=10, ank_bin_dir: str=None) -> dict:
+    def condition(event: dict, agent_name: str, workload_name: str):
+        """
+        Condition fulfilled if the specified workload is not found or has been removed.
+        Providing a name will limit the search to only that agent, otherwise it will
+        be searched through all agents.
+        """
+        removed_fields = event.get('removedFields', [])
+        for field in removed_fields:
+            if workload_name in field and 'workloadStates' in field:
+                if not agent_name or agent_name in field:
+                    logger.trace(f"Workload {workload_name} removed from agent {agent_name}")
+                    return True
+
+        complete_state = event.get('completeState', {})
+        workload_states = complete_state.get('workloadStates', {})
+
+        if agent_name:
+            agent_workloads = workload_states.get(agent_name, {})
+            if workload_name not in agent_workloads:
+                logger.trace(f"Workload {workload_name} not found on agent {agent_name} (removed)")
+                return True
+        else:
+            found = False
+            for _, workloads in workload_states.items():
+                if workload_name in workloads:
+                    found = True
+                    break
+            if not found:
+                logger.trace(f"Workload {workload_name} not found on any agent (removed)")
+                return True
+
+        return False
+
+    logger.trace(f"Waiting for workload '{workload_name}' to be removed from agent '{agent_name}'")
+    return wait_for_state_change_via_events(
+        field_mask="workloadStates",
+        condition_func=lambda event: condition(event, agent_name, workload_name),
+        timeout=timeout,
+        ank_bin_dir=ank_bin_dir
+    )
 
 
 def workload_with_execution_state(table: list, workload_name: str, expected_state: str) -> list:
@@ -749,7 +958,10 @@ def internal_check_all_result_expectations_succeeded(tmp_folder):
         elif expectation["type"] == "exact_altered_fields":
             alteration_type = expectation["alteration_type"]
             expected_masks = expectation["masks"]
-            actual_masks = test_result["result"]["value"]["value"][1][alteration_type]
+            try:
+                actual_masks = test_result["result"]["value"]["value"][1][alteration_type]
+            except KeyError:
+                actual_masks = []
             actual_masks_clone = actual_masks.copy()
             for em in expected_masks:
                 failed = True
@@ -858,3 +1070,267 @@ def get_instance_name_from_ankaios_workload_states(workload_states: str, workloa
 
     logger.warning(f"Workload '{workload_name}' not found in workload states")
     return ""
+
+@err_logging_decorator
+def event_output_shall_contain_workload(workload_name: str, output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    assert workload_name in content, f"Workload '{workload_name}' not found in event output"
+    logger.trace(f"Found workload '{workload_name}' in event output")
+
+
+@err_logging_decorator
+def event_output_shall_be_valid_yaml_format(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    documents = [doc.strip() for doc in content.strip().split('---') if doc.strip()]
+
+    assert len(documents) > 0, "No YAML documents found in event output"
+
+    for doc in documents:
+        try:
+            yaml.safe_load(doc)
+        except yaml.YAMLError as e:
+            raise AssertionError(f"Invalid YAML format in event output: {e}")
+
+    logger.trace(f"Event output contains {len(documents)} valid YAML documents")
+
+
+@err_logging_decorator
+def event_output_shall_be_valid_json_format(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    lines = [line.strip() for line in content.strip().split('\n') if line.strip()]
+
+    assert len(lines) > 0, "No JSON objects found in event output"
+
+    for i, line in enumerate(lines):
+        try:
+            json.loads(line)
+        except json.JSONDecodeError as e:
+            raise AssertionError(f"Invalid JSON format in event {i+1}: {e}\nLine: {line[:200]}...")
+
+    logger.trace(f"Event output contains {len(lines)} valid JSONL events")
+
+
+@err_logging_decorator
+def event_output_shall_contain_timestamp(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    assert "timestamp" in content, "No timestamp field found in event output"
+    logger.trace("Event output contains timestamp")
+
+
+@err_logging_decorator
+def event_output_shall_contain_timestamp_in_rfc3339_format(output_file: str):
+    import re
+
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    rfc3339_pattern = r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})'
+
+    assert re.search(rfc3339_pattern, content), \
+        "No RFC3339 formatted timestamp found in event output"
+
+    logger.trace("Event output contains RFC3339 formatted timestamp")
+
+
+@err_logging_decorator
+def event_output_shall_contain_only_desiredstate_workloads(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    documents = [doc.strip() for doc in content.strip().split('---') if doc.strip()]
+
+    for doc in documents:
+        data = yaml.safe_load(doc)
+        if data and ('complete_state' in data or 'completeState' in data):
+            complete_state = data.get('complete_state') or data.get('completeState')
+            if complete_state:
+                desired_state = complete_state.get('desiredState') or complete_state.get('desired_state')
+                assert desired_state is not None, "desiredState not found in event output"
+                assert 'workloads' in desired_state, "workloads field not found in desiredState"
+                logger.trace("Event output contains only desiredState workloads")
+                return
+
+    raise AssertionError("Could not verify desiredState.workloads in event output")
+
+
+@err_logging_decorator
+def event_output_shall_contain_at_least_n_events(count: str, output_file: str):
+    expected_count = int(count)
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    content_stripped = content.strip()
+    if content_stripped.startswith('---'):
+        yaml_docs = [doc.strip() for doc in content_stripped.split('---') if doc.strip()]
+        assert len(yaml_docs) >= expected_count, \
+            f"Expected at least {expected_count} events, but found {len(yaml_docs)}"
+        logger.trace(f"Found at least {expected_count} events (YAML format)")
+    else:
+        json_lines = [line.strip() for line in content_stripped.split('\n') if line.strip()]
+        assert len(json_lines) >= expected_count, \
+            f"Expected at least {expected_count} events, but found {len(json_lines)}"
+        logger.trace(f"Found at least {expected_count} events (JSONL format)")
+
+
+@err_logging_decorator
+def each_event_in_output_shall_contain_timestamp(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    content_stripped = content.strip()
+    if content_stripped.startswith('---'):
+        yaml_docs = [doc.strip() for doc in content_stripped.split('---') if doc.strip()]
+
+        for doc in yaml_docs:
+            data = yaml.safe_load(doc)
+            assert 'timestamp' in data, f"Event missing timestamp field: {doc[:100]}"
+
+        logger.trace("Each event contains timestamp (YAML format)")
+    else:
+        lines = [line.strip() for line in content_stripped.split('\n') if line.strip()]
+
+        for line in lines:
+            data = json.loads(line)
+            assert 'timestamp' in data, f"Event missing timestamp field: {line[:100]}"
+
+        logger.trace("Each event contains timestamp (JSONL format)")
+
+
+@err_logging_decorator
+def event_output_shall_contain_workloadstates(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    assert "workloadStates" in content or "workload_states" in content, \
+        "workloadStates field not found in event output"
+
+    logger.trace("Event output contains workloadStates")
+
+
+@err_logging_decorator
+def event_output_shall_contain_desiredstate(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    assert "desiredState" in content or "desired_state" in content, \
+        "desiredState field not found in event output"
+
+    logger.trace("Event output contains desiredState")
+
+
+@err_logging_decorator
+def event_output_shall_contain_altered_fields_with_removed_workloads(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    found_removal = False
+
+    content_stripped = content.strip()
+    if content_stripped.startswith('---'):
+        yaml_docs = [doc.strip() for doc in content_stripped.split('---') if doc.strip()]
+
+        for doc in yaml_docs:
+            data = yaml.safe_load(doc)
+            if data:
+                removed = data.get('removedFields') or data.get('removed_fields', [])
+                if removed and len(removed) > 0:
+                    found_removal = True
+                    break
+                if 'altered_fields' in data or 'alteredFields' in data:
+                    altered = data.get('altered_fields') or data.get('alteredFields')
+                    if altered:
+                        removed = altered.get('removed_fields') or altered.get('removedFields', [])
+                        if removed and len(removed) > 0:
+                            found_removal = True
+                            break
+    else:
+        lines = [line.strip() for line in content_stripped.split('\n') if line.strip()]
+
+        for line in lines:
+            data = json.loads(line)
+            removed = data.get('removedFields') or data.get('removed_fields', [])
+            if removed and len(removed) > 0:
+                found_removal = True
+                break
+            if 'alteredFields' in data or 'altered_fields' in data:
+                altered = data.get('alteredFields') or data.get('altered_fields')
+                if altered:
+                    removed = altered.get('removedFields') or altered.get('removed_fields', [])
+                    if removed and len(removed) > 0:
+                        found_removal = True
+                        break
+
+    assert found_removal, "No removed workloads found in altered_fields"
+    logger.trace("Event output contains altered fields with removed workloads")
+
+
+@err_logging_decorator
+def user_waits_for_workload_to_reach_state_via_events(workload_name: str, agent_name: str, expected_state: str, timeout: str="10"):
+    timeout_float = float(timeout)
+    result = wait_for_execution_state_via_events(
+        workload_name=workload_name,
+        agent_name=agent_name,
+        expected_state=expected_state,
+        timeout=timeout_float
+    )
+
+    assert result is not None, \
+        f"Timeout waiting for workload '{workload_name}' on agent '{agent_name}' to reach state '{expected_state}'"
+
+    logger.trace(f"Workload '{workload_name}' reached state '{expected_state}'")
+
+
+@err_logging_decorator
+def user_waits_for_all_workloads_to_start_via_events(agent_names: str, timeout: str="10"):
+    # Support multiple agent names separated by 'and'
+    timeout_float = float(timeout)
+    agent_names_split = [agent_names.strip() for agent_names in agent_names.split('and')]
+    logger.trace(f"Waiting for all workloads on agents {agent_names_split} to leave Pending(Initial) state")
+    result = wait_for_initial_execution_state_via_events(
+        agent_names=agent_names_split,
+        timeout=timeout_float
+    )
+
+    assert result is not None, \
+        f"Timeout waiting for all workloads on agents '{agent_names_split}' to leave Pending(Initial) state"
+
+    logger.trace(f"All workloads on agents '{agent_names_split}' have started")
+
+
+@err_logging_decorator
+def user_waits_for_workload_removal_via_events(workload_name: str, agent_name: str, timeout: str="10"):
+    timeout_float = float(timeout)
+    result = wait_for_workload_removal_via_events(
+        workload_name=workload_name,
+        agent_name=agent_name,
+        timeout=timeout_float
+    )
+
+    assert result is not None, \
+        f"Timeout waiting for workload '{workload_name}' to be removed from agent '{agent_name}'"
+
+    logger.trace(f"Workload '{workload_name}' has been removed")
