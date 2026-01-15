@@ -67,9 +67,9 @@ Test Ankaios observes the inter-workload dependencies when deleting workloads
     # Actions
     When user triggers "ank -k --no-wait delete workload backend"
     And the workload "backend" shall have the execution state "Stopping(WaitingToStop)" on agent "agent_A"
-    And user triggers "ank -k delete workload frontend"
+    And user triggers "ank -k --no-wait delete workload frontend"
     # Asserts
-    Then the workload "backend" shall not exist on agent "agent_A" within "20" seconds
+    Then the workload "backend" shall be removed and not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-handles-new-workload-operations~1]
@@ -92,9 +92,9 @@ Test Ankaios CLI update workload with pending delete
     And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.backend.runtimeConfig.commandOptions=['-p', '8084:80']"
     And user triggers "ank -k --no-wait set state desiredState.workloads.backend ${new_state_yaml_file}"
     And the workload "backend" shall have the execution state "Stopping(WaitingToStop)" on agent "agent_A" within "20" seconds
-    And user triggers "ank -k delete workload frontend"
+    And user triggers "ank -k --no-wait delete workload frontend"
     # Asserts
-    Then the workload "frontend" shall not exist on agent "agent_A" within "20" seconds
+    Then the workload "frontend" shall be removed and not exist on agent "agent_A" within "20" seconds
     And the workload "backend" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 

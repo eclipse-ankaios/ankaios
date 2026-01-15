@@ -383,23 +383,6 @@ def extract_agent_name_from_config_file(config_file: str) -> str:
 
         return agent_name
 
-
-def wait_for_workload_removal(command: str, workload_name: str, expected_agent_name: str, timeout: float=10, next_try_in_sec: float=0.25) -> list:
-        start_time = get_time_secs()
-        res = run_command(command)
-        table = table_to_list(res.stdout if res else "")
-        logger.trace(table)
-        while (get_time_secs() - start_time) < timeout:
-            if table and any([not expected_agent_name or row["AGENT"].strip() == expected_agent_name for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
-                time.sleep(next_try_in_sec)
-                res = run_command(command)
-                table = table_to_list(res.stdout if res else "")
-                logger.trace(table)
-            else:
-                return list()
-        return table
-
-
 # MANDATORY FOR STABLE SYSTEM TESTS
 @err_logging_decorator
 def config_name_shall_exist_in_list(config_name: str, current_result: str):
@@ -1245,6 +1228,14 @@ def workload_has_execution_state(workload_name: str, agent_name: str, expected_s
             workload = agent_workloads.get(workload_name, {})
             logger.trace(f"Complete state: {complete_state}")
             logger.trace(f"Agent workloads: {agent_workloads}")
+
+            # special handling for Removed state (no entry in state of event means removed)
+            if expected_state == "Removed" and not workload:
+                removed_fields = event.get('removedFields', [])
+                for field in removed_fields:
+                    if field == f"workloadStates.{agent_name}.{workload_name}" or field == f"workloadStates.{agent_name}":
+                        logger.trace(f"Workload '{workload_name}' has been removed from agent '{agent_name}' indicated by removed field: '{field}'.")
+                        return True
 
             for _, instance_state in workload.items():
                 state = instance_state.get('state', '')
