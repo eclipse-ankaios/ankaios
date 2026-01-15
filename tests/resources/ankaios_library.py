@@ -1070,7 +1070,7 @@ def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bi
                     try:
                         event = json.loads(new_line)
                         first_event_received = True
-                        log_file_handle.write(f"Received event: {event.get('timestamp', 'no timestamp')}\n")
+                        log_file_handle.write(f"Received event: {event}\n")
                         event_buffer.append(event)
                         EVENTS_RECEIVED.set()
                     except json.JSONDecodeError as e:
