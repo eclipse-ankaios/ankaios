@@ -1046,10 +1046,10 @@ user starts event listener with format "${format}" and field mask "${field_mask}
     Start Process    ${cmd}    shell=True    stdout=target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/events_error.txt    alias=event-listener
 
 the CLI listens for workload states
-    Listen For Events With Timeout    workloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/stest_event_logs.log    %{ANK_BIN_DIR}    60
+    Listen For Events With Timeout    workloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/stest_event_logs.log    %{ANK_BIN_DIR}    20
 
 the CLI listens for workload states in insecure mode
-    Listen For Events With Timeout    workloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/stest_event_logs.log    %{ANK_BIN_DIR}    60    insecure=${True}
+    Listen For Events With Timeout    workloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/stest_event_logs.log    %{ANK_BIN_DIR}    20    insecure=${True}
 
 the event output shall contain workload "${workload_name}"
     Event Output Shall Contain Workload    ${workload_name}    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
