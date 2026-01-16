@@ -33,7 +33,7 @@ Test Ankaios starts manifest with workload files assigned to workloads
     Given Podman has deleted all existing containers
     And containerd has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
+    When Ankaios server is started with manifest "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     # Asserts
@@ -55,7 +55,7 @@ Test Ankaios updates a workload upon update of its workload file content
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
+    When Ankaios server is started with manifest "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload "podman_workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
@@ -75,7 +75,7 @@ Test Ankaios updates a workload upon adding additional workload files
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
+    When Ankaios server is started with manifest "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload "podman_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
@@ -96,7 +96,7 @@ Test Ankaios rejects unsupported workload files for workloads using podman-kube 
     # This test assumes that all pods and volumes in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing pods
     And Podman has deleted all existing volumes
-    And Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
     And the CLI listens for workload states
     # Actions
     When Ankaios agent is started with name "agent_B"

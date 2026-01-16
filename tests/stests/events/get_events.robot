@@ -32,7 +32,7 @@ Test Ankaios CLI get events with field mask filter
 
     # Preconditions
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config successfully
+    And Ankaios server is started without manifest successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user starts event listener with format "yaml" and field mask "desiredState.workloads" in background
@@ -54,7 +54,7 @@ Test Ankaios CLI get events receives multiple sequential events
 
     # Preconditions
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
@@ -92,7 +92,7 @@ Test Ankaios CLI get events with workload state changes
 
     # Preconditions
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
@@ -114,7 +114,7 @@ Test Ankaios CLI get events includes timestamp in output
 
     # Preconditions
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
@@ -135,7 +135,7 @@ Test Ankaios CLI get events with empty field mask
 
     # Preconditions
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/default.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
@@ -157,7 +157,7 @@ Test Ankaios CLI get events with workload deletion
 
     # Preconditions
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/default.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"

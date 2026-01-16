@@ -29,7 +29,7 @@ Test Ankaios containerd retry creation of a workload on creation failure
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
     Given containerd has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/containerd_invalid_image.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/containerd_invalid_image.yaml"
     And Ankaios agent is started with name "agent_A"
     # Asserts
     Then the workload state of workload "invalid_image_workload" shall contain an additional info signaling retries within "5" seconds
@@ -45,7 +45,7 @@ Test Ankaios containerd retry creation of a workload on creation failure interce
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
     Given containerd has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/containerd_invalid_image.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/containerd_invalid_image.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload state of workload "invalid_image_workload" shall contain an additional info signaling retries within "5" seconds
@@ -67,7 +67,7 @@ Test Ankaios containerd retry creation of a workload on creation failure interce
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
     Given containerd has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/containerd_invalid_image.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/containerd_invalid_image.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload state of workload "invalid_image_workload" shall contain an additional info signaling retries within "5" seconds

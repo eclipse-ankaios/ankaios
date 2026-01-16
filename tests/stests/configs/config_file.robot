@@ -32,7 +32,7 @@ Test server config file successful start-up
 Test agent config file successful start-up
     [Setup]        Setup Ankaios
     # Preconditions
-    Ankaios server is started without config successfully
+    Ankaios server is started without manifest successfully
     And Ankaios server is available
     And Ankaios agent is started with config file "${CONFIGS_DIR}/ank-agent-default.conf"
     # Actions
@@ -46,7 +46,7 @@ Test agent config file successful start-up
 Test server config overwrite manifest with cli arguments
     [Setup]        Setup Ankaios
     # Preconditions
-    Ankaios server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server.conf"
+    Ankaios server is started with manifest "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server.conf"
     And Ankaios server is available
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"

@@ -35,7 +35,7 @@ Test Ankaios start up with templated Ankaios manifest and update state with upda
     # Preconditions
     # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${start_up_yaml_file}"
+    And Ankaios server is started with manifest "${start_up_yaml_file}"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
@@ -55,7 +55,7 @@ Test Ankaios update configs with invalid config item key
     # Preconditions
     # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config successfully
+    And Ankaios server is started without manifest successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     Then the configs field inside the state shall be empty
@@ -72,7 +72,7 @@ Test Ankaios update workload with invalid config alias
     # Preconditions
     # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config successfully
+    And Ankaios server is started without manifest successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     Then the configs field inside the state shall be empty
@@ -89,7 +89,7 @@ Test Ankaios update workload with invalid config reference key
     # Preconditions
     # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config successfully
+    And Ankaios server is started without manifest successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     Then the configs field inside the state shall be empty

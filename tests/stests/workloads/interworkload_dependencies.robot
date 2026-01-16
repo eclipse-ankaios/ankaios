@@ -37,7 +37,7 @@ Test Ankaios observes the inter-workload dependencies when creating workloads
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/create_workloads_with_dependencies_config.yaml"
+    When Ankaios server is started with manifest "${CONFIGS_DIR}/create_workloads_with_dependencies_config.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
@@ -60,7 +60,7 @@ Test Ankaios observes the inter-workload dependencies when deleting workloads
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/delete_workloads_with_dependencies.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/delete_workloads_with_dependencies.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload "frontend" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
@@ -83,7 +83,7 @@ Test Ankaios CLI update workload with pending delete
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${default_state_yaml_file}"
+    And Ankaios server is started with manifest "${default_state_yaml_file}"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload "frontend" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
@@ -109,7 +109,7 @@ Test Ankaios CLI update workload with pending create
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${default_state_yaml_file}"
+    And Ankaios server is started with manifest "${default_state_yaml_file}"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload "after_backend" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
