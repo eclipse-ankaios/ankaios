@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::Arguments;
-use crate::io_utils::DEFAULT_RUN_FOLDER;
+use crate::io_utils::default_run_folder_string;
 
 use common::DEFAULT_SERVER_ADDRESS;
 use common::std_extensions::UnreachableOption;
@@ -61,10 +61,6 @@ pub fn get_default_url() -> String {
     DEFAULT_SERVER_ADDRESS.to_string()
 }
 
-fn get_default_run_folder() -> String {
-    DEFAULT_RUN_FOLDER.to_string()
-}
-
 // [impl->swdd~agent-loads-config-file~1]
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct AgentConfig {
@@ -73,7 +69,7 @@ pub struct AgentConfig {
     pub name: String,
     #[serde(default = "get_default_url")]
     pub server_url: String,
-    #[serde(default = "get_default_run_folder")]
+    #[serde(default = "crate::io_utils::default_run_folder_string")]
     pub run_folder: String,
     #[serde(default)]
     pub insecure: bool,
@@ -95,7 +91,7 @@ impl Default for AgentConfig {
             version: CONFIG_VERSION.to_string(),
             name: String::new(),
             server_url: get_default_url(),
-            run_folder: get_default_run_folder(),
+            run_folder: default_run_folder_string(),
             insecure: bool::default(),
             runtimes: None,
             tags: HashMap::new(),
@@ -199,7 +195,7 @@ impl AgentConfig {
 #[cfg(test)]
 mod tests {
     use super::{AgentConfig, CONFIG_VERSION};
-    use crate::io_utils::DEFAULT_RUN_FOLDER;
+    use crate::io_utils::default_run_folder_string;
     use crate::{agent_config::ConversionErrors, cli::Arguments};
 
     use ankaios_api::test_utils::fixtures;
@@ -269,12 +265,13 @@ mod tests {
     // [utest->swdd~agent-loads-config-file~1]
     #[test]
     fn utest_agent_config_update_with_args() {
+        let default_run_folder = default_run_folder_string();
         let mut agent_config = AgentConfig::default();
         let args = Arguments {
             config_path: None,
             agent_name: Some(fixtures::AGENT_NAMES[0].to_string()),
             server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
-            run_folder: Some(DEFAULT_RUN_FOLDER.to_string()),
+            run_folder: Some(default_run_folder.clone()),
             insecure: Some(false),
             tags: None,
             ca_pem: Some(fixtures::CA_PEM_PATH.to_string()),
@@ -286,7 +283,7 @@ mod tests {
 
         assert_eq!(agent_config.name, fixtures::AGENT_NAMES[0].to_string());
         assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
-        assert_eq!(agent_config.run_folder, DEFAULT_RUN_FOLDER.to_string());
+        assert_eq!(agent_config.run_folder, default_run_folder);
         assert!(!agent_config.insecure);
         assert_eq!(agent_config.ca_pem, Some(fixtures::CA_PEM_PATH.to_string()));
         assert_eq!(
@@ -302,6 +299,7 @@ mod tests {
     // [utest->swdd~agent-loads-config-file~1]
     #[test]
     fn utest_agent_config_update_with_args_certificates_content() {
+        let default_run_folder = default_run_folder_string();
         let agent_config_content = format!(
             r"#
         version = 'v1'
@@ -323,7 +321,7 @@ mod tests {
             config_path: None,
             agent_name: Some(fixtures::AGENT_NAMES[0].to_string()),
             server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
-            run_folder: Some(DEFAULT_RUN_FOLDER.to_string()),
+            run_folder: Some(default_run_folder),
             insecure: Some(false),
             tags: None,
             ca_pem: None,
@@ -350,6 +348,7 @@ mod tests {
     // [utest->swdd~agent-loads-config-file~1]
     #[test]
     fn utest_agent_config_from_file_successful() {
+        let default_run_folder = default_run_folder_string();
         let agent_config_content = format!(
             r"#
         version = 'v1'
@@ -362,7 +361,7 @@ mod tests {
         key_pem_content = '''{}'''
         #",
             fixtures::AGENT_NAMES[0],
-            DEFAULT_RUN_FOLDER,
+            default_run_folder,
             fixtures::CA_PEM_CONTENT,
             fixtures::CRT_PEM_CONTENT,
             fixtures::KEY_PEM_CONTENT
@@ -379,7 +378,7 @@ mod tests {
 
         assert_eq!(agent_config.name, fixtures::AGENT_NAMES[0].to_string());
         assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
-        assert_eq!(agent_config.run_folder, DEFAULT_RUN_FOLDER.to_string());
+        assert_eq!(agent_config.run_folder, default_run_folder_string());
         assert!(agent_config.insecure);
         assert_eq!(
             agent_config.ca_pem_content,
