@@ -33,13 +33,14 @@ Test Ankaios starts manifest with workload files assigned to workloads
     Given Podman has deleted all existing containers
     And containerd has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
+    When Ankaios server is started with manifest "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     # Asserts
     Then the workload "podman_workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "podman_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
-    And the workload "containerd_workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
-    And the workload "containerd_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
+    And the workload "containerd_workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A" within "10" seconds
+    And the workload "containerd_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "10" seconds
     And the command "curl -Lf localhost:8087/custom" shall finish with exit code "0"
     And the command "curl -Lf localhost:8088/custom" shall finish with exit code "0"
     [Teardown]    Clean up Ankaios
@@ -54,7 +55,8 @@ Test Ankaios updates a workload upon update of its workload file content
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
+    When Ankaios server is started with manifest "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload "podman_workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
     And user triggers "ank -k --no-wait set state desiredState.workloads.podman_workload_with_mounted_text_file desiredState.configs.web_server_config ${CONFIGS_DIR}/update_state_workload_files.yaml"
@@ -73,7 +75,8 @@ Test Ankaios updates a workload upon adding additional workload files
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
+    When Ankaios server is started with manifest "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload "podman_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # First update the files only by setting the update mask
@@ -93,7 +96,8 @@ Test Ankaios rejects unsupported workload files for workloads using podman-kube 
     # This test assumes that all pods and volumes in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing pods
     And Podman has deleted all existing volumes
-    And Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
+    And the CLI listens for workload states
     # Actions
     When Ankaios agent is started with name "agent_B"
     # Asserts

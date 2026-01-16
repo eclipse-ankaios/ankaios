@@ -31,14 +31,15 @@ Test Ankaios Podman remove workloads
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/default.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_B"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A and agent_B" have left the initial execution state
     # Actions
-    When user triggers "ank -k delete workload sleepy"
+    When user triggers "ank --no-wait -k delete workload sleepy"
     # Asserts
-    Then the workload "sleepy" shall not exist on agent "agent_A" within "20" seconds
+    Then the workload "sleepy" shall be removed and not exist on agent "agent_A" within "20" seconds
     And the workload "hello1" shall have the execution state "Failed(Lost)" from agent "agent_B" within "20" seconds
     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "20" seconds
     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "20" seconds

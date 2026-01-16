@@ -38,10 +38,6 @@ ${CONFIGS_DIR}=    ${CURDIR}/configs
 
 
 *** Keywords ***
-Get MTLS Enabled
-    ${result}=    Get Environment Variable    name=MTLS_ENABLED    default=False
-    RETURN    ${result}
-
 Retrieve current Ankaios version
     ${run_result}=    Run Process    command=%{ANK_BIN_DIR}${/}ank-server --version    shell=True
     ${ANKAIOS_VERSION}=    Evaluate    '${run_result.stdout}'.split(' ')[1]
@@ -53,9 +49,6 @@ Setup Ankaios without MTLS Setup
     ${TEST_FOLDER_NAME}=    Evaluate    '${TEST_NAME}'.lower().replace(' ', '_')
     Set Global Variable    ${TEST_FOLDER_NAME}
     ${run_result}=    Run Process    command=mkdir -p "target/robot_tests_result/${TEST_FOLDER_NAME}"    shell=True
-    Set Environment Variable    name=ANKSERVER_INSECURE    value=true
-    Set Environment Variable    name=ANKAGENT_INSECURE    value=true
-    Set Environment Variable    name=ANK_INSECURE    value=true
 
 Setup Ankaios
     [Arguments]    ${mtls_enabled}=False
@@ -63,6 +56,7 @@ Setup Ankaios
     Setup Ankaios without MTLS Setup
 
 Clean up Ankaios
+    Unsubscribe From Events
     Terminate All Processes    kill=True
     Clean up Podman
     Clean up containerd
@@ -163,7 +157,7 @@ the command "${cli_command}" finished with exit code "${exit_code}" within "${ti
         END
     END
 
-Ankaios server is started with config "${config_path}" and PEM files: "${ca_pem}" "${crt_pem}" "${key_pem}"
+Ankaios server is started with manifest "${config_path}" and PEM files: "${ca_pem}" "${crt_pem}" "${key_pem}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-manifest
@@ -179,65 +173,51 @@ Ankaios server is started with config "${config_path}" and PEM files: "${ca_pem}
     ...    alias=ank-server
     RETURN    ${server_process}
 
-Ankaios insecure server is started with config "${config_path}"
-    ${server_process}=    Start Process
-    ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --startup-manifest
-    ...    ${config_path}
-    ...    --insecure
-    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
-    ...    env:RUST_LOG=debug
-    ...    alias=ank-server
-    RETURN    ${server_process}
-
-Ankaios insecure server is started with server config file "${server_config_path}"
+Ankaios server is started with server config file "${server_config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --server-config
     ...    ${server_config_path}
-    ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=ank-server
     RETURN    ${server_process}
 
-Ankaios insecure server is started with config "${config_path}" and server config file "${server_config_path}"
+Ankaios server is started with manifest "${config_path}" and server config file "${server_config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-manifest
     ...    ${config_path}
     ...    --server-config
     ...    ${server_config_path}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=ank-server
+    RETURN    ${server_process}
+
+Ankaios server is started with manifest "${config_path}"
+    ${server_process}=    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-server
+    ...    --startup-manifest
+    ...    ${config_path}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=ank-server
+    RETURN    ${server_process}
+
+Ankaios server is started with manifest "${config_path}" and insecure cli argument
+    ${server_process}=    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-server
+    ...    --startup-manifest
+    ...    ${config_path}
     ...    --insecure
-    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
-    ...    env:RUST_LOG=debug
-    ...    alias=ank-server
-    RETURN    ${server_process}
-
-Ankaios server is started with config "${config_path}"
-    ${server_process}=    Start Process
-    ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --startup-manifest
-    ...    ${config_path}
-    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
-    ...    env:RUST_LOG=debug
-    ...    alias=ank-server
-    RETURN    ${server_process}
-
-Ankaios server is started with config "${config_path}" and server config file "${server_config_path}"
-    ${server_process}=    Start Process
-    ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --startup-manifest
-    ...    ${config_path}
-    ...    --server-config
-    ...    ${server_config_path}
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=ank-server
     RETURN    ${server_process}
 
 Ankaios server is started with an invalid config "${config_path}"
-    ${SERVER_PROCESS_HANDLE}=        Ankaios server is started with config "${config_path}"
+    ${SERVER_PROCESS_HANDLE}=        Ankaios server is started with manifest "${config_path}"
     Set Global Variable    ${SERVER_PROCESS_HANDLE}
 
 the Ankaios server shall exit with an error code
@@ -245,7 +225,7 @@ the Ankaios server shall exit with an error code
     Process Should Be Stopped    ${SERVER_PROCESS_HANDLE}
     Should Not Be Equal As Integers   ${process_result.rc}    0
 
-Ankaios server is started without config successfully
+Ankaios server is started without manifest successfully
     Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
@@ -266,21 +246,22 @@ Ankaios agent is started with name "${name}" and PEM files: "${ca_pem}" "${crt_p
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=${name}
-Ankaios insecure agent is started with name "${name}"
-    Start Process
-    ...    %{ANK_BIN_DIR}${/}ank-agent
-    ...    --insecure
-    ...    --name
-    ...    ${name}
-    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
-    ...    env:RUST_LOG=debug
-    ...    alias=${name}
 
 Ankaios agent is started with name "${name}"
     Start Process
     ...    %{ANK_BIN_DIR}${/}ank-agent
     ...    --name
     ...    ${name}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=${name}
+
+Ankaios agent is started with name "${name}" and insecure cli argument
+    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-agent
+    ...    --name
+    ...    ${name}
+    ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=${name}
@@ -308,6 +289,7 @@ Ankaios agent is started with name "${agent_name}" and config file "${config_fil
     ...    alias=${agent_name}
 
 Ankaios server is terminated
+    Unsubscribe From Events
     Terminate Process    ank-server    kill=True
     ${server_running}=    Is Process Running    ank-server
     Should Not Be True    ${server_running}
@@ -363,52 +345,49 @@ user updates the state "${new_state_yaml_file}" with "${field_value}"
     Write Yaml    new_yaml=${new_config}    path=${new_state_yaml_file}
 
 the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}" within "${timeout}" seconds
-    @{list_result}=    Create List
-    IF    ${timeout} > 0
-        @{list_result}=    Wait For Execution State
-        ...    %{ANK_BIN_DIR}${/}ank get workloads
-        ...    ${workload_name}
-        ...    ${expected_agent_name}
-        ...    ${expected_execution_state}
-        ...    ${timeout}
+    IF    '${expected_execution_state}' == 'Pending(Initial)' # currently it is not possible to receive events for the initial state, so we need to poll the CLI here
+        ${start_time}=    Get Time Secs
+        WHILE    True
+            ${current_secs}=    Get Time Secs
+            ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+            IF    ${elapsed_secs} >= ${timeout}    BREAK
+
+            ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
+            @{list_result}=    table to list    ${command_result.stdout}
+            &{workload_table}=    table to dict    ${list_result}    WORKLOAD NAME
+            ${workload_entry}=    Get From Dictionary    ${workload_table}    ${workload_name}
+            ${execution_state}=    Get From Dictionary    ${workload_entry}    EXECUTION STATE
+            IF    '${execution_state}' == '${expected_execution_state}'    RETURN
+
+        END
+    ELSE
+        ${result}=    Workload Has Execution State    ${workload_name}    ${expected_agent_name}    ${expected_execution_state}    ${timeout}
+        Should Be True    ${result}    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' did not reach execution state '${expected_execution_state}' within '${timeout}' seconds!
     END
-    Should Not Be Empty
-    ...    ${list_result}
-    ...    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' does not have the execution state '${expected_execution_state}'!
 
 the workload "${workload_name}" shall not exist
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
     @{list_result}=    table to list    ${command_result.stdout}
     &{workload_table}=    table to dict    ${list_result}    WORKLOAD NAME
-    Dictionary Should Not Contain Key    ${workload_table}    ${workload_name}
+    Dictionary Should Not Contain Key    ${workload_table}    ${workload_name}    msg=msg=Timeout: Workload '${workload_name}' found, but shall not exist!
 
-the workload "${workload_name}" shall not exist on agent "${expected_agent_name}" within "${timeout}" seconds
+the workload "${workload_name}" shall never be created on agent "${expected_agent_name}" within "${timeout}" seconds
     Should Be True    ${timeout} >= 0    msg='timeout' must be greater than or equal to 0!
-    @{list_result}=    Create List
-    IF    ${timeout} >= 0
-        @{list_result}=    Wait For Workload Removal
-        ...    %{ANK_BIN_DIR}${/}ank get workloads
-        ...    ${workload_name}
-        ...    ${expected_agent_name}
-        ...    ${timeout}
-    END
-    Should Be Empty
-    ...    ${list_result}
+    ${result}=    Workload Has Execution State    ${workload_name}    ${expected_agent_name}    Pending(Starting)    ${timeout}
+    Should Be Equal
+    ...    ${result}
+    ...    ${False}
+    ...    msg=Timeout: Workload '${workload_name}' had an 'Pending(Initial)' workload state on agent '${expected_agent_name}' indicating that it exists!
+
+    the workload "${workload_name}" shall not exist
+
+the workload "${workload_name}" shall be removed and not exist on agent "${expected_agent_name}" within "${timeout}" seconds
+    Should Be True    ${timeout} >= 0    msg='timeout' must be greater than or equal to 0!
+    ${result}=    Workload Has Execution State    ${workload_name}    ${expected_agent_name}    Removed    ${timeout}
+    Should Be True
+    ...    ${result}
     ...    msg=Timeout: Workload '${workload_name}' found on agent '${expected_agent_name}'!
-
-the workload "${workload_name}" shall not exist within "${timeout}" seconds
-    Should Be True    ${timeout} >= 0    msg='timeout' must be greater than or equal to 0!
-    @{list_result}=    Create List
-    IF    ${timeout} >= 0
-        @{list_result}=    Wait For Workload Removal
-        ...    %{ANK_BIN_DIR}${/}ank get workloads
-        ...    ${workload_name}
-        ...    ""
-        ...    ${timeout}
-    END
-    Should Be Empty
-    ...    ${list_result}
-    ...    msg=Timeout: Workload '${workload_name}' found!
+    the workload "${workload_name}" shall not exist
 
 in the last result, the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}"
     @{list_result}=    table to list    ${CURRENT_RESULT.stdout}
@@ -674,8 +653,6 @@ the last command shall only contain agent and runtime
     ${workloads}=    Get From Dictionary    ${desired_state}    workloads
     @{workloads}=    Get Dictionary Values   ${workloads}
     FOR    ${w}    IN   @{workloads}
-        # ${keys}=    Get Dictionary Keys    ${w}
-        # Should Be Equal    ${keys}   ${expected_keys}
         dictionary ${w} should have exact keys   @{expected_keys}
     END
 
@@ -777,7 +754,8 @@ The controller workload cancels events for fields ${field_mask}
 
 The controller workload requests shall all succeed
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios server is started with manifest "${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_all_control_interface_requests_succeeded    ${ankaios_config_folder.name}
@@ -785,7 +763,8 @@ The controller workload requests shall all succeed
 
 The controller workload requests shall all succeed with second agent
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios server is started with manifest "${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     BuiltIn.Sleep    1s
     Ankaios agent is started with name "${AGENT_2_NAME}"
@@ -798,28 +777,32 @@ The controller workload requests shall all succeed with second agent
 
 The controller workload last request shall fail
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios server is started with manifest "${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_last_control_interface_request_failed    ${ankaios_config_folder.name}
 
 The controller workload requests shall all fail
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios server is started with manifest "${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_all_control_interface_requests_failed    ${ankaios_config_folder.name}
 
 The controller workload shall get a closed connection
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios server is started with manifest "${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_control_interface_closed    ${ankaios_config_folder.name}
 
 The controller workload has no access to Control Interface
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios server is started with manifest "${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_no_access_to_control_interface    ${ankaios_config_folder.name}
@@ -982,10 +965,6 @@ the workload state of workload "${workload_name}" shall contain an additional in
 
         Sleep    0.2s
     END
-    # ${workload_state}=    Get From Dictionary    ${result_dict}    ${workload_name}
-    # Should Contain Key    ${workload_state}    additionalInfo
-    # ${additional_info}=    Get From Dictionary    ${workload_state}    additionalInfo
-    # Should Contain    ${additional_info}    retries
 
 # ALIASES
 
@@ -1066,6 +1045,12 @@ user starts event listener with format "${format}" and field mask "${field_mask}
     ${cmd}=    Set Variable If    "${field_mask}" == ""    %{ANK_BIN_DIR}${/}ank -k get events -o ${format}    %{ANK_BIN_DIR}${/}ank -k get events \"${field_mask_arg}\" -o ${format}
     Start Process    ${cmd}    shell=True    stdout=target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/events_error.txt    alias=event-listener
 
+the CLI listens for workload states
+    Listen For Events With Timeout    workloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/stest_event_logs.log    %{ANK_BIN_DIR}    20
+
+the CLI listens for workload states in insecure mode
+    Listen For Events With Timeout    workloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/stest_event_logs.log    %{ANK_BIN_DIR}    20    insecure=${True}
+
 the event output shall contain workload "${workload_name}"
     Event Output Shall Contain Workload    ${workload_name}    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
 
@@ -1090,29 +1075,15 @@ the event output shall contain at least "${count}" events
 all events shall contain timestamp
     Each Event In Output Shall Contain Timestamp    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
 
-the event output shall contain workloadStates
-    Event Output Shall Contain WorkloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
-
-the event output shall contain desiredState
-    Event Output Shall Contain DesiredState    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
+the event output shall contain field name "${field_name}"
+    Event Output Shall Contain Field Name    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt   ${field_name}
 
 the event output shall contain altered fields with removed workloads
     Event Output Shall Contain Altered Fields With Removed Workloads    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
 
 all workloads of agent "${agent_names}" have left the initial execution state
-    User Waits For All Workloads To Start Via Events    ${agent_names}    60
+    all workloads of agent "${agent_names}" have left the initial execution state within "10" seconds
 
 all workloads of agent "${agent_names}" have left the initial execution state within "${timeout}" seconds
-    User Waits For All Workloads To Start Via Events    ${agent_names}    ${timeout}
+    All Workloads Left Initial Execution State    agent_names=${agent_names}    timeout=${timeout}
 
-the workload "${workload_name}" shall reach state "${expected_state}" on agent "${agent_name}" via events
-    User Waits For Workload To Reach State Via Events    ${workload_name}    ${agent_name}    ${expected_state}    60
-
-the workload "${workload_name}" shall reach state "${expected_state}" on agent "${agent_name}" via events within "${timeout}" seconds
-    User Waits For Workload To Reach State Via Events    ${workload_name}    ${agent_name}    ${expected_state}    ${timeout}
-
-the workload "${workload_name}" shall not exist on agent "${agent_name}" via events
-    User Waits For Workload Removal Via Events    ${workload_name}    ${agent_name}    60
-
-the workload "${workload_name}" shall not exist on agent "${agent_name}" via events within "${timeout}" seconds
-    User Waits For Workload Removal Via Events    ${workload_name}    ${agent_name}    ${timeout}

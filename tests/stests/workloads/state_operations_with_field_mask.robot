@@ -35,13 +35,14 @@ Test Ankaios CLI update workload
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${default_state_yaml_file}"
+    And Ankaios server is started with manifest "${default_state_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions
     And user triggers "ank -k --no-wait set state desiredState.workloads.simple.agent ${new_state_yaml_file}"
     # Asserts
-    Then the workload "simple" shall not exist on agent "agent_A" within "20" seconds
+    Then the workload "simple" shall have the execution state "Removed" on agent "agent_A" within "20" seconds
     And podman shall not have a container for workload "simple" on agent "agent_A"
     [Teardown]    Clean up Ankaios
 
@@ -52,7 +53,8 @@ Test Ankaios CLI get workloads with wildcard
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${default_state_yaml_file}"
+    And Ankaios server is started with manifest "${default_state_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Actions

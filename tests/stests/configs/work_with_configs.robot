@@ -24,7 +24,7 @@ Test Ankaios CLI get configs
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/default_with_config.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/default_with_config.yaml"
     And Ankaios server is available
     # Actions
     When user triggers "ank -k get configs"
@@ -39,7 +39,7 @@ Test Ankaios Podman remove configs
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/default_with_config.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/default_with_config.yaml"
     And Ankaios server is available
     # Actions
     When user triggers "ank -k delete configs config_1"
