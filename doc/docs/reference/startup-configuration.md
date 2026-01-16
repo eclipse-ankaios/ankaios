@@ -125,7 +125,7 @@ manifest: <string containing the K8s manifest>
 
 where each attribute is passed directly to `podman play kube`.
 
-The `controlInterfaceTarget` field is optional and specifies the target pod and container for the control interface. If not specified, the control interface will not be mounted for the workload.
+The `controlInterfaceTarget` field specifies the target pod and container for the control interface. The field must be specified if the workload has a configured access to the control interface and is otherwise optional.
 
 If we take as an example the `podman play kube` command:
 
