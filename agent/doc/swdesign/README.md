@@ -233,6 +233,7 @@ The dedicated run folder is required by the agent to store temporary files for t
 Needs:
 - impl
 - utest
+- stest
 
 #### Agent naming convention
 `swdd~agent-naming-convention~1`
