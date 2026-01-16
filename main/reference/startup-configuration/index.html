@@ -2156,7 +2156,7 @@ A workload specification must contain the following information:</p>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="nt">manifest</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;string containing the K8s manifest&gt;</span>
 </code></pre></div>
 <p>where each attribute is passed directly to <code>podman play kube</code>.</p>
-<p>The <code>controlInterfaceTarget</code> field is optional and specifies the target pod and container for the control interface. If not specified, the control interface will not be mounted for the workload.</p>
+<p>The <code>controlInterfaceTarget</code> field specifies the target pod and container for the control interface. The field must be specified if the workload has a configured access to the control interface and is otherwise optional.</p>
 <p>If we take as an example the <code>podman play kube</code> command:</p>
 <p><code>podman --events-backend file play kube --userns host manifest.yaml</code></p>
 <p>and the corresponding command for deleting the manifest file:</p>
