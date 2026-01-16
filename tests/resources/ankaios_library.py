@@ -50,7 +50,7 @@ EVENT_PROCESS = None
 
 
 if FORCE_TRACE:
-    logger.trace = logger.trace
+    logger.trace = logger.info
 
 ###############################################################################
 ## General utils
@@ -1056,9 +1056,9 @@ def event_output_shall_contain_altered_fields_with_removed_workloads(output_file
 
 
 @err_logging_decorator
-def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bin_dir: str=None, timeout: str="10"):
+def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bin_dir: str=None, timeout: str="10", insecure: bool=False):
     timeout_float = float(timeout)
-    def listen_with_timeout(field_mask: str, event_buffer: list, log_output_file: str, timeout: float, ank_bin_dir: str=None):
+    def listen_with_timeout(field_mask: str, event_buffer: list, log_output_file: str, timeout: float, ank_bin_dir: str=None, insecure: bool=False):
         # separate log file for the event process otherwise corrupted robot framework output.xml may occur because of concurrent writes
         log_file_handle = open(log_output_file, 'w+', buffering=1)  # Line buffering
         log_file_handle.write(f"Listening for events with timeout of {timeout_float} seconds\n")
@@ -1068,11 +1068,15 @@ def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bi
 
         ank_path = path.join(ank_bin_dir, 'ank')
 
-        process = None
 
-        cmd = [ank_path, '-k', 'get', 'events', '-o', 'json']
+        if insecure:
+            cmd = [ank_path, '--insecure', 'get', 'events', '-o', 'json']
+        else:
+            cmd = [ank_path, 'get', 'events', '-o', 'json']
         if field_mask:
             cmd.append(field_mask)
+
+        process = None
 
         try:
             log_file_handle.write(f"Starting event listener: {' '.join(cmd)}\n")
@@ -1146,7 +1150,7 @@ def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bi
     global EVENT_BUFFER
     manager = mp.Manager()
     EVENT_BUFFER = manager.list()
-    EVENT_PROCESS = mp.Process(target=listen_with_timeout, args=(field_mask, EVENT_BUFFER, log_output_file, timeout_float, ank_bin_dir))
+    EVENT_PROCESS = mp.Process(target=listen_with_timeout, args=(field_mask, EVENT_BUFFER, log_output_file, timeout_float, ank_bin_dir, insecure))
     EVENT_PROCESS.start()
 
 @err_logging_decorator
