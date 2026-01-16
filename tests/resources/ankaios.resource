@@ -38,10 +38,6 @@ ${CONFIGS_DIR}=    ${CURDIR}/configs
 
 
 *** Keywords ***
-Get MTLS Enabled
-    ${result}=    Get Environment Variable    name=MTLS_ENABLED    default=False
-    RETURN    ${result}
-
 Retrieve current Ankaios version
     ${run_result}=    Run Process    command=%{ANK_BIN_DIR}${/}ank-server --version    shell=True
     ${ANKAIOS_VERSION}=    Evaluate    '${run_result.stdout}'.split(' ')[1]
@@ -53,9 +49,6 @@ Setup Ankaios without MTLS Setup
     ${TEST_FOLDER_NAME}=    Evaluate    '${TEST_NAME}'.lower().replace(' ', '_')
     Set Global Variable    ${TEST_FOLDER_NAME}
     ${run_result}=    Run Process    command=mkdir -p "target/robot_tests_result/${TEST_FOLDER_NAME}"    shell=True
-    Set Environment Variable    name=ANKSERVER_INSECURE    value=true
-    Set Environment Variable    name=ANKAGENT_INSECURE    value=true
-    Set Environment Variable    name=ANK_INSECURE    value=true
 
 Setup Ankaios
     [Arguments]    ${mtls_enabled}=False
@@ -180,36 +173,23 @@ Ankaios server is started with config "${config_path}" and PEM files: "${ca_pem}
     ...    alias=ank-server
     RETURN    ${server_process}
 
-Ankaios insecure server is started with config "${config_path}"
-    ${server_process}=    Start Process
-    ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --startup-manifest
-    ...    ${config_path}
-    ...    --insecure
-    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
-    ...    env:RUST_LOG=debug
-    ...    alias=ank-server
-    RETURN    ${server_process}
-
-Ankaios insecure server is started with server config file "${server_config_path}"
+Ankaios server is started with server config file "${server_config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --server-config
     ...    ${server_config_path}
-    ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=ank-server
     RETURN    ${server_process}
 
-Ankaios insecure server is started with config "${config_path}" and server config file "${server_config_path}"
+Ankaios server is started with config "${config_path}" and server config file "${server_config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-manifest
     ...    ${config_path}
     ...    --server-config
     ...    ${server_config_path}
-    ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=ank-server
@@ -225,13 +205,12 @@ Ankaios server is started with config "${config_path}"
     ...    alias=ank-server
     RETURN    ${server_process}
 
-Ankaios server is started with config "${config_path}" and server config file "${server_config_path}"
+Ankaios server is started with config "${config_path}" and insecure cli argument
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-manifest
     ...    ${config_path}
-    ...    --server-config
-    ...    ${server_config_path}
+    ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=ank-server
@@ -267,21 +246,22 @@ Ankaios agent is started with name "${name}" and PEM files: "${ca_pem}" "${crt_p
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=${name}
-Ankaios insecure agent is started with name "${name}"
-    Start Process
-    ...    %{ANK_BIN_DIR}${/}ank-agent
-    ...    --insecure
-    ...    --name
-    ...    ${name}
-    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
-    ...    env:RUST_LOG=debug
-    ...    alias=${name}
 
 Ankaios agent is started with name "${name}"
     Start Process
     ...    %{ANK_BIN_DIR}${/}ank-agent
     ...    --name
     ...    ${name}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=${name}
+
+Ankaios agent is started with name "${name}" and insecure cli argument
+    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-agent
+    ...    --name
+    ...    ${name}
+    ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=${name}
@@ -1067,6 +1047,9 @@ user starts event listener with format "${format}" and field mask "${field_mask}
 
 the CLI listens for workload states
     Listen For Events With Timeout    workloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/stest_event_logs.log    %{ANK_BIN_DIR}    60
+
+the CLI listens for workload states in insecure mode
+    Listen For Events With Timeout    workloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/stest_event_logs.log    %{ANK_BIN_DIR}    60    insecure=${True}
 
 the event output shall contain workload "${workload_name}"
     Event Output Shall Contain Workload    ${workload_name}    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt

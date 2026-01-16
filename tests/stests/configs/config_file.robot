@@ -22,7 +22,7 @@ Resource    ../../resources/variables.resource
 Test server config file successful start-up
     [Setup]        Setup Ankaios
     # Preconditions
-    Ankaios insecure server is started with server config file "${CONFIGS_DIR}/ank-server-default.conf"
+    Ankaios server is started with server config file "${CONFIGS_DIR}/ank-server-default.conf"
     And Ankaios server is available
     # Actions
     # Asserts
@@ -46,10 +46,10 @@ Test agent config file successful start-up
 Test server config overwrite manifest with cli arguments
     [Setup]        Setup Ankaios
     # Preconditions
-    Ankaios insecure server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server.conf"
+    Ankaios server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server.conf"
     And Ankaios server is available
     And the CLI listens for workload states
-    And Ankaios insecure agent is started with name "agent_A"
+    And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
     # Asserts
     Then the workload "simple" shall never be created on agent "agent_A" within "1" seconds

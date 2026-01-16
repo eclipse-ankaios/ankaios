@@ -271,7 +271,7 @@ Test Ankaios Podman Update workload with current API version
     Given Podman has deleted all existing containers
     And Podman has deleted all existing pods
     And Podman has deleted all existing volumes
-    And Ankaios insecure server is started with config "${CONFIGS_DIR}/default_deprecated_api.yaml"
+    And Ankaios server is started with config "${CONFIGS_DIR}/default_deprecated_api.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
