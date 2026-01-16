@@ -157,7 +157,7 @@ the command "${cli_command}" finished with exit code "${exit_code}" within "${ti
         END
     END
 
-Ankaios server is started with config "${config_path}" and PEM files: "${ca_pem}" "${crt_pem}" "${key_pem}"
+Ankaios server is started with manifest "${config_path}" and PEM files: "${ca_pem}" "${crt_pem}" "${key_pem}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-manifest
@@ -183,7 +183,7 @@ Ankaios server is started with server config file "${server_config_path}"
     ...    alias=ank-server
     RETURN    ${server_process}
 
-Ankaios server is started with config "${config_path}" and server config file "${server_config_path}"
+Ankaios server is started with manifest "${config_path}" and server config file "${server_config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-manifest
@@ -195,7 +195,7 @@ Ankaios server is started with config "${config_path}" and server config file "$
     ...    alias=ank-server
     RETURN    ${server_process}
 
-Ankaios server is started with config "${config_path}"
+Ankaios server is started with manifest "${config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-manifest
@@ -205,7 +205,7 @@ Ankaios server is started with config "${config_path}"
     ...    alias=ank-server
     RETURN    ${server_process}
 
-Ankaios server is started with config "${config_path}" and insecure cli argument
+Ankaios server is started with manifest "${config_path}" and insecure cli argument
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-manifest
@@ -217,7 +217,7 @@ Ankaios server is started with config "${config_path}" and insecure cli argument
     RETURN    ${server_process}
 
 Ankaios server is started with an invalid config "${config_path}"
-    ${SERVER_PROCESS_HANDLE}=        Ankaios server is started with config "${config_path}"
+    ${SERVER_PROCESS_HANDLE}=        Ankaios server is started with manifest "${config_path}"
     Set Global Variable    ${SERVER_PROCESS_HANDLE}
 
 the Ankaios server shall exit with an error code
@@ -225,7 +225,7 @@ the Ankaios server shall exit with an error code
     Process Should Be Stopped    ${SERVER_PROCESS_HANDLE}
     Should Not Be Equal As Integers   ${process_result.rc}    0
 
-Ankaios server is started without config successfully
+Ankaios server is started without manifest successfully
     Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
@@ -754,7 +754,7 @@ The controller workload cancels events for fields ${field_mask}
 
 The controller workload requests shall all succeed
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios server is started with manifest "${ankaios_config_folder.name}${/}startup_config.yaml"
     And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
@@ -763,7 +763,7 @@ The controller workload requests shall all succeed
 
 The controller workload requests shall all succeed with second agent
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios server is started with manifest "${ankaios_config_folder.name}${/}startup_config.yaml"
     And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     BuiltIn.Sleep    1s
@@ -777,7 +777,7 @@ The controller workload requests shall all succeed with second agent
 
 The controller workload last request shall fail
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios server is started with manifest "${ankaios_config_folder.name}${/}startup_config.yaml"
     And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
@@ -785,7 +785,7 @@ The controller workload last request shall fail
 
 The controller workload requests shall all fail
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios server is started with manifest "${ankaios_config_folder.name}${/}startup_config.yaml"
     And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
@@ -793,7 +793,7 @@ The controller workload requests shall all fail
 
 The controller workload shall get a closed connection
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios server is started with manifest "${ankaios_config_folder.name}${/}startup_config.yaml"
     And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
@@ -801,7 +801,7 @@ The controller workload shall get a closed connection
 
 The controller workload has no access to Control Interface
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios server is started with manifest "${ankaios_config_folder.name}${/}startup_config.yaml"
     And the CLI listens for workload states
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds

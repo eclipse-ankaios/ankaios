@@ -33,7 +33,7 @@ Test Ankaios Podman delete kube workload
     # This test assumes that all pods and volume in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing pods
     And Podman has deleted all existing volumes
-    And Ankaios server is started with config "${CONFIGS_DIR}/kube.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/kube.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have left the initial execution state
