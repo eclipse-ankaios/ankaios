@@ -1100,7 +1100,7 @@ def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bi
                         event_buffer.append(event)
                         EVENTS_RECEIVED.set()
                     except json.JSONDecodeError as e:
-                        log_file_handle.write(f"Failed to parse event line: {e}\n")
+                        log_file_handle.write(f"Failed to parse event line: '{new_line}' with error: {e}\n")
                         pass
                 else:
                     stderr = process.stderr.read()
