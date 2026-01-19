@@ -16,12 +16,10 @@ mod dir_utils;
 mod directory;
 mod fs;
 
-pub const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";
-
 #[cfg(not(test))]
 pub use directory::Directory;
 #[cfg(test)]
-pub use directory::{generate_test_directory_mock, MockDirectory};
+pub use directory::{MockDirectory, generate_test_directory_mock};
 #[cfg(not(test))]
 pub use fs::filesystem;
 #[cfg(not(test))]
@@ -33,4 +31,4 @@ pub use fs::mock_filesystem_async;
 
 pub use fs::FileSystemError;
 
-pub use dir_utils::prepare_agent_run_directory;
+pub use dir_utils::{default_run_folder_string, prepare_agent_run_directory};

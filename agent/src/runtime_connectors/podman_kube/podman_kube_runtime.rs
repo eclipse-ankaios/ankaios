@@ -37,7 +37,13 @@ use futures_util::TryFutureExt;
 use mockall_double::double;
 use serde::Deserialize;
 use serde_yaml::{self, Deserializer, Mapping, Value};
-use std::{cmp::min, collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
+use std::{
+    cmp::min,
+    collections::HashMap,
+    fmt::Display,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 pub const PODMAN_KUBE_RUNTIME_NAME: &str = "podman-kube";
 const CONFIG_VOLUME_SUFFIX: &str = ".config";
@@ -132,6 +138,7 @@ impl PodmanKubeRuntime {
         workload_config: &mut PodmanKubeRuntimeConfig,
         workload_named: &WorkloadNamed,
         control_interface_target: &ControlInterfaceTarget,
+        control_interface_path: &Path,
     ) -> Result<(), RuntimeError> {
         log::trace!(
             "Enriching manifest with control interface for workload '{}'",
@@ -139,8 +146,12 @@ impl PodmanKubeRuntime {
         );
 
         let manifests = Self::parse_yaml_manifests(&workload_config.manifest)?;
-        let processed_manifests: Vec<String> =
-            Self::process_manifest_list(manifests, workload_named, control_interface_target)?;
+        let processed_manifests: Vec<String> = Self::process_manifest_list(
+            manifests,
+            workload_named,
+            control_interface_target,
+            control_interface_path,
+        )?;
 
         workload_config.manifest = processed_manifests.join("---\n");
         Ok(())
@@ -166,6 +177,7 @@ impl PodmanKubeRuntime {
         manifests: Vec<Value>,
         workload_named: &WorkloadNamed,
         control_interface_target: &ControlInterfaceTarget,
+        control_interface_path: &Path,
     ) -> Result<Vec<String>, RuntimeError> {
         log::trace!(
             "Processing {} manifests for workload '{}'",
@@ -182,6 +194,7 @@ impl PodmanKubeRuntime {
                         &mut manifest,
                         workload_named,
                         &control_interface_target.container,
+                        control_interface_path,
                     )?;
                 }
                 Self::serialize_yaml_manifest(&manifest)
@@ -227,13 +240,14 @@ impl PodmanKubeRuntime {
         manifest: &mut Value,
         workload_named: &WorkloadNamed,
         container_name: &str,
+        control_interface_path: &Path,
     ) -> Result<(), RuntimeError> {
         log::debug!(
             "Injecting control interface into manifest for workload '{}'",
             workload_named.instance_name
         );
         Self::inject_volume_mount(manifest, container_name)?;
-        Self::inject_control_volume(manifest, workload_named)?;
+        Self::inject_control_volume(manifest, control_interface_path)?;
 
         log::trace!("Manifest after injecting control interface: {manifest:#?}");
         Ok(())
@@ -295,7 +309,7 @@ impl PodmanKubeRuntime {
     // [impl->swdd~podman-kube-injects-control-interface-volume~1]
     fn inject_control_volume(
         manifest: &mut Value,
-        workload_named: &WorkloadNamed,
+        control_interface_path: &Path,
     ) -> Result<(), RuntimeError> {
         let spec_mapping = manifest
             .get_mut("spec")
@@ -314,23 +328,19 @@ impl PodmanKubeRuntime {
                 RuntimeError::Unsupported("Pod manifest missing spec.volumes".to_string())
             })?;
 
-        let volume = Self::create_control_interface_volume(workload_named);
+        let volume = Self::create_control_interface_volume(control_interface_path);
         volumes.push(volume);
         Ok(())
     }
 
     // [impl->swdd~podman-kube-injects-control-interface-volume~1]
     // [impl->swdd~podman-kube-mounts-control-interface~1]
-    fn create_control_interface_volume(workload_named: &WorkloadNamed) -> Value {
+    fn create_control_interface_volume(control_interface_path: &Path) -> Value {
         let mut host_path = Mapping::new();
-        let path = format!(
-            "/tmp/ankaios/{}_io/{}.{}/control_interface/",
-            workload_named.instance_name.agent_name(),
-            workload_named.instance_name.workload_name(),
-            workload_named.instance_name.id()
+        host_path.insert(
+            Value::from("path"),
+            Value::from(control_interface_path.to_string_lossy().to_string()),
         );
-
-        host_path.insert(Value::from("path"), Value::from(path));
         host_path.insert(Value::from("type"), Value::from("Directory"));
 
         let mut volume = Mapping::new();
@@ -394,7 +404,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         &self,
         workload_named: WorkloadNamed,
         _reusable_workload_id: Option<PodmanKubeWorkloadId>,
-        _control_interface_path: Option<PathBuf>,
+        control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
         _workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
@@ -426,7 +436,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             )
         });
 
-        if workload_named.workload.needs_control_interface() {
+        if let Some(control_interface_path) = control_interface_path {
             log::trace!(
                 "Workload '{}' needs control interface.",
                 workload_named.instance_name
@@ -438,6 +448,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
                     &mut workload_config,
                     &workload_named,
                     &control_interface_target,
+                    &control_interface_path,
                 )?;
             } else {
                 return Err(RuntimeError::Unsupported(
@@ -704,8 +715,9 @@ mod tests {
         WorkloadNamed, WorkloadSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_workload_named_with_params, generate_test_workload_named_with_runtime_config,
-        generate_test_workload_with_params, generate_test_workload_with_runtime_config, fixtures,
+        fixtures, generate_test_workload_named_with_params,
+        generate_test_workload_named_with_runtime_config, generate_test_workload_with_params,
+        generate_test_workload_with_runtime_config,
     };
 
     use mockall::{Sequence, lazy_static, predicate::eq};
@@ -1807,11 +1819,18 @@ spec:
                 .unwrap()
                 .unwrap();
 
+        let run_folder = std::path::PathBuf::from("/run-folder");
+        let control_interface_path = workload
+            .instance_name
+            .pipes_folder_name(run_folder.as_path())
+            .join("control_interface");
+
         assert!(
             PodmanKubeRuntime::enrich_manifest_with_control_interface(
                 &mut workload_config,
                 &workload,
                 &control_interface_target,
+                control_interface_path.as_path(),
             )
             .is_ok()
         );
@@ -1956,9 +1975,12 @@ spec:
         )
         .unwrap();
 
-        let workload = generate_test_podman_kube_workload();
+        let control_interface_path = std::path::PathBuf::from("/some/control_interface");
 
-        let result = PodmanKubeRuntime::inject_control_volume(&mut manifest, &workload);
+        let result = PodmanKubeRuntime::inject_control_volume(
+            &mut manifest,
+            control_interface_path.as_path(),
+        );
         assert!(result.is_ok());
 
         let volumes = manifest["spec"]["volumes"].as_sequence().unwrap();
@@ -1980,9 +2002,12 @@ spec:
         )
         .unwrap();
 
-        let workload = generate_test_podman_kube_workload();
+        let control_interface_path = std::path::PathBuf::from("/some/control_interface");
 
-        let result = PodmanKubeRuntime::inject_control_volume(&mut manifest, &workload);
+        let result = PodmanKubeRuntime::inject_control_volume(
+            &mut manifest,
+            control_interface_path.as_path(),
+        );
         assert!(result.is_ok());
 
         let volumes = manifest["spec"]["volumes"].as_sequence().unwrap();
@@ -1994,21 +2019,19 @@ spec:
     // [utest->swdd~podman-kube-injects-control-interface-volume~1]
     #[test]
     fn utest_create_control_interface_volume() {
-        let workload = generate_test_podman_kube_workload();
+        let control_interface_path = std::path::PathBuf::from("/some/control_interface");
 
-        let volume = PodmanKubeRuntime::create_control_interface_volume(&workload);
+        let volume =
+            PodmanKubeRuntime::create_control_interface_volume(control_interface_path.as_path());
 
         assert_eq!(volume["name"], "control-interface-volume");
         assert!(volume["hostPath"].is_mapping());
         assert_eq!(volume["hostPath"]["type"], "Directory");
 
-        let expected_path = format!(
-            "/tmp/ankaios/{}_io/{}.{}/control_interface/",
-            workload.instance_name.agent_name(),
-            workload.instance_name.workload_name(),
-            workload.instance_name.id()
+        assert_eq!(
+            volume["hostPath"]["path"],
+            control_interface_path.to_string_lossy().to_string()
         );
-        assert_eq!(volume["hostPath"]["path"], expected_path);
     }
 
     #[test]
@@ -2078,10 +2101,13 @@ spec:
             container: "target-container".to_string(),
         };
 
+        let control_interface_path = std::path::PathBuf::from("/some/control_interface");
+
         let result = PodmanKubeRuntime::process_manifest_list(
             manifests,
             &workload,
             &control_interface_target,
+            control_interface_path.as_path(),
         );
 
         assert!(result.is_ok());
@@ -2136,11 +2162,18 @@ spec:
                 .unwrap()
                 .unwrap();
 
+        let run_folder = std::path::PathBuf::from("/run-folder");
+        let control_interface_path = workload
+            .instance_name
+            .pipes_folder_name(run_folder.as_path())
+            .join("control_interface");
+
         assert!(
             PodmanKubeRuntime::enrich_manifest_with_control_interface(
                 &mut workload_config,
                 &workload,
                 &control_interface_target,
+                control_interface_path.as_path(),
             )
             .is_ok()
         );

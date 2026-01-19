@@ -182,7 +182,7 @@ async fn main() {
     let (workload_state_sender, workload_state_receiver) =
         tokio::sync::mpsc::channel::<WorkloadStateSpec>(BUFFER_SIZE);
 
-    // [impl->swdd~agent-prepares-dedicated-run-folder~1]
+    // [impl->swdd~agent-prepares-dedicated-run-folder~2]
     let run_directory = io_utils::prepare_agent_run_directory(
         agent_config.run_folder.as_str(),
         agent_config.name.as_str(),

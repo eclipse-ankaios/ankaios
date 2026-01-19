@@ -47,37 +47,47 @@ impl From<(&PathBuf, &WorkloadInstanceNameSpec)> for WorkloadFilesBasePath {
 
 #[cfg(test)]
 pub fn generate_test_workload_files_path() -> WorkloadFilesBasePath {
+    use crate::io_utils::default_run_folder_string;
     use ankaios_api::test_utils::fixtures;
-    WorkloadFilesBasePath(PathBuf::from(format!(
-        "/tmp/ankaios/{}_io/{}.123xy/files",
+
+    let agent_run_folder = PathBuf::from(default_run_folder_string()).join(format!("{}_io", fixtures::AGENT_NAMES[0]));
+
+    let instance_name = WorkloadInstanceNameSpec::new(
         fixtures::AGENT_NAMES[0],
-        fixtures::WORKLOAD_NAMES[0]
-    )))
+        fixtures::WORKLOAD_NAMES[0],
+        fixtures::WORKLOAD_IDS[0],
+    );
+
+    WorkloadFilesBasePath::from((&agent_run_folder, &instance_name))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{PathBuf, WorkloadFilesBasePath};
+    use std::path::PathBuf;
+
+    use super::WorkloadFilesBasePath;
+    use crate::io_utils::default_run_folder_string;
     use ankaios_api::ank_base::WorkloadInstanceNameSpec;
     use ankaios_api::test_utils::fixtures;
 
     // [utest->swdd~location-of-workload-files-at-predefined-path~1]
     #[test]
     fn utest_workload_files_path_from() {
-        let agent_run_folder = format!("/tmp/ankaios/{}_io", fixtures::AGENT_NAMES[0]);
+        let agent_run_folder = PathBuf::from(default_run_folder_string())
+            .join(format!("{}_io", fixtures::AGENT_NAMES[0]));
         let instance_name = WorkloadInstanceNameSpec::new(
             fixtures::AGENT_NAMES[0],
             fixtures::WORKLOAD_NAMES[0],
             fixtures::WORKLOAD_IDS[0],
         );
-        let workload_files_path =
-            WorkloadFilesBasePath::from((&agent_run_folder.clone().into(), &instance_name));
-        let expected = PathBuf::from(format!(
-            "{}/{}.{}/files",
-            agent_run_folder,
-            fixtures::WORKLOAD_NAMES[0],
-            fixtures::WORKLOAD_IDS[0]
-        ));
+        let workload_files_path = WorkloadFilesBasePath::from((&agent_run_folder, &instance_name));
+        let expected = agent_run_folder
+            .join(format!(
+                "{}.{}",
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::WORKLOAD_IDS[0]
+            ))
+            .join("files");
         assert_eq!(expected, workload_files_path.to_path_buf());
     }
 }

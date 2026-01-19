@@ -214,7 +214,7 @@ Needs:
 - stest
 
 #### Agent prepares dedicated run folder
-`swdd~agent-prepares-dedicated-run-folder~1`
+`swdd~agent-prepares-dedicated-run-folder~2`
 
 Status: approved
 
@@ -222,10 +222,10 @@ The Ankaios agent shall prepare a dedicated run directory during startup by crea
 
 `<agent name>_io`
 
-in the specified by the startup arguments location or at the default location under "/tmp/ankaios".
+in the specified by the startup arguments location or at the default location under "$TMPDIR/ankaios", or "/tmp/ankaios" if `$TMPDIR` is not set.
 
 Comment:
-The default folder "/tmp/ankaios" must be created with full permissions if not existing. The specific agent folder will still have scoped permissions, but the default location could be used by other agents running under different users and must be usable.
+The default folder "$TMPDIR/ankaios" must be created with full permissions if not existing. The specific agent folder will still have scoped permissions, but the default location could be used by other agents running under different users and must be usable.
 
 Rationale:
 The dedicated run folder is required by the agent to store temporary files for the workloads, e.g., Control Interface fifo pipes, workload files, etc.
@@ -233,6 +233,7 @@ The dedicated run folder is required by the agent to store temporary files for t
 Needs:
 - impl
 - utest
+- stest
 
 #### Agent naming convention
 `swdd~agent-naming-convention~1`
