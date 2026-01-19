@@ -533,7 +533,7 @@ Needs:
 Status: approved
 
 When the podman-kube runtime connector is called to create a workload and:
-* a Control Interface Access is defined
+* a Control Interface Access is defined and
 * a `controlInterfaceTarget` path is defined in the Podman Kube Runtime Config
 then the podman-kube runtime connector shall inject the Control Interface volume and volume mount into the Kubernetes manifest according to the specified target path.
 
