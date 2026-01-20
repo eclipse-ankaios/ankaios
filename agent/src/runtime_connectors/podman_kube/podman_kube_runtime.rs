@@ -158,20 +158,23 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             .map_err(RuntimeError::Unsupported)?;
 
         if let Some(control_interface_path) = control_interface_path {
-            log::trace!(
-                "Workload '{}' needs control interface.",
-                workload_named.instance_name
-            );
             if let Some(control_interface_target) =
                 ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)?
             {
+                log::debug!(
+                    "Adding control interface for workload '{}'",
+                    workload_named.instance_name
+                );
                 add_control_interface(
                     &mut workload_config,
-                    &workload_named,
                     &control_interface_target,
                     &control_interface_path,
                 )?;
             } else {
+                log::warn!(
+                    "Control interface target not specified in runtime config for workload '{}'.",
+                    workload_named.instance_name
+                );
                 return Err(RuntimeError::Unsupported(
                     "Control interface target not specified in runtime config.".to_string(),
                 ));

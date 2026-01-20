@@ -29,10 +29,10 @@ workloads:
             spec:
               containers:
               - name: container_A
-                image: docker.io/alpine:latest
+                image: ghcr.io/eclipse-ankaios/tests/alpine:latest
                 command: ["sleep", "12000"]
               - name: container_A_sidecar
-                image: docker.io/alpine:latest
+                image: ghcr.io/eclipse-ankaios/tests/alpine:latest
                 command: ["sleep", "12000"]
         ---
         apiVersion: v1
@@ -42,5 +42,5 @@ workloads:
         spec:
           containers:
           - name: container_B
-            image: docker.io/alpine:latest
+            image: ghcr.io/eclipse-ankaios/tests/alpine:latest
             command: ["sleep", "12000"]

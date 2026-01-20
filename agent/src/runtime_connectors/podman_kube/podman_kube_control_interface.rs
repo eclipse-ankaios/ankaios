@@ -15,8 +15,6 @@
 use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
 use crate::runtime_connectors::{RuntimeError, podman_cli::API_PIPES_MOUNT_POINT};
 
-use ankaios_api::ank_base::WorkloadNamed;
-
 use serde::Deserialize;
 use serde_yaml::{Deserializer, Mapping, Value};
 use std::path::Path;
@@ -25,6 +23,7 @@ const TARGET_PATH_LENGTH: usize = 2;
 const POD_PATH_INDEX: usize = 0;
 const CONTAINER_PATH_INDEX: usize = 1;
 
+#[derive(Debug)]
 pub(super) struct ControlInterfaceTarget {
     pub pod: String,
     pub container: String,
@@ -57,20 +56,13 @@ impl ControlInterfaceTarget {
 // [impl->swdd~podman-kube-mounts-control-interface~1]
 pub(super) fn add_control_interface(
     workload_config: &mut PodmanKubeRuntimeConfig,
-    workload_named: &WorkloadNamed,
     control_interface_target: &ControlInterfaceTarget,
     control_interface_path: &Path,
 ) -> Result<(), RuntimeError> {
-    log::trace!(
-        "Adding control interface for workload '{}'",
-        workload_named.instance_name
-    );
-
     let mut manifests = parse_yaml_manifests(&workload_config.manifest)?;
 
     add_control_interface_in_correct_manifest(
         &mut manifests,
-        workload_named,
         control_interface_target,
         control_interface_path,
     )?;
@@ -101,21 +93,18 @@ fn parse_yaml_manifests(manifest_str: &str) -> Result<Vec<Value>, RuntimeError> 
 
 fn add_control_interface_in_correct_manifest(
     manifests: &mut Vec<Value>,
-    workload_named: &WorkloadNamed,
     control_interface_target: &ControlInterfaceTarget,
     control_interface_path: &Path,
 ) -> Result<(), RuntimeError> {
     log::trace!(
-        "Processing {} manifests for workload '{}'",
-        manifests.len(),
-        workload_named.instance_name
+        "Processing {} manifests to inject control interface.",
+        manifests.len()
     );
 
     for manifest in manifests {
         if should_inject_control_interface(manifest, &control_interface_target.pod)? {
             inject_control_interface(
                 manifest,
-                workload_named,
                 &control_interface_target.container,
                 control_interface_path,
             )?;
@@ -124,10 +113,12 @@ fn add_control_interface_in_correct_manifest(
     }
 
     log::warn!(
-        "No matching manifest found to inject control interface for workload '{}'",
-        workload_named.instance_name
+        "No matching manifest found to inject control to target '{control_interface_target:?}'"
     );
-    Ok(())
+    //TODO: add tests for this case
+    Err(RuntimeError::Unsupported(
+        "No matching manifest found to inject control interface.".to_string(),
+    ))
 }
 
 fn get_metadata_name(manifest: &Value) -> Result<&str, RuntimeError> {
@@ -179,14 +170,9 @@ fn should_inject_control_interface(
 // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
 fn inject_control_interface(
     manifest: &mut Value,
-    workload_named: &WorkloadNamed,
     container_name: &str,
     control_interface_path: &Path,
 ) -> Result<(), RuntimeError> {
-    log::debug!(
-        "Injecting control interface into manifest for workload '{}'",
-        workload_named.instance_name
-    );
     inject_volume_mount(manifest, container_name)?;
     inject_control_volume(manifest, control_interface_path)?;
 
@@ -753,7 +739,6 @@ spec:
         assert!(
             add_control_interface(
                 &mut workload_config,
-                &workload,
                 &control_interface_target,
                 control_interface_path.as_path(),
             )
@@ -1006,13 +991,6 @@ spec:
         .unwrap();
 
         let mut manifests = vec![pod_manifest, service_manifest];
-        let mut workload = generate_test_podman_kube_workload();
-
-        workload.workload.control_interface_access.allow_rules =
-            vec![AccessRightsRuleSpec::state_rule(
-                ReadWriteEnum::RwReadWrite,
-                vec!["desiredState".to_string()],
-            )];
 
         let control_interface_target = ControlInterfaceTarget {
             pod: "target-pod".to_string(),
@@ -1023,7 +1001,6 @@ spec:
 
         let result = add_control_interface_in_correct_manifest(
             &mut manifests,
-            &workload,
             &control_interface_target,
             control_interface_path.as_path(),
         );
@@ -1110,7 +1087,6 @@ spec:
         assert!(
             add_control_interface(
                 &mut workload_config,
-                &workload,
                 &control_interface_target,
                 control_interface_path.as_path(),
             )
