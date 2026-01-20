@@ -297,22 +297,13 @@ mod tests {
     use crate::runtime_connectors::RuntimeError;
     use crate::runtime_connectors::podman_kube::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
 
-    use ankaios_api::ank_base::{AccessRightsRuleSpec, ReadWriteEnum, WorkloadNamed, WorkloadSpec};
+    use ankaios_api::ank_base::{AccessRightsRuleSpec, ReadWriteEnum, WorkloadSpec};
     use ankaios_api::test_utils::{
         fixtures, generate_test_workload_named_with_runtime_config,
         generate_test_workload_with_runtime_config,
     };
 
     use serde_yaml::Value;
-
-    fn generate_test_podman_kube_workload() -> WorkloadNamed {
-        generate_test_workload_named_with_runtime_config(
-            fixtures::WORKLOAD_NAMES[0],
-            fixtures::AGENT_NAMES[0],
-            PODMAN_KUBE_RUNTIME_NAME,
-            r#"{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], "manifest": "kube_config"}"#,
-        )
-    }
 
     #[test]
     fn utest_control_interface_target_valid() {
@@ -755,8 +746,12 @@ spec:
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
         );
 
-        let mut workload = generate_test_podman_kube_workload();
-        workload.workload.runtime_config = runtime_config;
+        let mut workload = generate_test_workload_named_with_runtime_config(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            PODMAN_KUBE_RUNTIME_NAME,
+            runtime_config.as_str(),
+        );
         workload.workload.files = Default::default();
         workload.workload.control_interface_access.allow_rules =
             vec![AccessRightsRuleSpec::state_rule(
@@ -1102,9 +1097,12 @@ spec:
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "target-pod/target-container", "manifest": {manifest_str:?}}}"#
         );
 
-        let mut workload = generate_test_podman_kube_workload();
-
-        workload.workload.runtime_config = runtime_config;
+        let mut workload = generate_test_workload_named_with_runtime_config(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            PODMAN_KUBE_RUNTIME_NAME,
+            runtime_config.as_str(),
+        );
         workload.workload.files = Default::default();
         workload.workload.control_interface_access.allow_rules =
             vec![AccessRightsRuleSpec::state_rule(
