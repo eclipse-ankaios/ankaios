@@ -183,33 +183,33 @@ Test events on workload states
     And The controller workload wait for 1000 milliseconds
 
     When the controller workload subscribes to the state of fields workloadStates
-    And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
+    And the controller workload updates the state with manifest "${CONFIGS_DIR}/update_state_create_one_workload.yaml" and update mask desiredState.workloads.sleepy
     Then the controller workload gets event for fields workloadStates
-    And the last result has added fields workloadStates.agent_A.simple
+    And the last result has added fields workloadStates.agent_A.sleepy
     And the last result has no updated fields
     And the last result has no removed fields
 
     When the controller workload gets event for fields workloadStates
     Then the last result has no added fields
-    And the last result has updated fields workloadStates.agent_A.simple.*.subState and workloadStates.agent_A.simple.*.additionalInfo
+    And the last result has updated fields workloadStates.agent_A.sleepy.*.subState and workloadStates.agent_A.sleepy.*.additionalInfo
     And the last result has no removed fields
 
     When the controller workload gets event for fields workloadStates
     Then the last result has no added fields
-    And the last result has updated fields workloadStates.agent_A.simple.*.state, workloadStates.agent_A.simple.*.subState and workloadStates.agent_A.simple.*.additionalInfo
+    And the last result has updated fields workloadStates.agent_A.sleepy.*.state, workloadStates.agent_A.sleepy.*.subState and workloadStates.agent_A.sleepy.*.additionalInfo
     And the last result has no removed fields
 
 
-    When the controller workload updates the state with manifest "${CONFIGS_DIR}/empty.yaml" and update mask desiredState.workloads.simple
+    When the controller workload updates the state with manifest "${CONFIGS_DIR}/empty.yaml" and update mask desiredState.workloads.sleepy
     And the controller workload gets event for fields workloadStates
     Then the last result has no added fields
-    And the last result has updated fields workloadStates.agent_A.simple.*.state and workloadStates.agent_A.simple.*.subState
+    And the last result has updated fields workloadStates.agent_A.sleepy.*.state and workloadStates.agent_A.sleepy.*.subState
     And the last result has no removed fields
 
     When the controller workload gets event for fields workloadStates
     Then the last result has no added fields
     And the last result has no updated fields
-    And the last result has removed fields workloadStates.agent_A.simple
+    And the last result has removed fields workloadStates.agent_A.sleepy
 
     When the controller workload cancels events for fields workloadStates
     Then the controller workload requests shall all succeed

@@ -49,7 +49,7 @@ Test server config overwrite manifest with cli arguments
     Ankaios insecure server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server.conf"
     And Ankaios server is available
     And Ankaios insecure agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And all workloads of agent "agent_A" have left the initial execution state
     # Asserts
     Then the workload "simple" shall not exist on agent "agent_A" within "1" seconds
     [Teardown]    Clean up Ankaios

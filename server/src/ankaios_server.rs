@@ -134,6 +134,8 @@ impl AnkaiosServer {
                     return Err(err.to_string());
                 }
             }
+
+            // at this point, there are no event subscribers yet, so no need to send events
         } else {
             // [impl->swdd~server-starts-without-startup-config~1]
             log::info!("No startup manifest provided -> waiting for new workloads from the CLI");
