@@ -113,12 +113,12 @@ fn add_control_interface_in_correct_manifest(
     }
 
     log::warn!(
-        "No matching manifest found to inject control to target '{control_interface_target:?}'"
+        "Cannot add Control Interface. Target not found '{control_interface_target:?}'"
     );
-    //TODO: add tests for this case
-    Err(RuntimeError::Unsupported(
-        "No matching manifest found to inject control interface.".to_string(),
-    ))
+    Err(RuntimeError::Unsupported(format!(
+        "Cannot add Control Interface. Target not found '{}'",
+        control_interface_target.pod
+    )))
 }
 
 fn get_metadata_name(manifest: &Value) -> Result<&str, RuntimeError> {
@@ -205,11 +205,14 @@ fn inject_volume_mount(
 
         if container_name == target_container_name {
             add_control_interface_mount(container);
-            break;
+            return Ok(());
         }
     }
 
-    Ok(())
+    log::warn!("Cannot add Control Interface. Target container '{target_container_name}' not found.");
+    Err(RuntimeError::Unsupported(format!(
+        "Cannot add Control Interface. Target container '{target_container_name}' not found.",
+    )))
 }
 
 // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
@@ -866,6 +869,30 @@ spec:
 
     // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
     #[test]
+    fn utest_inject_volume_mount_target_container_not_found() {
+        let mut manifest = serde_yaml::from_str::<Value>(
+            r#"
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: some-container
+    image: test-image
+    volumeMounts: []
+  - name: other-container
+    image: other-image
+    volumeMounts: []
+"#,
+        )
+        .unwrap();
+
+        let result = inject_volume_mount(&mut manifest, "missing-container");
+        assert!(result.is_err());
+        assert!(matches!(result, Err(RuntimeError::Unsupported(_))));
+    }
+
+    // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
+    #[test]
     fn utest_add_control_interface_mount_with_existing_mounts() {
         let mut container = serde_yaml::from_str::<Value>(
             r#"
@@ -1068,6 +1095,41 @@ spec:
         let service_serialized = serialize_yaml_manifest(&manifests[1]).unwrap();
         assert!(service_serialized.contains("kind: Service"));
         assert!(!service_serialized.contains("control-interface-volume"));
+    }
+
+    #[test]
+    fn utest_add_control_interface_in_correct_manifest_fails_when_target_pod_not_found() {
+        let pod_manifest = serde_yaml::from_str::<Value>(
+            r#"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: some-other-pod
+spec:
+  containers:
+  - name: some-container
+    image: test-image
+    volumeMounts: []
+  volumes: []
+"#,
+        )
+        .unwrap();
+
+        let mut manifests = vec![pod_manifest];
+        let control_interface_target = ControlInterfaceTarget {
+            pod: "target-pod".to_string(),
+            container: "target-container".to_string(),
+        };
+        let control_interface_path = std::path::PathBuf::from("/some/control_interface");
+
+        let result = add_control_interface_in_correct_manifest(
+            &mut manifests,
+            &control_interface_target,
+            control_interface_path.as_path(),
+        );
+
+        assert!(result.is_err());
+        assert!(matches!(result, Err(RuntimeError::Unsupported(_))));
     }
 
     // [utest->swdd~podman-kube-injects-control-interface-volume~1]
