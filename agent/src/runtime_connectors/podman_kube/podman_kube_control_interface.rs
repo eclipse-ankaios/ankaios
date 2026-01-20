@@ -113,10 +113,10 @@ fn add_control_interface_in_correct_manifest(
     }
 
     log::warn!(
-        "Cannot add Control Interface. Target not found '{control_interface_target:?}'"
+        "Cannot add Control Interface. Target pod not found '{control_interface_target:?}'"
     );
     Err(RuntimeError::Unsupported(format!(
-        "Cannot add Control Interface. Target not found '{}'",
+        "Cannot add Control Interface. Target pod not found '{}'",
         control_interface_target.pod
     )))
 }
