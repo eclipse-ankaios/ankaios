@@ -172,6 +172,7 @@ fn annotate_agent(builder: Builder) -> Builder {
             "AgentAttributes.tags",
             "#[serde(skip_serializing_if = \"::core::option::Option::is_none\")]",
         )
+        .field_attribute("AgentAttributes.tags", "#[serde(flatten)]")
         .field_attribute("AgentMap.agents", "#[serde(flatten)]")
         .field_attribute(
             "AgentMap.agents",

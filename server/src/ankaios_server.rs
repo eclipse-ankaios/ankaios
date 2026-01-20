@@ -23,13 +23,15 @@ mod server_state;
 mod state_comparator;
 
 use ankaios_api::ank_base::{
-    AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateSpec, DeletedWorkload,
-    ExecutionStateSpec, LogsStopResponse, RequestContentSpec, RequestSpec,
+    AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateSpec,
+    DeletedWorkload, ExecutionStateSpec, LogsStopResponse, RequestContentSpec, RequestSpec,
     WorkloadInstanceNameSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use common::state_manipulation::Path;
 
 use server_state::AddedDeletedWorkloads;
+
+use common::std_extensions::{IllegalStateResult, UnreachableResult};
 
 #[cfg_attr(test, mockall_double::double)]
 use server_state::ServerState;
@@ -43,7 +45,6 @@ use state_comparator::StateComparator;
 use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
 };
-use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServer, ToServerReceiver, ToServerSender};
 use tokio::sync::mpsc::channel;
 pub type ToServerChannel = (ToServerSender, ToServerReceiver);
@@ -102,9 +103,17 @@ impl AnkaiosServer {
 
             match self
                 .server_state
-                .update(state_generation_result.new_desired_state)
+                .update(state_generation_result.new_desired_state.0)
             {
                 Ok(Some(added_deleted_workloads)) => {
+                    for (agent_name, agent_attributes) in
+                        state_generation_result.new_desired_state.1.agents.iter()
+                    {
+                        self.agent_map
+                            .agents
+                            .entry(agent_name.to_owned())
+                            .insert_entry(agent_attributes.to_owned());
+                    }
                     let added_workloads = added_deleted_workloads.added_workloads;
                     let deleted_workloads = added_deleted_workloads.deleted_workloads;
 
@@ -141,6 +150,7 @@ impl AnkaiosServer {
                     log::info!("Received AgentHello from '{}'", method_obj.agent_name);
 
                     let agent_name = method_obj.agent_name;
+                    let tags = method_obj.tags.try_into().unwrap_or_unreachable();
 
                     // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
                     let workload_states = self
@@ -185,9 +195,14 @@ impl AnkaiosServer {
                     };
 
                     // [impl->swdd~server-stores-newly-connected-agent~2]
-                    self.agent_map
-                        .agents
-                        .insert(agent_name.clone(), Default::default());
+                    // [impl->swdd~server-stores-newly-connected-agent~1]
+                    self.agent_map.agents.insert(
+                        agent_name.clone(),
+                        AgentAttributesSpec {
+                            tags,
+                            ..Default::default()
+                        },
+                    );
 
                     if self.event_handler.has_subscribers() {
                         // [impl->swdd~server-sends-state-differences-as-events~1]
@@ -424,9 +439,10 @@ impl AnkaiosServer {
 
                         match self
                             .server_state
-                            .update(state_generation_result.new_desired_state.clone())
+                            .update(state_generation_result.new_desired_state.0.clone())
                         {
                             Ok(Some(added_deleted_workloads)) => {
+                                self.set_agent_tags(&state_generation_result.new_desired_state.1);
                                 self.handle_post_update_steps(
                                     request_id,
                                     added_deleted_workloads,
@@ -438,6 +454,7 @@ impl AnkaiosServer {
                                 log::debug!(
                                     "The current state and new state are identical -> nothing to do"
                                 );
+                                self.set_agent_tags(&state_generation_result.new_desired_state.1);
                                 self.to_agents
                                     .update_state_success(request_id, vec![], vec![])
                                     .await
@@ -452,7 +469,7 @@ impl AnkaiosServer {
                                     };
 
                                     let new_state = CompleteStateSpec {
-                                        desired_state: state_generation_result.new_desired_state,
+                                        desired_state: state_generation_result.new_desired_state.0,
                                         ..Default::default()
                                     };
 
@@ -650,6 +667,15 @@ impl AnkaiosServer {
         }
     }
 
+    // [impl->swdd~server-state-updates-agent-tags~1]
+    fn set_agent_tags(&mut self, agent_map: &AgentMapSpec) {
+        for (agent_name, new_agent_attributes) in &agent_map.agents {
+            if let Some(existing_agent) = self.agent_map.agents.get_mut(agent_name) {
+                existing_agent.tags = new_agent_attributes.tags.to_owned();
+            }
+        }
+    }
+
     async fn handle_post_update_steps(
         &mut self,
         request_id: String,
@@ -698,7 +724,7 @@ impl AnkaiosServer {
         if self.event_handler.has_subscribers() {
             // [impl->swdd~server-sends-state-differences-as-events~1]
             let new_state = CompleteStateSpec {
-                desired_state: state_generation_result.new_desired_state,
+                desired_state: state_generation_result.new_desired_state.0,
                 workload_states: self.workload_states_map.clone(),
                 ..Default::default()
             };
@@ -865,15 +891,17 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{
-        AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateResponse,
-        CompleteStateSpec, DeletedWorkload, Error, ExecutionStateEnumSpec, ExecutionStateSpec,
+        AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState,
+        CompleteStateRequestSpec, CompleteStateResponse, CompleteStateSpec, CpuUsageSpec,
+        DeletedWorkload, Error, ExecutionStateEnumSpec, ExecutionStateSpec, FreeMemorySpec,
         LogEntriesResponse, LogEntry, LogsCancelAccepted, LogsRequestAccepted, LogsRequestSpec,
         LogsStopResponse, Pending as PendingSubstate, Response, ResponseContent, State, StateSpec,
-        UpdateStateSuccess, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap,
-        WorkloadMapSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
+        TagsSpec, UpdateStateSuccess, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec,
+        WorkloadMap, WorkloadMapSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
     };
+    use ankaios_api::test_utils::fixtures::{AGENT_NAMES, REQUEST_ID};
     use ankaios_api::test_utils::{
-        fixtures, generate_test_agent_map, generate_test_config_map,
+        fixtures, generate_test_agent_map, generate_test_agent_tags, generate_test_config_map,
         generate_test_workload_instance_name_with_params, generate_test_workload_named,
         generate_test_workload_named_with_params, generate_test_workload_state,
         generate_test_workload_state_with_agent, generate_test_workload_states_map_with_data,
@@ -927,7 +955,10 @@ mod tests {
             .once()
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: cloned_startup_state.desired_state.clone(),
+                    new_desired_state: (
+                        cloned_startup_state.desired_state.clone(),
+                        Default::default(),
+                    ),
                     ..Default::default()
                 })
             });
@@ -1026,7 +1057,7 @@ mod tests {
             .in_sequence(&mut seq)
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: new_desired_state.clone(),
+                    new_desired_state: (new_desired_state.clone(), Default::default()),
                     ..Default::default()
                 })
             });
@@ -1051,7 +1082,7 @@ mod tests {
             .in_sequence(&mut seq)
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: fixed_desired_state.clone(),
+                    new_desired_state: (fixed_desired_state.clone(), Default::default()),
                     ..Default::default()
                 })
             });
@@ -1172,7 +1203,7 @@ mod tests {
             .once()
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: new_desired_state.clone(),
+                    new_desired_state: (new_desired_state.clone(), Default::default()),
                     ..Default::default()
                 })
             });
@@ -1271,7 +1302,10 @@ mod tests {
 
         // first agent connects to the server
         let agent_hello_result = to_server
-            .agent_hello(fixtures::AGENT_NAMES[0].to_string())
+            .agent_hello(
+                fixtures::AGENT_NAMES[0].to_string(),
+                generate_test_agent_tags().into(),
+            )
             .await;
         assert!(agent_hello_result.is_ok());
 
@@ -1307,7 +1341,10 @@ mod tests {
         );
 
         let agent_hello_result = to_server
-            .agent_hello(fixtures::AGENT_NAMES[1].to_owned())
+            .agent_hello(
+                fixtures::AGENT_NAMES[1].to_owned(),
+                generate_test_agent_tags().into(),
+            )
             .await;
         assert!(agent_hello_result.is_ok());
 
@@ -1420,7 +1457,7 @@ mod tests {
             .once()
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: updated_desired_state.clone(),
+                    new_desired_state: (updated_desired_state.clone(), Default::default()),
                     ..Default::default()
                 })
             });
@@ -1521,7 +1558,7 @@ mod tests {
             .once()
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: updated_desired_state.clone(),
+                    new_desired_state: (updated_desired_state.clone(), Default::default()),
                     ..Default::default()
                 })
             });
@@ -1609,7 +1646,7 @@ mod tests {
             .once()
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: updated_desired_state.clone(),
+                    new_desired_state: (updated_desired_state.clone(), Default::default()),
                     ..Default::default()
                 })
             });
@@ -2272,7 +2309,7 @@ mod tests {
             .in_sequence(&mut seq)
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: updated_desired_state.clone(),
+                    new_desired_state: (updated_desired_state.clone(), Default::default()),
                     ..Default::default()
                 })
             });
@@ -2300,12 +2337,12 @@ mod tests {
             .return_const(false);
 
         let agent_hello1_result = to_server
-            .agent_hello(fixtures::AGENT_NAMES[0].to_owned())
+            .agent_hello(fixtures::AGENT_NAMES[0].to_owned(), Default::default())
             .await;
         assert!(agent_hello1_result.is_ok());
 
         let agent_hello2_result = to_server
-            .agent_hello(fixtures::AGENT_NAMES[1].to_owned())
+            .agent_hello(fixtures::AGENT_NAMES[1].to_owned(), Default::default())
             .await;
         assert!(agent_hello2_result.is_ok());
 
@@ -2820,7 +2857,10 @@ mod tests {
             .agent_map
             .agents
             .entry(fixtures::AGENT_NAMES[0].to_owned())
-            .or_default();
+            .insert_entry(AgentAttributesSpec {
+                tags: generate_test_agent_tags(),
+                ..Default::default()
+            });
 
         server
             .event_handler
@@ -2862,11 +2902,11 @@ mod tests {
             .return_const(false);
 
         let agent_resource_result = to_server
-            .agent_hello(fixtures::AGENT_NAMES[0].to_owned())
+            .agent_hello(fixtures::AGENT_NAMES[0].to_owned(), Default::default())
             .await;
         assert!(agent_resource_result.is_ok());
         let agent_resource_result = to_server
-            .agent_hello(fixtures::AGENT_NAMES[1].to_owned())
+            .agent_hello(fixtures::AGENT_NAMES[1].to_owned(), Default::default())
             .await;
         assert!(agent_resource_result.is_ok());
 
@@ -2968,7 +3008,7 @@ mod tests {
             .once()
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: updated_desired_state.clone(),
+                    new_desired_state: (updated_desired_state.clone(), Default::default()),
                     ..Default::default()
                 })
             });
@@ -3326,7 +3366,7 @@ mod tests {
             .return_const(());
 
         let agent_hello_result = to_server
-            .agent_hello(fixtures::AGENT_NAMES[0].to_string())
+            .agent_hello(fixtures::AGENT_NAMES[0].to_string(), Default::default())
             .await;
         assert!(agent_hello_result.is_ok());
 
@@ -3495,7 +3535,7 @@ mod tests {
 
         let state_generation_result = StateGenerationResult {
             old_desired_state: old_state.desired_state,
-            new_desired_state: updated_desired_state.clone(),
+            new_desired_state: (updated_desired_state.clone(), Default::default()),
         };
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
@@ -3639,7 +3679,7 @@ mod tests {
         let updated_desired_state = update_state.desired_state.clone();
 
         let state_generation_result = StateGenerationResult {
-            new_desired_state: updated_desired_state.clone(),
+            new_desired_state: (updated_desired_state.clone(), Default::default()),
             ..Default::default()
         };
 
@@ -3991,5 +4031,205 @@ mod tests {
         drop(to_server);
         let result = server.start(None).await;
         assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-state-updates-agent-tags~1]
+    #[tokio::test]
+    async fn utest_set_complete_state_only_updates_tags_for_existing_agents() {
+        const OTHER_CPU_USAGE: u32 = 75;
+        const OTHER_FREE_MEMORY: u64 = 512;
+
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let update_state = CompleteStateSpec {
+            agents: AgentMapSpec {
+                agents: [
+                    (
+                        AGENT_NAMES[0].to_string(),
+                        AgentAttributesSpec {
+                            status: Some(AgentStatusSpec {
+                                // Status changed
+                                cpu_usage: Some(CpuUsageSpec { cpu_usage: 99 }),
+                                free_memory: Some(FreeMemorySpec { free_memory: 1 }),
+                            }),
+                            tags: TagsSpec {
+                                tags: HashMap::from([
+                                    ("location".to_string(), "on-car".to_string()), // Updated
+                                    ("new_tag".to_string(), "value".to_string()),   // Added
+                                                                                    // "type" removed
+                                ]),
+                            },
+                        },
+                    ),
+                    ("new_agent".to_string(), AgentAttributesSpec::default()),
+                ]
+                .into(),
+            },
+            ..Default::default()
+        };
+        let update_mask = vec![
+            format!("agents.{}", AGENT_NAMES[0].to_string()),
+            "agents.new_agent".to_string(),
+        ];
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+
+        let agents_clone = update_state.agents.clone();
+
+        mock_server_state
+            .expect_generate_new_state()
+            .with(
+                mockall::predicate::eq(update_state.clone()),
+                mockall::predicate::eq(update_mask.clone()),
+            )
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: (Default::default(), agents_clone.clone()),
+                    ..Default::default()
+                })
+            });
+        mock_server_state
+            .expect_update()
+            .with(mockall::predicate::eq(update_state.desired_state.clone()))
+            .once()
+            .return_const(Ok(None));
+        mock_server_state
+            .expect_get_complete_state_by_field_mask()
+            .returning(|_, _, agents| {
+                Ok(CompleteState {
+                    agents: Some(agents.to_owned().into()),
+                    ..Default::default()
+                })
+            });
+        server.server_state = mock_server_state;
+        server.agent_map.agents.insert(
+            fixtures::AGENT_NAMES[0].to_string(),
+            AgentAttributesSpec {
+                status: Some(AgentStatusSpec {
+                    cpu_usage: Some(fixtures::CPU_USAGE_SPEC),
+                    free_memory: Some(fixtures::FREE_MEMORY_SPEC),
+                }),
+                tags: TagsSpec {
+                    tags: HashMap::from([
+                        ("type".to_string(), "AI-agent".to_string()),
+                        ("location".to_string(), "online".to_string()),
+                    ]),
+                },
+            },
+        );
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .return_const(false);
+
+        server.agent_map.agents.insert(
+            fixtures::AGENT_NAMES[1].to_string(),
+            AgentAttributesSpec {
+                status: Some(AgentStatusSpec {
+                    cpu_usage: Some(CpuUsageSpec {
+                        cpu_usage: OTHER_CPU_USAGE,
+                    }),
+                    free_memory: Some(FreeMemorySpec {
+                        free_memory: OTHER_FREE_MEMORY,
+                    }),
+                }),
+                tags: TagsSpec {
+                    tags: HashMap::from([("type".to_string(), "watchdog".to_string())]),
+                },
+            },
+        );
+
+        let update_state = CompleteStateSpec {
+            agents: AgentMapSpec {
+                agents: [
+                    (
+                        AGENT_NAMES[0].to_string(),
+                        AgentAttributesSpec {
+                            status: Some(AgentStatusSpec {
+                                // Status changed
+                                cpu_usage: Some(CpuUsageSpec { cpu_usage: 99 }),
+                                free_memory: Some(FreeMemorySpec { free_memory: 1 }),
+                            }),
+                            tags: TagsSpec {
+                                tags: HashMap::from([
+                                    ("location".to_string(), "on-car".to_string()), // Updated
+                                    ("new_tag".to_string(), "value".to_string()),   // Added
+                                                                                    // "type" removed
+                                ]),
+                            },
+                        },
+                    ),
+                    ("new_agent".to_string(), AgentAttributesSpec::default()),
+                ]
+                .into(),
+            },
+            ..Default::default()
+        };
+
+        let update_mask = vec![
+            format!("agents.{}", AGENT_NAMES[0].to_string()),
+            "agents.new_agent".to_string(),
+        ];
+
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        // send new state to server
+        let update_state_result = to_server
+            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
+            .await;
+        assert!(update_state_result.is_ok());
+
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id,
+                response_content: Some(ResponseContent::UpdateStateSuccess(_)),
+            }) if request_id == fixtures::REQUEST_ID
+        ));
+
+        let request_id_2 = REQUEST_ID.to_string() + "2";
+
+        let request_complete_state_result = to_server
+            .request_complete_state(
+                request_id_2.clone(),
+                CompleteStateRequestSpec {
+                    field_mask: ["agents".to_string()].into(),
+                    subscribe_for_events: false,
+                },
+            )
+            .await;
+        assert!(request_complete_state_result.is_ok());
+        let foo = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert!(matches!(
+            foo,
+            FromServer::Response(Response {
+                request_id,
+                response_content: Some(ResponseContent::CompleteStateResponse(complete_state_response)),
+            }) if request_id == request_id_2 && get_agent_names(&complete_state_response) == Some(HashSet::from([AGENT_NAMES[0].to_string(), AGENT_NAMES[1].to_string()]))
+        ));
+
+        fn get_agent_names(
+            complete_state_response: &CompleteStateResponse,
+        ) -> Option<HashSet<String>> {
+            Some(
+                complete_state_response
+                    .complete_state
+                    .as_ref()?
+                    .agents
+                    .as_ref()?
+                    .agents
+                    .keys()
+                    .map(|k| k.to_string())
+                    .collect::<HashSet<_>>(),
+            )
+        }
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 }

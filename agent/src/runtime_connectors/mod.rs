@@ -49,3 +49,5 @@ pub use state_checker::MockRuntimeStateGetter;
 
 mod log_fetching;
 pub use log_fetching::{generic_log_fetcher, log_channel, log_fetcher, log_fetching_runner};
+
+pub const SUPPORTED_RUNTIMES: &[&str] = &[podman::NAME, containerd::NAME, podman_kube::NAME];

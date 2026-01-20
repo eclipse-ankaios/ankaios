@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{ArgAction, Parser};
+use common::helpers::parse_key_val;
 
 // [impl->swdd~agent-supports-cli-argument-for-insecure-communication~1]
 // [impl->swdd~agent-supports-pem-file-paths-as-cli-arguments~1]
@@ -33,12 +34,16 @@ pub struct Arguments {
     #[arg(short = 's', long = "server-url", required = false)]
     /// The server url.
     pub server_url: Option<String>,
-    /// An existing directory where agent specific runtime files will be stored. If not specified, a default folder is created.
     #[arg(short = 'r', long = "run-folder", required = false)]
+    /// An existing directory where agent specific runtime files will be stored. If not specified, a default folder is created.
     pub run_folder: Option<String>,
     #[arg(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANKAGENT_INSECURE")]
     /// Flag to disable TLS communication between Ankaios agent and server.
     pub insecure: Option<bool>,
+    #[arg(short = 't', long = "tag", value_parser = parse_key_val::<String, String>, action = ArgAction::Append)]
+    /// Agent tags as key=value pairs. Can be specified multiple times.
+    /// Example: --tag cpu=x86_64 --tag location=cloud
+    pub tags: Option<Vec<(String, String)>>,
     #[arg(long = "ca_pem", env = "ANKAGENT_CA_PEM")]
     /// Path to agent ca pem file.
     pub ca_pem: Option<String>,

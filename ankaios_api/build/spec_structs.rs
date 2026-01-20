@@ -354,6 +354,7 @@ fn setup_spec_agent_map(builder: Builder) -> Builder {
             "AgentMap",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
+        .field_attribute("AgentMap.agents", "#[spec_field_attr(#[serde(flatten)])]")
         .message_attribute(
             "AgentAttributes",
             "#[derive(spec_macros::Spec)]",
@@ -362,6 +363,8 @@ fn setup_spec_agent_map(builder: Builder) -> Builder {
             "AgentAttributes",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
+        .field_attribute("AgentAttributes.tags", "#[spec_mandatory]")
+        .field_attribute("AgentAttributes.tags", "#[spec_field_attr(#[serde(flatten)])]")
         .message_attribute("AgentStatus", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "AgentStatus",

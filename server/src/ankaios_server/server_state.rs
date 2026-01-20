@@ -36,7 +36,7 @@ use mockall::automock;
 #[derive(Debug, Default)]
 pub struct StateGenerationResult {
     pub old_desired_state: StateSpec,
-    pub new_desired_state: StateSpec,
+    pub new_desired_state: (StateSpec, AgentMapSpec),
 }
 
 fn extract_added_and_deleted_workloads(
@@ -251,6 +251,9 @@ impl ServerState {
         // [impl->swdd~update-desired-state-with-update-mask~1]
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
+        // println!("call 1: {:#?}", new_desired_state.workloads.workloads);
+        // println!("call 2: {:#?}", self.state.desired_state.configs.configs);
+
         let new_rendered_workloads = self
             .config_renderer
             .render_workloads(
@@ -326,7 +329,7 @@ impl ServerState {
         if update_mask.is_empty() {
             return Ok(StateGenerationResult {
                 old_desired_state: self.state.desired_state.clone(),
-                new_desired_state: updated_state.desired_state,
+                new_desired_state: (updated_state.desired_state, updated_state.agents),
             });
         }
 
@@ -352,7 +355,7 @@ impl ServerState {
 
         Ok(StateGenerationResult {
             old_desired_state: self.state.desired_state.clone(),
-            new_desired_state: new_complete_state.desired_state,
+            new_desired_state: (new_complete_state.desired_state, new_complete_state.agents),
         })
     }
 
@@ -381,6 +384,14 @@ mod tests {
     use super::ServerState;
     use std::collections::HashMap;
 
+    use crate::ankaios_server::{
+        config_renderer::{ConfigRenderError, MockConfigRenderer},
+        delete_graph::MockDeleteGraph,
+        rendered_workloads::RenderedWorkloads,
+        server_state::{
+            AddedDeletedWorkloads, UpdateStateError, extract_added_and_deleted_workloads,
+        },
+    };
     use ankaios_api::ank_base::{
         AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec, DeletedWorkload,
         StateSpec, Workload, WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadNamed,
@@ -392,15 +403,6 @@ mod tests {
         generate_test_workload, generate_test_workload_named,
         generate_test_workload_named_with_params, generate_test_workload_named_with_runtime_config,
         generate_test_workload_with_params,
-    };
-
-    use crate::ankaios_server::{
-        config_renderer::{ConfigRenderError, MockConfigRenderer},
-        delete_graph::MockDeleteGraph,
-        rendered_workloads::RenderedWorkloads,
-        server_state::{
-            AddedDeletedWorkloads, UpdateStateError, extract_added_and_deleted_workloads,
-        },
     };
 
     fn generate_rendered_workloads_from_state(state: &StateSpec) -> RenderedWorkloads {
@@ -799,6 +801,7 @@ mod tests {
     #[test]
     fn utest_server_state_update_state_reject_state_with_cyclic_dependencies() {
         let _ = env_logger::builder().is_test(true).try_init();
+
         let workload = generate_test_workload_with_params(
             fixtures::AGENT_NAMES[0],
             fixtures::RUNTIME_NAMES[0],
@@ -893,7 +896,7 @@ mod tests {
 
         assert_eq!(
             update_state.desired_state,
-            state_generation_result.new_desired_state
+            state_generation_result.new_desired_state.0
         );
     }
 
@@ -934,7 +937,7 @@ mod tests {
 
         assert_eq!(
             expected.desired_state,
-            state_generation_result.new_desired_state
+            state_generation_result.new_desired_state.0
         );
     }
 
@@ -975,7 +978,7 @@ mod tests {
 
         assert_eq!(
             expected.desired_state,
-            state_generation_result.new_desired_state
+            state_generation_result.new_desired_state.0
         );
     }
 
@@ -1002,7 +1005,7 @@ mod tests {
 
         assert_eq!(
             expected.desired_state,
-            state_generation_result.new_desired_state
+            state_generation_result.new_desired_state.0
         );
     }
 
@@ -1036,7 +1039,7 @@ mod tests {
 
         assert_eq!(
             expected.desired_state,
-            state_generation_result.new_desired_state
+            state_generation_result.new_desired_state.0
         );
     }
 
@@ -1061,7 +1064,7 @@ mod tests {
 
         assert_eq!(
             expected.desired_state,
-            state_generation_result.new_desired_state
+            state_generation_result.new_desired_state.0
         );
     }
 
@@ -1116,7 +1119,7 @@ mod tests {
             .generate_new_state(CompleteStateSpec::default(), vec![])
             .unwrap();
         assert_eq!(
-            state_generation_result.new_desired_state,
+            state_generation_result.new_desired_state.0,
             StateSpec::default()
         );
         assert_eq!(server_state.state, CompleteStateSpec::default());
@@ -1555,42 +1558,46 @@ mod tests {
     }
 
     fn generate_test_old_state() -> CompleteStateSpec {
-        generate_test_complete_state(vec![
-            generate_test_workload_named_with_params(
-                fixtures::WORKLOAD_NAMES[0],
-                fixtures::AGENT_NAMES[0],
-                fixtures::RUNTIME_NAMES[0],
-            ),
-            generate_test_workload_named_with_params(
-                fixtures::WORKLOAD_NAMES[1],
-                fixtures::AGENT_NAMES[0],
-                fixtures::RUNTIME_NAMES[1],
-            ),
-            generate_test_workload_named_with_params(
-                fixtures::WORKLOAD_NAMES[2],
-                fixtures::AGENT_NAMES[1],
-                fixtures::RUNTIME_NAMES[0],
-            ),
-        ])
+        let w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        let mut w2 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[1],
+        );
+        let mut w3 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[2],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        w2.workload.dependencies.dependencies.clear();
+        w3.workload.dependencies.dependencies.clear();
+
+        generate_test_complete_state(vec![w1, w2, w3])
     }
 
     fn generate_test_update_state() -> CompleteStateSpec {
-        generate_test_complete_state(vec![
-            generate_test_workload_named_with_params(
-                fixtures::WORKLOAD_NAMES[0],
-                fixtures::AGENT_NAMES[1],
-                fixtures::RUNTIME_NAMES[1],
-            ),
-            generate_test_workload_named_with_params(
-                fixtures::WORKLOAD_NAMES[2],
-                fixtures::AGENT_NAMES[1],
-                fixtures::RUNTIME_NAMES[1],
-            ),
-            generate_test_workload_named_with_params(
-                fixtures::WORKLOAD_NAMES[3],
-                fixtures::AGENT_NAMES[0],
-                fixtures::RUNTIME_NAMES[0],
-            ),
-        ])
+        let w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[1],
+        );
+        let mut w3 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[2],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[1],
+        );
+        let mut w4 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[3],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        w3.workload.dependencies.dependencies.clear();
+        w4.workload.dependencies.dependencies.clear();
+
+        generate_test_complete_state(vec![w1, w3, w4])
     }
 }
