@@ -1133,7 +1133,6 @@ def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bi
                 process.send_signal(signal.SIGTERM)
                 process.wait(timeout=2)
 
-            return None
         except Exception as e:
             log_file_handle.write(f"Error while listening for events: {e}\n")
         finally:

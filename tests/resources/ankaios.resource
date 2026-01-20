@@ -1123,5 +1123,6 @@ all workloads of agent "${agent_names}" have left the initial execution state
     all workloads of agent "${agent_names}" have left the initial execution state within "10" seconds
 
 all workloads of agent "${agent_names}" have left the initial execution state within "${timeout}" seconds
-    All Workloads Left Initial Execution State    agent_names=${agent_names}    timeout=${timeout}
+    ${result}=    All Workloads Left Initial Execution State    agent_names=${agent_names}    timeout=${timeout}
+    Should Be True    ${result}    msg=Not all workloads of agent(s) '${agent_names}' have left the initial execution state within '${timeout}' seconds!
 
