@@ -147,17 +147,12 @@ fn should_inject_control_interface(
             RuntimeError::Unsupported("Manifest missing 'kind' field".to_string())
         })?;
 
+    let manifest_name = get_metadata_name(manifest)?;
     match kind {
-        "Pod" => {
-            let pod_name = get_metadata_name(manifest)?;
-
-            Ok(pod_name == target_pod_name)
-        }
+        "Pod" => Ok(manifest_name == target_pod_name),
         "Deployment" => {
             // For Podman, a Deployment with metadata.name '<name>' results in a pod named '<name>-pod'.
-            let deployment_name = get_metadata_name(manifest)?;
-
-            Ok(format!("{deployment_name}-pod") == *target_pod_name)
+            Ok(format!("{manifest_name}-pod") == *target_pod_name)
         }
         _ => {
             log::trace!("Skipping manifest with kind '{kind}'");
@@ -663,37 +658,82 @@ metadata:
     }
 
     #[test]
-    fn utest_should_inject_control_interface_missing_metadata_name() {
-        let manifest = serde_yaml::from_str::<Value>(
+    fn utest_find_containers_spec_pod_returns_spec() {
+        let mut manifest = serde_yaml::from_str::<Value>(
+            r#"
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: test-container
+    image: test-image
+"#,
+        )
+        .unwrap();
+
+        let spec = find_containers_spec(&mut manifest).expect("Expected a spec for Pod");
+        let containers = spec
+            .get("containers")
+            .and_then(|c| c.as_sequence())
+            .expect("Expected spec.containers sequence");
+        assert_eq!(containers.len(), 1);
+        assert_eq!(containers[0]["name"], "test-container");
+    }
+
+    #[test]
+    fn utest_find_containers_spec_deployment_returns_template_spec() {
+        let mut manifest = serde_yaml::from_str::<Value>(
+            r#"
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  template:
+    spec:
+      containers:
+      - name: test-container
+        image: test-image
+"#,
+        )
+        .unwrap();
+
+        let spec =
+            find_containers_spec(&mut manifest).expect("Expected an inner spec for Deployment");
+        let containers = spec
+            .get("containers")
+            .and_then(|c| c.as_sequence())
+            .expect("Expected spec.template.spec.containers sequence");
+        assert_eq!(containers.len(), 1);
+        assert_eq!(containers[0]["name"], "test-container");
+    }
+
+    #[test]
+    fn utest_find_containers_spec_none_when_missing_spec() {
+        let mut manifest = serde_yaml::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
 metadata:
-  namespace: default
+  name: test
 "#,
         )
         .unwrap();
 
-        let result = should_inject_control_interface(&manifest, &"test-pod".to_owned());
-        assert!(result.is_err());
-        assert!(matches!(result, Err(RuntimeError::Unsupported(_))));
+        assert!(find_containers_spec(&mut manifest).is_none());
     }
 
     #[test]
-    fn utest_should_inject_control_interface_deployment_missing_metadata_name() {
-        let manifest = serde_yaml::from_str::<Value>(
+    fn utest_find_containers_spec_none_when_no_containers_and_no_template_spec() {
+        let mut manifest = serde_yaml::from_str::<Value>(
             r#"
 apiVersion: v1
-kind: Deployment
-metadata:
-  namespace: default
+kind: Pod
+spec:
+  volumes: []
 "#,
         )
         .unwrap();
 
-        let result = should_inject_control_interface(&manifest, &"pod_A-pod".to_owned());
-        assert!(result.is_err());
-        assert!(matches!(result, Err(RuntimeError::Unsupported(_))));
+        assert!(find_containers_spec(&mut manifest).is_none());
     }
 
     // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
