@@ -374,8 +374,9 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
             ${workload_entry}=    Get From Dictionary    ${workload_table}    ${workload_name}
             ${execution_state}=    Get From Dictionary    ${workload_entry}    EXECUTION STATE
             IF    '${execution_state}' == '${expected_execution_state}'    RETURN
-
+            Sleep    0.1s
         END
+        Fail    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' did not reach execution state '${expected_execution_state}' within '${timeout}' seconds!
     ELSE
         ${result}=    Workload Has Execution State    ${workload_name}    ${expected_agent_name}    ${expected_execution_state}    ${timeout}
         Should Be True    ${result}    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' did not reach execution state '${expected_execution_state}' within '${timeout}' seconds!
