@@ -157,6 +157,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         let mut workload_config = PodmanKubeRuntimeConfig::try_from(&workload_named.workload)
             .map_err(RuntimeError::Unsupported)?;
 
+        // [impl->swdd~podman-kube-mounts-control-interface~2]
         if let Some(control_interface_path) = control_interface_path {
             if let Some(control_interface_target) =
                 ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)?
@@ -451,6 +452,7 @@ mod tests {
         generate_test_workload_named_with_runtime_config, generate_test_workload_with_params,
     };
 
+    use mockall::predicate::function;
     use mockall::{Sequence, lazy_static, predicate::eq};
     use std::fmt::Display;
 
@@ -476,6 +478,8 @@ mod tests {
                 .config(&SAMPLE_RUNTIME_CONFIG.to_string())
                 .build();
         pub static ref SAMPLE_POD_LIST: Vec<String> = vec!["pod1".to_string(), "pod2".to_string()];
+        pub static ref SAMPLE_PODS_AS_JSON: String = serde_json::to_string(&*SAMPLE_POD_LIST)
+            .expect("SAMPLE_POD_LIST should serialize to JSON");
         pub static ref SAMPLE_GENERAL_OPTIONS: Vec<String> =
             vec!["-gen".to_string(), "--eral".to_string()];
         pub static ref SAMPLE_PLAY_OPTIONS: Vec<String> =
@@ -683,7 +687,7 @@ mod tests {
         mock_context
             .store_data(
                 WORKLOAD_INSTANCE_NAME.as_pods_volume(),
-                r#"["pod1","pod2"]"#,
+                SAMPLE_PODS_AS_JSON.as_str(),
             )
             .returns(Ok(()));
 
@@ -705,6 +709,102 @@ mod tests {
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
                 workload_id.pods == Some(SAMPLE_POD_LIST.clone()) &&
                 workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
+    }
+
+    // [utest->swdd~podman-kube-mounts-control-interface~2]
+    #[tokio::test]
+    async fn utest_create_workload_injects_control_interface_before_play_kube() {
+        use crate::runtime_connectors::podman_cli::API_PIPES_MOUNT_POINT;
+
+        let mock_context = MockContext::new().await;
+
+        let manifest_str = r#"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+spec:
+  containers:
+  - name: test-container
+    image: test-image
+    volumeMounts: []
+  volumes: []
+"#;
+
+        let runtime_config = format!(
+            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
+        );
+
+        let mut workload_named = generate_test_workload_named_with_runtime_config(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            PODMAN_KUBE_RUNTIME_NAME,
+            runtime_config.as_str(),
+        );
+        workload_named.workload.files = Default::default();
+        workload_named.workload.control_interface_access = Default::default();
+
+        // [utest->swdd~podman-kube-create-workload-creates-config-volume~1]
+        // Check that the updated manifest with control interface is stored and not the original one
+        let expected_config_volume = workload_named.instance_name.as_config_volume();
+        mock_context
+            .store_data
+            .expect()
+            .with(
+                eq(expected_config_volume),
+                function(|data: &str| {
+                    data.contains("controlInterfaceTarget") && data.contains("manifest")
+                }),
+            )
+            .once()
+            .return_const(Ok(()));
+
+        // [utest->swdd~podman-kube-create-workload-apply-manifest~1]
+        // Verify the manifest was extended before play_kube is called.
+        mock_context
+            .play_kube
+            .expect()
+            .with(
+                eq((*SAMPLE_GENERAL_OPTIONS).clone()),
+                eq((*SAMPLE_PLAY_OPTIONS).clone()),
+                function(|kube_yml: &[u8]| {
+                    let kube_str = String::from_utf8_lossy(kube_yml);
+                    kube_str.contains("control-interface-volume")
+                        && kube_str.contains(API_PIPES_MOUNT_POINT)
+                        && kube_str.contains("volumeMounts")
+                        && kube_str.contains("volumes")
+                }),
+            )
+            .once()
+            .return_const(Ok(SAMPLE_POD_LIST.clone()));
+
+        // [utest->swdd~podman-kube-create-workload-creates-pods-volume~1]
+        mock_context
+            .store_data(
+                workload_named.instance_name.as_pods_volume(),
+                SAMPLE_PODS_AS_JSON.as_str(),
+            )
+            .returns(Ok(()));
+
+        mock_context.reset_ps_cache.expect().return_const(());
+
+        let runtime = PodmanKubeRuntime {};
+        let (sender, _) = tokio::sync::mpsc::channel(1);
+
+        let result = runtime
+            .create_workload(
+                workload_named,
+                None,
+                Some(std::path::PathBuf::from("/run/test/control_interface")),
+                sender,
+                Default::default(),
+            )
+            .await;
+
+        assert!(matches!(
+            &result,
+            Ok((workload_id, _)) if workload_id.manifest.contains("control-interface-volume")
+        ));
     }
 
     // [utest->swdd~podman-kube-create-continues-if-cannot-create-volume~1]
@@ -730,7 +830,7 @@ mod tests {
         mock_context
             .store_data(
                 WORKLOAD_INSTANCE_NAME.as_pods_volume(),
-                r#"["pod1","pod2"]"#,
+                SAMPLE_PODS_AS_JSON.as_str(),
             )
             .returns(Ok(()));
 
@@ -776,7 +876,7 @@ mod tests {
         mock_context
             .store_data(
                 WORKLOAD_INSTANCE_NAME.as_pods_volume(),
-                r#"["pod1","pod2"]"#,
+                SAMPLE_PODS_AS_JSON.as_str(),
             )
             .returns(Err(SAMPLE_ERROR.into()));
 
@@ -843,7 +943,7 @@ mod tests {
         mock_context
             .store_data(
                 WORKLOAD_INSTANCE_NAME.as_pods_volume(),
-                r#"["pod1","pod2"]"#,
+                SAMPLE_PODS_AS_JSON.as_str(),
             )
             .returns(Err(SAMPLE_ERROR.into()));
 
@@ -921,7 +1021,7 @@ mod tests {
             .returns(Ok(SAMPLE_RUNTIME_CONFIG.into()));
         mock_context
             .read_data(WORKLOAD_INSTANCE_NAME.as_pods_volume())
-            .returns(Ok(r#"["pod1","pod2"]"#.into()));
+            .returns(Ok(SAMPLE_PODS_AS_JSON.to_string()));
 
         let runtime = PodmanKubeRuntime {};
         let workload = runtime.get_workload_id(&WORKLOAD_INSTANCE_NAME).await;
