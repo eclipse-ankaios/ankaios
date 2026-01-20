@@ -88,7 +88,7 @@ name = 'agent_1'
 server_url = 'https://127.0.0.1:25551'
 
 # An existing path where to manage the fifo files.
-# The default path is '/tmp/ankaios/'.
+# If not set, defaults to '$TMPDIR/ankaios/' (falls back to '/tmp/ankaios/' if TMPDIR is not set).
 run_folder = '/tmp/ankaios/'
 
 # The flag to disable TLS communication with the server.
