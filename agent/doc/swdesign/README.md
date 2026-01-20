@@ -528,14 +528,14 @@ Needs:
 - stest
 
 #### Podman-kube mounts control interface
-`swdd~podman-kube-mounts-control-interface~1`
+`swdd~podman-kube-mounts-control-interface~2`
 
 Status: approved
 
 When the podman-kube runtime connector is called to create a workload and:
-* a Control Interface Access is defined and
+* a Control Interface access is provided to the workload and
 * a `controlInterfaceTarget` path is defined in the Podman Kube Runtime Config
-then the podman-kube runtime connector shall inject the Control Interface volume and volume mount into the Kubernetes manifest according to the specified target path.
+then the podman-kube runtime connector shall inject the Control Interface volume and volume mount into the Kubernetes manifest according to the specified target path or fail if the target path cannot be found.
 
 Comment:
 The target path specifies the pod and container where the Control Interface shall be mounted using the format "podName/containerName". Other container from the same or other pods shall not have access to the Control Interface.
