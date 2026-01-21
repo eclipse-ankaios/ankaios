@@ -38,7 +38,7 @@ Test Ankaios CLI update workload
     And Ankaios server is started with manifest "${default_state_yaml_file}"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have left the initial execution state
+    And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     And user triggers "ank -k --no-wait set state desiredState.workloads.simple.agent ${new_state_yaml_file}"
     # Asserts
@@ -56,7 +56,7 @@ Test Ankaios CLI get workloads with wildcard
     And Ankaios server is started with manifest "${default_state_yaml_file}"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have left the initial execution state
+    And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Actions
     And user triggers "ank -k get state -o json 'desiredState.workloads.*.agent' 'desiredState.workloads.*.runtime'"
     # Asserts

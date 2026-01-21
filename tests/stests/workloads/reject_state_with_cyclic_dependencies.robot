@@ -58,7 +58,7 @@ Test Ankaios CLI update state with cycle in interworkload dependencies is reject
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_B"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A and agent_B" have left the initial execution state
+    And the workload "workload_D" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     And user triggers "ank -k set state ${new_state_yaml_file} desiredState.workloads.workload_C"
     # Asserts

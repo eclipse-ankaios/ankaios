@@ -38,7 +38,7 @@ Test Ankaios start up with templated Ankaios manifest and update state with upda
     And Ankaios server is started with manifest "${start_up_yaml_file}"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have left the initial execution state
+    And the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the command "curl localhost:8081" finished with exit code "0"
     # Actions
     When user triggers "ank -k set state desiredState.configs ${new_state_yaml_file}"

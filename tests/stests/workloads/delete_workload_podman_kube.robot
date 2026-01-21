@@ -36,7 +36,7 @@ Test Ankaios Podman delete kube workload
     And Ankaios server is started with manifest "${CONFIGS_DIR}/kube.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have left the initial execution state
+    And the workload "hello-k8s" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Actions
     When user triggers "ank --no-wait -k delete workload hello-k8s"
     # Asserts

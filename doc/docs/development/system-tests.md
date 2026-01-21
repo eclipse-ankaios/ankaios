@@ -96,19 +96,23 @@ Resource    ../../resources/variables.resource
 Test Ankaios CLI get workloads
     [Setup]        Setup Ankaios
     # Preconditions
-    Given Ankaios server is started with "ank-server --startup-manifest ${CONFIGS_DIR}/default.yaml"
-    And Ankaios agent is started with "ank-agent --name agent_B"
-    And all workloads of agent "agent_B" have an initial execution state
-    And Ankaios agent is started with "ank-agent --name agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/default.yaml"
+    And the CLI listens for workload states
+    And Ankaios agent is started with name "agent_B"
+    And Ankaios agent is started with name "agent_A"
+    And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "hello1" shall have the execution state "Failed(Lost)" on agent "agent_B"
+    And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
+    And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     # Actions
     When user triggers "ank -k get workloads"
     # Asserts
-    Then the workload "nginx" shall have the execution state "Running" on agent "agent_A"
-    And the workload "hello1" shall have the execution state "Removed" from agent "agent_B"
-    And the workload "hello2" shall have the execution state "Succeeded" on agent "agent_B"
-    And the workload "hello3" shall have the execution state "Succeeded" on agent "agent_B"
-    [Teardown]    Clean up Ankaios
+    Then in the last result, the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And in the last result, the workload "hello1" shall have the execution state "Failed(Lost)" on agent "agent_B"
+    And in the last result, the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
+    And in the last result, the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
 ```
 
 !!! note

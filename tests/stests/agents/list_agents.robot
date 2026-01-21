@@ -30,8 +30,6 @@ Test Ankaios CLI lists connected agents
     And Ankaios server is started with manifest "${CONFIGS_DIR}/default.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    # The agent_A is started and connected
-    And all workloads of agent "agent_A" have left the initial execution state
     # The agent_B is not started and thus not connected
     And the workload "hello1" shall have the execution state "Pending(Initial)" on agent "agent_B"
     And the workload "hello2" shall have the execution state "Pending(Initial)" on agent "agent_B"
