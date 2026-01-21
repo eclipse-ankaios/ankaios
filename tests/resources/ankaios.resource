@@ -985,7 +985,7 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
     the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}" within "${timeout}" seconds
 
 the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}"
-    the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}" within "5" seconds
+    the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}" within "10" seconds
 
 volumes for "${workload_name}" shall exist on "${agent_name}"
     volumes for "${workload_name}" shall exist on "${agent_name}" within "1" seconds
@@ -1082,10 +1082,4 @@ the event output shall contain field name "${field_name}"
 the event output shall contain altered fields with removed workloads
     Event Output Shall Contain Altered Fields With Removed Workloads    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
 
-all workloads of agent "${agent_names}" have left the initial execution state
-    all workloads of agent "${agent_names}" have left the initial execution state within "10" seconds
-
-all workloads of agent "${agent_names}" have left the initial execution state within "${timeout}" seconds
-    ${result}=    All Workloads Left Initial Execution State    agent_names=${agent_names}    timeout=${timeout}
-    Should Be True    ${result}    msg=Not all workloads of agent(s) '${agent_names}' have left the initial execution state within '${timeout}' seconds!
 

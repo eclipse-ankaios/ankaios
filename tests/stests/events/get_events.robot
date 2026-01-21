@@ -57,7 +57,7 @@ Test Ankaios CLI get events receives multiple sequential events
     And Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have left the initial execution state
+    And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     When user starts event listener with format "json" and field mask "" in background
     And the user waits "3" seconds
@@ -95,7 +95,7 @@ Test Ankaios CLI get events with workload state changes
     And Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have left the initial execution state
+    And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     When user starts event listener with format "yaml" and field mask "workloadStates" in background
     And the user waits "2" seconds
@@ -117,7 +117,7 @@ Test Ankaios CLI get events includes timestamp in output
     And Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have left the initial execution state
+    And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     When user starts event listener with format "json" and field mask "" in background
     And the user waits "3" seconds
@@ -138,7 +138,7 @@ Test Ankaios CLI get events with empty field mask
     And Ankaios server is started with manifest "${CONFIGS_DIR}/default.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have left the initial execution state
+    And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Actions
     When user starts event listener with format "yaml" and field mask "" in background
     And the user waits "3" seconds
@@ -161,7 +161,8 @@ Test Ankaios CLI get events with workload deletion
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
-    And all workloads of agent "agent_A and agent_B" have left the initial execution state
+    And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "hello1" shall have the execution state "Failed(Lost)" on agent "agent_B"
     # Actions
     When user starts event listener with format "json" and field mask "desiredState.workloads" in background
     And the user waits "3" seconds

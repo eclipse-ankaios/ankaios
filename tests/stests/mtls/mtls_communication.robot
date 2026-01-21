@@ -30,14 +30,15 @@ Test Ankaios MTLS by providing PEM files via environment variables
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_B"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A and agent_B" have left the initial execution state
-    # Actions
-    When user triggers "ank get workloads"
-    # Asserts
-    Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "hello1" shall have the execution state "Failed(Lost)" from agent "agent_B"
     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
+    # Actions
+    When user triggers "ank get workloads"
+    # Asserts
+    Then the last command finished with exit code "0"
+
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~server-supports-pem-file-paths-as-cli-arguments~]
@@ -88,14 +89,15 @@ Test Ankaios insecure mode by providing --insecure command line arguments
     And the CLI listens for workload states in insecure mode
     And Ankaios agent is started with name "agent_B" and insecure cli argument
     And Ankaios agent is started with name "agent_A" and insecure cli argument
-    And all workloads of agent "agent_A and agent_B" have left the initial execution state
-    # Actions
-    When user triggers "ank --insecure get workloads"
-    # # Asserts
-    Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "hello1" shall have the execution state "Failed(Lost)" from agent "agent_B"
     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
+    # Actions
+    When user triggers "ank --insecure get workloads"
+    # Asserts
+    Then the last command finished with exit code "0"
+
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~server-loads-config-file~1]
