@@ -305,7 +305,6 @@ Ankaios agent is started with name "${name}" and tags "${tags}"
     ...    alias=${name}
 
 Ankaios server is terminated
-    Unsubscribe From Events
     Terminate Process    ank-server    kill=True
     ${server_running}=    Is Process Running    ank-server
     Should Not Be True    ${server_running}
@@ -1088,6 +1087,9 @@ the CLI listens for workload states
 
 the CLI listens for workload states in insecure mode
     Listen For Events With Timeout    workloadStates    target/robot_tests_result/${TEST_FOLDER_NAME}/stest_event_logs.log    %{ANK_BIN_DIR}    20    insecure=${True}
+
+the CLI stops listening to workload states
+    Unsubscribe From Events
 
 the event output shall contain workload "${workload_name}"
     Event Output Shall Contain Workload    ${workload_name}    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
