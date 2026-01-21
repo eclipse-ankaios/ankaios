@@ -44,6 +44,7 @@ Test Ankaios restarts exited workloads on device restart with considering inter-
     And containerd has assigned a container id for workload "web_service" on agent "agent_B"
     # Simulate full device restart
     And Ankaios server is terminated
+    And the CLI stops listening to workload states
     And Ankaios agent with name "agent_A" is terminated
     And Ankaios agent with name "agent_B" is terminated
     And Podman has terminated all existing containers
