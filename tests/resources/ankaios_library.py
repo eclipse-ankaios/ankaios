@@ -1131,23 +1131,43 @@ def all_workloads_left_initial_execution_state(agent_names: str, timeout: str="1
     global EVENT_PROCESS
     logger.trace(f"Process is running: {EVENT_PROCESS}")
     timeout_float = float(timeout)
-    agent_names = { agent_name.strip(): False for agent_name in agent_names.split('and') }
+    agent_names = [ agent_name.strip() for agent_name in agent_names.split('and') ]
+
+    get_state_process = run_command("ank get state -o json")
+    if get_state_process.returncode != 0:
+        logger.error(f"Failed to get initial state: '{get_state_process.stderr}'")
+        return False
+
+    initial_workloads = get_state_process.stdout
+    initial_states_per_agent = json_to_dict(initial_workloads).get('workloadStates', {})
+
+    track_initial_workloads = {}
+    for agent in agent_names:
+        track_initial_workloads[agent] = {}
+        if not agent in initial_states_per_agent:
+            logger.error(f"Expected agent '{agent}' not found in initial workload states.")
+            return False
+
+        agent_workloads = initial_states_per_agent.get(agent, {})
+        for workload_name, workload in agent_workloads.items():
+            track_initial_workloads[agent][workload_name] = False
+
+    logger.trace(f"Tracking the following workloads: {track_initial_workloads}")
     start_time = get_time_secs()
-    last_checked_index = 0
+    next_start_index = 0
 
     while (get_time_secs() - start_time) < float(timeout_float):
         logger.trace(f"Event buffer {EVENT_BUFFER}")
-        for index in range(last_checked_index + 1, len(EVENT_BUFFER)):
+        for index in range(next_start_index, len(EVENT_BUFFER)):
             event = EVENT_BUFFER[index]
-            for agent_name in agent_names.keys():
+            for agent_name in agent_names:
                 complete_state: dict = event.get('completeState', {})
                 workload_states: dict = complete_state.get('workloadStates', {})
                 agent_workloads = workload_states.get(agent_name, {})
-                logger.trace(f"Complete state: {complete_state}")
                 logger.trace(f"Agent workloads: {agent_workloads}")
 
                 for workload_name, workload in agent_workloads.items():
-                    agent_names[agent_name] = True
+                    track_initial_workloads[agent_name][workload_name] = True  # assume workload has left initial state
                     for _, instance_state in workload.items():
                         state = instance_state.get('state', '')
                         sub_state = instance_state.get('subState', '')
@@ -1155,11 +1175,12 @@ def all_workloads_left_initial_execution_state(agent_names: str, timeout: str="1
 
                         if current_state == "Pending(Initial)" or current_state == "" or not current_state:
                             logger.trace(f"Workload {workload_name} still in Pending(Initial)")
-                            agent_names[agent_name] = False
+                            track_initial_workloads[agent_name][workload_name] = False
                             break
 
-            last_checked_index = index
-        if all(agent_names.values()):
+            next_start_index = index + 1
+        logger.trace(f"Final status of tracked workloads: {track_initial_workloads}")
+        if all(all(left_initial_state for left_initial_state in workloads.values()) for workloads in track_initial_workloads.values()):
             return True
 
         remaining_time = timeout_float - (get_time_secs() - start_time)
