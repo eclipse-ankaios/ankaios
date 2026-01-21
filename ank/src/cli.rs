@@ -13,10 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ankaios_api::ank_base::{CompleteState, ConfigMap, ExecutionsStatesOfWorkload, WorkloadMap};
+use common::helpers::parse_key_val;
 
 use clap::{ArgAction, CommandFactory, Parser, Subcommand, ValueHint, command};
 use clap_complete::{ArgValueCompleter, CompleteEnv, CompletionCandidate};
-use std::{error::Error, ffi::OsStr, process::Command};
+use std::{ffi::OsStr, process::Command};
 
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
 
@@ -380,19 +381,6 @@ pub struct LogsArgs {
     pub until: Option<String>,
 }
 
-fn parse_key_val<K, V>(s: &str) -> Result<(K, V), Box<dyn Error + Send + Sync + 'static>>
-where
-    K: std::str::FromStr,
-    K::Err: Error + Send + Sync + 'static,
-    V: std::str::FromStr,
-    V::Err: Error + Send + Sync + 'static,
-{
-    let pos = s
-        .find('=')
-        .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{s}`"))?;
-    Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
-}
-
 pub fn parse() -> AnkCli {
     CompleteEnv::with_factory(AnkCli::command).complete();
     AnkCli::parse()
@@ -433,7 +421,7 @@ mod tests {
                   },
                   "restartPolicy": "ALWAYS",
                   "runtime": "podman",
-                  "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.2\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
+                  "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.3\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
               }
             }
           }
@@ -502,7 +490,7 @@ mod tests {
                 },
                 "restartPolicy": "ALWAYS",
                 "runtime": "podman",
-                "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.2\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
+                "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.3\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
               }
             }
           },

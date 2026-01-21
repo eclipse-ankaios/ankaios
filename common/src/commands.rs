@@ -13,13 +13,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ankaios_api::ank_base::{
-    CpuUsageSpec, DeletedWorkload, FreeMemorySpec, WorkloadNamed, WorkloadStateSpec,
+    CpuUsageSpec, DeletedWorkload, FreeMemorySpec, Tags, WorkloadNamed, WorkloadStateSpec,
 };
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentHello {
     pub agent_name: String,
+    pub tags: Tags,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

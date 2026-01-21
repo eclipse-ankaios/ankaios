@@ -17,7 +17,7 @@ use crate::std_extensions::UnreachableResult;
 use ankaios_api::ank_base::{
     CompleteStateRequestSpec, CompleteStateSpec, EventsCancelRequestSpec, LogEntriesResponse,
     LogsCancelRequestSpec, LogsRequest, LogsRequestSpec, LogsStopResponse, RequestContentSpec,
-    RequestSpec, UpdateStateRequestSpec, WorkloadStateSpec,
+    RequestSpec, Tags, UpdateStateRequestSpec, WorkloadStateSpec,
 };
 
 use async_trait::async_trait;
@@ -56,7 +56,7 @@ impl fmt::Display for ToServerError {
 // [impl->swdd~to-server-channel~1]
 #[async_trait]
 pub trait ToServerInterface {
-    async fn agent_hello(&self, agent_name: String) -> Result<(), ToServerError>;
+    async fn agent_hello(&self, agent_name: String, tags: Tags) -> Result<(), ToServerError>;
     async fn agent_load_status(&self, agent_resource: AgentLoadStatus)
     -> Result<(), ToServerError>;
     async fn agent_gone(&self, agent_name: String) -> Result<(), ToServerError>;
@@ -101,9 +101,12 @@ pub type ToServerReceiver = mpsc::Receiver<ToServer>;
 
 #[async_trait]
 impl ToServerInterface for ToServerSender {
-    async fn agent_hello(&self, agent_name: String) -> Result<(), ToServerError> {
+    async fn agent_hello(&self, agent_name: String, tags: Tags) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::AgentHello(commands::AgentHello { agent_name }))
+            .send(ToServer::AgentHello(commands::AgentHello {
+                agent_name,
+                tags,
+            }))
             .await?)
     }
 
@@ -249,14 +252,13 @@ mod tests {
         to_server_interface::{ToServer, ToServerInterface},
     };
     use ankaios_api::ank_base::{
-        CompleteStateRequestSpec, ExecutionStateSpec,
-        LogEntriesResponse, LogEntry, LogsCancelRequestSpec, LogsRequestSpec, LogsStopResponse,
-        RequestContentSpec, RequestSpec, UpdateStateRequestSpec, WorkloadInstanceName,
-        WorkloadInstanceNameSpec,
+        CompleteStateRequestSpec, ExecutionStateSpec, LogEntriesResponse, LogEntry,
+        LogsCancelRequestSpec, LogsRequestSpec, LogsStopResponse, RequestContentSpec, RequestSpec,
+        Tags, UpdateStateRequestSpec, WorkloadInstanceName, WorkloadInstanceNameSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_workload_named, generate_test_workload_state,
-        fixtures,
+        fixtures, generate_test_complete_state, generate_test_workload_named,
+        generate_test_workload_state,
     };
     use tokio::sync::mpsc;
 
@@ -267,9 +269,10 @@ mod tests {
     async fn utest_to_server_send_agent_hello() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
+        let tags = Tags::default();
 
         assert!(
-            tx.agent_hello(fixtures::AGENT_NAMES[0].to_string())
+            tx.agent_hello(fixtures::AGENT_NAMES[0].to_string(), tags.clone())
                 .await
                 .is_ok()
         );
@@ -277,7 +280,8 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::AgentHello(commands::AgentHello {
-                agent_name: fixtures::AGENT_NAMES[0].to_string()
+                agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                tags
             })
         )
     }
@@ -366,8 +370,10 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let workload_state =
-            generate_test_workload_state(fixtures::WORKLOAD_NAMES[0], ExecutionStateSpec::running());
+        let workload_state = generate_test_workload_state(
+            fixtures::WORKLOAD_NAMES[0],
+            ExecutionStateSpec::running(),
+        );
         assert!(
             tx.update_workload_state(vec![workload_state.clone()])
                 .await

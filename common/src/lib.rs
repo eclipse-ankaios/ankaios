@@ -33,4 +33,4 @@ pub mod to_server_interface;
 #[cfg(any(feature = "test_utils", test))]
 pub mod test_utils;
 
-pub use helpers::check_version_compatibility;
+pub use helpers::{check_version_compatibility, parse_key_val};

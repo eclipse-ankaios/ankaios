@@ -94,6 +94,7 @@ message LogsCancelRequest {
 message AgentHello {
     string agentName = 1; /// A unique agent name.
     string protocolVersion = 2; /// The protocol version used by the calling component.
+    ank_base.Tags tags = 3; /// A set of tags assigned to the agent.
 }
 
 /**

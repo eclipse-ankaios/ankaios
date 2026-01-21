@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use ankaios_api::ank_base::{self, WorkloadNamed};
+use ankaios_api::ank_base::{self, Tags, WorkloadNamed};
 use common::commands;
 use std::collections::HashMap;
 
@@ -20,10 +20,11 @@ use std::collections::HashMap;
 tonic::include_proto!("grpc_api"); // The string specified here must match the proto package name
 
 impl AgentHello {
-    pub fn new(agent_name: impl Into<String>) -> Self {
+    pub fn new(agent_name: impl Into<String>, tags: HashMap<String, String>) -> Self {
         AgentHello {
             agent_name: agent_name.into(),
             protocol_version: common::ANKAIOS_VERSION.into(),
+            tags: Some(Tags { tags }),
         }
     }
 }

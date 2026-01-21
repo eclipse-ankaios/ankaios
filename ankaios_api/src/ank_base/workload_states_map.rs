@@ -90,6 +90,30 @@ impl WorkloadStatesMapSpec {
             .and_then(|id_map| id_map.id_state_map.get(instance_name.id()))
     }
 
+    pub fn get_states_for_workload_name(&self, workload_name: &str) -> Vec<WorkloadStateSpec> {
+        self.agent_state_map
+            .iter()
+            .flat_map(|(agent_name, name_map)| {
+                name_map
+                    .wl_name_state_map
+                    .get(workload_name)
+                    .into_iter()
+                    .flat_map(move |id_map| {
+                        id_map.id_state_map.iter().map(move |(wl_id, exec_state)| {
+                            WorkloadStateSpec {
+                                instance_name: WorkloadInstanceNameSpec::new(
+                                    agent_name,
+                                    workload_name,
+                                    wl_id,
+                                ),
+                                execution_state: exec_state.clone(),
+                            }
+                        })
+                    })
+            })
+            .collect()
+    }
+
     pub fn agent_disconnected(&mut self, agent_name: &str) {
         if let Some(agent_states) = self.agent_state_map.get_mut(agent_name) {
             agent_states
@@ -195,7 +219,6 @@ impl From<WorkloadStatesMap> for Vec<WorkloadState> {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-
 // [utest->swdd~api-state-map-for-workload-execution-states~1]
 #[cfg(test)]
 mod tests {
@@ -203,7 +226,7 @@ mod tests {
         ExecutionStateSpec, WorkloadState, WorkloadStateSpec, WorkloadStatesMap,
         WorkloadStatesMapSpec,
     };
-    use crate::test_utils::{generate_test_workload_named_with_params, fixtures};
+    use crate::test_utils::{fixtures, generate_test_workload_named_with_params};
     use crate::test_utils::{
         generate_test_workload_state_with_agent,
         generate_test_workload_states_map_from_workload_states,
@@ -521,5 +544,46 @@ mod tests {
                 .get_workload_state_for_workload(&wl_state.instance_name)
                 .is_none()
         )
+    }
+
+    #[test]
+    fn utest_get_workload_states_for_workload_name() {
+        let mut wls_db = create_test_setup();
+
+        let wl_state_2_update = generate_test_workload_state_with_agent(
+            fixtures::WORKLOAD_NAMES[2],
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::stopping_requested(),
+        );
+
+        wls_db.process_new_states(vec![wl_state_2_update.clone()]);
+
+        let wls_res = wls_db.get_states_for_workload_name(fixtures::WORKLOAD_NAMES[2]);
+
+        assert_eq!(wls_res.len(), 2);
+
+        assert_eq!(
+            wls_res
+                .iter()
+                .find(|state| {
+                    state.instance_name.workload_name() == fixtures::WORKLOAD_NAMES[2]
+                        && state.instance_name.agent_name() == fixtures::AGENT_NAMES[1]
+                })
+                .unwrap()
+                .execution_state,
+            ExecutionStateSpec::running()
+        );
+
+        assert_eq!(
+            wls_res
+                .iter()
+                .find(|state| {
+                    state.instance_name.workload_name() == fixtures::WORKLOAD_NAMES[2]
+                        && state.instance_name.agent_name() == fixtures::AGENT_NAMES[0]
+                })
+                .unwrap()
+                .execution_state,
+            ExecutionStateSpec::stopping_requested()
+        );
     }
 }

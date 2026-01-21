@@ -288,6 +288,22 @@ Ankaios agent is started with name "${agent_name}" and config file "${config_fil
     ...    env:RUST_LOG=debug
     ...    alias=${agent_name}
 
+Ankaios agent is started with name "${name}" and tags "${tags}"
+    @{tag_args}=    Split String    ${tags}
+    @{tag_flags}=    Create List
+    FOR    ${tag}    IN    @{tag_args}
+        Append To List    ${tag_flags}    --tag
+        Append To List    ${tag_flags}    ${tag}
+    END
+    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-agent
+    ...    --name
+    ...    ${name}
+    ...    @{tag_flags}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=${name}
+
 Ankaios server is terminated
     Unsubscribe From Events
     Terminate Process    ank-server    kill=True
@@ -633,6 +649,20 @@ the last command shall list the connected agent "${agent_name}"
     Dictionary Should Contain Key    ${agent_dict}    CPU USAGE
     Dictionary Should Contain Key    ${agent_dict}    FREE MEMORY
 
+the last command shall list exactly "${count}" agents
+    ${table_as_list}=    Table To List    ${CURRENT_RESULT.stdout}
+    ${actual_count}=    Get Length    ${table_as_list}
+    Should Be Equal As Integers    ${actual_count}    ${count}    msg=Expected ${count} agents but found ${actual_count}
+
+the agent "${agent_name}" shall have tag "${tag_key}" with value "${tag_value}"
+    Agent Shall Have Tag    ${CURRENT_RESULT.stdout}    ${agent_name}    ${tag_key}    ${tag_value}
+
+the agent "${agent_name}" shall not have tag "${tag_key}"
+    Agent Shall Not Have Tag    ${CURRENT_RESULT.stdout}    ${agent_name}    ${tag_key}
+
+the agent "${agent_name}" shall not exist
+    Agent Shall Not Exist    ${CURRENT_RESULT.stdout}    ${agent_name}
+
 the last command shall list the config "${config_name}"
     Config Name Shall Exist In List    ${config_name}    ${CURRENT_RESULT.stdout}
 
@@ -664,6 +694,7 @@ dictionary ${dictionary} should have exact keys
     Should Be Equal    ${keys}    ${expected_keys}
 
 Setup Ankaios for Control Interface test
+    Find Control Interface Test Tag
     Setup Ankaios
     Prepare Test Control Interface Workload
     Retrieve current Ankaios version
@@ -775,6 +806,12 @@ The controller workload requests shall all succeed with second agent
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_all_control_interface_requests_succeeded    ${ankaios_config_folder.name}
     internal_check_all_result_expectations_succeeded    ${ankaios_config_folder.name}
+
+The controller workload shall execute successfully on running system
+    ${ankaios_config_folder}=    create_control_interface_config_for_test
+    user triggers "ank -k apply ${ankaios_config_folder.name}${/}startup_config.yaml"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
+    internal_check_all_control_interface_requests_succeeded    ${ankaios_config_folder.name}
 
 The controller workload last request shall fail
     ${ankaios_config_folder}=    create_control_interface_config_for_test

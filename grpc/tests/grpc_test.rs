@@ -32,6 +32,7 @@ mod grpc_tests {
     };
 
     use std::{
+        collections::HashMap,
         fs::File,
         io::{self, Write},
         net::SocketAddr,
@@ -223,6 +224,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
             CommunicationType::Agent => GRPCCommunicationsClient::new_agent_communication(
                 test_request_id.to_owned(),
                 url,
+                HashMap::new(),
                 tls_config,
             ),
         };
@@ -450,6 +452,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
             result,
             Ok(Some(ToServer::AgentHello(commands::AgentHello {
                 agent_name: test_agent_name.to_owned(),
+                tags: Default::default(),
             })))
         );
     }
@@ -475,7 +478,8 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         assert_eq!(
             result,
             Ok(Some(ToServer::AgentHello(commands::AgentHello {
-                agent_name: test_agent_name.to_owned()
+                agent_name: test_agent_name.to_owned(),
+                tags: Default::default(),
             })))
         );
     }

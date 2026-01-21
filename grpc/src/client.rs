@@ -30,6 +30,7 @@ use common::to_server_interface::ToServerReceiver;
 
 use async_trait::async_trait;
 use regex::Regex;
+use std::collections::HashMap;
 use tokio::select;
 use tokio::sync::mpsc::{self, Receiver};
 use tokio_stream::wrappers::ReceiverStream;
@@ -46,6 +47,7 @@ pub struct GRPCCommunicationsClient {
     name: String,
     server_address: String,
     connection_type: ConnectionType,
+    tags: HashMap<String, String>,
     tls_config: Option<TLSConfig>,
 }
 
@@ -71,6 +73,7 @@ impl GRPCCommunicationsClient {
     pub fn new_agent_communication(
         name: String,
         server_address: String,
+        tags: HashMap<String, String>,
         tls_config: Option<TLSConfig>,
     ) -> Result<Self, CommunicationMiddlewareError> {
         verify_address_format(&server_address)?;
@@ -79,6 +82,7 @@ impl GRPCCommunicationsClient {
             name,
             server_address: get_server_url(&server_address, &tls_config),
             connection_type: ConnectionType::Agent,
+            tags,
             tls_config,
         })
     }
@@ -94,6 +98,7 @@ impl GRPCCommunicationsClient {
             name,
             server_address: get_server_url(&server_address, &tls_config),
             connection_type: ConnectionType::Cli,
+            tags: HashMap::new(),
             tls_config,
         })
     }
@@ -178,7 +183,10 @@ impl GRPCCommunicationsClient {
             ConnectionType::Agent => {
                 grpc_tx
                     .send(ToServer {
-                        to_server_enum: Some(ToServerEnum::AgentHello(AgentHello::new(&self.name))),
+                        to_server_enum: Some(ToServerEnum::AgentHello(AgentHello::new(
+                            &self.name,
+                            self.tags.clone(),
+                        ))),
                     })
                     .await?;
             }
