@@ -29,10 +29,9 @@ Test Ankaios updates only agent tags through state updates
     [Setup]           Run Keywords    Setup Ankaios for Control Interface test
 
     # Preconditions: Start server and agent with initial tags
-    Given Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/default.yaml"
     And Ankaios agent is started with name "${agent_name}" and tags "type=AI-agent location=online"
-    And all workloads of agent "${agent_name}" have left the initial execution state
-
+    And the CLI listens for workload states
     # Verify initial tags via CLI
     When user triggers "ank -k get state"
     Then the agent "${agent_name}" shall have tag "type" with value "AI-agent"
