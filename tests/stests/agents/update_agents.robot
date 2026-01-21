@@ -26,7 +26,6 @@ ${agent_name}       agent_A
 
 # [stest->swdd~server-state-updates-agent-tags~1]
 Test Ankaios updates only agent tags through state updates
-    [Tags]    only
     [Setup]           Run Keywords    Setup Ankaios for Control Interface test
 
     # Preconditions: Start server and agent with initial tags
