@@ -26,12 +26,13 @@ ${agent_name}       agent_A
 
 # [stest->swdd~server-state-updates-agent-tags~1]
 Test Ankaios updates only agent tags through state updates
+    [Tags]    only
     [Setup]           Run Keywords    Setup Ankaios for Control Interface test
 
     # Preconditions: Start server and agent with initial tags
     Given Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
     And Ankaios agent is started with name "${agent_name}" and tags "type=AI-agent location=online"
-    And all workloads of agent "${agent_name}" have an initial execution state
+    And all workloads of agent "${agent_name}" have left the initial execution state
 
     # Verify initial tags via CLI
     When user triggers "ank -k get state"
