@@ -81,7 +81,7 @@ Test Ankaios MTLS by providing wrong PEM config via command line arguments
 # [stest->swdd~cli-supports-cli-argument-for-insecure-communication~1]
 # [stest->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
 Test Ankaios insecure mode by providing --insecure command line arguments
-    [Setup]    Run Keyword    Setup Ankaios Without MTLS Setup
+    [Setup]    Run Keyword    Setup Ankaios
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
