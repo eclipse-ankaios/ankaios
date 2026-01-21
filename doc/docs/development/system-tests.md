@@ -99,6 +99,7 @@ Test Ankaios CLI get workloads
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started with manifest "${CONFIGS_DIR}/default.yaml"
+    # subscribe to events for asserting workload states later on
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_B"
     And Ankaios agent is started with name "agent_A"
