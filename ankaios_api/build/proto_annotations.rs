@@ -150,6 +150,8 @@ fn annotate_workload(builder: Builder) -> Builder {
             "ControlInterfaceAccess.denyRules",
             "#[serde(default, with = \"serde_yaml::with::singleton_map_recursive\", skip_serializing_if = \"Vec::is_empty\")]",
         )
+        // The alias to filterMask is added to support the deprecated apiVersions: v0.1
+        .field_attribute("StateRule.filterMasks", "#[serde(alias = \"filterMask\")]")
         .enum_attribute(
             "AddCondition",
             "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]",

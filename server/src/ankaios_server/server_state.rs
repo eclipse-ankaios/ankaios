@@ -819,8 +819,7 @@ mod tests {
         let workload = generate_test_workload_with_params(
             fixtures::AGENT_NAMES[0],
             fixtures::RUNTIME_NAMES[0],
-        )
-        .into();
+        );
 
         // workload has a self cycle to workload_B
         let new_workload_1 = generate_test_workload_with_params(
