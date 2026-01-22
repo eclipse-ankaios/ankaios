@@ -24,8 +24,8 @@ mod state_comparator;
 
 use ankaios_api::ank_base::{
     AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateSpec,
-    DeletedWorkload, ExecutionStateSpec, LogsStopResponse, RequestContentSpec, RequestSpec,
-    WorkloadInstanceNameSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
+    DeletedWorkload, ExecutionStateSpec, LogsStopResponse, Request, RequestContent,
+    WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use common::state_manipulation::Path;
 
@@ -94,26 +94,20 @@ impl AnkaiosServer {
     pub async fn start(&mut self, startup_state: Option<CompleteStateSpec>) -> Result<(), String> {
         if let Some(state) = startup_state {
             // [impl->swdd~server-validates-desired-state-api-version~1]
+
+            // TODO #now maybe change the validate_pre_rendering to work on CompleteState directly
             state.desired_state.validate_pre_rendering()?;
 
-            let state_generation_result = self
-                .server_state
-                .generate_new_state(state, vec![])
-                .map_err(|err| err.to_string())?;
-
-            match self
-                .server_state
-                .update(state_generation_result.new_desired_state.0)
-            {
+            match self.server_state.update(state.desired_state) {
                 Ok(Some(added_deleted_workloads)) => {
-                    for (agent_name, agent_attributes) in
-                        state_generation_result.new_desired_state.1.agents.iter()
-                    {
-                        self.agent_map
-                            .agents
-                            .entry(agent_name.to_owned())
-                            .insert_entry(agent_attributes.to_owned());
-                    }
+                    // for (agent_name, agent_attributes) in
+                    //     state_generation_result.new_agent_map.agents.iter()
+                    // {
+                    //     self.agent_map
+                    //         .agents
+                    //         .entry(agent_name.to_owned())
+                    //         .insert_entry(agent_attributes.to_owned());
+                    // }
                     let added_workloads = added_deleted_workloads.added_workloads;
                     let deleted_workloads = added_deleted_workloads.deleted_workloads;
 
@@ -351,217 +345,274 @@ impl AnkaiosServer {
                     .await;
                 }
                 // [impl->swdd~server-provides-update-desired-state-interface~1]
-                ToServer::Request(RequestSpec {
+                ToServer::Request(Request {
                     request_id,
                     request_content,
-                }) => match request_content {
-                    // [impl->swdd~server-provides-interface-get-complete-state~2]
-                    // [impl->swdd~server-includes-id-in-control-interface-response~1]
-                    RequestContentSpec::CompleteStateRequest(complete_state_request) => {
-                        log::debug!(
-                            "Received CompleteStateRequest with id '{}' and field mask: '{:?}'",
-                            request_id,
-                            complete_state_request.field_mask
+                }) => {
+                    // TODO #now - again a check with a an error
+                    let Some(request_content) = request_content else {
+                        log::warn!(
+                            "The Request with id '{request_id}' does not contain any content -> ignoring the request",
                         );
-                        match self.server_state.get_complete_state_by_field_mask(
-                            complete_state_request.clone(),
-                            &self.workload_states_map,
-                            &self.agent_map,
-                        ) {
-                            Ok(complete_state) => {
-                                self.to_agents
-                                    .complete_state(request_id.clone(), complete_state, None)
-                                    .await
-                                    .unwrap_or_illegal_state();
+                        self.to_agents
+                            .error(
+                                request_id,
+                                "The Request does not contain any content".to_string(),
+                            )
+                            .await
+                            .unwrap_or_illegal_state();
+                        continue;
+                    };
+                    match request_content {
+                        // [impl->swdd~server-provides-interface-get-complete-state~2]
+                        // [impl->swdd~server-includes-id-in-control-interface-response~1]
+                        RequestContent::CompleteStateRequest(complete_state_request) => {
+                            log::debug!(
+                                "Received CompleteStateRequest with id '{}' and field mask: '{:?}'",
+                                request_id,
+                                complete_state_request.field_mask
+                            );
+                            match self.server_state.get_complete_state_by_field_mask(
+                                complete_state_request.clone(),
+                                &self.workload_states_map,
+                                &self.agent_map,
+                            ) {
+                                Ok(complete_state) => {
+                                    self.to_agents
+                                        .complete_state(request_id.clone(), complete_state, None)
+                                        .await
+                                        .unwrap_or_illegal_state();
 
-                                if complete_state_request.subscribe_for_events {
-                                    // [impl->swdd~server-stores-new-event-subscription~1]
-                                    self.event_handler.add_subscriber(
-                                        request_id,
-                                        complete_state_request
-                                            .field_mask
-                                            .into_iter()
-                                            .map(Path::from)
-                                            .collect(),
-                                    );
+                                    if complete_state_request.subscribe_for_events {
+                                        // [impl->swdd~server-stores-new-event-subscription~1]
+                                        self.event_handler.add_subscriber(
+                                            request_id,
+                                            complete_state_request
+                                                .field_mask
+                                                .into_iter()
+                                                .map(Path::from)
+                                                .collect(),
+                                        );
+                                    }
+                                }
+                                Err(error) => {
+                                    log::error!("Failed to get complete state: '{error}'");
+                                    self.to_agents
+                                        .complete_state(request_id, CompleteState::default(), None)
+                                        .await
+                                        .unwrap_or_illegal_state();
                                 }
                             }
-                            Err(error) => {
-                                log::error!("Failed to get complete state: '{error}'");
-                                self.to_agents
-                                    .complete_state(request_id, CompleteState::default(), None)
-                                    .await
-                                    .unwrap_or_illegal_state();
-                            }
-                        }
-                    }
-
-                    // [impl->swdd~server-provides-update-desired-state-interface~1]
-                    RequestContentSpec::UpdateStateRequest(update_state_request) => {
-                        log::debug!(
-                            "Received UpdateState. State '{:?}', update mask '{:?}'",
-                            update_state_request.new_state,
-                            update_state_request.update_mask
-                        );
-
-                        // [impl->swdd~update-desired-state-with-invalid-version~1]
-                        // [impl->swdd~update-desired-state-with-missing-version~1]
-                        // [impl->swdd~server-desired-state-field-conventions~1]
-                        let new_desired_state = &update_state_request.new_state.desired_state;
-                        // [impl->swdd~server-validates-desired-state-api-version~1]
-                        if let Err(error_message) = new_desired_state.validate_pre_rendering() {
-                            log::warn!(
-                                "The CompleteState in the request has wrong format. {error_message} -> ignoring the request"
-                            );
-
-                            self.to_agents
-                                .error(request_id, error_message)
-                                .await
-                                .unwrap_or_illegal_state();
-                            continue;
                         }
 
-                        // [impl->swdd~update-desired-state-with-update-mask~1]
-                        // [impl->swdd~update-desired-state-empty-update-mask~1]
-                        let state_generation_result = match self.server_state.generate_new_state(
-                            update_state_request.new_state,
-                            update_state_request.update_mask,
-                        ) {
-                            Ok(state_generation_result) => state_generation_result,
-                            Err(error_msg) => {
-                                log::error!("Update rejected: '{error_msg}'",);
+                        // [impl->swdd~server-provides-update-desired-state-interface~1]
+                        RequestContent::UpdateStateRequest(update_state_request) => {
+                            let Some(new_state) = update_state_request.new_state else {
+                                log::warn!(
+                                    "The UpdateStateRequest does not contain a new state -> ignoring the request"
+                                );
                                 self.to_agents
-                                    .error(request_id, format!("Update rejected: '{error_msg}'"))
+                                    .error(
+                                        request_id,
+                                        "The UpdateStateRequest does not contain a new state"
+                                            .to_string(),
+                                    )
                                     .await
                                     .unwrap_or_illegal_state();
                                 continue;
-                            }
-                        };
+                            };
+                            let update_mask = update_state_request.update_mask;
 
-                        match self
-                            .server_state
-                            .update(state_generation_result.new_desired_state.0.clone())
-                        {
-                            Ok(Some(added_deleted_workloads)) => {
-                                self.set_agent_tags(&state_generation_result.new_desired_state.1);
-                                self.handle_post_update_steps(
-                                    request_id,
-                                    added_deleted_workloads,
-                                    state_generation_result,
-                                )
-                                .await;
-                            }
-                            Ok(None) => {
-                                log::debug!(
-                                    "The current state and new state are identical -> nothing to do"
-                                );
-                                self.set_agent_tags(&state_generation_result.new_desired_state.1);
-                                self.to_agents
-                                    .update_state_success(request_id, vec![], vec![])
-                                    .await
-                                    .unwrap_or_illegal_state();
+                            log::debug!(
+                                "Received UpdateState. State '{new_state:?}', update mask '{update_mask:?}'"
+                            );
 
-                                if self.event_handler.has_subscribers() {
-                                    // [impl->swdd~server-sends-state-differences-as-events~1]
-                                    // state changes must be calculated after every update since only config item can be changed as well
-                                    let old_state = CompleteStateSpec {
-                                        desired_state: state_generation_result.old_desired_state,
-                                        ..Default::default()
-                                    };
+                            // [impl->swdd~update-desired-state-with-invalid-version~1]
+                            // [impl->swdd~update-desired-state-with-missing-version~1]
+                            // [impl->swdd~server-desired-state-field-conventions~1]
+                            // TODO #now combine this somehow with the check above for the new_state presence
+                            // let Some(_new_desired_state) = &new_state.desired_state else {
+                            //     log::warn!(
+                            //         "The UpdateStateRequest does not contain a desired state -> ignoring the request"
+                            //     );
+                            //     self.to_agents
+                            //         .error(
+                            //             request_id,
+                            //             "The UpdateStateRequest does not contain a desired state"
+                            //                 .to_string(),
+                            //         )
+                            //         .await
+                            //         .unwrap_or_illegal_state();
+                            //     continue;
+                            // };
+                            // // [impl->swdd~server-validates-desired-state-api-version~1]
 
-                                    let new_state = CompleteStateSpec {
-                                        desired_state: state_generation_result.new_desired_state.0,
-                                        ..Default::default()
-                                    };
+                            // TODO #now
+                            // if let Err(error_message) = new_desired_state.validate_pre_rendering() {
+                            //     log::warn!(
+                            //         "The CompleteState in the request has wrong format. {error_message} -> ignoring the request"
+                            //     );
 
-                                    let state_comparator =
-                                        StateComparator::new(old_state, new_state);
+                            //     self.to_agents
+                            //         .error(request_id, error_message)
+                            //         .await
+                            //         .unwrap_or_illegal_state();
+                            //     continue;
+                            // }
 
-                                    let state_difference_tree =
-                                        state_comparator.state_differences();
+                            // [impl->swdd~update-desired-state-with-update-mask~1]
+                            // [impl->swdd~update-desired-state-empty-update-mask~1]
 
-                                    if !state_difference_tree.is_empty() {
-                                        self.event_handler
-                                            .send_events(
-                                                &self.server_state,
-                                                &self.workload_states_map,
-                                                &self.agent_map,
-                                                state_difference_tree,
-                                                &self.to_agents,
-                                            )
-                                            .await;
+                            let state_generation_result = match self
+                                .server_state
+                                .generate_new_state(new_state, update_mask)
+                            {
+                                Ok(state_generation_result) => state_generation_result,
+                                Err(error_msg) => {
+                                    log::error!("Update rejected: '{error_msg}'",);
+                                    self.to_agents
+                                        .error(
+                                            request_id,
+                                            format!("Update rejected: '{error_msg}'"),
+                                        )
+                                        .await
+                                        .unwrap_or_illegal_state();
+                                    continue;
+                                }
+                            };
+
+                            match self
+                                .server_state
+                                .update(state_generation_result.new_desired_state.clone())
+                            {
+                                Ok(Some(added_deleted_workloads)) => {
+                                    self.set_agent_tags(&state_generation_result.new_agent_map);
+                                    self.handle_post_update_steps(
+                                        request_id,
+                                        added_deleted_workloads,
+                                        state_generation_result,
+                                    )
+                                    .await;
+                                }
+                                Ok(None) => {
+                                    log::debug!(
+                                        "The current state and new state are identical -> nothing to do"
+                                    );
+                                    self.set_agent_tags(&state_generation_result.new_agent_map);
+                                    self.to_agents
+                                        .update_state_success(request_id, vec![], vec![])
+                                        .await
+                                        .unwrap_or_illegal_state();
+
+                                    if self.event_handler.has_subscribers() {
+                                        // [impl->swdd~server-sends-state-differences-as-events~1]
+                                        // state changes must be calculated after every update since only config item can be changed as well
+                                        let old_state = CompleteStateSpec {
+                                            desired_state: state_generation_result
+                                                .old_desired_state,
+                                            ..Default::default()
+                                        };
+
+                                        let new_state = CompleteStateSpec {
+                                            desired_state: state_generation_result
+                                                .new_desired_state,
+                                            ..Default::default()
+                                        };
+
+                                        let state_comparator =
+                                            StateComparator::new(old_state, new_state);
+
+                                        let state_difference_tree =
+                                            state_comparator.state_differences();
+
+                                        if !state_difference_tree.is_empty() {
+                                            self.event_handler
+                                                .send_events(
+                                                    &self.server_state,
+                                                    &self.workload_states_map,
+                                                    &self.agent_map,
+                                                    state_difference_tree,
+                                                    &self.to_agents,
+                                                )
+                                                .await;
+                                        }
                                     }
                                 }
-                            }
-                            Err(error_msg) => {
-                                // [impl->swdd~server-continues-on-invalid-updated-state~1]
-                                log::error!("Update rejected: '{error_msg}'",);
-                                self.to_agents
-                                    .error(request_id, format!("Update rejected: '{error_msg}'"))
-                                    .await
-                                    .unwrap_or_illegal_state();
+                                Err(error_msg) => {
+                                    // [impl->swdd~server-continues-on-invalid-updated-state~1]
+                                    log::error!("Update rejected: '{error_msg}'",);
+                                    self.to_agents
+                                        .error(
+                                            request_id,
+                                            format!("Update rejected: '{error_msg}'"),
+                                        )
+                                        .await
+                                        .unwrap_or_illegal_state();
+                                }
                             }
                         }
-                    }
-                    // [impl->swdd~server-handles-logs-request-message~1]
-                    RequestContentSpec::LogsRequest(mut logs_request) => {
-                        log::debug!(
-                            "Got log request. Id: '{}', Workload Instance Names: '{:?}'",
-                            request_id,
-                            logs_request.workload_names
-                        );
-
-                        // keep only workload instance names that are currently in the desired state
-                        logs_request.workload_names.retain(|name| {
-                            self.server_state.desired_state_contains_instance_name(name)
-                        });
-                        if !logs_request.workload_names.is_empty() {
+                        // [impl->swdd~server-handles-logs-request-message~1]
+                        RequestContent::LogsRequest(mut logs_request) => {
                             log::debug!(
-                                "Requesting logs from agents for the instance names: {:?}",
+                                "Got log request. Id: '{}', Workload Instance Names: '{:?}'",
+                                request_id,
                                 logs_request.workload_names
                             );
+
+                            // keep only workload instance names that are currently in the desired state
+                            logs_request.workload_names.retain(
+                                |name: &ankaios_api::ank_base::WorkloadInstanceName| {
+                                    self.server_state.desired_state_contains_instance_name(name)
+                                },
+                            );
+                            if !logs_request.workload_names.is_empty() {
+                                log::debug!(
+                                    "Requesting logs from agents for the instance names: {:?}",
+                                    logs_request.workload_names
+                                );
+                                self.to_agents
+                                    .logs_request(request_id.clone(), logs_request.clone())
+                                    .await
+                                    .unwrap_or_illegal_state();
+
+                                self.log_campaign_store
+                                    .insert_log_campaign(&request_id, &logs_request.workload_names);
+                            }
+
                             self.to_agents
-                                .logs_request(request_id.clone(), logs_request.clone().into())
+                                .logs_request_accepted(request_id.clone(), logs_request)
+                                .await
+                                .unwrap_or_illegal_state();
+                        }
+                        // [impl->swdd~server-handles-logs-cancel-request-message~1]
+                        RequestContent::LogsCancelRequest(_) => {
+                            log::debug!("Got log cancel request with ID: {request_id}");
+
+                            self.log_campaign_store.remove_logs_request_id(&request_id);
+
+                            self.to_agents
+                                .logs_cancel_request(request_id.clone())
                                 .await
                                 .unwrap_or_illegal_state();
 
-                            self.log_campaign_store
-                                .insert_log_campaign(&request_id, &logs_request.workload_names);
+                            self.to_agents
+                                .logs_cancel_request_accepted(request_id)
+                                .await
+                                .unwrap_or_illegal_state();
                         }
+                        // [impl->swdd~server-removes-event-subscription~1]
+                        RequestContent::EventsCancelRequest(_) => {
+                            log::debug!("Got event cancel request with ID: {request_id}");
 
-                        self.to_agents
-                            .logs_request_accepted(request_id.clone(), logs_request.into())
-                            .await
-                            .unwrap_or_illegal_state();
+                            self.event_handler.remove_subscriber(request_id.clone());
+
+                            self.to_agents
+                                .event_cancel_request_accepted(request_id)
+                                .await
+                                .unwrap_or_illegal_state();
+                        }
                     }
-                    // [impl->swdd~server-handles-logs-cancel-request-message~1]
-                    RequestContentSpec::LogsCancelRequest(_) => {
-                        log::debug!("Got log cancel request with ID: {request_id}");
-
-                        self.log_campaign_store.remove_logs_request_id(&request_id);
-
-                        self.to_agents
-                            .logs_cancel_request(request_id.clone())
-                            .await
-                            .unwrap_or_illegal_state();
-
-                        self.to_agents
-                            .logs_cancel_request_accepted(request_id)
-                            .await
-                            .unwrap_or_illegal_state();
-                    }
-                    // [impl->swdd~server-removes-event-subscription~1]
-                    RequestContentSpec::EventsCancelRequest(_) => {
-                        log::debug!("Got event cancel request with ID: {request_id}");
-
-                        self.event_handler.remove_subscriber(request_id.clone());
-
-                        self.to_agents
-                            .event_cancel_request_accepted(request_id)
-                            .await
-                            .unwrap_or_illegal_state();
-                    }
-                },
+                }
                 ToServer::UpdateWorkloadState(method_obj) => {
                     log::debug!(
                         "Received UpdateWorkloadState: '{:?}'",
@@ -725,7 +776,7 @@ impl AnkaiosServer {
         if self.event_handler.has_subscribers() {
             // [impl->swdd~server-sends-state-differences-as-events~1]
             let new_state = CompleteStateSpec {
-                desired_state: state_generation_result.new_desired_state.0,
+                desired_state: state_generation_result.new_desired_state,
                 workload_states: self.workload_states_map.clone(),
                 ..Default::default()
             };
@@ -849,7 +900,7 @@ impl AnkaiosServer {
     // [impl->swdd~server-handles-log-campaign-for-disconnected-agent~1]
     async fn send_log_stop_response_for_disconnected_agent(
         &mut self,
-        stopped_log_gatherings: Vec<(String, Vec<WorkloadInstanceNameSpec>)>,
+        stopped_log_gatherings: Vec<(String, Vec<WorkloadInstanceName>)>,
     ) {
         for (request_id, stopped_log_providers) in stopped_log_gatherings {
             for workload_instance_name in stopped_log_providers {
@@ -857,7 +908,7 @@ impl AnkaiosServer {
                     .logs_stop_response(
                         request_id.to_owned(),
                         LogsStopResponse {
-                            workload_name: Some(workload_instance_name.into()),
+                            workload_name: Some(workload_instance_name),
                         },
                     )
                     .await

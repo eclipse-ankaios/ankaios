@@ -25,7 +25,7 @@ use common::{
     std_extensions::IllegalStateResult,
 };
 
-use ankaios_api::ank_base::{AgentMapSpec, CompleteStateRequestSpec, WorkloadStatesMapSpec};
+use ankaios_api::ank_base::{AgentMapSpec, CompleteStateRequest, WorkloadStatesMapSpec};
 use std::collections::HashMap;
 
 use serde_yaml::Value;
@@ -179,7 +179,7 @@ impl EventHandler {
             if !altered_fields.all_empty() {
                 let complete_state_differences = server_state
                     .get_complete_state_by_field_mask(
-                        CompleteStateRequestSpec {
+                        CompleteStateRequest {
                             field_mask: filter_masks,
                             subscribe_for_events: false,
                         },

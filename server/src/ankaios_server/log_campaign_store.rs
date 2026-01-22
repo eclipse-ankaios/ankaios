@@ -14,11 +14,12 @@
 
 use std::collections::{HashMap, HashSet};
 
+use ankaios_api::ank_base::WorkloadInstanceName;
+
 use super::request_id::{
     AgentName, AgentRequestId, CliConnectionName, CliRequestId, RequestId, WorkloadName,
     to_string_ids,
 };
-use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 pub type LogCollectorRequestId = String;
 type AgentLogRequestIdMap = HashMap<AgentName, HashSet<AgentRequestId>>;
 type CliConnectionLogRequestIdMap = HashMap<CliConnectionName, HashSet<CliRequestId>>;
@@ -27,7 +28,7 @@ type WorkloadNameRequestIdMap = HashMap<WorkloadName, HashSet<AgentRequestId>>;
 #[derive(Default, Debug, Clone)]
 pub struct RemovedLogRequests {
     pub collector_requests: HashSet<LogCollectorRequestId>,
-    pub disconnected_log_providers: Vec<(LogCollectorRequestId, Vec<WorkloadInstanceNameSpec>)>,
+    pub disconnected_log_providers: Vec<(LogCollectorRequestId, Vec<WorkloadInstanceName>)>,
 }
 
 #[derive(Default)]
@@ -35,7 +36,7 @@ pub struct LogCampaignStore {
     agent_log_request_ids_store: AgentLogRequestIdMap,
     workload_name_request_id_store: WorkloadNameRequestIdMap,
     log_providers_store:
-        HashMap<AgentName, HashMap<LogCollectorRequestId, Vec<WorkloadInstanceNameSpec>>>,
+        HashMap<AgentName, HashMap<LogCollectorRequestId, Vec<WorkloadInstanceName>>>,
     cli_log_request_id_store: CliConnectionLogRequestIdMap,
 }
 
@@ -45,7 +46,7 @@ impl LogCampaignStore {
     pub fn insert_log_campaign(
         &mut self,
         input_request_id: &LogCollectorRequestId,
-        log_providers: &Vec<WorkloadInstanceNameSpec>,
+        log_providers: &Vec<WorkloadInstanceName>,
     ) {
         let request_id: RequestId = input_request_id.into();
         log::debug!("Insert log campaign '{request_id}'");
@@ -72,7 +73,7 @@ impl LogCampaignStore {
 
         for workload_instance_name in log_providers {
             self.log_providers_store
-                .entry(workload_instance_name.agent_name().to_string())
+                .entry(workload_instance_name.agent_name.clone())
                 .or_default()
                 .entry(input_request_id.clone())
                 .or_default()
@@ -481,8 +482,8 @@ mod tests {
     fn utest_agent_log_connection_store_remove_all_logs_request_ids_for_agent_collecting() {
         let mut log_campaign_store = prepare_log_campaign_store();
 
-        let removed_requests =
-            log_campaign_store.remove_agent_log_campaign_entry(&fixtures::AGENT_NAMES[0].to_owned());
+        let removed_requests = log_campaign_store
+            .remove_agent_log_campaign_entry(&fixtures::AGENT_NAMES[0].to_owned());
 
         assert_eq!(
             removed_requests.collector_requests,
@@ -535,8 +536,8 @@ mod tests {
     fn utest_agent_log_connection_store_remove_all_logs_request_ids_for_agent_providing_logs() {
         let mut log_campaign_store = prepare_log_campaign_store();
 
-        let removed_requests =
-            log_campaign_store.remove_agent_log_campaign_entry(&fixtures::AGENT_NAMES[1].to_owned());
+        let removed_requests = log_campaign_store
+            .remove_agent_log_campaign_entry(&fixtures::AGENT_NAMES[1].to_owned());
 
         assert_eq!(
             removed_requests.collector_requests,
@@ -698,8 +699,8 @@ mod tests {
     #[test]
     fn utest_remove_collector_campaign_entry() {
         let mut log_campaign_store = prepare_log_campaign_store();
-        let removed_ids =
-            log_campaign_store.remove_collector_campaign_entry(&fixtures::WORKLOAD_NAMES[0].to_owned());
+        let removed_ids = log_campaign_store
+            .remove_collector_campaign_entry(&fixtures::WORKLOAD_NAMES[0].to_owned());
         assert_eq!(removed_ids, HashSet::from([REQUEST_ID_AGENT_A.to_owned()]));
 
         assert_eq!(log_campaign_store.workload_name_request_id_store.len(), 1);

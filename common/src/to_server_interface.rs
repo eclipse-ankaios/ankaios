@@ -13,11 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::{self, AgentLoadStatus};
-use crate::std_extensions::UnreachableResult;
+
 use ankaios_api::ank_base::{
-    CompleteStateRequestSpec, CompleteStateSpec, EventsCancelRequestSpec, LogEntriesResponse,
-    LogsCancelRequestSpec, LogsRequest, LogsRequestSpec, LogsStopResponse, RequestContentSpec,
-    RequestSpec, Tags, UpdateStateRequestSpec, WorkloadStateSpec,
+    CompleteState, CompleteStateRequest, LogEntriesResponse,
+    LogsCancelRequest, LogsRequest, LogsStopResponse, Request, RequestContent, Tags,
+    UpdateStateRequest, WorkloadStateSpec, EventsCancelRequest
 };
 
 use async_trait::async_trait;
@@ -30,7 +30,7 @@ pub enum ToServer {
     AgentHello(commands::AgentHello),
     AgentLoadStatus(AgentLoadStatus),
     AgentGone(commands::AgentGone),
-    Request(RequestSpec),
+    Request(Request),
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Stop(commands::Stop),
     Goodbye(commands::Goodbye),
@@ -63,7 +63,7 @@ pub trait ToServerInterface {
     async fn update_state(
         &self,
         request_id: String,
-        new_state: CompleteStateSpec,
+        new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError>;
     async fn update_workload_state(
@@ -73,7 +73,7 @@ pub trait ToServerInterface {
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: CompleteStateRequestSpec,
+        request_complete_state: CompleteStateRequest,
     ) -> Result<(), ToServerError>;
     async fn logs_request(
         &self,
@@ -128,18 +128,18 @@ impl ToServerInterface for ToServerSender {
     async fn update_state(
         &self,
         request_id: String,
-        new_state: CompleteStateSpec,
+        new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestSpec {
+            .send(ToServer::Request(Request {
                 request_id,
-                request_content: RequestContentSpec::UpdateStateRequest(Box::new(
-                    UpdateStateRequestSpec {
-                        new_state,
+                request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                    UpdateStateRequest {
+                        new_state: Some(new_state),
                         update_mask,
                     },
-                )),
+                ))),
             }))
             .await?)
     }
@@ -160,12 +160,12 @@ impl ToServerInterface for ToServerSender {
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: CompleteStateRequestSpec,
+        request_complete_state: CompleteStateRequest,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestSpec {
+            .send(ToServer::Request(Request {
                 request_id,
-                request_content: RequestContentSpec::CompleteStateRequest(request_complete_state),
+                request_content: Some(RequestContent::CompleteStateRequest(request_complete_state)),
             }))
             .await?)
     }
@@ -176,20 +176,18 @@ impl ToServerInterface for ToServerSender {
         logs_request: LogsRequest,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestSpec {
+            .send(ToServer::Request(Request {
                 request_id,
-                request_content: RequestContentSpec::LogsRequest(
-                    LogsRequestSpec::try_from(logs_request).unwrap_or_unreachable(),
-                ),
+                request_content: Some(RequestContent::LogsRequest(logs_request)),
             }))
             .await?)
     }
 
     async fn logs_cancel_request(&self, request_id: String) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestSpec {
+            .send(ToServer::Request(Request {
                 request_id,
-                request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
+                request_content: Some(RequestContent::LogsCancelRequest(LogsCancelRequest {})),
             }))
             .await?)
     }
@@ -216,11 +214,11 @@ impl ToServerInterface for ToServerSender {
 
     async fn event_cancel_request(&self, request_id: String) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestSpec {
+            .send(ToServer::Request(Request {
                 request_id,
-                request_content: RequestContentSpec::EventsCancelRequest(
-                    EventsCancelRequestSpec {},
-                ),
+                request_content: Some(RequestContent::EventsCancelRequest(
+                    EventsCancelRequest {},
+                )),
             }))
             .await?)
     }

@@ -17,8 +17,7 @@ use super::rendered_workloads::RenderedWorkloads;
 
 use ankaios_api::ALLOWED_CHAR_SET;
 use ankaios_api::ank_base::{
-    AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec, DeletedWorkload,
-    StateSpec, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
+    AgentMapSpec, CompleteState, CompleteStateRequest, CompleteStateSpec, DeletedWorkload, StateSpec, WorkloadInstanceName, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec
 };
 use common::state_manipulation::{Object, Path};
 use common::std_extensions::IllegalStateResult;
@@ -36,7 +35,8 @@ use mockall::automock;
 #[derive(Debug, Default)]
 pub struct StateGenerationResult {
     pub old_desired_state: StateSpec,
-    pub new_desired_state: (StateSpec, AgentMapSpec),
+    pub new_desired_state: StateSpec,
+    pub new_agent_map: AgentMapSpec,
 }
 
 fn extract_added_and_deleted_workloads(
@@ -170,7 +170,7 @@ impl ServerState {
     // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
-        request_complete_state: CompleteStateRequestSpec,
+        request_complete_state: CompleteStateRequest,
         workload_states_map: &WorkloadStatesMapSpec,
         agent_map: &AgentMapSpec,
     ) -> Result<CompleteState, String> {
@@ -237,11 +237,14 @@ impl ServerState {
     // [impl->swdd~server-handles-logs-request-message~1]
     pub fn desired_state_contains_instance_name(
         &self,
-        instance_name: &WorkloadInstanceNameSpec,
+        instance_name: &WorkloadInstanceName,
     ) -> bool {
         self.rendered_workloads
-            .get(instance_name.workload_name())
-            .is_some_and(|workload| workload.instance_name == *instance_name)
+            .get(&instance_name.workload_name)
+            .is_some_and(|workload| {
+                workload.instance_name.agent_name == instance_name.agent_name
+                    && workload.instance_name.id == instance_name.id
+            })
     }
 
     pub fn update(
@@ -314,24 +317,32 @@ impl ServerState {
 
     pub fn generate_new_state(
         &self,
-        updated_state: CompleteStateSpec,
+        updated_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<StateGenerationResult, UpdateStateError> {
+        // [impl->swdd~update-desired-state-empty-update-mask~1]
+        if update_mask.is_empty() {
+            let new_complete_state: CompleteStateSpec = updated_state.try_into().map_err(|err| {
+                UpdateStateError::ResultInvalid(format!(
+                    "Could not parse into CompleteState: '{err}'"
+                ))
+            })?;
+            return Ok(StateGenerationResult {
+                old_desired_state: self.state.desired_state.clone(),
+                new_desired_state: new_complete_state.desired_state,
+                new_agent_map: new_complete_state.agents,
+            });
+        }
+
         // [impl->swdd~update-desired-state-with-update-mask~1]
         let old_state: Object = (&self.state).try_into().map_err(|err| {
             UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{err}'"))
         })?;
-        let state_from_update: Object = (&updated_state).try_into().map_err(|err| {
+        let state_from_update: Object = updated_state.try_into().map_err(|err| {
             UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{err}'"))
         })?;
 
-        // [impl->swdd~update-desired-state-empty-update-mask~1]
-        if update_mask.is_empty() {
-            return Ok(StateGenerationResult {
-                old_desired_state: self.state.desired_state.clone(),
-                new_desired_state: (updated_state.desired_state, updated_state.agents),
-            });
-        }
+
 
         let mut new_state = old_state.clone();
 
@@ -355,7 +366,8 @@ impl ServerState {
 
         Ok(StateGenerationResult {
             old_desired_state: self.state.desired_state.clone(),
-            new_desired_state: (new_complete_state.desired_state, new_complete_state.agents),
+            new_desired_state: new_complete_state.desired_state,
+            new_agent_map: new_complete_state.agents,
         })
     }
 

@@ -12,9 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::RequestSpec;
+use crate::ank_base::Request;
 
-impl RequestSpec {
+impl Request {
     pub fn prefix_id(prefix: &str, request_id: &String) -> String {
         format!("{prefix}{request_id}")
     }

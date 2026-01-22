@@ -14,8 +14,8 @@
 
 use super::CliCommands;
 
-use ankaios_api::ank_base::{CompleteStateSpec, WorkloadSpec};
-use common::state_manipulation::{Object, Path};
+use ankaios_api::ank_base::CompleteState;
+use common::state_manipulation::Object;
 use std::io::{self, Read};
 
 #[cfg(not(test))]
@@ -25,30 +25,6 @@ fn read_file_to_string(file: String) -> std::io::Result<String> {
 use crate::{cli_error::CliError, output_debug};
 #[cfg(test)]
 use tests::read_to_string_mock as read_file_to_string;
-
-fn create_state_with_default_workloads(update_mask: &[String]) -> CompleteStateSpec {
-    let mut complete_state = CompleteStateSpec::default();
-    const WORKLOAD_ATTRIBUTE_LEVEL: usize = 4;
-    let workload_level_mask_parts = ["desiredState".to_string(), "workloads".to_string()];
-    const WORKLOAD_NAME_POSITION: usize = 2;
-
-    for field_mask in update_mask {
-        let path: Path = field_mask.into();
-
-        // if we want to set an attribute of a workload create a default object for the workload
-        let mask_parts = path.parts();
-        if mask_parts.len() >= WORKLOAD_ATTRIBUTE_LEVEL
-            && mask_parts.starts_with(&workload_level_mask_parts)
-        {
-            complete_state.desired_state.workloads.workloads.insert(
-                mask_parts[WORKLOAD_NAME_POSITION].to_string(),
-                WorkloadSpec::default(),
-            );
-        }
-    }
-
-    complete_state
-}
 
 // [impl->swdd~cli-supports-yaml-to-set-desired-state~1]
 async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<Object, CliError> {
@@ -84,23 +60,6 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<O
     }
 }
 
-fn overwrite_using_field_mask(
-    mut complete_state_object: Object,
-    object_field_mask: &Vec<String>,
-    temp_obj: &Object,
-) -> Result<Object, CliError> {
-    for field_mask in object_field_mask {
-        let path: Path = field_mask.into();
-        if let Some(value) = temp_obj.get(&path) {
-            complete_state_object
-                .set(&path, value.clone())
-                .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-        }
-    }
-
-    Ok(complete_state_object)
-}
-
 impl CliCommands {
     // [impl->swdd~cli-provides-set-desired-state~1]
     pub async fn set_state(
@@ -114,14 +73,18 @@ impl CliCommands {
             state_object_file
         );
 
-        let temp_obj = process_inputs(io::stdin(), &state_object_file).await?;
-        let default_complete_state = create_state_with_default_workloads(&object_field_mask);
+        let new_complete_state: CompleteState = process_inputs(io::stdin(), &state_object_file)
+            .await?
+            .try_into()?;
 
-        // now overwrite with the values from the field mask
-        let mut complete_state_object: Object = default_complete_state.try_into()?;
-        complete_state_object =
-            overwrite_using_field_mask(complete_state_object, &object_field_mask, &temp_obj)?;
-        let new_complete_state = complete_state_object.try_into()?;
+        // let temp_obj = process_inputs(io::stdin(), &state_object_file).await?;
+        // let default_complete_state = create_state_with_default_workloads(&object_field_mask);
+
+        // // now overwrite with the values from the field mask
+        // let mut complete_state_object: Object = default_complete_state.try_into()?;
+        // complete_state_object =
+        //     overwrite_using_field_mask(complete_state_object, &object_field_mask, &temp_obj)?;
+        // let new_complete_state = complete_state_object.try_into()?;
 
         output_debug!(
             "Send UpdateState request with the CompleteState {:?}",

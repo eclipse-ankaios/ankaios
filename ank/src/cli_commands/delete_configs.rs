@@ -15,12 +15,12 @@
 use super::CliCommands;
 use crate::{cli_commands::DESIRED_STATE_CONFIGS, cli_error::CliError, output_debug};
 
-use ankaios_api::ank_base::CompleteStateSpec;
+use ankaios_api::ank_base::CompleteState;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-delete-configs~1]
     pub async fn delete_configs(&mut self, config_names: Vec<String>) -> Result<(), CliError> {
-        let complete_state_update = CompleteStateSpec::default();
+        let complete_state_update = CompleteState::default();
 
         let update_mask = config_names
             .into_iter()

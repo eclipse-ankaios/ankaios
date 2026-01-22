@@ -15,13 +15,13 @@
 use super::CliCommands;
 use crate::{cli_commands::DESIRED_STATE_WORKLOADS, cli_error::CliError, output_debug};
 
-use ankaios_api::ank_base::CompleteStateSpec;
+use ankaios_api::ank_base::CompleteState;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-delete-workload~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
-        let complete_state_update = CompleteStateSpec::default();
+        let complete_state_update = CompleteState::default();
 
         let update_mask = workload_names
             .into_iter()

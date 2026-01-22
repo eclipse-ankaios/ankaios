@@ -22,7 +22,7 @@ use super::input_pipe::InputPipe;
 #[cfg_attr(test, mockall_double::double)]
 use super::output_pipe::OutputPipe;
 use ankaios_api::{
-    ank_base::{self, RequestSpec},
+    ank_base::{self, Request},
     control_api,
 };
 use common::{
@@ -126,7 +126,7 @@ impl ControlInterfaceTask {
                             log::info!("Could not forward the response with Id: '{}'. Stopping log collection.", response.request_id);
                             match response.response_content {
                                 Some(ank_base::response::ResponseContent::LogEntriesResponse(_))=> {
-                                    let _ =self.to_server_sender.logs_cancel_request(RequestSpec::prefix_id(&self.request_id_prefix, &response.request_id)).await;
+                                    let _ = self.to_server_sender.logs_cancel_request(Request::prefix_id(&self.request_id_prefix, &response.request_id)).await;
                                 }
                                 unexpected => {
                                     log::warn!("Unexpected response content: '{unexpected:?}'");
