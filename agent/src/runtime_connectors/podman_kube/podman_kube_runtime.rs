@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use super::podman_kube_control_interface::{ControlInterfaceTarget, add_control_interface};
 use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
 // [impl->swdd~podman-kube-uses-podman-cli~1]
 #[cfg_attr(test, double)]
@@ -20,9 +21,7 @@ use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
         ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
-        generic_log_fetcher::GenericLogFetcher,
-        log_fetcher::LogFetcher,
-        podman_cli::{self, API_PIPES_MOUNT_POINT},
+        generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher, podman_cli,
         runtime_connector::LogRequestOptions,
     },
     workload_state::WorkloadStateSender,
@@ -35,16 +34,11 @@ use async_trait::async_trait;
 use futures_util::TryFutureExt;
 #[cfg(test)]
 use mockall_double::double;
-use serde::Deserialize;
-use serde_yaml::{self, Deserializer, Mapping, Value};
 use std::{cmp::min, collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 pub const PODMAN_KUBE_RUNTIME_NAME: &str = "podman-kube";
 const CONFIG_VOLUME_SUFFIX: &str = ".config";
 const PODS_VOLUME_SUFFIX: &str = ".pods";
-const TARGET_PATH_LENGTH: usize = 2;
-const POD_PATH_INDEX: usize = 0;
-const CONTAINER_PATH_INDEX: usize = 1;
 
 #[derive(Debug, Clone)]
 pub struct PodmanKubeRuntime {}
@@ -77,36 +71,6 @@ impl FromStr for PodmanKubeWorkloadId {
         Err("Not supported for PodmanKubeWorkloadId".to_string())
     }
 }
-
-pub struct ControlInterfaceTarget {
-    pub pod: String,
-    pub container: String,
-}
-
-impl ControlInterfaceTarget {
-    pub fn from_podman_kube_runtime_config(
-        config: &PodmanKubeRuntimeConfig,
-    ) -> Result<Option<ControlInterfaceTarget>, RuntimeError> {
-        let Some(target_path) = &config.control_interface_target else {
-            return Ok(None);
-        };
-
-        log::trace!("Parsing control interface target path: '{target_path}'");
-
-        let composite_parts: Vec<String> = target_path.split('/').map(|s| s.to_owned()).collect();
-        if composite_parts.len() != TARGET_PATH_LENGTH {
-            return Err(RuntimeError::Unsupported(format!(
-                "Invalid control interface target format: '{target_path}'. Expected format: '<pod_name>/<container_name>'"
-            )));
-        }
-
-        Ok(Some(ControlInterfaceTarget {
-            pod: composite_parts[POD_PATH_INDEX].clone(),
-            container: composite_parts[CONTAINER_PATH_INDEX].clone(),
-        }))
-    }
-}
-
 impl PodmanKubeRuntime {
     async fn sample_workload_states(
         &self,
@@ -125,224 +89,6 @@ impl PodmanKubeRuntime {
             ));
         }
         Ok(workload_states)
-    }
-
-    // [impl->swdd~podman-kube-mounts-control-interface~1]
-    fn enrich_manifest_with_control_interface(
-        workload_config: &mut PodmanKubeRuntimeConfig,
-        workload_named: &WorkloadNamed,
-        control_interface_target: &ControlInterfaceTarget,
-    ) -> Result<(), RuntimeError> {
-        log::trace!(
-            "Enriching manifest with control interface for workload '{}'",
-            workload_named.instance_name
-        );
-
-        let manifests = Self::parse_yaml_manifests(&workload_config.manifest)?;
-        let processed_manifests: Vec<String> =
-            Self::process_manifest_list(manifests, workload_named, control_interface_target)?;
-
-        workload_config.manifest = processed_manifests.join("---\n");
-        Ok(())
-    }
-
-    fn parse_yaml_manifests(manifest_str: &str) -> Result<Vec<Value>, RuntimeError> {
-        let mut manifests = Vec::new();
-
-        for manifest_result in Deserializer::from_str(manifest_str) {
-            let manifest = Value::deserialize(manifest_result).map_err(|e| {
-                RuntimeError::Unsupported(format!("Failed to parse YAML manifest: {e}"))
-            })?;
-
-            log::trace!("Parsed manifest: {manifest:#?}");
-
-            manifests.push(manifest);
-        }
-
-        Ok(manifests)
-    }
-
-    fn process_manifest_list(
-        manifests: Vec<Value>,
-        workload_named: &WorkloadNamed,
-        control_interface_target: &ControlInterfaceTarget,
-    ) -> Result<Vec<String>, RuntimeError> {
-        log::trace!(
-            "Processing {} manifests for workload '{}'",
-            manifests.len(),
-            workload_named.instance_name
-        );
-
-        manifests
-            .into_iter()
-            .map(|mut manifest| {
-                if Self::should_inject_control_interface(&manifest, &control_interface_target.pod)?
-                {
-                    Self::inject_control_interface(
-                        &mut manifest,
-                        workload_named,
-                        &control_interface_target.container,
-                    )?;
-                }
-                Self::serialize_yaml_manifest(&manifest)
-            })
-            .collect()
-    }
-
-    // [impl->swdd~podman-kube-validates-target-path-format~1]
-    fn should_inject_control_interface(
-        manifest: &Value,
-        target_pod_name: &String,
-    ) -> Result<bool, RuntimeError> {
-        log::trace!("Checking if manifest matches target pod name '{target_pod_name}'");
-
-        let kind = manifest
-            .get("kind")
-            .and_then(|k| k.as_str())
-            .ok_or_else(|| {
-                log::warn!("Manifest missing 'kind' field");
-                RuntimeError::Unsupported("Manifest missing 'kind' field".to_string())
-            })?;
-
-        if kind != "Pod" {
-            log::trace!("Skipping manifest with kind '{kind}'");
-            return Ok(false);
-        }
-
-        let pod_name = manifest
-            .get("metadata")
-            .and_then(|m| m.get("name"))
-            .and_then(|n| n.as_str())
-            .ok_or_else(|| {
-                log::warn!("Manifest missing metadata.name field");
-                RuntimeError::Unsupported("Pod manifest missing metadata.name".to_string())
-            })?;
-
-        Ok(pod_name == target_pod_name)
-    }
-
-    // [impl->swdd~podman-kube-mounts-control-interface~1]
-    // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
-    fn inject_control_interface(
-        manifest: &mut Value,
-        workload_named: &WorkloadNamed,
-        container_name: &str,
-    ) -> Result<(), RuntimeError> {
-        log::debug!(
-            "Injecting control interface into manifest for workload '{}'",
-            workload_named.instance_name
-        );
-        Self::inject_volume_mount(manifest, container_name)?;
-        Self::inject_control_volume(manifest, workload_named)?;
-
-        log::trace!("Manifest after injecting control interface: {manifest:#?}");
-        Ok(())
-    }
-
-    // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
-    fn inject_volume_mount(
-        manifest: &mut Value,
-        target_container_name: &str,
-    ) -> Result<(), RuntimeError> {
-        let containers = manifest
-            .get_mut("spec")
-            .and_then(|s| s.get_mut("containers"))
-            .and_then(|c| c.as_sequence_mut())
-            .ok_or_else(|| {
-                RuntimeError::Unsupported("Pod manifest missing spec.containers".to_string())
-            })?;
-
-        for container in containers {
-            let container_name =
-                container
-                    .get("name")
-                    .and_then(|n| n.as_str())
-                    .ok_or_else(|| {
-                        RuntimeError::Unsupported("Container missing name field".to_string())
-                    })?;
-
-            if container_name == target_container_name {
-                Self::add_control_interface_mount(container);
-                break;
-            }
-        }
-
-        Ok(())
-    }
-
-    // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
-    fn add_control_interface_mount(container: &mut Value) {
-        let container_mapping = container.as_mapping_mut().unwrap();
-        let vol_mounts_key = Value::from("volumeMounts");
-
-        if !container_mapping.contains_key(&vol_mounts_key) {
-            container_mapping.insert(vol_mounts_key.clone(), Value::Sequence(Vec::new()));
-        }
-
-        let vol_mounts = container_mapping
-            .get_mut(&vol_mounts_key)
-            .and_then(|v| v.as_sequence_mut())
-            .unwrap();
-
-        let mut volume_mount = Mapping::new();
-        volume_mount.insert(Value::from("name"), Value::from("control-interface-volume"));
-        volume_mount.insert(Value::from("mountPath"), Value::from(API_PIPES_MOUNT_POINT));
-
-        vol_mounts.push(Value::Mapping(volume_mount));
-    }
-
-    // [impl->swdd~podman-kube-mounts-control-interface~1]
-    // [impl->swdd~podman-kube-injects-control-interface-volume~1]
-    fn inject_control_volume(
-        manifest: &mut Value,
-        workload_named: &WorkloadNamed,
-    ) -> Result<(), RuntimeError> {
-        let spec_mapping = manifest
-            .get_mut("spec")
-            .and_then(|s| s.as_mapping_mut())
-            .ok_or_else(|| RuntimeError::Unsupported("Pod manifest missing spec".to_string()))?;
-
-        let volumes_key = Value::from("volumes");
-        if !spec_mapping.contains_key(&volumes_key) {
-            spec_mapping.insert(volumes_key.clone(), Value::Sequence(Vec::new()));
-        }
-
-        let volumes = spec_mapping
-            .get_mut(&volumes_key)
-            .and_then(|v| v.as_sequence_mut())
-            .ok_or_else(|| {
-                RuntimeError::Unsupported("Pod manifest missing spec.volumes".to_string())
-            })?;
-
-        let volume = Self::create_control_interface_volume(workload_named);
-        volumes.push(volume);
-        Ok(())
-    }
-
-    // [impl->swdd~podman-kube-injects-control-interface-volume~1]
-    // [impl->swdd~podman-kube-mounts-control-interface~1]
-    fn create_control_interface_volume(workload_named: &WorkloadNamed) -> Value {
-        let mut host_path = Mapping::new();
-        let path = format!(
-            "/tmp/ankaios/{}_io/{}.{}/control_interface/",
-            workload_named.instance_name.agent_name(),
-            workload_named.instance_name.workload_name(),
-            workload_named.instance_name.id()
-        );
-
-        host_path.insert(Value::from("path"), Value::from(path));
-        host_path.insert(Value::from("type"), Value::from("Directory"));
-
-        let mut volume = Mapping::new();
-        volume.insert(Value::from("name"), Value::from("control-interface-volume"));
-        volume.insert(Value::from("hostPath"), Value::Mapping(host_path));
-
-        Value::Mapping(volume)
-    }
-
-    fn serialize_yaml_manifest(manifest: &Value) -> Result<String, RuntimeError> {
-        serde_yaml::to_string(manifest)
-            .map_err(|e| RuntimeError::Unsupported(format!("Failed to serialize manifest: {e}")))
     }
 }
 
@@ -394,7 +140,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         &self,
         workload_named: WorkloadNamed,
         _reusable_workload_id: Option<PodmanKubeWorkloadId>,
-        _control_interface_path: Option<PathBuf>,
+        control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
         _workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
@@ -411,6 +157,31 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         let mut workload_config = PodmanKubeRuntimeConfig::try_from(&workload_named.workload)
             .map_err(RuntimeError::Unsupported)?;
 
+        // [impl->swdd~podman-kube-mounts-control-interface~2]
+        if let Some(control_interface_path) = control_interface_path {
+            if let Some(control_interface_target) =
+                ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)?
+            {
+                log::debug!(
+                    "Adding control interface for workload '{}'",
+                    workload_named.instance_name
+                );
+                add_control_interface(
+                    &mut workload_config,
+                    &control_interface_target,
+                    &control_interface_path,
+                )?;
+            } else {
+                log::warn!(
+                    "Control interface target not specified in runtime config for workload '{}'.",
+                    workload_named.instance_name
+                );
+                return Err(RuntimeError::Unsupported(
+                    "Control interface target not specified in runtime config.".to_string(),
+                ));
+            }
+        }
+
         // [impl->swdd~podman-kube-create-workload-creates-config-volume~1]
         // [impl->swdd~podman-kube-create-continues-if-cannot-create-volume~1]
         PodmanCli::store_data_as_volume(
@@ -425,26 +196,6 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
                 err
             )
         });
-
-        if workload_named.workload.needs_control_interface() {
-            log::trace!(
-                "Workload '{}' needs control interface.",
-                workload_named.instance_name
-            );
-            if let Some(control_interface_target) =
-                ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)?
-            {
-                Self::enrich_manifest_with_control_interface(
-                    &mut workload_config,
-                    &workload_named,
-                    &control_interface_target,
-                )?;
-            } else {
-                return Err(RuntimeError::Unsupported(
-                    "Control interface target not specified in runtime config.".to_string(),
-                ));
-            }
-        }
 
         // [impl->swdd~podman-kube-create-workload-apply-manifest~1]
         let created_pods = PodmanCli::play_kube(
@@ -691,25 +442,18 @@ mod tests {
         PodmanKubeRuntime, PodmanKubeWorkloadId,
     };
     use crate::runtime_connectors::RuntimeStateGetter;
-    use crate::runtime_connectors::podman_cli::{
-        __mock_MockPodmanCli as podman_cli_mock, API_PIPES_MOUNT_POINT,
-    };
-    use crate::runtime_connectors::podman_kube::podman_kube_runtime::ControlInterfaceTarget;
-    use crate::runtime_connectors::podman_kube::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
+    use crate::runtime_connectors::podman_cli::__mock_MockPodmanCli as podman_cli_mock;
     use crate::runtime_connectors::{RuntimeConnector, RuntimeError, podman_cli::ContainerState};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
-    use ankaios_api::ank_base::{
-        AccessRightsRuleSpec, ExecutionStateSpec, ReadWriteEnum, WorkloadInstanceNameSpec,
-        WorkloadNamed, WorkloadSpec,
-    };
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
     use ankaios_api::test_utils::{
-        generate_test_workload_named_with_params, generate_test_workload_named_with_runtime_config,
-        generate_test_workload_with_params, generate_test_workload_with_runtime_config, fixtures,
+        fixtures, generate_test_workload_named_with_params,
+        generate_test_workload_named_with_runtime_config, generate_test_workload_with_params,
     };
 
+    use mockall::predicate::function;
     use mockall::{Sequence, lazy_static, predicate::eq};
-    use serde_yaml::Value;
     use std::fmt::Display;
 
     const SAMPLE_ERROR: &str = "sample error";
@@ -734,6 +478,8 @@ mod tests {
                 .config(&SAMPLE_RUNTIME_CONFIG.to_string())
                 .build();
         pub static ref SAMPLE_POD_LIST: Vec<String> = vec!["pod1".to_string(), "pod2".to_string()];
+        pub static ref SAMPLE_PODS_AS_JSON: String = serde_json::to_string(&*SAMPLE_POD_LIST)
+            .expect("SAMPLE_POD_LIST should serialize to JSON");
         pub static ref SAMPLE_GENERAL_OPTIONS: Vec<String> =
             vec!["-gen".to_string(), "--eral".to_string()];
         pub static ref SAMPLE_PLAY_OPTIONS: Vec<String> =
@@ -941,7 +687,7 @@ mod tests {
         mock_context
             .store_data(
                 WORKLOAD_INSTANCE_NAME.as_pods_volume(),
-                r#"["pod1","pod2"]"#,
+                SAMPLE_PODS_AS_JSON.as_str(),
             )
             .returns(Ok(()));
 
@@ -963,6 +709,102 @@ mod tests {
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
                 workload_id.pods == Some(SAMPLE_POD_LIST.clone()) &&
                 workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
+    }
+
+    // [utest->swdd~podman-kube-mounts-control-interface~2]
+    #[tokio::test]
+    async fn utest_create_workload_injects_control_interface_before_play_kube() {
+        use crate::runtime_connectors::podman_cli::API_PIPES_MOUNT_POINT;
+
+        let mock_context = MockContext::new().await;
+
+        let manifest_str = r#"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+spec:
+  containers:
+  - name: test-container
+    image: test-image
+    volumeMounts: []
+  volumes: []
+"#;
+
+        let runtime_config = format!(
+            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
+        );
+
+        let mut workload_named = generate_test_workload_named_with_runtime_config(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            PODMAN_KUBE_RUNTIME_NAME,
+            runtime_config.as_str(),
+        );
+        workload_named.workload.files = Default::default();
+        workload_named.workload.control_interface_access = Default::default();
+
+        // [utest->swdd~podman-kube-create-workload-creates-config-volume~1]
+        // Check that the updated manifest with control interface is stored and not the original one
+        let expected_config_volume = workload_named.instance_name.as_config_volume();
+        mock_context
+            .store_data
+            .expect()
+            .with(
+                eq(expected_config_volume),
+                function(|data: &str| {
+                    data.contains("controlInterfaceTarget") && data.contains("manifest")
+                }),
+            )
+            .once()
+            .return_const(Ok(()));
+
+        // [utest->swdd~podman-kube-create-workload-apply-manifest~1]
+        // Verify the manifest was extended before play_kube is called.
+        mock_context
+            .play_kube
+            .expect()
+            .with(
+                eq((*SAMPLE_GENERAL_OPTIONS).clone()),
+                eq((*SAMPLE_PLAY_OPTIONS).clone()),
+                function(|kube_yml: &[u8]| {
+                    let kube_str = String::from_utf8_lossy(kube_yml);
+                    kube_str.contains("control-interface-volume")
+                        && kube_str.contains(API_PIPES_MOUNT_POINT)
+                        && kube_str.contains("volumeMounts")
+                        && kube_str.contains("volumes")
+                }),
+            )
+            .once()
+            .return_const(Ok(SAMPLE_POD_LIST.clone()));
+
+        // [utest->swdd~podman-kube-create-workload-creates-pods-volume~1]
+        mock_context
+            .store_data(
+                workload_named.instance_name.as_pods_volume(),
+                SAMPLE_PODS_AS_JSON.as_str(),
+            )
+            .returns(Ok(()));
+
+        mock_context.reset_ps_cache.expect().return_const(());
+
+        let runtime = PodmanKubeRuntime {};
+        let (sender, _) = tokio::sync::mpsc::channel(1);
+
+        let result = runtime
+            .create_workload(
+                workload_named,
+                None,
+                Some(std::path::PathBuf::from("/run/test/control_interface")),
+                sender,
+                Default::default(),
+            )
+            .await;
+
+        assert!(matches!(
+            &result,
+            Ok((workload_id, _)) if workload_id.manifest.contains("control-interface-volume")
+        ));
     }
 
     // [utest->swdd~podman-kube-create-continues-if-cannot-create-volume~1]
@@ -988,7 +830,7 @@ mod tests {
         mock_context
             .store_data(
                 WORKLOAD_INSTANCE_NAME.as_pods_volume(),
-                r#"["pod1","pod2"]"#,
+                SAMPLE_PODS_AS_JSON.as_str(),
             )
             .returns(Ok(()));
 
@@ -1034,7 +876,7 @@ mod tests {
         mock_context
             .store_data(
                 WORKLOAD_INSTANCE_NAME.as_pods_volume(),
-                r#"["pod1","pod2"]"#,
+                SAMPLE_PODS_AS_JSON.as_str(),
             )
             .returns(Err(SAMPLE_ERROR.into()));
 
@@ -1101,7 +943,7 @@ mod tests {
         mock_context
             .store_data(
                 WORKLOAD_INSTANCE_NAME.as_pods_volume(),
-                r#"["pod1","pod2"]"#,
+                SAMPLE_PODS_AS_JSON.as_str(),
             )
             .returns(Err(SAMPLE_ERROR.into()));
 
@@ -1179,7 +1021,7 @@ mod tests {
             .returns(Ok(SAMPLE_RUNTIME_CONFIG.into()));
         mock_context
             .read_data(WORKLOAD_INSTANCE_NAME.as_pods_volume())
-            .returns(Ok(r#"["pod1","pod2"]"#.into()));
+            .returns(Ok(SAMPLE_PODS_AS_JSON.to_string()));
 
         let runtime = PodmanKubeRuntime {};
         let workload = runtime.get_workload_id(&WORKLOAD_INSTANCE_NAME).await;
@@ -1504,654 +1346,6 @@ mod tests {
         let execution_state = runtime.get_state(&workload_id).await;
 
         assert_eq!(execution_state, ExecutionStateSpec::succeeded());
-    }
-
-    #[test]
-    fn utest_control_interface_target_valid() {
-        let manifest_str = r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  containers:
-  - name: test-container
-    image: test-image
-"#;
-        let runtime_config = format!(
-            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
-        );
-        let mut workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            fixtures::AGENT_NAMES[0].to_string(),
-            PODMAN_KUBE_RUNTIME_NAME.to_string(),
-            runtime_config,
-        );
-        workload.files = Default::default();
-
-        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload).unwrap();
-
-        let target = ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config);
-        assert!(
-            matches!(target, Ok(Some(target)) if target.pod == "test-pod" && target.container == "test-container")
-        );
-    }
-
-    #[test]
-    fn utest_control_interface_target_invalid() {
-        let manifest_str = r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  containers:
-  - name: test-container
-    image: test-image
-"#;
-        let runtime_config = format!(
-            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod-test-container", "manifest": {manifest_str:?}}}"#
-        );
-        let mut workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            fixtures::AGENT_NAMES[0].to_string(),
-            PODMAN_KUBE_RUNTIME_NAME.to_string(),
-            runtime_config,
-        );
-        workload.files = Default::default();
-
-        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload).unwrap();
-
-        let target = ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config);
-        assert!(target.is_err());
-    }
-
-    #[test]
-    fn utest_control_interface_target_missing() {
-        let manifest_str = r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  containers:
-  - name: test-container
-    image: test-image
-"#;
-        let runtime_config = format!(
-            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], "manifest": {manifest_str:?}}}"#
-        );
-        let mut workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            fixtures::AGENT_NAMES[0].to_string(),
-            PODMAN_KUBE_RUNTIME_NAME.to_string(),
-            runtime_config,
-        );
-        workload.files = Default::default();
-
-        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload).unwrap();
-        let target = ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config);
-        assert!(matches!(target, Ok(None)));
-    }
-
-    // [utest->swdd~podman-kube-mounts-control-interface~1]
-    #[test]
-    fn utest_target_path_ignored_when_no_access_rules() {
-        let manifest_str = r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  containers:
-  - name: test-container
-    image: test-image
-    volumeMounts: []
-  volumes: []
-"#;
-        let runtime_config = format!(
-            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
-        );
-
-        let mut workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            fixtures::AGENT_NAMES[0].to_string(),
-            PODMAN_KUBE_RUNTIME_NAME.to_string(),
-            runtime_config,
-        );
-        workload.files = Default::default();
-        workload.control_interface_access = Default::default();
-
-        assert!(!workload.needs_control_interface());
-
-        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload).unwrap();
-
-        assert_eq!(workload_config.manifest, manifest_str);
-        assert!(
-            !workload_config
-                .manifest
-                .contains("control-interface-volume")
-        );
-    }
-
-    // [utest->swdd~podman-kube-validates-target-path-format~1]
-    #[test]
-    fn utest_parse_yaml_manifests_simple_manifest() {
-        let manifest_str = r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-"#;
-
-        let result = PodmanKubeRuntime::parse_yaml_manifests(manifest_str);
-        assert!(result.is_ok());
-        let manifests = result.unwrap();
-        assert_eq!(manifests.len(), 1);
-        assert_eq!(manifests[0]["kind"], "Pod");
-        assert_eq!(manifests[0]["metadata"]["name"], "test-pod");
-    }
-
-    #[test]
-    fn utest_parse_yaml_manifests_multiple_manifests() {
-        let manifest_str = r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod1
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: test-service
-"#;
-
-        let result = PodmanKubeRuntime::parse_yaml_manifests(manifest_str);
-        assert!(result.is_ok());
-        let manifests = result.unwrap();
-        assert_eq!(manifests.len(), 2);
-        assert_eq!(manifests[0]["kind"], "Pod");
-        assert_eq!(manifests[1]["kind"], "Service");
-    }
-
-    #[test]
-    fn utest_parse_yaml_manifests_invalid_yaml() {
-        let manifest_str = "invalid: yaml: content: [";
-
-        let result = PodmanKubeRuntime::parse_yaml_manifests(manifest_str);
-        assert!(result.is_err());
-        assert!(matches!(result, Err(RuntimeError::Unsupported(_))));
-    }
-
-    // [utest->swdd~podman-kube-injects-control-interface-volume~1]
-    #[test]
-    fn utest_should_inject_control_interface_not_pod_kind() {
-        let manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-kind: Service
-metadata:
-  name: test-service
-"#,
-        )
-        .unwrap();
-
-        let result = PodmanKubeRuntime::should_inject_control_interface(
-            &manifest,
-            &"test-service".to_owned(),
-        );
-        assert!(result.is_ok());
-        assert!(!result.unwrap());
-    }
-
-    // [utest->swdd~podman-kube-mounts-control-interface~1]
-    #[test]
-    fn utest_should_inject_control_interface_wrong_pod_name() {
-        let manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  name: different-pod
-"#,
-        )
-        .unwrap();
-
-        let result =
-            PodmanKubeRuntime::should_inject_control_interface(&manifest, &"test-pod".to_owned());
-        assert!(result.is_ok());
-        assert!(!result.unwrap());
-    }
-
-    // [utest->swdd~podman-kube-mounts-control-interface~1]
-    #[test]
-    fn utest_should_inject_control_interface_matching_pod() {
-        let manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-"#,
-        )
-        .unwrap();
-
-        let result =
-            PodmanKubeRuntime::should_inject_control_interface(&manifest, &"test-pod".to_owned());
-        assert!(result.is_ok());
-        assert!(result.unwrap());
-    }
-
-    #[test]
-    fn utest_should_inject_control_interface_missing_kind() {
-        let manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-metadata:
-  name: test-pod
-"#,
-        )
-        .unwrap();
-
-        let result =
-            PodmanKubeRuntime::should_inject_control_interface(&manifest, &"test-pod".to_owned());
-        assert!(result.is_err());
-        assert!(matches!(result, Err(RuntimeError::Unsupported(_))));
-    }
-
-    #[test]
-    fn utest_should_inject_control_interface_missing_metadata_name() {
-        let manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  namespace: default
-"#,
-        )
-        .unwrap();
-
-        let result =
-            PodmanKubeRuntime::should_inject_control_interface(&manifest, &"test-pod".to_owned());
-        assert!(result.is_err());
-        assert!(matches!(result, Err(RuntimeError::Unsupported(_))));
-    }
-
-    // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
-    #[test]
-    fn utest_inject_control_interface_success() {
-        let manifest_str = r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  containers:
-  - name: test-container
-    image: test-image
-    volumeMounts: []
-  volumes: []
-"#;
-        let runtime_config = format!(
-            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
-        );
-
-        let mut workload = generate_test_podman_kube_workload();
-        workload.workload.runtime_config = runtime_config;
-        workload.workload.files = Default::default();
-        workload.workload.control_interface_access.allow_rules =
-            vec![AccessRightsRuleSpec::state_rule(
-                ReadWriteEnum::RwReadWrite,
-                vec!["desiredState".to_string()],
-            )];
-
-        let mut workload_config = PodmanKubeRuntimeConfig::try_from(&workload.workload).unwrap();
-        let control_interface_target =
-            ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)
-                .unwrap()
-                .unwrap();
-
-        assert!(
-            PodmanKubeRuntime::enrich_manifest_with_control_interface(
-                &mut workload_config,
-                &workload,
-                &control_interface_target,
-            )
-            .is_ok()
-        );
-
-        assert!(
-            workload_config
-                .manifest
-                .contains("control-interface-volume")
-        );
-
-        let parsed: Value = serde_yaml::from_str(&workload_config.manifest).unwrap();
-        let vol_mounts = &parsed["spec"]["containers"][0]["volumeMounts"];
-        assert!(!vol_mounts.as_sequence().unwrap().is_empty());
-
-        let volumes = &parsed["spec"]["volumes"];
-        assert!(!volumes.as_sequence().unwrap().is_empty());
-    }
-
-    // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
-    #[test]
-    fn utest_inject_volume_mount_success() {
-        let mut manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-  - name: test-container
-    image: test-image
-    volumeMounts: []
-  - name: other-container
-    image: other-image
-    volumeMounts: []
-"#,
-        )
-        .unwrap();
-
-        let result = PodmanKubeRuntime::inject_volume_mount(&mut manifest, "test-container");
-        assert!(result.is_ok());
-
-        let vol_mounts = &manifest["spec"]["containers"][0]["volumeMounts"];
-        let vol_mount_list = vol_mounts.as_sequence().unwrap();
-        assert_eq!(vol_mount_list.len(), 1);
-        assert_eq!(vol_mount_list[0]["name"], "control-interface-volume");
-        assert_eq!(vol_mount_list[0]["mountPath"], API_PIPES_MOUNT_POINT);
-
-        let other_vol_mounts = &manifest["spec"]["containers"][1]["volumeMounts"];
-        assert_eq!(other_vol_mounts.as_sequence().unwrap().len(), 0);
-    }
-
-    // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
-    #[test]
-    fn utest_inject_volume_mount_missing_containers() {
-        let mut manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-kind: Pod
-spec:
-  volumes: []
-"#,
-        )
-        .unwrap();
-
-        let result = PodmanKubeRuntime::inject_volume_mount(&mut manifest, "test-container");
-        assert!(result.is_err());
-        assert!(matches!(result, Err(RuntimeError::Unsupported(_))));
-    }
-
-    // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
-    #[test]
-    fn utest_inject_volume_mount_container_missing_name() {
-        let mut manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-  - image: test-image
-    volumeMounts: []
-"#,
-        )
-        .unwrap();
-
-        let result = PodmanKubeRuntime::inject_volume_mount(&mut manifest, "test-container");
-        assert!(result.is_err());
-        assert!(matches!(result, Err(RuntimeError::Unsupported(_))));
-    }
-
-    // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
-    #[test]
-    fn utest_add_control_interface_mount_with_existing_mounts() {
-        let mut container = serde_yaml::from_str::<Value>(
-            r#"
-name: test-container
-volumeMounts:
-- name: existing-volume
-  mountPath: /existing/path
-"#,
-        )
-        .unwrap();
-
-        PodmanKubeRuntime::add_control_interface_mount(&mut container);
-
-        let vol_mounts = container["volumeMounts"].as_sequence().unwrap();
-        assert_eq!(vol_mounts.len(), 2);
-        assert_eq!(vol_mounts[1]["name"], "control-interface-volume");
-        assert_eq!(vol_mounts[1]["mountPath"], API_PIPES_MOUNT_POINT);
-    }
-
-    // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
-    #[test]
-    fn utest_add_control_interface_mount_no_volume_mounts() {
-        let mut container = serde_yaml::from_str::<Value>(
-            r#"
-name: test-container
-image: test-image
-"#,
-        )
-        .unwrap();
-
-        PodmanKubeRuntime::add_control_interface_mount(&mut container);
-
-        let vol_mounts = container["volumeMounts"].as_sequence().unwrap();
-        assert_eq!(vol_mounts.len(), 1);
-        assert_eq!(vol_mounts[0]["name"], "control-interface-volume");
-        assert_eq!(vol_mounts[0]["mountPath"], API_PIPES_MOUNT_POINT);
-    }
-
-    // [utest->swdd~podman-kube-injects-control-interface-volume~1]
-    #[test]
-    fn utest_inject_control_volume_success_with_existing_volume_wl() {
-        let mut manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-kind: Pod
-spec:
-  containers: []
-  volumes:
-  - name: existing-volume
-    emptyDir: {}
-"#,
-        )
-        .unwrap();
-
-        let workload = generate_test_podman_kube_workload();
-
-        let result = PodmanKubeRuntime::inject_control_volume(&mut manifest, &workload);
-        assert!(result.is_ok());
-
-        let volumes = manifest["spec"]["volumes"].as_sequence().unwrap();
-        assert_eq!(volumes.len(), 2);
-        assert_eq!(volumes[1]["name"], "control-interface-volume");
-        assert!(volumes[1]["hostPath"].is_mapping());
-    }
-
-    // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
-    #[test]
-    fn utest_inject_control_volume_success_with_missing_volume_wl() {
-        let mut manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-kind: Pod
-spec:
-  containers: []
-"#,
-        )
-        .unwrap();
-
-        let workload = generate_test_podman_kube_workload();
-
-        let result = PodmanKubeRuntime::inject_control_volume(&mut manifest, &workload);
-        assert!(result.is_ok());
-
-        let volumes = manifest["spec"]["volumes"].as_sequence().unwrap();
-        assert_eq!(volumes.len(), 1);
-        assert_eq!(volumes[0]["name"], "control-interface-volume");
-        assert!(volumes[0]["hostPath"].is_mapping());
-    }
-
-    // [utest->swdd~podman-kube-injects-control-interface-volume~1]
-    #[test]
-    fn utest_create_control_interface_volume() {
-        let workload = generate_test_podman_kube_workload();
-
-        let volume = PodmanKubeRuntime::create_control_interface_volume(&workload);
-
-        assert_eq!(volume["name"], "control-interface-volume");
-        assert!(volume["hostPath"].is_mapping());
-        assert_eq!(volume["hostPath"]["type"], "Directory");
-
-        let expected_path = format!(
-            "/tmp/ankaios/{}_io/{}.{}/control_interface/",
-            workload.instance_name.agent_name(),
-            workload.instance_name.workload_name(),
-            workload.instance_name.id()
-        );
-        assert_eq!(volume["hostPath"]["path"], expected_path);
-    }
-
-    #[test]
-    fn utest_serialize_yaml_manifest_success() {
-        let manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-"#,
-        )
-        .unwrap();
-
-        let result = PodmanKubeRuntime::serialize_yaml_manifest(&manifest);
-        assert!(result.is_ok());
-
-        let serialized = result.unwrap();
-        assert!(serialized.contains("apiVersion: v1"));
-        assert!(serialized.contains("kind: Pod"));
-        assert!(serialized.contains("name: test-pod"));
-    }
-
-    // [utest->swdd~podman-kube-injects-control-interface-volume~1]
-    #[test]
-    fn utest_process_manifest_list_mixed_manifests() {
-        let pod_manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  name: target-pod
-spec:
-  containers:
-  - name: target-container
-    image: test-image
-    volumeMounts: []
-  volumes: []
-"#,
-        )
-        .unwrap();
-
-        let service_manifest = serde_yaml::from_str::<Value>(
-            r#"
-apiVersion: v1
-kind: Service
-metadata:
-  name: test-service
-spec:
-  ports:
-  - port: 80
-"#,
-        )
-        .unwrap();
-
-        let manifests = vec![pod_manifest, service_manifest];
-        let mut workload = generate_test_podman_kube_workload();
-
-        workload.workload.control_interface_access.allow_rules =
-            vec![AccessRightsRuleSpec::state_rule(
-                ReadWriteEnum::RwReadWrite,
-                vec!["desiredState".to_string()],
-            )];
-
-        let control_interface_target = ControlInterfaceTarget {
-            pod: "target-pod".to_string(),
-            container: "target-container".to_string(),
-        };
-
-        let result = PodmanKubeRuntime::process_manifest_list(
-            manifests,
-            &workload,
-            &control_interface_target,
-        );
-
-        assert!(result.is_ok());
-        let processed = result.unwrap();
-        assert_eq!(processed.len(), 2);
-
-        assert!(processed[0].contains("control-interface-volume"));
-        assert!(!processed[1].contains("control-interface-volume"));
-        assert!(processed[1].contains("kind: Service"));
-    }
-
-    // [utest->swdd~podman-kube-injects-control-interface-volume~1]
-    #[test]
-    fn utest_process_manifests_with_control_interface_multiple_documents() {
-        let manifest_str = r#"
-apiVersion: v1
-kind: Pod
-metadata:
-  name: target-pod
-spec:
-  containers:
-  - name: target-container
-    image: test-image
-    volumeMounts: []
-  volumes: []
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: test-service
-spec:
-  ports:
-  - port: 80
-"#;
-        let runtime_config = format!(
-            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "target-pod/target-container", "manifest": {manifest_str:?}}}"#
-        );
-
-        let mut workload = generate_test_podman_kube_workload();
-
-        workload.workload.runtime_config = runtime_config;
-        workload.workload.files = Default::default();
-        workload.workload.control_interface_access.allow_rules =
-            vec![AccessRightsRuleSpec::state_rule(
-                ReadWriteEnum::RwReadWrite,
-                vec!["desiredState".to_string()],
-            )];
-
-        let mut workload_config = PodmanKubeRuntimeConfig::try_from(&workload.workload).unwrap();
-        let control_interface_target =
-            ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)
-                .unwrap()
-                .unwrap();
-
-        assert!(
-            PodmanKubeRuntime::enrich_manifest_with_control_interface(
-                &mut workload_config,
-                &workload,
-                &control_interface_target,
-            )
-            .is_ok()
-        );
-
-        assert!(workload_config.manifest.contains("---\n"));
-        assert!(
-            workload_config
-                .manifest
-                .contains("control-interface-volume")
-        );
-        assert!(workload_config.manifest.contains("kind: Service"));
     }
 
     struct MockContext<'a> {
