@@ -108,7 +108,7 @@ Test workload with empty Control Interface access field mask rejected
     Then the last command finished with exit code "1"
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~podman-kube-mounts-control-interface~1]
+# [stest->swdd~podman-kube-mounts-control-interface~2]
 Test server started with empty Control Interface access field mask fails
     [Setup]           Run Keywords    Setup Ankaios
     # Actions
@@ -117,7 +117,7 @@ Test server started with empty Control Interface access field mask fails
     Then the last command finished with exit code "1"
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~podman-kube-mounts-control-interface~1]
+# [stest->swdd~podman-kube-mounts-control-interface~2]
 Test Ankaios podman-kube workload restart after update without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
@@ -132,7 +132,7 @@ Test Ankaios podman-kube workload restart after update without a Control Interfa
     Then the mount point for the control interface has not been generated for ${agent_name}
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~podman-kube-mounts-control-interface~1]
+# [stest->swdd~podman-kube-mounts-control-interface~2]
 Test Ankaios podman-kube workload restart after update with a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
@@ -148,16 +148,28 @@ Test Ankaios podman-kube workload restart after update with a Control Interface 
     And the pod "simple-pod" of workload "simple-kube" shall have a different id but same configuration on the podman kube runtime
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~podman-kube-mounts-control-interface~1]
+# [stest->swdd~podman-kube-mounts-control-interface~2]
 Test target path from control interface access is limited to the designated pod and container
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
     And Ankaios server is started with manifest "${CONFIGS_DIR}/multi_container_podman_kube.yaml"
-    And the CLI listens for workload states
     And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
     And the workload "${workload_name}" shall have the execution state "Running(Ok)" on agent "${agent_name}"
     And the mount point for the control interface has been generated for ${agent_name}
     # Asserts
     Then verify multi container control interface access    simple
+    [Teardown]    Clean up Ankaios
+
+# [stest->swdd~podman-kube-mounts-control-interface~2]
+Test target path from control interface access is limited to the designated deployment pod and container
+    [Setup]           Run Keywords    Setup Ankaios
+    # Preconditions
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/multi_container_podman_kube_deployment.yaml"
+    And the CLI listens for workload states
+    And Ankaios agent is started with name "${agent_name}"
+    And the workload "simple" shall have the execution state "Running(Ok)" on agent "${agent_name}"
+    And the mount point for the control interface has been generated for ${agent_name}
+    # Asserts
+    Then verify multi container control interface access    simple    container_A    pod_A-pod
     [Teardown]    Clean up Ankaios
