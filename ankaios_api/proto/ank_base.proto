@@ -39,7 +39,7 @@ message Response {
     string requestId = 1; // The Id corresponding to the one of the request for this response.
     oneof ResponseContent {
         Error error = 3;
-        CompleteStateResponse completeStateResponse = 4; // A message containing the complete state (or a filtered part) on the Ankaios cluster. TODO #450 check docstring
+        CompleteStateResponse completeStateResponse = 4; // A message containing the complete state (or a filtered part) on the Ankaios cluster.
         UpdateStateSuccess UpdateStateSuccess = 5; // A message confirming the state update and providing information on the changed workloads.
         LogsRequestAccepted logsRequestAccepted = 6; // A message containing the workload names for which the logs were successfully requested.
         LogEntriesResponse logEntriesResponse = 7; // A message containing workload logs.
