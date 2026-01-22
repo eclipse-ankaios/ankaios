@@ -428,13 +428,14 @@ impl From<AlteredFields> for ankaios_api::ank_base::AlteredFields {
 mod tests {
     use std::collections::HashMap;
 
+    use ankaios_api::ank_base::CompleteStateRequest;
     use ankaios_api::test_utils::generate_test_workload_with_params;
     use common::from_server_interface::FromServer;
 
     use super::StateDifferenceTree;
 
     use ankaios_api::ank_base::{
-        AgentMapSpec, CompleteStateRequestSpec, CompleteStateSpec, StateSpec, WorkloadMapSpec,
+        AgentMapSpec, CompleteStateSpec, StateSpec, WorkloadMapSpec,
         WorkloadSpec, WorkloadStatesMapSpec, response::ResponseContent,
     };
     use mockall::predicate;
@@ -637,7 +638,7 @@ mod tests {
             .with(
                 mockall::predicate::function(|request_complete_state| {
                     request_complete_state
-                        == &CompleteStateRequestSpec {
+                        == &CompleteStateRequest {
                             field_mask: vec![
                                 added_field_mask.to_owned(),
                                 expected_removed_field_mask.to_owned(),

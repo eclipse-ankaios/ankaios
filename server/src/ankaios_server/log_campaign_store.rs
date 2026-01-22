@@ -234,7 +234,7 @@ impl LogCampaignStore {
 mod tests {
     use super::{AgentRequestId, CliRequestId, HashMap, HashSet, LogCampaignStore, RequestId};
 
-    use ankaios_api::ank_base::WorkloadInstanceNameSpec;
+    use ankaios_api::ank_base::{WorkloadInstanceName, WorkloadInstanceNameSpec};
     use ankaios_api::test_utils::fixtures;
 
     const REQUEST_ID_AGENT_A: &str = "agent_A@workload_A@request_id";
@@ -246,7 +246,7 @@ mod tests {
     const CLI_1_REQUEST_ID_3: &str = "cli-conn-1@cli_request_id_3";
 
     mockall::lazy_static! {
-        static ref WORKLOAD_3_INSTANCE_NAME: WorkloadInstanceNameSpec = WorkloadInstanceNameSpec::try_from("log_provider.some_uuid.agent_B").unwrap();
+        static ref WORKLOAD_3_INSTANCE_NAME: WorkloadInstanceName = WorkloadInstanceNameSpec::try_from("log_provider.some_uuid.agent_B").unwrap().into();
     }
 
     fn prepare_log_campaign_store() -> LogCampaignStore {

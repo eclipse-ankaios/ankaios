@@ -943,13 +943,13 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{
-        AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState,
-        CompleteStateRequestSpec, CompleteStateResponse, CompleteStateSpec, CpuUsageSpec,
-        DeletedWorkload, Error, ExecutionStateEnumSpec, ExecutionStateSpec, FreeMemorySpec,
-        LogEntriesResponse, LogEntry, LogsCancelAccepted, LogsRequestAccepted, LogsRequestSpec,
-        LogsStopResponse, Pending as PendingSubstate, Response, ResponseContent, State, StateSpec,
-        TagsSpec, UpdateStateSuccess, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec,
-        WorkloadMap, WorkloadMapSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
+        AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateRequest,
+        CompleteStateResponse, CompleteStateSpec, CpuUsageSpec, DeletedWorkload, Error,
+        ExecutionStateEnumSpec, ExecutionStateSpec, FreeMemorySpec, LogEntriesResponse, LogEntry,
+        LogsCancelAccepted, LogsRequest, LogsRequestAccepted, LogsRequestSpec, LogsStopResponse,
+        Pending as PendingSubstate, Response, ResponseContent, State, StateSpec, TagsSpec,
+        UpdateStateSuccess, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap,
+        WorkloadMapSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::fixtures::{AGENT_NAMES, REQUEST_ID};
     use ankaios_api::test_utils::{
@@ -996,24 +996,6 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
-
-        let cloned_startup_state = startup_state.clone();
-        mock_server_state
-            .expect_generate_new_state()
-            .with(
-                mockall::predicate::eq(cloned_startup_state.clone()),
-                mockall::predicate::eq(vec![]),
-            )
-            .once()
-            .returning(move |_, _| {
-                Ok(StateGenerationResult {
-                    new_desired_state: (
-                        cloned_startup_state.desired_state.clone(),
-                        Default::default(),
-                    ),
-                    ..Default::default()
-                })
-            });
 
         mock_server_state
             .expect_update()
@@ -1109,7 +1091,7 @@ mod tests {
             .in_sequence(&mut seq)
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: (new_desired_state.clone(), Default::default()),
+                    new_desired_state: new_desired_state.clone(),
                     ..Default::default()
                 })
             });
@@ -1134,7 +1116,7 @@ mod tests {
             .in_sequence(&mut seq)
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: (fixed_desired_state.clone(), Default::default()),
+                    new_desired_state: fixed_desired_state.clone(),
                     ..Default::default()
                 })
             });
@@ -1164,7 +1146,7 @@ mod tests {
             to_server
                 .update_state(
                     fixtures::REQUEST_ID.to_string(),
-                    new_state.clone(),
+                    new_state.clone().into(),
                     update_mask.clone()
                 )
                 .await
@@ -1184,7 +1166,7 @@ mod tests {
             to_server
                 .update_state(
                     fixtures::REQUEST_ID.to_string(),
-                    fixed_state.clone(),
+                    fixed_state.clone().into(),
                     update_mask
                 )
                 .await
@@ -1255,7 +1237,7 @@ mod tests {
             .once()
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: (new_desired_state.clone(), Default::default()),
+                    new_desired_state: new_desired_state.clone(),
                     ..Default::default()
                 })
             });
@@ -1486,7 +1468,7 @@ mod tests {
                 workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         fixtures::WORKLOAD_NAMES[0].to_owned(),
-                        w1.workload.clone(),
+                        w1.workload.clone().into(),
                     )]),
                 },
                 ..Default::default()
@@ -1509,7 +1491,7 @@ mod tests {
             .once()
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: (updated_desired_state.clone(), Default::default()),
+                    new_desired_state: updated_desired_state.clone(),
                     ..Default::default()
                 })
             });
@@ -1533,7 +1515,11 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
+            .update_state(
+                fixtures::REQUEST_ID.to_string(),
+                update_state.into(),
+                update_mask,
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -1591,7 +1577,7 @@ mod tests {
                 workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         fixtures::WORKLOAD_NAMES[0].to_owned(),
-                        w1.workload.clone(),
+                        w1.workload.clone().into(),
                     )]),
                 },
                 ..Default::default()
@@ -1610,7 +1596,7 @@ mod tests {
             .once()
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: (updated_desired_state.clone(), Default::default()),
+                    new_desired_state: updated_desired_state.clone(),
                     ..Default::default()
                 })
             });
@@ -1631,7 +1617,11 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
+            .update_state(
+                fixtures::REQUEST_ID.to_string(),
+                update_state.into(),
+                update_mask,
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -1679,7 +1669,7 @@ mod tests {
                 workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         fixtures::WORKLOAD_NAMES[0].to_owned(),
-                        w1.clone(),
+                        w1.clone().into(),
                     )]),
                 },
                 ..Default::default()
@@ -1698,7 +1688,7 @@ mod tests {
             .once()
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: (updated_desired_state.clone(), Default::default()),
+                    new_desired_state: updated_desired_state.clone(),
                     ..Default::default()
                 })
             });
@@ -1714,7 +1704,11 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
+            .update_state(
+                fixtures::REQUEST_ID.to_string(),
+                update_state.into(),
+                update_mask,
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -1753,13 +1747,13 @@ mod tests {
         mock_server_state
             .expect_desired_state_contains_instance_name()
             .with(mockall::predicate::function(
-                |instance_name: &WorkloadInstanceNameSpec| {
+                |instance_name: &WorkloadInstanceName| {
                     instance_name
-                        == &WorkloadInstanceNameSpec::new(
-                            fixtures::AGENT_NAMES[0],
-                            fixtures::WORKLOAD_NAMES[0],
-                            fixtures::WORKLOAD_IDS[0],
-                        )
+                        == &WorkloadInstanceName {
+                            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                            workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+                            id: fixtures::WORKLOAD_IDS[0].to_string(),
+                        }
                 },
             ))
             .once()
@@ -1767,11 +1761,11 @@ mod tests {
 
         server.server_state = mock_server_state;
 
-        let log_providing_workloads = vec![WorkloadInstanceNameSpec::new(
-            fixtures::AGENT_NAMES[0],
-            fixtures::WORKLOAD_NAMES[0],
-            fixtures::WORKLOAD_IDS[0],
-        )];
+        let log_providing_workloads = vec![WorkloadInstanceName {
+            workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+            id: fixtures::WORKLOAD_IDS[0].to_string(),
+        }];
 
         server
             .log_campaign_store
@@ -1785,17 +1779,17 @@ mod tests {
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        let logs_request = LogsRequestSpec {
+        let logs_request = LogsRequest {
             workload_names: log_providing_workloads,
-            follow: true,
-            tail: 10,
+            follow: Some(true),
+            tail: Some(10),
             since: None,
             until: None,
         };
 
         // send logs request to server
         let logs_request_result = to_server
-            .logs_request(fixtures::REQUEST_ID.to_string(), logs_request.into())
+            .logs_request(fixtures::REQUEST_ID.to_string(), logs_request)
             .await;
         assert!(logs_request_result.is_ok());
         drop(to_server);
@@ -1853,11 +1847,11 @@ mod tests {
 
         mock_server_state
             .expect_desired_state_contains_instance_name()
-            .with(mockall::predicate::eq(WorkloadInstanceNameSpec::new(
-                fixtures::AGENT_NAMES[0],
-                fixtures::WORKLOAD_NAMES[0],
-                fixtures::WORKLOAD_IDS[0],
-            )))
+            .with(mockall::predicate::eq(WorkloadInstanceName {
+                agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+                id: fixtures::WORKLOAD_IDS[0].to_string(),
+            }))
             .once()
             .return_const(false);
 
@@ -1868,21 +1862,21 @@ mod tests {
             .expect_insert_log_campaign()
             .never();
 
-        let logs_request = LogsRequestSpec {
-            workload_names: vec![WorkloadInstanceNameSpec::new(
-                fixtures::AGENT_NAMES[0],
-                fixtures::WORKLOAD_NAMES[0],
-                fixtures::WORKLOAD_IDS[0],
-            )],
-            follow: true,
-            tail: 10,
+        let logs_request = LogsRequest {
+            workload_names: vec![WorkloadInstanceName {
+                agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+                id: fixtures::WORKLOAD_IDS[0].to_string(),
+            }],
+            follow: Some(true),
+            tail: Some(10),
             since: None,
             until: None,
         };
 
         // send logs request to server
         let logs_request_result = to_server
-            .logs_request(fixtures::REQUEST_ID.to_string(), logs_request.into())
+            .logs_request(fixtures::REQUEST_ID.to_string(), logs_request)
             .await;
         assert!(logs_request_result.is_ok());
 
@@ -1949,7 +1943,7 @@ mod tests {
             .with(
                 mockall::predicate::function(|request_complete_state| {
                     request_complete_state
-                        == &CompleteStateRequestSpec {
+                        == &CompleteStateRequest {
                             field_mask: vec![],
                             subscribe_for_events: false,
                         }
@@ -1967,7 +1961,7 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 request_id.clone(),
-                CompleteStateRequestSpec {
+                CompleteStateRequest {
                     field_mask: vec![],
                     subscribe_for_events: false,
                 },
@@ -2012,7 +2006,7 @@ mod tests {
             .with(
                 mockall::predicate::function(|request_complete_state| {
                     request_complete_state
-                        == &CompleteStateRequestSpec {
+                        == &CompleteStateRequest {
                             field_mask: vec![],
                             subscribe_for_events: false,
                         }
@@ -2031,7 +2025,7 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 request_id.clone(),
-                CompleteStateRequestSpec {
+                CompleteStateRequest {
                     field_mask: vec![],
                     subscribe_for_events: false,
                 },
@@ -2217,15 +2211,18 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let instance_name_1 = generate_test_workload_instance_name_with_params(
-            fixtures::WORKLOAD_NAMES[0],
-            fixtures::AGENT_NAMES[0],
-        );
-        let instance_name_2 = generate_test_workload_instance_name_with_params(
-            fixtures::WORKLOAD_NAMES[1],
-            fixtures::AGENT_NAMES[0],
-        );
-
+        let instance_name_1: WorkloadInstanceName =
+            generate_test_workload_instance_name_with_params(
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::AGENT_NAMES[0],
+            )
+            .into();
+        let instance_name_2: WorkloadInstanceName =
+            generate_test_workload_instance_name_with_params(
+                fixtures::WORKLOAD_NAMES[1],
+                fixtures::AGENT_NAMES[0],
+            )
+            .into();
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         server
             .log_campaign_store
@@ -2262,13 +2259,13 @@ mod tests {
             FromServer::Response(Response {
                 request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::LogsStopResponse(LogsStopResponse {
-                    workload_name: Some(instance_name_1.into()),
+                    workload_name: Some(instance_name_1),
                 })),
             }),
             FromServer::Response(Response {
                 request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::LogsStopResponse(LogsStopResponse {
-                    workload_name: Some(instance_name_2.into()),
+                    workload_name: Some(instance_name_2),
                 })),
             }),
         ];
@@ -2322,7 +2319,7 @@ mod tests {
                 workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         fixtures::WORKLOAD_NAMES[0].to_owned(),
-                        updated_w1.workload.clone(),
+                        updated_w1.workload.clone().into(),
                     )]),
                 },
                 ..Default::default()
@@ -2361,7 +2358,7 @@ mod tests {
             .in_sequence(&mut seq)
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: (updated_desired_state.clone(), Default::default()),
+                    new_desired_state: updated_desired_state.clone(),
                     ..Default::default()
                 })
             });
@@ -2401,7 +2398,7 @@ mod tests {
         let update_state_result = to_server
             .update_state(
                 fixtures::REQUEST_ID.to_string(),
-                update_state,
+                update_state.into(),
                 update_mask.clone(),
             )
             .await;
@@ -2554,11 +2551,11 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let update_state = CompleteStateSpec {
-            desired_state: StateSpec {
+        let update_state = CompleteState {
+            desired_state: Some(State {
                 api_version: "incompatible_version".to_string(),
                 ..Default::default()
-            },
+            }),
             ..Default::default()
         };
 
@@ -2606,10 +2603,13 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut update_state_ankaios_no_version: CompleteStateSpec = CompleteStateSpec {
+        let update_state_ankaios_no_version = CompleteState {
+            desired_state: Some(State {
+                api_version: "".to_string(),
+                ..Default::default()
+            }),
             ..Default::default()
         };
-        update_state_ankaios_no_version.desired_state.api_version = "".to_string();
 
         let update_mask = vec![format!(
             "desiredState.workloads.{}",
@@ -2698,7 +2698,7 @@ mod tests {
             fixtures::RUNTIME_NAMES[0],
         );
 
-        let update_state = CompleteStateSpec::default();
+        let update_state = CompleteState::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
 
         let deleted_workload_without_agent = DeletedWorkload {
@@ -2801,7 +2801,7 @@ mod tests {
             fixtures::RUNTIME_NAMES[0],
         );
 
-        let update_state = CompleteStateSpec::default();
+        let update_state = CompleteState::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
 
         let deleted_workload_with_agent = DeletedWorkload {
@@ -3060,7 +3060,7 @@ mod tests {
             .once()
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: (updated_desired_state.clone(), Default::default()),
+                    new_desired_state: updated_desired_state.clone(),
                     ..Default::default()
                 })
             });
@@ -3096,7 +3096,7 @@ mod tests {
             to_server
                 .update_state(
                     fixtures::REQUEST_ID.to_owned(),
-                    update_state,
+                    update_state.into(),
                     vec![format!(
                         "desiredState.workloads.{}",
                         fixtures::WORKLOAD_NAMES[0]
@@ -3275,7 +3275,7 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 request_id.clone(),
-                CompleteStateRequestSpec {
+                CompleteStateRequest {
                     field_mask: vec![
                         "desiredState.workloads.workload_1".to_owned(),
                         "workloadStates.*".to_owned(),
@@ -3587,7 +3587,8 @@ mod tests {
 
         let state_generation_result = StateGenerationResult {
             old_desired_state: old_state.desired_state,
-            new_desired_state: (updated_desired_state.clone(), Default::default()),
+            new_desired_state: updated_desired_state.clone(),
+            ..Default::default()
         };
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
@@ -3697,7 +3698,11 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
+            .update_state(
+                fixtures::REQUEST_ID.to_string(),
+                update_state.into(),
+                update_mask,
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -3731,7 +3736,7 @@ mod tests {
         let updated_desired_state = update_state.desired_state.clone();
 
         let state_generation_result = StateGenerationResult {
-            new_desired_state: (updated_desired_state.clone(), Default::default()),
+            new_desired_state: updated_desired_state.clone(),
             ..Default::default()
         };
 
@@ -3793,7 +3798,11 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
+            .update_state(
+                fixtures::REQUEST_ID.to_string(),
+                update_state.into(),
+                update_mask,
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -4131,16 +4140,17 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
 
         let agents_clone = update_state.agents.clone();
-
+        let update_state_clone: CompleteState = update_state.clone().into();
         mock_server_state
             .expect_generate_new_state()
             .with(
-                mockall::predicate::eq(update_state.clone()),
+                mockall::predicate::eq(update_state_clone),
                 mockall::predicate::eq(update_mask.clone()),
             )
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
-                    new_desired_state: (Default::default(), agents_clone.clone()),
+                    new_desired_state: Default::default(),
+                    new_agent_map: agents_clone.clone().into(),
                     ..Default::default()
                 })
             });
@@ -4231,7 +4241,11 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
+            .update_state(
+                fixtures::REQUEST_ID.to_string(),
+                update_state.into(),
+                update_mask,
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -4248,7 +4262,7 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 request_id_2.clone(),
-                CompleteStateRequestSpec {
+                CompleteStateRequest {
                     field_mask: ["agents".to_string()].into(),
                     subscribe_for_events: false,
                 },

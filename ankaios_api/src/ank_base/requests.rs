@@ -34,13 +34,13 @@ impl Request {
 
 #[cfg(test)]
 mod tests {
-    use crate::ank_base::{LogsCancelRequestSpec, RequestContentSpec, RequestSpec};
+    use crate::ank_base::{LogsCancelRequest, RequestContent, Request};
 
     #[test]
     fn test_prefix_request_id() {
-        let mut request_spec = RequestSpec {
+        let mut request_spec = Request {
             request_id: "12345".to_string(),
-            request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
+            request_content: RequestContent::LogsCancelRequest(LogsCancelRequest {}),
         };
         request_spec.prefix_request_id("PRE");
         assert_eq!(request_spec.request_id, "PRE12345");
