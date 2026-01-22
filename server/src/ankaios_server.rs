@@ -197,7 +197,6 @@ impl AnkaiosServer {
                     };
 
                     // [impl->swdd~server-stores-newly-connected-agent~2]
-                    // [impl->swdd~server-stores-newly-connected-agent~1]
                     self.agent_map.agents.insert(
                         agent_name.clone(),
                         AgentAttributesSpec {
