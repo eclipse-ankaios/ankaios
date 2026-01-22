@@ -16,6 +16,8 @@ mod path;
 mod path_pattern;
 mod rules;
 
+use crate::control_interface::authorizer::path_pattern::PathPattern;
+
 use ankaios_api::ank_base::{
     AccessRightsRuleEnumSpec, AccessRightsRuleSpec, ControlInterfaceAccessSpec, ReadWriteEnum,
     RequestContentSpec, RequestSpec,
@@ -27,8 +29,6 @@ use std::{sync::Arc, vec};
 
 #[cfg(test)]
 use mockall::mock;
-
-use crate::control_interface::authorizer::path_pattern::PathPattern;
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Authorizer {
@@ -120,6 +120,7 @@ impl Authorizer {
             }
             // [impl->swdd~agent-authorizing-logs-cancel-always-allowed~1]
             RequestContentSpec::LogsCancelRequest(_) => true,
+            RequestContentSpec::EventsCancelRequest(_) => true,
         }
     }
 
@@ -345,6 +346,7 @@ mod test {
             request_id: "".into(),
             request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![],
+                subscribe_for_events: false,
             }),
         };
         let update_state_request = RequestSpec {
@@ -383,6 +385,7 @@ mod test {
             request_id: "".into(),
             request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![MATCHING_PATH.into()],
+                subscribe_for_events: false,
             }),
         };
 
@@ -464,6 +467,7 @@ mod test {
             request_id: "".into(),
             request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
+                subscribe_for_events: false,
             }),
         };
         assert!(authorizer.authorize(&request));
@@ -490,6 +494,7 @@ mod test {
             request_id: "".into(),
             request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
+                subscribe_for_events: false,
             }),
         };
         assert!(!authorizer.authorize(&request));

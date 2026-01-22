@@ -87,6 +87,14 @@ The ConfigRenderer is responsible for rendering the templated configuration of w
 The LogCampaignStore holds metadata about log collections triggered by workloads or the CLI and enables the Ankaios server to cancel log campaigns or send logs stop responses automatically in certain situations.
 In the following a workload requesting logs is sometimes also called log collector and workloads providing logs are also called log providers. All information on a collector and the providers is stored in one log campaign giving the name of the component.
 
+### EventHandler
+
+The EventHandler holds metadata about the event subscribers and their subscribed field masks. It is responsible for sending out events to the corresponding event subscribers.
+
+### StateComparator
+
+The StateComparator compares the current with the new state to determine state differences for events.
+
 ## Behavioral view
 
 ### Startup sequence
@@ -441,31 +449,21 @@ Needs:
 - utest
 
 #### Server stores a newly connected agent
-`swdd~server-stores-newly-connected-agent~1`
+`swdd~server-stores-newly-connected-agent~2`
 
 Status: approved
 
-When an Agent connects to the Ankaios server, the Ankaios server shall instruct the ServerState to store the newly connected agent within its state.
+When an Agent connects to the Ankaios server, the Ankaios server shall create an entry of the agent in its internal agent map.
+
+Comment:
+The agent map is an associative data structure that stores the agent's name and additional data for an agent.
+When the server is requested to provide the `CompleteState`, the content of the agent map is populated into the `agents` field part of the `CompleteState`.
 
 Rationale:
 Storing the connected Ankaios agents allows a workload to retrieve the connected agents via the Control Interface and the Ankaios CLI to list the connected agents to the user.
 
 Tags:
 - AnkaiosServer
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### ServerState stores agent inside the CompleteState
-`swdd~server-state-stores-agent-in-complete-state~1`
-
-Status: approved
-
-When the ServerState is triggered to store the agent, the ServerState shall create an entry of the agent in the `agents` field of the `CompleteState`.
-
-Tags:
 - ServerState
 
 Needs:
@@ -580,6 +578,7 @@ When the Ankaios Server responses to a GetCompleteState request and the request 
 the response includes the filed `api_version` and the fields listed in the `field_mask`.
 
 Comment:
+If the `field_mask` is empty, the response includes all fields of the CompleteState.
 If the fields listed in the `field_mask` contain templated strings, they are returned unrendered.
 
 Tags:
@@ -606,6 +605,22 @@ Tags:
 Needs:
 - impl
 - utest
+
+##### Server filters GetCompleteState requests with wildcards
+`swdd~server-filters-get-complete-state-result-with-wildcards~1`
+
+Status: approved
+
+When the Ankaios Server responses to a GetCompleteState with `field_mask` containing wildcards,
+the wildcards segment of the `field_mask` match all possible values on this level.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
 
 ##### Server includes RequestID in the ControlInterface response
 `swdd~server-includes-id-in-control-interface-response~1`
@@ -1045,32 +1060,20 @@ Needs:
 - utest
 
 #### Server receives agent node resource availability
-`swdd~server-receives-resource-availability~1`
+`swdd~server-receives-resource-availability~2`
 
 Status: approved
 
-When the Ankaios server receives a new agent load status, the Ankaios server shall trigger the ServerState to update the connected agent's resource availability with the provided new agent load status.
+When the Ankaios server receives a new agent load status, the Ankaios server shall update its internal agent map with agent node resource availability information regarding the cpu usage and the free memory.
+
+Comment:
+The agent map is an associative data structure that stores the agent's name and additional data for an agent.
 
 Rationale:
 The resource availability can be used for scheduling, e.g. done by controller workloads.
 
 Tags:
 - AnkaiosServer
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### ServerState updates agent node resource availability
-`swdd~server-updates-resource-availability~1`
-
-Status: approved
-
-When the ServerState receives a new agent load status, the ServerState shall update its internal state with agent node resource availability information regarding the cpu usage and the free memory.
-
-Tags:
-- ServerState
 
 Needs:
 - impl
@@ -1134,43 +1137,17 @@ Needs:
 - utest
 
 #### Server removes disconnected agents from its state
-`swdd~server-removes-disconnected-agents-from-state~1`
+`swdd~server-removes-disconnected-agents-from-state~2`
 
 Status: approved
 
-When the ToServer message AgentGone is received by the Ankaios server from an Ankaios agent, the AnkaiosServer shall instruct the ServerState to remove the agent from its internal state.
+When the ToServer message AgentGone is received by the Ankaios server from an Ankaios agent, the AnkaiosServer shall remove the entry of the agent in its internal agent map.
+
+Comment:
+The agent map is an associative data structure that stores the agent's name and additional data for an agent.
 
 Tags:
 - AnkaiosServer
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### ServerState removes agent from CompleteState
-`swdd~server-state-removes-agent-from-complete-state~1`
-
-Status: approved
-
-When the ServerState is triggered to remove the agent from its state, the ServerState shall remove the entry of the agent in the `agents` field of the `CompleteState`.
-
-Tags:
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### ServerState provides check for existence of a connected agent inside the complete state
-`swdd~server-state-provides-connected-agent-exists-check~1`
-
-Status: approved
-
-When the ServerState is triggered to check if an agent is part of its state, the ServerState shall check if the `agents` field of the `CompleteState` contains the agent name passed as argument.
-
-Tags:
-- ServerState
 
 Needs:
 - impl
@@ -1342,6 +1319,274 @@ The agents collecting logs from workloads must be informed by the server to stop
 Tags:
 - AnkaiosServer
 - LogCampaignStore
+
+Needs:
+- impl
+- utest
+
+### Handle events
+
+#### Server stores new event subscription
+`swdd~server-stores-new-event-subscription~1`
+
+Status: approved
+
+When the Ankaios Server receives a `CompleteStateRequest` message with enabled `subscribe_for_events` field, the Ankaios Server shall request the EventHandler to store the requester as new event subscriber.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Server removes event subscription
+`swdd~server-removes-event-subscription~1`
+
+Status: approved
+
+When the Ankaios Server receives an `EventsCancelRequest` message, the Ankaios Server shall:
+
+* request the EventHandler to remove the subscriber from its internal subscription store
+* sends an `EventsCancelAccepted` message to the subscriber using the request ID via the communication middleware.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Server removes event subscription for disconnected cli
+`swdd~server-removes-event-subscription-for-disconnected-cli~1`
+
+Status: approved
+
+When the Ankaios server receives a `Goodbye` message from the channel provided by the communication middleware, the Ankaios Server shall request the EventHandler to remove the subscription of the cli by providing the cli connection name.
+
+Rationale:
+This serves to prevent subscription corpses that remain in the system when a client disconnects.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server provides functionality to calculate state differences
+`swdd~server-calculates-state-differences~1`
+
+Status: approved
+
+The StateComparator shall provide a method for calculating the state differences between a current state and a new state represented as associative data structures with returning tree structures for added, updated and removed field paths.
+
+Comment:
+Each tree contains the paths of the fields that have been changed, with a null value as the leaf.
+A custom Depth-Search-First (DFS) implementation comparing all fields of the current and new state is used.
+In mappings only `string`s and numbers are supported as keys.
+A sequence is treated as a leaf.
+An update from an empty sequence to a non-empty sequence is treated as an added field and the other way around as a removed field.
+Any other changes to a sequence field is treated as an updated field.
+
+Tags:
+- StateComparator
+
+Needs:
+- impl
+- utest
+
+#### Server creates trees for first difference and full difference field paths
+`swdd~server-generates-trees-for-first-and-full-difference-field-paths~1`
+
+Status: approved
+
+The StateComparator generates the following two trees for added and deleted field paths:
+* a tree containing the field paths to the first level of changes of the state
+* a tree containing the field paths to all leafs for changes of the state
+
+Rationale:
+For added workloads, only the field path to the newly added workload name is required in the altered event fields for subscribers, rather than the full path to each added sub-field of the new workload. The same rationale applies to workloads that have been removed.
+
+Tags:
+- StateComparator
+
+Needs:
+- impl
+- utest
+
+#### Server sends state differences as events
+`swdd~server-sends-state-differences-as-events~1`
+
+Status: approved
+
+When the Ankaios Server successfully updates its internal state after receiving one of the following `ToServer` messages:
+- `UpdateStateRequest`
+- `AgentHello`
+- `AgentGone`
+- `AgentLoadStatus`
+- `UpdateWorkloadState`
+
+and there is at least one subscriber for events,
+the Ankaios Server shall:
+* request the StateComparator to determine the state differences between the current and the new state
+* request the EventHandler to send events for state differences to event subscribers.
+
+Comments:
+The state changes include internal changes to the desiredState, agents and workload states maps. The following `ToServer` messages are covered:
+
+Tags:
+- AnkaiosServer
+- StateComparator
+- EventHandler
+
+Needs:
+- impl
+- utest
+- stest
+
+#### EventHandler handles event notifications
+
+##### EventHandler provides functionality to handle event subscriptions
+`swdd~provides-functionality-to-handle-event-subscriptions~1`
+
+Status: approved
+
+The EventHandler shall provide the following methods to manage the subscriptions in its internal event subscription store:
+
+* adding a new subscriber by inserting a new entry with the subscriber's request ID as key and the subscriber's field masks as value
+* removing a subscriber
+* checking if there is any subscriber inside its internal event store
+* removing all subscribers of a specific agent from its internal event store
+* removing all subscribers of a specific cli connection from its internal event store
+* removing a subscriber by its agent and workload name from the internal event store
+
+Comment:
+The event subscription store is an associative data structure.
+One subscriber can subscribe to multiple field masks.
+
+Rationale:
+The EventHandler sends events to specific subscribers identified by their request ID.
+For efficiency, providing a check for existing subscribers allows to skip costly event related calculations if there are no subscribers available.
+Removing subscribers of an agent prevents subscription corpses that remain in the system when an Ankaios Agent managing workloads with event subscriptions disconnects.
+Removing the cli subscriptions prevents subscription corpses that remain in the system when the cli with event subscriptions disconnects.
+Removing the subscriber by agent and name prevents subscription corpses that remain in the system when the workload is removed.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler sends complete state differences including altered fields
+`swdd~event-handler-sends-complete-state-differences-including-altered-fields~1`
+
+Status: approved
+
+When the EventHandler is triggered to send events, for each event subscriber the EventHandler shall:
+
+* create the altered fields for added, updated and deleted fields matching the subscriber's field masks
+* filter the CompleteState with all altered fields matching the subscriber's field masks
+* send a `CompleteStateResponse` message containing the altered fields and the filtered CompleteState if there is at least one entry in one of the altered fields.
+
+Comments:
+If the altered field masks contain deleted paths of the state and there are no added or updated field paths, an empty CompleteState is returned to signal the subscriber the absence of those fields.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+- stest
+
+##### EventHandler creates altered fields using the first difference tree
+`swdd~event-handler-creates-altered-fields-using-first-difference-tree~1`
+
+Status: approved
+
+When the EventHandler creates the altered fields based on the subscriber's field masks, for each subscriber field mask, the EventHandler shall:
+
+* match the field mask parts including wildcard symbols (`*`) against the first difference tree paths for added and deleted fields
+* creates the altered field mask by collecting all sub paths of the first difference tree starting from the last matching subscriber mask part if the subscriber mask is shorter than or equal to the path in the first difference tree.
+
+Comment:
+The first difference tree contains paths to the first change of the state, e.g. for an added or deleted workload the path `desiredState.workloads.<workload_name>`.
+The comparison is done by a custom depth-first-search (DFS) algorithm comparing the subscriber field masks including wildcards with the field masks paths in the tree.
+
+Rationale:
+A subscriber's field mask may contain wild cards to subscribe to all subfields.
+For an added or deleted field only the path to the first change in the state is stored in the first difference tree to avoid excessive altered fields output of all sub fields in the event.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler creates altered fields from first difference tree upon empty subscriber mask
+`swdd~event-handler-uses-first-difference-tree-upon-empty-subscriber-mask~1`
+
+Status: approved
+
+When the EventHandler creates the altered fields based on the subscriber's field mask
+and the subscriber's field mask is empty, the EventHandler shall create the altered field masks by returning all paths from the first difference tree.
+
+Comment:
+Alternative usage to subscribing to all fields using a wildcard (`*`).
+
+Rationale:
+The empty subscriber mask indicates that the subscriber wants to receive all changes in the state.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler creates altered fields using the full difference tree
+`swdd~event-handler-creates-altered-fields-using-full-difference-tree~1`
+
+Status: approved
+
+When the EventHandler creates the altered fields based on the subscriber's field masks
+and a subscriber's field mask is longer than a matching path in the first difference tree, the EventHandler shall create the final altered field mask by continuing matching the remaining subscriber mask parts including wildcard symbols (`*`) against the full difference tree paths.
+
+Comment:
+The full difference tree contains paths to all leafs of a change in the state, e.g. for an added or deleted workload all sub fields of `desiredState.workloads.<workload_name>`.
+The comparison is done by a custom depth-first-search (DFS) algorithm comparing the subscriber field masks including wildcards with the field masks paths in the tree.
+
+Rationale:
+A subscriber's field mask may contain wild cards to subscribe to all subfields.
+The full difference tree is used to create an altered field matched by more specific subscriber field masks, e.g. `desiredState.workloads.new_workload.dependencies.workload_1` as subscriber mask and `desiredState.workloads.new_workload` as field path in the first difference tree.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler creates altered fields the using full difference tree for updated fields
+`swdd~event-handler-creates-altered-fields-using-full-difference-tree-for-updated-fields~1`
+
+Status: approved
+
+The EventHandler shall use the full difference tree for for updated fields.
+
+Rationale:
+An updated field is a path to a leaf. Sequences are treated as leafs.
+
+Tags:
+- EventHandler
 
 Needs:
 - impl

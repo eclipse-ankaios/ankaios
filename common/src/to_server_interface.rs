@@ -15,9 +15,9 @@
 use crate::commands::{self, AgentLoadStatus};
 use crate::std_extensions::UnreachableResult;
 use ankaios_api::ank_base::{
-    CompleteStateRequestSpec, CompleteStateSpec, LogEntriesResponse, LogsCancelRequestSpec,
-    LogsRequest, LogsRequestSpec, LogsStopResponse, RequestContentSpec, RequestSpec, Tags,
-    UpdateStateRequestSpec, WorkloadStateSpec,
+    CompleteStateRequestSpec, CompleteStateSpec, EventsCancelRequestSpec, LogEntriesResponse,
+    LogsCancelRequestSpec, LogsRequest, LogsRequestSpec, LogsStopResponse, RequestContentSpec,
+    RequestSpec, Tags, UpdateStateRequestSpec, WorkloadStateSpec,
 };
 
 use async_trait::async_trait;
@@ -91,6 +91,7 @@ pub trait ToServerInterface {
         request_id: String,
         logs_stop_response: LogsStopResponse,
     ) -> Result<(), ToServerError>;
+    async fn event_cancel_request(&self, request_id: String) -> Result<(), ToServerError>;
     async fn goodbye(&self, connection_name: String) -> Result<(), ToServerError>;
     async fn stop(&self) -> Result<(), ToServerError>;
 }
@@ -164,11 +165,7 @@ impl ToServerInterface for ToServerSender {
         Ok(self
             .send(ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContentSpec::CompleteStateRequest(
-                    CompleteStateRequestSpec {
-                        field_mask: request_complete_state.field_mask,
-                    },
-                ),
+                request_content: RequestContentSpec::CompleteStateRequest(request_complete_state),
             }))
             .await?)
     }
@@ -214,6 +211,17 @@ impl ToServerInterface for ToServerSender {
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::LogsStopResponse(request_id, logs_stop_response))
+            .await?)
+    }
+
+    async fn event_cancel_request(&self, request_id: String) -> Result<(), ToServerError> {
+        Ok(self
+            .send(ToServer::Request(RequestSpec {
+                request_id,
+                request_content: RequestContentSpec::EventsCancelRequest(
+                    EventsCancelRequestSpec {},
+                ),
+            }))
             .await?)
     }
 
@@ -388,6 +396,7 @@ mod tests {
 
         let complete_state_request = CompleteStateRequestSpec {
             field_mask: vec![FIELD_MASK.to_string()],
+            subscribe_for_events: false,
         };
         let request_content =
             RequestContentSpec::CompleteStateRequest(complete_state_request.clone());

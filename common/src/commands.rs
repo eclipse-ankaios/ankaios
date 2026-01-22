@@ -87,6 +87,7 @@ mod tests {
             request_id: "42".to_string(),
             request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec!["1".to_string(), "2".to_string()],
+                subscribe_for_events: false,
             }),
         };
 

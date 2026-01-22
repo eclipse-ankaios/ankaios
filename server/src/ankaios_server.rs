@@ -15,31 +15,38 @@
 mod config_renderer;
 mod cycle_check;
 mod delete_graph;
+mod event_handler;
 mod log_campaign_store;
 mod rendered_workloads;
+mod request_id;
 mod server_state;
+mod state_comparator;
 
 use ankaios_api::ank_base::{
-    CompleteState, CompleteStateSpec, DeletedWorkload, ExecutionStateSpec, LogsStopResponse,
-    RequestContentSpec, RequestSpec, WorkloadInstanceNameSpec, WorkloadStateSpec,
-    WorkloadStatesMapSpec,
+    AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateSpec,
+    DeletedWorkload, ExecutionStateSpec, LogsStopResponse, RequestContentSpec, RequestSpec,
+    WorkloadInstanceNameSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
+use common::state_manipulation::Path;
 
-use common::commands::UpdateWorkload;
-use common::from_server_interface::{FromServerReceiver, FromServerSender};
+use server_state::AddedDeletedWorkloads;
+
 use common::std_extensions::{IllegalStateResult, UnreachableResult};
-use common::to_server_interface::{ToServerReceiver, ToServerSender};
 
 #[cfg_attr(test, mockall_double::double)]
 use server_state::ServerState;
 
-use common::{
-    from_server_interface::{FromServer, FromServerInterface},
-    to_server_interface::ToServer,
+#[cfg_attr(test, mockall_double::double)]
+use event_handler::EventHandler;
+
+#[cfg_attr(test, mockall_double::double)]
+use state_comparator::StateComparator;
+
+use common::from_server_interface::{
+    FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
 };
-
+use common::to_server_interface::{ToServer, ToServerReceiver, ToServerSender};
 use tokio::sync::mpsc::channel;
-
 pub type ToServerChannel = (ToServerSender, ToServerReceiver);
 pub type FromServerChannel = (FromServerSender, FromServerReceiver);
 
@@ -57,6 +64,8 @@ use log_campaign_store::LogCollectorRequestId;
 
 use std::collections::HashSet;
 
+use crate::ankaios_server::server_state::StateGenerationResult;
+
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
     receiver: ToServerReceiver,
@@ -64,7 +73,9 @@ pub struct AnkaiosServer {
     to_agents: FromServerSender,
     server_state: ServerState,
     workload_states_map: WorkloadStatesMapSpec,
+    agent_map: AgentMapSpec,
     log_campaign_store: LogCampaignStore,
+    event_handler: EventHandler,
 }
 
 impl AnkaiosServer {
@@ -74,7 +85,9 @@ impl AnkaiosServer {
             to_agents,
             server_state: ServerState::default(),
             workload_states_map: WorkloadStatesMapSpec::default(),
+            agent_map: AgentMapSpec::default(),
             log_campaign_store: LogCampaignStore::default(),
+            event_handler: EventHandler::default(),
         }
     }
 
@@ -83,27 +96,46 @@ impl AnkaiosServer {
             // [impl->swdd~server-validates-desired-state-api-version~1]
             state.desired_state.validate_pre_rendering()?;
 
-            match self.server_state.update(state, vec![]) {
-                Ok(Some((added_workloads, deleted_workloads))) => {
+            let state_generation_result = self
+                .server_state
+                .generate_new_state(state, vec![])
+                .map_err(|err| err.to_string())?;
+
+            match self
+                .server_state
+                .update(state_generation_result.new_desired_state.0)
+            {
+                Ok(Some(added_deleted_workloads)) => {
+                    for (agent_name, agent_attributes) in
+                        state_generation_result.new_desired_state.1.agents.iter()
+                    {
+                        self.agent_map
+                            .agents
+                            .entry(agent_name.to_owned())
+                            .insert_entry(agent_attributes.to_owned());
+                    }
+                    let added_workloads = added_deleted_workloads.added_workloads;
+                    let deleted_workloads = added_deleted_workloads.deleted_workloads;
+
                     // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
                     self.workload_states_map.initial_state(&added_workloads);
 
-                    let from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
-                        added_workloads,
-                        deleted_workloads,
-                    });
                     log::info!("Starting...");
                     self.to_agents
-                        .send(from_server_command)
+                        .update_workload(added_workloads, deleted_workloads)
                         .await
                         .unwrap_or_illegal_state();
                 }
-                Ok(None) => log::info!("No initial workloads to send to agents."),
+                Ok(None) => {
+                    log::info!("No initial workloads to send to agents.");
+                }
                 Err(err) => {
                     // [impl->swdd~server-fails-on-invalid-startup-state~1]
                     return Err(err.to_string());
                 }
             }
+
+            // at this point, there are no event subscribers yet, so no need to send events
         } else {
             // [impl->swdd~server-starts-without-startup-config~1]
             log::info!("No startup manifest provided -> waiting for new workloads from the CLI");
@@ -154,10 +186,46 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
 
-                    // [impl->swdd~server-stores-newly-connected-agent~1]
-                    self.server_state.add_agent(agent_name, tags);
+                    // [impl->swdd~server-sends-state-differences-as-events~1]
+                    let old_state = if self.event_handler.has_subscribers() {
+                        CompleteStateSpec {
+                            agents: self.agent_map.clone(),
+                            ..Default::default()
+                        }
+                    } else {
+                        CompleteStateSpec::default()
+                    };
+
+                    // [impl->swdd~server-stores-newly-connected-agent~2]
+                    self.agent_map.agents.insert(
+                        agent_name.clone(),
+                        AgentAttributesSpec {
+                            tags,
+                            ..Default::default()
+                        },
+                    );
+
+                    if self.event_handler.has_subscribers() {
+                        // [impl->swdd~server-sends-state-differences-as-events~1]
+                        let new_state = CompleteStateSpec {
+                            agents: self.agent_map.clone(),
+                            ..Default::default()
+                        };
+
+                        let state_comparator = StateComparator::new(old_state, new_state);
+                        let state_difference_tree = state_comparator.state_differences();
+                        self.event_handler
+                            .send_events(
+                                &self.server_state,
+                                &self.workload_states_map,
+                                &self.agent_map,
+                                state_difference_tree,
+                                &self.to_agents,
+                            )
+                            .await;
+                    }
                 }
-                // [impl->swdd~server-receives-resource-availability~1]
+                // [impl->swdd~server-receives-resource-availability~2]
                 ToServer::AgentLoadStatus(method_obj) => {
                     log::trace!(
                         "Received load status from agent '{}': CPU usage: {}%, Free Memory: {}B",
@@ -166,26 +234,103 @@ impl AnkaiosServer {
                         method_obj.free_memory.free_memory,
                     );
 
-                    self.server_state
-                        .update_agent_resource_availability(method_obj);
+                    // [impl->swdd~server-sends-state-differences-as-events~1]
+                    let old_state = if self.event_handler.has_subscribers() {
+                        CompleteStateSpec {
+                            agents: self.agent_map.clone(),
+                            ..Default::default()
+                        }
+                    } else {
+                        CompleteStateSpec::default()
+                    };
+
+                    self.agent_map
+                        .agents
+                        .entry(method_obj.agent_name)
+                        .and_modify(|e| {
+                            e.status = Some(AgentStatusSpec {
+                                cpu_usage: Some(method_obj.cpu_usage),
+                                free_memory: Some(method_obj.free_memory),
+                            })
+                        });
+
+                    if self.event_handler.has_subscribers() {
+                        // [impl->swdd~server-sends-state-differences-as-events~1]
+                        let new_state = CompleteStateSpec {
+                            agents: self.agent_map.clone(),
+                            ..Default::default()
+                        };
+
+                        let state_comparator = StateComparator::new(old_state, new_state);
+
+                        let state_difference_tree = state_comparator.state_differences();
+
+                        self.event_handler
+                            .send_events(
+                                &self.server_state,
+                                &self.workload_states_map,
+                                &self.agent_map,
+                                state_difference_tree,
+                                &self.to_agents,
+                            )
+                            .await;
+                    }
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
+                    // [impl->swdd~server-sends-state-differences-as-events~1]
+                    let old_state = if self.event_handler.has_subscribers() {
+                        CompleteStateSpec {
+                            agents: self.agent_map.clone(),
+                            workload_states: self.workload_states_map.clone(),
+                            ..Default::default()
+                        }
+                    } else {
+                        CompleteStateSpec::default()
+                    };
+
                     let agent_name = method_obj.agent_name;
 
-                    // [impl->swdd~server-removes-disconnected-agents-from-state~1]
-                    self.server_state.remove_agent(&agent_name);
+                    // [impl->swdd~server-removes-disconnected-agents-from-state~2]
+                    self.agent_map.agents.remove(&agent_name);
 
                     // [impl->swdd~server-set-workload-state-on-disconnect~1]
                     self.workload_states_map.agent_disconnected(&agent_name);
 
                     // communicate the workload execution states to other agents
                     // [impl->swdd~server-distribute-workload-state-on-disconnect~1]
+                    let agent_workload_states = self
+                        .workload_states_map
+                        .get_workload_state_for_agent(&agent_name);
+
+                    if self.event_handler.has_subscribers() {
+                        // [impl->swdd~server-sends-state-differences-as-events~1]
+                        let new_state = CompleteStateSpec {
+                            agents: self.agent_map.clone(),
+                            workload_states: self.workload_states_map.clone(),
+                            ..Default::default()
+                        };
+
+                        let state_comparator = StateComparator::new(old_state, new_state);
+
+                        let state_difference_tree = state_comparator.state_differences();
+
+                        self.event_handler
+                            .send_events(
+                                &self.server_state,
+                                &self.workload_states_map,
+                                &self.agent_map,
+                                state_difference_tree,
+                                &self.to_agents,
+                            )
+                            .await;
+
+                        self.event_handler.remove_subscribers_of_agent(&agent_name);
+                    }
+
+                    // [impl->swdd~server-distribute-workload-state-on-disconnect~1]
                     self.to_agents
-                        .update_workload_state(
-                            self.workload_states_map
-                                .get_workload_state_for_agent(&agent_name),
-                        )
+                        .update_workload_state(agent_workload_states)
                         .await
                         .unwrap_or_illegal_state();
 
@@ -219,23 +364,32 @@ impl AnkaiosServer {
                             complete_state_request.field_mask
                         );
                         match self.server_state.get_complete_state_by_field_mask(
-                            complete_state_request,
+                            complete_state_request.clone(),
                             &self.workload_states_map,
+                            &self.agent_map,
                         ) {
-                            Ok(complete_state) => self
-                                .to_agents
-                                .complete_state(request_id, complete_state)
-                                .await
-                                .unwrap_or_illegal_state(),
+                            Ok(complete_state) => {
+                                self.to_agents
+                                    .complete_state(request_id.clone(), complete_state, None)
+                                    .await
+                                    .unwrap_or_illegal_state();
+
+                                if complete_state_request.subscribe_for_events {
+                                    // [impl->swdd~server-stores-new-event-subscription~1]
+                                    self.event_handler.add_subscriber(
+                                        request_id,
+                                        complete_state_request
+                                            .field_mask
+                                            .into_iter()
+                                            .map(Path::from)
+                                            .collect(),
+                                    );
+                                }
+                            }
                             Err(error) => {
                                 log::error!("Failed to get complete state: '{error}'");
                                 self.to_agents
-                                    .complete_state(
-                                        request_id,
-                                        CompleteState {
-                                            ..Default::default()
-                                        },
-                                    )
+                                    .complete_state(request_id, CompleteState::default(), None)
                                     .await
                                     .unwrap_or_illegal_state();
                             }
@@ -269,66 +423,75 @@ impl AnkaiosServer {
 
                         // [impl->swdd~update-desired-state-with-update-mask~1]
                         // [impl->swdd~update-desired-state-empty-update-mask~1]
-                        match self.server_state.update(
+                        let state_generation_result = match self.server_state.generate_new_state(
                             update_state_request.new_state,
                             update_state_request.update_mask,
                         ) {
-                            Ok(Some((added_workloads, deleted_workloads))) => {
-                                log::info!(
-                                    "The update has {} new or updated workloads, {} workloads to delete",
-                                    added_workloads.len(),
-                                    deleted_workloads.len()
-                                );
-
-                                // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
-                                self.workload_states_map.initial_state(&added_workloads);
-
-                                let added_workloads_names = added_workloads
-                                    .iter()
-                                    .map(|x| x.instance_name.to_string())
-                                    .collect();
-                                let deleted_workloads_names = deleted_workloads
-                                    .iter()
-                                    .map(|x| x.instance_name.to_string())
-                                    .collect();
-
-                                // [impl->swdd~server-cancels-log-campaign-for-deleted-workloads~1]
-                                self.cancel_log_requests_of_deleted_workloads(&deleted_workloads)
-                                    .await;
-
-                                // [impl->swdd~server-handles-not-started-deleted-workloads~1]
-                                let retained_deleted_workloads = self
-                                    .handle_not_started_deleted_workloads(deleted_workloads)
-                                    .await;
-
-                                let from_server_command =
-                                    FromServer::UpdateWorkload(UpdateWorkload {
-                                        added_workloads,
-                                        deleted_workloads: retained_deleted_workloads,
-                                    });
+                            Ok(state_generation_result) => state_generation_result,
+                            Err(error_msg) => {
+                                log::error!("Update rejected: '{error_msg}'",);
                                 self.to_agents
-                                    .send(from_server_command)
+                                    .error(request_id, format!("Update rejected: '{error_msg}'"))
                                     .await
                                     .unwrap_or_illegal_state();
-                                log::debug!("Send UpdateStateSuccess for request '{request_id}'");
-                                // [impl->swdd~server-update-state-success-response~1]
-                                self.to_agents
-                                    .update_state_success(
-                                        request_id,
-                                        added_workloads_names,
-                                        deleted_workloads_names,
-                                    )
-                                    .await
-                                    .unwrap_or_illegal_state();
+                                continue;
+                            }
+                        };
+
+                        match self
+                            .server_state
+                            .update(state_generation_result.new_desired_state.0.clone())
+                        {
+                            Ok(Some(added_deleted_workloads)) => {
+                                self.set_agent_tags(&state_generation_result.new_desired_state.1);
+                                self.handle_post_update_steps(
+                                    request_id,
+                                    added_deleted_workloads,
+                                    state_generation_result,
+                                )
+                                .await;
                             }
                             Ok(None) => {
                                 log::debug!(
                                     "The current state and new state are identical -> nothing to do"
                                 );
+                                self.set_agent_tags(&state_generation_result.new_desired_state.1);
                                 self.to_agents
                                     .update_state_success(request_id, vec![], vec![])
                                     .await
                                     .unwrap_or_illegal_state();
+
+                                if self.event_handler.has_subscribers() {
+                                    // [impl->swdd~server-sends-state-differences-as-events~1]
+                                    // state changes must be calculated after every update since only config item can be changed as well
+                                    let old_state = CompleteStateSpec {
+                                        desired_state: state_generation_result.old_desired_state,
+                                        ..Default::default()
+                                    };
+
+                                    let new_state = CompleteStateSpec {
+                                        desired_state: state_generation_result.new_desired_state.0,
+                                        ..Default::default()
+                                    };
+
+                                    let state_comparator =
+                                        StateComparator::new(old_state, new_state);
+
+                                    let state_difference_tree =
+                                        state_comparator.state_differences();
+
+                                    if !state_difference_tree.is_empty() {
+                                        self.event_handler
+                                            .send_events(
+                                                &self.server_state,
+                                                &self.workload_states_map,
+                                                &self.agent_map,
+                                                state_difference_tree,
+                                                &self.to_agents,
+                                            )
+                                            .await;
+                                    }
+                                }
                             }
                             Err(error_msg) => {
                                 // [impl->swdd~server-continues-on-invalid-updated-state~1]
@@ -387,6 +550,17 @@ impl AnkaiosServer {
                             .await
                             .unwrap_or_illegal_state();
                     }
+                    // [impl->swdd~server-removes-event-subscription~1]
+                    RequestContentSpec::EventsCancelRequest(_) => {
+                        log::debug!("Got event cancel request with ID: {request_id}");
+
+                        self.event_handler.remove_subscriber(request_id.clone());
+
+                        self.to_agents
+                            .event_cancel_request_accepted(request_id)
+                            .await
+                            .unwrap_or_illegal_state();
+                    }
                 },
                 ToServer::UpdateWorkloadState(method_obj) => {
                     log::debug!(
@@ -394,12 +568,57 @@ impl AnkaiosServer {
                         method_obj.workload_states
                     );
 
+                    // [impl->swdd~server-sends-state-differences-as-events~1]
+                    let old_state = if self.event_handler.has_subscribers() {
+                        CompleteStateSpec {
+                            workload_states: self.workload_states_map.clone(),
+                            ..Default::default()
+                        }
+                    } else {
+                        CompleteStateSpec::default()
+                    };
+
                     // [impl->swdd~server-stores-workload-state~1]
                     self.workload_states_map
                         .process_new_states(method_obj.workload_states.clone());
 
                     // [impl->swdd~server-cleans-up-state~1]
                     self.server_state.cleanup_state(&method_obj.workload_states);
+
+                    if self.event_handler.has_subscribers() {
+                        // [impl->swdd~server-sends-state-differences-as-events~1]
+                        let new_state = CompleteStateSpec {
+                            workload_states: self.workload_states_map.clone(),
+                            ..Default::default()
+                        };
+
+                        let state_comparator = StateComparator::new(old_state, new_state);
+
+                        let state_difference_tree = state_comparator.state_differences();
+
+                        self.event_handler
+                            .send_events(
+                                &self.server_state,
+                                &self.workload_states_map,
+                                &self.agent_map,
+                                state_difference_tree,
+                                &self.to_agents,
+                            )
+                            .await;
+
+                        // [impl->swdd~server-removes-subscription-for-deleted-subscriber-workload~1]
+                        method_obj
+                            .workload_states
+                            .iter()
+                            .for_each(|workload_state| {
+                                if workload_state.execution_state.is_removed() {
+                                    self.event_handler.remove_workload_subscriber(
+                                        &workload_state.instance_name.agent_name().to_owned(),
+                                        &workload_state.instance_name.workload_name().to_owned(),
+                                    );
+                                }
+                            });
+                    }
 
                     // [impl->swdd~server-forwards-workload-state~1]
                     self.to_agents
@@ -435,6 +654,10 @@ impl AnkaiosServer {
                         removed_cli_log_requests,
                     )
                     .await;
+
+                    // [impl->swdd~server-removes-event-subscription-for-disconnected-cli~1]
+                    self.event_handler
+                        .remove_cli_subscriber(&goodbye.connection_name);
                 }
                 ToServer::Stop(_method_obj) => {
                     log::debug!("Received Stop from communications server");
@@ -445,11 +668,113 @@ impl AnkaiosServer {
         }
     }
 
+    // [impl->swdd~server-state-updates-agent-tags~1]
+    fn set_agent_tags(&mut self, agent_map: &AgentMapSpec) {
+        for (agent_name, new_agent_attributes) in &agent_map.agents {
+            if let Some(existing_agent) = self.agent_map.agents.get_mut(agent_name) {
+                existing_agent.tags = new_agent_attributes.tags.to_owned();
+            }
+        }
+    }
+
+    async fn handle_post_update_steps(
+        &mut self,
+        request_id: String,
+        added_deleted_workloads: AddedDeletedWorkloads,
+        state_generation_result: StateGenerationResult,
+    ) {
+        let added_workloads = added_deleted_workloads.added_workloads;
+        let deleted_workloads = added_deleted_workloads.deleted_workloads;
+        log::info!(
+            "The update has {} new or updated workloads, {} workloads to delete",
+            added_workloads.len(),
+            deleted_workloads.len()
+        );
+
+        let old_state = if self.event_handler.has_subscribers() {
+            CompleteStateSpec {
+                desired_state: state_generation_result.old_desired_state,
+                workload_states: self.workload_states_map.clone(),
+                ..Default::default()
+            }
+        } else {
+            CompleteStateSpec::default()
+        };
+
+        // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
+        self.workload_states_map.initial_state(&added_workloads);
+
+        let added_workloads_names = added_workloads
+            .iter()
+            .map(|x| x.instance_name.to_string())
+            .collect();
+        let deleted_workloads_names = deleted_workloads
+            .iter()
+            .map(|x| x.instance_name.to_string())
+            .collect();
+
+        // [impl->swdd~server-cancels-log-campaign-for-deleted-workloads~1]
+        self.cancel_log_requests_of_deleted_workloads(&deleted_workloads)
+            .await;
+
+        // [impl->swdd~server-handles-not-started-deleted-workloads~1]
+        let (retained_deleted_workloads, deleted_workload_states) = self
+            .handle_not_started_deleted_workloads(deleted_workloads)
+            .await;
+
+        if self.event_handler.has_subscribers() {
+            // [impl->swdd~server-sends-state-differences-as-events~1]
+            let new_state = CompleteStateSpec {
+                desired_state: state_generation_result.new_desired_state.0,
+                workload_states: self.workload_states_map.clone(),
+                ..Default::default()
+            };
+
+            let state_comparator = StateComparator::new(old_state, new_state);
+
+            let state_difference_tree = state_comparator.state_differences();
+
+            if !state_difference_tree.is_empty() {
+                self.event_handler
+                    .send_events(
+                        &self.server_state,
+                        &self.workload_states_map,
+                        &self.agent_map,
+                        state_difference_tree,
+                        &self.to_agents,
+                    )
+                    .await;
+            }
+        }
+
+        if !deleted_workload_states.is_empty() {
+            log::debug!(
+                "Send UpdateWorkloadState for not started deleted workloads: '{deleted_workload_states:?}'"
+            );
+            self.to_agents
+                .update_workload_state(deleted_workload_states)
+                .await
+                .unwrap_or_illegal_state();
+        }
+
+        self.to_agents
+            .update_workload(added_workloads, retained_deleted_workloads)
+            .await
+            .unwrap_or_illegal_state();
+
+        log::debug!("Send UpdateStateSuccess for request '{request_id}'");
+        // [impl->swdd~server-update-state-success-response~1]
+        self.to_agents
+            .update_state_success(request_id, added_workloads_names, deleted_workloads_names)
+            .await
+            .unwrap_or_illegal_state();
+    }
+
     // [impl->swdd~server-handles-not-started-deleted-workloads~1]
     async fn handle_not_started_deleted_workloads(
         &mut self,
         mut deleted_workloads: Vec<DeletedWorkload>,
-    ) -> Vec<DeletedWorkload> {
+    ) -> (Vec<DeletedWorkload>, Vec<WorkloadStateSpec>) {
         let mut deleted_states = vec![];
         deleted_workloads.retain(|deleted_wl| {
             if deleted_wl.instance_name.agent_name().is_empty()
@@ -465,23 +790,15 @@ impl AnkaiosServer {
             }
             true
         });
-        if !deleted_states.is_empty() {
-            log::debug!(
-                "Send UpdateWorkloadState for not started deleted workloads: '{deleted_states:?}'"
-            );
-            self.to_agents
-                .update_workload_state(deleted_states)
-                .await
-                .unwrap_or_illegal_state();
-        }
 
-        deleted_workloads
+        (deleted_workloads, deleted_states)
     }
 
     fn deleted_workload_never_started_on_agent(&self, deleted_workload: &DeletedWorkload) -> bool {
         !self
-            .server_state
-            .contains_connected_agent(deleted_workload.instance_name.agent_name())
+            .agent_map
+            .agents
+            .contains_key(deleted_workload.instance_name.agent_name())
             && self
                 .workload_states_map
                 .get_workload_state_for_workload(&deleted_workload.instance_name)
@@ -560,33 +877,46 @@ impl AnkaiosServer {
 
 #[cfg(test)]
 mod tests {
-    use super::{AnkaiosServer, create_from_server_channel, create_to_server_channel};
+    use std::collections::{HashMap, HashSet};
+    use std::vec;
+
+    use super::{
+        AnkaiosServer, FromServerSender, create_from_server_channel, create_to_server_channel,
+    };
     use crate::ankaios_server::log_campaign_store::RemovedLogRequests;
-    use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
+    use crate::ankaios_server::server_state::{
+        AddedDeletedWorkloads, MockServerState, StateGenerationResult, UpdateStateError,
+    };
+    use crate::ankaios_server::state_comparator::{
+        MockStateComparator, StateDifferenceTree, generate_difference_tree_from_paths,
+    };
 
     use ankaios_api::ank_base::{
-        CompleteState, CompleteStateRequestSpec, CompleteStateSpec, DeletedWorkload, Error,
-        ExecutionStateEnumSpec, ExecutionStateSpec, LogEntriesResponse, LogEntry,
-        LogsCancelAccepted, LogsRequestAccepted, LogsRequestSpec, LogsStopResponse,
-        Pending as PendingSubstate, Response, ResponseContent, State, StateSpec,
-        UpdateStateSuccess, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap,
-        WorkloadMapSpec, WorkloadStateSpec,
+        AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState,
+        CompleteStateRequestSpec, CompleteStateResponse, CompleteStateSpec, CpuUsageSpec,
+        DeletedWorkload, Error, ExecutionStateEnumSpec, ExecutionStateSpec, FreeMemorySpec,
+        LogEntriesResponse, LogEntry, LogsCancelAccepted, LogsRequestAccepted, LogsRequestSpec,
+        LogsStopResponse, Pending as PendingSubstate, Response, ResponseContent, State, StateSpec,
+        TagsSpec, UpdateStateSuccess, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec,
+        WorkloadMap, WorkloadMapSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
     };
+    use ankaios_api::test_utils::fixtures::{AGENT_NAMES, REQUEST_ID};
     use ankaios_api::test_utils::{
-        fixtures, generate_test_agent_tags, generate_test_workload_instance_name_with_params,
-        generate_test_workload_named, generate_test_workload_named_with_params,
-        generate_test_workload_state, generate_test_workload_state_with_agent,
-        generate_test_workload_states_map_with_data, generate_test_workload_with_params,
+        fixtures, generate_test_agent_map, generate_test_agent_tags, generate_test_config_map,
+        generate_test_workload_instance_name_with_params, generate_test_workload_named,
+        generate_test_workload_named_with_params, generate_test_workload_state,
+        generate_test_workload_state_with_agent, generate_test_workload_states_map_with_data,
+        generate_test_workload_with_params,
     };
     use common::commands::{AgentLoadStatus, ServerHello, UpdateWorkload, UpdateWorkloadState};
     use common::from_server_interface::FromServer;
     use common::to_server_interface::ToServerInterface;
 
     use mockall::predicate;
-    use std::collections::{HashMap, HashSet};
 
     const SECOND_REQUEST_ID: &str = "request_id_2";
     const MESSAGE: &str = "message";
+    const CLI_CONNECTION_NAME: &str = "cli-conn-1234";
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-fails-on-invalid-startup-state~1]
@@ -615,12 +945,28 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
+
+        let cloned_startup_state = startup_state.clone();
         mock_server_state
-            .expect_update()
+            .expect_generate_new_state()
             .with(
-                mockall::predicate::eq(startup_state.clone()),
+                mockall::predicate::eq(cloned_startup_state.clone()),
                 mockall::predicate::eq(vec![]),
             )
+            .once()
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: (
+                        cloned_startup_state.desired_state.clone(),
+                        Default::default(),
+                    ),
+                    ..Default::default()
+                })
+            });
+
+        mock_server_state
+            .expect_update()
+            .with(mockall::predicate::eq(startup_state.desired_state.clone()))
             .once()
             .return_const(Err(UpdateStateError::CycleInDependencies(
                 fixtures::WORKLOAD_NAMES[0].to_string() + " part of cycle.",
@@ -705,35 +1051,60 @@ mod tests {
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         let mut seq = mockall::Sequence::new();
+        let new_desired_state = new_state.desired_state.clone();
+        mock_server_state
+            .expect_generate_new_state()
+            .once()
+            .in_sequence(&mut seq)
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: (new_desired_state.clone(), Default::default()),
+                    ..Default::default()
+                })
+            });
         mock_server_state
             .expect_update()
-            .with(
-                mockall::predicate::eq(new_state.clone()),
-                mockall::predicate::eq(update_mask.clone()),
-            )
+            .with(mockall::predicate::eq(new_state.desired_state.clone()))
             .once()
             .in_sequence(&mut seq)
             .return_const(Err(UpdateStateError::CycleInDependencies(
                 fixtures::WORKLOAD_NAMES[0].to_string(),
             )));
 
+        server.event_handler.expect_has_subscribers().never();
+
         let added_workloads = vec![updated_workload.clone()];
         let deleted_workloads = vec![];
 
+        let fixed_desired_state = fixed_state.desired_state.clone();
         mock_server_state
-            .expect_update()
-            .with(
-                mockall::predicate::eq(fixed_state.clone()),
-                mockall::predicate::eq(update_mask.clone()),
-            )
+            .expect_generate_new_state()
             .once()
             .in_sequence(&mut seq)
-            .return_const(Ok(Some((
-                added_workloads.clone(),
-                deleted_workloads.clone(),
-            ))));
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: (fixed_desired_state.clone(), Default::default()),
+                    ..Default::default()
+                })
+            });
+        mock_server_state
+            .expect_update()
+            .with(mockall::predicate::eq(fixed_state.desired_state.clone()))
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(Ok(Some(AddedDeletedWorkloads {
+                added_workloads: added_workloads.clone(),
+                deleted_workloads: deleted_workloads.clone(),
+            })));
 
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .in_sequence(&mut seq)
+            .return_const(false);
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
@@ -827,17 +1198,24 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
+        let new_desired_state = startup_state.desired_state.clone();
+        mock_server_state
+            .expect_generate_new_state()
+            .once()
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: (new_desired_state.clone(), Default::default()),
+                    ..Default::default()
+                })
+            });
         mock_server_state
             .expect_update()
-            .with(
-                mockall::predicate::eq(startup_state.clone()),
-                mockall::predicate::eq(vec![]),
-            )
+            .with(mockall::predicate::eq(startup_state.desired_state.clone()))
             .once()
-            .return_const(Ok(Some((
-                added_workloads.clone(),
-                deleted_workloads.clone(),
-            ))));
+            .return_const(Ok(Some(AddedDeletedWorkloads {
+                added_workloads: added_workloads.clone(),
+                deleted_workloads: deleted_workloads.clone(),
+            })));
 
         server.server_state = mock_server_state;
 
@@ -875,7 +1253,6 @@ mod tests {
     // [utest->swdd~server-sends-all-workloads-on-start~2]
     // [utest->swdd~agent-from-agent-field~1]
     // [utest->swdd~server-starts-without-startup-config~1]
-    // [utest->swdd~server-stores-newly-connected-agent~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -909,33 +1286,18 @@ mod tests {
             .return_const(vec![w1.clone()]);
 
         mock_server_state
-            .expect_add_agent()
-            .with(
-                predicate::eq(fixtures::AGENT_NAMES[0].to_owned()),
-                predicate::eq(generate_test_agent_tags()),
-            )
-            .once()
-            .in_sequence(&mut seq)
-            .return_const(());
-
-        mock_server_state
             .expect_get_workloads_for_agent()
             .with(mockall::predicate::eq(fixtures::AGENT_NAMES[1].to_string()))
             .once()
             .in_sequence(&mut seq)
             .return_const(vec![w2.clone()]);
 
-        mock_server_state
-            .expect_add_agent()
-            .with(
-                predicate::eq(fixtures::AGENT_NAMES[1].to_owned()),
-                predicate::eq(generate_test_agent_tags()),
-            )
-            .once()
-            .in_sequence(&mut seq)
-            .return_const(());
-
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .return_const(false);
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
@@ -1090,18 +1452,32 @@ mod tests {
         )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
+        let updated_desired_state = update_state.desired_state.clone();
+        mock_server_state
+            .expect_generate_new_state()
+            .once()
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: (updated_desired_state.clone(), Default::default()),
+                    ..Default::default()
+                })
+            });
         mock_server_state
             .expect_update()
-            .with(
-                mockall::predicate::eq(update_state.clone()),
-                mockall::predicate::eq(update_mask.clone()),
-            )
+            .with(mockall::predicate::eq(update_state.desired_state.clone()))
             .once()
-            .return_const(Ok(Some((
-                added_workloads.clone(),
-                deleted_workloads.clone(),
-            ))));
+            .return_const(Ok(Some(AddedDeletedWorkloads {
+                added_workloads: added_workloads.clone(),
+                deleted_workloads: deleted_workloads.clone(),
+            })));
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(false);
+
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
@@ -1177,15 +1553,29 @@ mod tests {
         )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
+        let updated_desired_state = update_state.desired_state.clone();
+        mock_server_state
+            .expect_generate_new_state()
+            .once()
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: (updated_desired_state.clone(), Default::default()),
+                    ..Default::default()
+                })
+            });
         mock_server_state
             .expect_update()
-            .with(
-                mockall::predicate::eq(update_state.clone()),
-                mockall::predicate::eq(update_mask.clone()),
-            )
+            .with(mockall::predicate::eq(update_state.desired_state.clone()))
             .once()
             .return_const(Ok(None));
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .return_const(false);
+
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
@@ -1251,12 +1641,19 @@ mod tests {
         )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
+        let updated_desired_state = update_state.desired_state.clone();
+        mock_server_state
+            .expect_generate_new_state()
+            .once()
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: (updated_desired_state.clone(), Default::default()),
+                    ..Default::default()
+                })
+            });
         mock_server_state
             .expect_update()
-            .with(
-                mockall::predicate::eq(update_state.clone()),
-                mockall::predicate::eq(update_mask.clone()),
-            )
+            .with(mockall::predicate::eq(update_state.desired_state.clone()))
             .once()
             .return_const(Err(UpdateStateError::ResultInvalid(
                 "some update error.".to_string(),
@@ -1500,8 +1897,13 @@ mod tests {
             .expect_get_complete_state_by_field_mask()
             .with(
                 mockall::predicate::function(|request_complete_state| {
-                    request_complete_state == &CompleteStateRequestSpec { field_mask: vec![] }
+                    request_complete_state
+                        == &CompleteStateRequestSpec {
+                            field_mask: vec![],
+                            subscribe_for_events: false,
+                        }
                 }),
+                mockall::predicate::always(),
                 mockall::predicate::always(),
             )
             .once()
@@ -1514,7 +1916,10 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 request_id.clone(),
-                CompleteStateRequestSpec { field_mask: vec![] },
+                CompleteStateRequestSpec {
+                    field_mask: vec![],
+                    subscribe_for_events: false,
+                },
             )
             .await;
         assert!(request_complete_state_result.is_ok());
@@ -1525,7 +1930,12 @@ mod tests {
             from_server_command,
             common::from_server_interface::FromServer::Response(Response {
                 request_id,
-                response_content: Some(ResponseContent::CompleteState(current_complete_state))
+                response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                    CompleteStateResponse {
+                        complete_state: Some(current_complete_state),
+                        ..Default::default()
+                    }
+                )))
             })
         );
 
@@ -1550,8 +1960,13 @@ mod tests {
             .expect_get_complete_state_by_field_mask()
             .with(
                 mockall::predicate::function(|request_complete_state| {
-                    request_complete_state == &CompleteStateRequestSpec { field_mask: vec![] }
+                    request_complete_state
+                        == &CompleteStateRequestSpec {
+                            field_mask: vec![],
+                            subscribe_for_events: false,
+                        }
                 }),
+                mockall::predicate::always(),
                 mockall::predicate::always(),
             )
             .once()
@@ -1565,7 +1980,10 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 request_id.clone(),
-                CompleteStateRequestSpec { field_mask: vec![] },
+                CompleteStateRequestSpec {
+                    field_mask: vec![],
+                    subscribe_for_events: false,
+                },
             )
             .await;
         assert!(request_complete_state_result.is_ok());
@@ -1580,7 +1998,12 @@ mod tests {
             from_server_command,
             common::from_server_interface::FromServer::Response(Response {
                 request_id,
-                response_content: Some(ResponseContent::CompleteState(expected_complete_state))
+                response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                    CompleteStateResponse {
+                        complete_state: Some(expected_complete_state),
+                        ..Default::default()
+                    }
+                )))
             })
         );
 
@@ -1593,7 +2016,6 @@ mod tests {
     // [utest->swdd~server-set-workload-state-on-disconnect~1]
     // [utest->swdd~server-distribute-workload-state-on-disconnect~1]
     // [utest->swdd~server-starts-without-startup-config~1]
-    // [utest->swdd~server-removes-disconnected-agents-from-state~1]
     #[tokio::test]
     async fn utest_server_start_distributes_workload_states_after_agent_disconnect() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1614,13 +2036,13 @@ mod tests {
             .once()
             .return_const(());
 
-        mock_server_state
-            .expect_remove_agent()
-            .once()
-            .with(predicate::eq(fixtures::AGENT_NAMES[0]))
-            .return_const(());
-
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(4)
+            .return_const(false);
 
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
         let test_wl_1_state_running = generate_test_workload_state_with_agent(
@@ -1699,13 +2121,13 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
         mock_server_state.expect_cleanup_state().never();
 
-        mock_server_state
-            .expect_remove_agent()
-            .once()
-            .with(predicate::eq(fixtures::AGENT_NAMES[0]))
-            .return_const(());
-
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(false);
 
         let agent_gone_result = to_server
             .agent_gone(fixtures::AGENT_NAMES[0].to_owned())
@@ -1770,13 +2192,13 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
         mock_server_state.expect_cleanup_state().never();
 
-        mock_server_state
-            .expect_remove_agent()
-            .once()
-            .with(predicate::eq(fixtures::AGENT_NAMES[0]))
-            .return_const(());
-
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(false);
 
         let agent_gone_result = to_server
             .agent_gone(fixtures::AGENT_NAMES[0].to_owned())
@@ -1868,20 +2290,11 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
         let mut seq = mockall::Sequence::new();
         mock_server_state
-            .expect_contains_connected_agent()
-            .return_const(true);
-        mock_server_state
             .expect_get_workloads_for_agent()
             .with(mockall::predicate::eq(fixtures::AGENT_NAMES[0].to_string()))
             .once()
             .in_sequence(&mut seq)
             .return_const(vec![w1.clone()]);
-
-        mock_server_state
-            .expect_add_agent()
-            .withf(|_name, _tags| true)
-            .times(2)
-            .return_const(());
 
         mock_server_state
             .expect_get_workloads_for_agent()
@@ -1890,21 +2303,39 @@ mod tests {
             .in_sequence(&mut seq)
             .return_const(vec![w2.clone()]);
 
+        let updated_desired_state = update_state.desired_state.clone();
         mock_server_state
-            .expect_update()
-            .with(
-                mockall::predicate::eq(update_state.clone()),
-                mockall::predicate::eq(update_mask.clone()),
-            )
+            .expect_generate_new_state()
             .once()
             .in_sequence(&mut seq)
-            .return_const(Ok(Some((added_workloads, deleted_workloads))));
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: (updated_desired_state.clone(), Default::default()),
+                    ..Default::default()
+                })
+            });
+
+        mock_server_state
+            .expect_update()
+            .with(mockall::predicate::eq(update_state.desired_state.clone()))
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(Ok(Some(AddedDeletedWorkloads {
+                added_workloads,
+                deleted_workloads,
+            })));
         server.server_state = mock_server_state;
 
         server
             .log_campaign_store
             .expect_remove_collector_campaign_entry()
             .return_const(HashSet::new());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(6)
+            .return_const(false);
 
         let agent_hello1_result = to_server
             .agent_hello(fixtures::AGENT_NAMES[0].to_owned(), Default::default())
@@ -2236,19 +2667,28 @@ mod tests {
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
-            .expect_contains_connected_agent()
+            .expect_generate_new_state()
             .once()
-            .return_const(false);
+            .returning(move |_, _| Ok(StateGenerationResult::default()));
         mock_server_state
             .expect_update()
             .once()
-            .return_const(Ok(Some((vec![], deleted_workloads.clone()))));
+            .return_const(Ok(Some(AddedDeletedWorkloads {
+                added_workloads: Vec::default(),
+                deleted_workloads: deleted_workloads.clone(),
+            })));
         server.server_state = mock_server_state;
 
         server
             .log_campaign_store
             .expect_remove_collector_campaign_entry()
             .return_const(HashSet::new());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(false);
 
         let update_state_result = to_server
             .update_state(
@@ -2323,14 +2763,24 @@ mod tests {
         let mut server: AnkaiosServer = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
-            .expect_contains_connected_agent()
+            .expect_generate_new_state()
             .once()
-            .return_const(false);
+            .returning(move |_, _| Ok(StateGenerationResult::default()));
+
         mock_server_state
             .expect_update()
             .once()
-            .return_const(Ok(Some((vec![], deleted_workloads.clone()))));
+            .return_const(Ok(Some(AddedDeletedWorkloads {
+                added_workloads: Vec::default(),
+                deleted_workloads: deleted_workloads.clone(),
+            })));
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(false);
 
         let logs_request_id = format!(
             "{}@{}@{}",
@@ -2390,7 +2840,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
-    // [utest->swdd~server-receives-resource-availability~1]
+    // [utest->swdd~server-receives-resource-availability~2]
     #[tokio::test]
     async fn utest_server_receives_agent_status_load() {
         let payload = AgentLoadStatus {
@@ -2399,18 +2849,25 @@ mod tests {
             free_memory: fixtures::FREE_MEMORY_SPEC,
         };
 
-        let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, _comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
-        let mut mock_server_state = MockServerState::new();
-        mock_server_state
-            .expect_update_agent_resource_availability()
-            .with(mockall::predicate::eq(payload.clone()))
-            .return_const(());
-        server.server_state = mock_server_state;
+        server
+            .agent_map
+            .agents
+            .entry(fixtures::AGENT_NAMES[0].to_owned())
+            .insert_entry(AgentAttributesSpec {
+                tags: generate_test_agent_tags(),
+                ..Default::default()
+            });
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(false);
 
         let agent_resource_result = to_server.agent_load_status(payload).await;
         assert!(agent_resource_result.is_ok());
@@ -2419,26 +2876,164 @@ mod tests {
         let result = server.start(None).await;
 
         assert!(result.is_ok());
+
+        let expected_agent_map: AgentMapSpec = generate_test_agent_map(fixtures::AGENT_NAMES[0]);
+
+        assert_eq!(expected_agent_map, server.agent_map);
+    }
+
+    // [utest->swdd~server-stores-newly-connected-agent~2]
+    #[tokio::test]
+    async fn utest_server_stores_newly_connected_agents() {
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .server_state
+            .expect_get_workloads_for_agent()
+            .times(2)
+            .return_const(Vec::default());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(4)
+            .return_const(false);
+
+        let agent_resource_result = to_server
+            .agent_hello(fixtures::AGENT_NAMES[0].to_owned(), Default::default())
+            .await;
+        assert!(agent_resource_result.is_ok());
+        let agent_resource_result = to_server
+            .agent_hello(fixtures::AGENT_NAMES[1].to_owned(), Default::default())
+            .await;
+        assert!(agent_resource_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+
+        assert!(result.is_ok());
+
+        let mut expected_agent_map = AgentMapSpec {
+            agents: HashMap::new(),
+        };
+        expected_agent_map
+            .agents
+            .entry(fixtures::AGENT_NAMES[0].to_owned())
+            .or_default();
+        expected_agent_map
+            .agents
+            .entry(fixtures::AGENT_NAMES[1].to_owned())
+            .or_default();
+
+        assert_eq!(expected_agent_map, server.agent_map);
+    }
+
+    // [utest->swdd~server-removes-disconnected-agents-from-state~2]
+    #[tokio::test]
+    async fn utest_server_removes_disconnected_agents_from_agent_map() {
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .log_campaign_store
+            .expect_remove_agent_log_campaign_entry()
+            .times(2)
+            .return_const(RemovedLogRequests::default());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(4)
+            .return_const(false);
+
+        let mut agent_map = AgentMapSpec {
+            agents: HashMap::new(),
+        };
+        agent_map
+            .agents
+            .entry(fixtures::AGENT_NAMES[0].to_owned())
+            .or_default();
+        agent_map
+            .agents
+            .entry(fixtures::AGENT_NAMES[1].to_owned())
+            .or_default();
+        server.agent_map = agent_map;
+
+        let agent_resource_result = to_server
+            .agent_gone(fixtures::AGENT_NAMES[0].to_owned())
+            .await;
+        assert!(agent_resource_result.is_ok());
+        let agent_resource_result = to_server
+            .agent_gone(fixtures::AGENT_NAMES[1].to_owned())
+            .await;
+        assert!(agent_resource_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+
+        assert!(result.is_ok());
+
+        assert_eq!(AgentMapSpec::default(), server.agent_map);
     }
 
     // [utest->swdd~server-handles-not-started-deleted-workloads~1]
     #[tokio::test]
     async fn utest_server_handles_pending_initial_deleted_workload_on_not_connected_agent() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
-        let mut mock_server_state = MockServerState::new();
-        mock_server_state
-            .expect_contains_connected_agent()
-            .once()
-            .return_const(false);
 
         let workload = generate_test_workload_named();
 
+        let update_state = CompleteStateSpec::default();
+
+        let deleted_workload_with_not_connected_agent = DeletedWorkload {
+            instance_name: workload.instance_name.clone(),
+            ..Default::default()
+        };
+
+        let deleted_workloads = vec![deleted_workload_with_not_connected_agent];
+
+        let mut mock_server_state = MockServerState::new();
+        let updated_desired_state = update_state.desired_state.clone();
+        mock_server_state
+            .expect_generate_new_state()
+            .once()
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: (updated_desired_state.clone(), Default::default()),
+                    ..Default::default()
+                })
+            });
+        mock_server_state
+            .expect_update()
+            .once()
+            .return_const(Ok(Some(AddedDeletedWorkloads {
+                added_workloads: Vec::default(),
+                deleted_workloads,
+            })));
         server.server_state = mock_server_state;
+
+        server
+            .log_campaign_store
+            .expect_remove_collector_campaign_entry()
+            .once()
+            .return_const(HashSet::new());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(false);
+
         server.workload_states_map = generate_test_workload_states_map_with_data(
             workload.instance_name.agent_name(),
             workload.instance_name.workload_name(),
@@ -2446,18 +3041,24 @@ mod tests {
             ExecutionStateSpec::initial(),
         );
 
-        let deleted_workload_with_not_connected_agent = DeletedWorkload {
-            instance_name: workload.instance_name.clone(),
-            ..Default::default()
-        };
+        assert!(
+            to_server
+                .update_state(
+                    fixtures::REQUEST_ID.to_owned(),
+                    update_state,
+                    vec![format!(
+                        "desiredState.workloads.{}",
+                        fixtures::WORKLOAD_NAMES[0]
+                    )],
+                )
+                .await
+                .is_ok()
+        );
 
-        let deleted_workloads = vec![deleted_workload_with_not_connected_agent.clone()];
+        drop(to_server);
+        let result = server.start(None).await;
 
-        let retained_deleted_workloads = server
-            .handle_not_started_deleted_workloads(deleted_workloads)
-            .await;
-
-        assert!(retained_deleted_workloads.is_empty());
+        assert!(result.is_ok());
 
         assert_eq!(
             tokio::time::timeout(
@@ -2564,19 +3165,18 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let cli_connection_name = "cli-conn-1234".to_string();
-        let cli_request_id = format!("{cli_connection_name}@cli-request-id-1");
+        let cli_request_id = format!("{CLI_CONNECTION_NAME}@cli-request-id-1");
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         server
             .log_campaign_store
             .expect_remove_cli_log_campaign_entry()
-            .with(mockall::predicate::eq(cli_connection_name.clone()))
+            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
             .once()
             .return_const(HashSet::from([cli_request_id.clone()]));
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        let result = to_server.goodbye(cli_connection_name).await;
+        let result = to_server.goodbye(CLI_CONNECTION_NAME.to_owned()).await;
         assert!(result.is_ok());
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
@@ -2584,6 +3184,1051 @@ mod tests {
             FromServer::LogsCancelRequest(cli_request_id),
             from_server_command
         );
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-stores-new-event-subscription~1]
+    #[tokio::test]
+    async fn utest_server_adds_event_subscribers_upon_complete_state_request() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let current_complete_state = CompleteState::default();
+
+        let request_id = format!("{}@my_request_id", fixtures::AGENT_NAMES[0]);
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .server_state
+            .expect_get_complete_state_by_field_mask()
+            .once()
+            .return_const(Ok(current_complete_state.clone()));
+
+        server
+            .event_handler
+            .expect_add_subscriber()
+            .with(
+                mockall::predicate::eq(request_id.clone()),
+                mockall::predicate::eq(vec![
+                    "desiredState.workloads.workload_1".into(),
+                    "workloadStates.*".into(),
+                ]),
+            )
+            .once()
+            .return_const(());
+
+        // send command 'CompleteStateRequest' with enabled event subscription
+        let request_complete_state_result = to_server
+            .request_complete_state(
+                request_id.clone(),
+                CompleteStateRequestSpec {
+                    field_mask: vec![
+                        "desiredState.workloads.workload_1".to_owned(),
+                        "workloadStates.*".to_owned(),
+                    ],
+                    subscribe_for_events: true,
+                },
+            )
+            .await;
+        assert!(request_complete_state_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(
+            from_server_command,
+            common::from_server_interface::FromServer::Response(ankaios_api::ank_base::Response {
+                request_id,
+                response_content: Some(
+                    ankaios_api::ank_base::response::ResponseContent::CompleteStateResponse(
+                        Box::new(CompleteStateResponse {
+                            complete_state: Some(current_complete_state),
+                            ..Default::default()
+                        })
+                    )
+                )
+            })
+        );
+
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-removes-event-subscription~1]
+    #[tokio::test]
+    async fn utest_server_removes_event_subscribers_upon_events_cancel_request() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let request_id = format!("{}@my_request_id", fixtures::AGENT_NAMES[0]);
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        server
+            .event_handler
+            .expect_remove_subscriber()
+            .with(mockall::predicate::eq(request_id.clone()))
+            .once()
+            .return_const(());
+
+        let events_cancel_request_result = to_server.event_cancel_request(request_id.clone()).await;
+        assert!(events_cancel_request_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(
+            from_server_command,
+            common::from_server_interface::FromServer::Response(ankaios_api::ank_base::Response {
+                request_id,
+                response_content: Some(
+                    ankaios_api::ank_base::response::ResponseContent::EventsCancelAccepted(
+                        ankaios_api::ank_base::EventsCancelAccepted {}
+                    )
+                )
+            })
+        );
+
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-sends-state-differences-as-events~1]
+    #[tokio::test]
+    async fn utest_server_sends_events_for_newly_connected_agents() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        server.server_state.expect_cleanup_state().return_const(());
+
+        server
+            .server_state
+            .expect_get_workloads_for_agent()
+            .with(mockall::predicate::eq(fixtures::AGENT_NAMES[0].to_string()))
+            .once()
+            .return_const(Vec::default());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(true);
+
+        let mut state_diference_tree = StateDifferenceTree::new();
+
+        state_diference_tree.added_tree.first_difference_tree =
+            generate_difference_tree_from_paths(&[vec![
+                "agents".to_owned(),
+                fixtures::AGENT_NAMES[0].to_owned(),
+            ]]);
+
+        state_diference_tree.added_tree.full_difference_tree = state_diference_tree
+            .added_tree
+            .first_difference_tree
+            .clone();
+
+        let mock_state_comparator_context = MockStateComparator::new_context();
+        let mut mock_state_comparator = MockStateComparator::default();
+        mock_state_comparator
+            .expect_state_differences()
+            .once()
+            .return_const(state_diference_tree.clone());
+        mock_state_comparator_context
+            .expect()
+            .once()
+            .return_once(|_, _| mock_state_comparator);
+
+        server
+            .event_handler
+            .expect_send_events()
+            .with(
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::eq(state_diference_tree),
+                mockall::predicate::always(),
+            )
+            .once()
+            .return_const(());
+
+        let agent_hello_result = to_server
+            .agent_hello(fixtures::AGENT_NAMES[0].to_string(), Default::default())
+            .await;
+        assert!(agent_hello_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-sends-state-differences-as-events~1]
+    #[tokio::test]
+    async fn utest_server_sends_events_for_disconnected_agents() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .log_campaign_store
+            .expect_remove_agent_log_campaign_entry()
+            .once()
+            .return_const(RemovedLogRequests::default());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(true);
+
+        let test_wl_1_state_running = generate_test_workload_state_with_agent(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::running(),
+        );
+
+        let mut state_diference_tree = StateDifferenceTree::new();
+        state_diference_tree.removed_tree.first_difference_tree =
+            generate_difference_tree_from_paths(&[vec![
+                "agents".to_owned(),
+                fixtures::AGENT_NAMES[0].to_owned(),
+            ]]);
+
+        state_diference_tree.removed_tree.full_difference_tree = state_diference_tree
+            .removed_tree
+            .first_difference_tree
+            .clone();
+
+        let wl_state = test_wl_1_state_running.clone();
+        state_diference_tree.updated_tree.full_difference_tree =
+            generate_difference_tree_from_paths(&[vec![
+                "workloadStates".to_owned(),
+                wl_state.instance_name.agent_name().to_owned(),
+                wl_state.instance_name.workload_name().to_owned(),
+                wl_state.instance_name.id().to_owned(),
+            ]]);
+
+        let mock_state_comparator_context = MockStateComparator::new_context();
+        let mut mock_state_comparator = MockStateComparator::default();
+        mock_state_comparator
+            .expect_state_differences()
+            .once()
+            .return_const(state_diference_tree.clone());
+        mock_state_comparator_context
+            .expect()
+            .once()
+            .return_once(|_, _| mock_state_comparator);
+
+        server
+            .event_handler
+            .expect_send_events()
+            .with(
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::eq(state_diference_tree),
+                mockall::predicate::always(),
+            )
+            .once()
+            .return_const(());
+
+        server
+            .event_handler
+            .expect_remove_subscribers_of_agent()
+            .with(mockall::predicate::eq(fixtures::AGENT_NAMES[0].to_owned()))
+            .once()
+            .return_const(());
+
+        server
+            .workload_states_map
+            .process_new_states(vec![test_wl_1_state_running]);
+
+        // first agent disconnects from the ankaios server
+        let agent_gone_result = to_server
+            .agent_gone(fixtures::AGENT_NAMES[0].to_owned())
+            .await;
+        assert!(agent_gone_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-sends-state-differences-as-events~1]
+    #[tokio::test]
+    async fn utest_server_sends_events_upon_update_state_with_updated_workloads() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0].to_owned(),
+            fixtures::RUNTIME_NAMES[0].to_string(),
+        );
+
+        let updated_w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[1].to_owned(),
+            fixtures::RUNTIME_NAMES[0].to_string(),
+        );
+
+        let mut old_state = CompleteStateSpec::default();
+        old_state.desired_state.workloads = WorkloadMapSpec {
+            workloads: vec![(fixtures::WORKLOAD_NAMES[0].to_owned(), w1.workload.clone())]
+                .into_iter()
+                .collect(),
+        };
+
+        let mut update_state = CompleteStateSpec::default();
+        update_state.desired_state.workloads = WorkloadMapSpec {
+            workloads: vec![(
+                fixtures::WORKLOAD_NAMES[0].to_owned(),
+                updated_w1.workload.clone(),
+            )]
+            .into_iter()
+            .collect(),
+        };
+
+        let added_workloads = vec![updated_w1.clone()];
+        let deleted_workloads = vec![DeletedWorkload {
+            instance_name: w1.instance_name.clone(),
+            ..Default::default()
+        }];
+
+        let update_mask = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[0]
+        )];
+        let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
+
+        server
+            .workload_states_map
+            .process_new_states(vec![WorkloadStateSpec {
+                instance_name: w1.instance_name.clone(),
+                execution_state: ExecutionStateSpec::initial(),
+            }]);
+
+        let updated_desired_state = update_state.desired_state.clone();
+
+        let state_generation_result = StateGenerationResult {
+            old_desired_state: old_state.desired_state,
+            new_desired_state: (updated_desired_state.clone(), Default::default()),
+        };
+
+        let mut expected_state_difference_tree = StateDifferenceTree::new();
+        let updated_instance_name = updated_w1.instance_name.clone();
+        let removed_instance_name = w1.instance_name.clone();
+        expected_state_difference_tree
+            .added_tree
+            .first_difference_tree = generate_difference_tree_from_paths(&[
+            vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                fixtures::WORKLOAD_NAMES[0].to_owned(),
+            ],
+            vec![
+                "workloadStates".to_owned(),
+                updated_instance_name.agent_name().to_owned(),
+                updated_instance_name.workload_name().to_owned(),
+                updated_instance_name.id().to_owned(),
+            ],
+        ]);
+
+        expected_state_difference_tree
+            .removed_tree
+            .first_difference_tree = generate_difference_tree_from_paths(&[
+            vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                fixtures::WORKLOAD_NAMES[0].to_owned(),
+            ],
+            vec![
+                "workloadStates".to_owned(),
+                removed_instance_name.agent_name().to_owned(),
+                removed_instance_name.workload_name().to_owned(),
+                removed_instance_name.id().to_owned(),
+            ],
+        ]);
+
+        expected_state_difference_tree
+            .added_tree
+            .full_difference_tree = expected_state_difference_tree
+            .added_tree
+            .first_difference_tree
+            .clone();
+        expected_state_difference_tree
+            .removed_tree
+            .full_difference_tree = expected_state_difference_tree
+            .removed_tree
+            .first_difference_tree
+            .clone();
+
+        let state_difference_tree = expected_state_difference_tree.clone();
+        let state_comparator_context = MockStateComparator::new_context();
+        let mut state_comparator = MockStateComparator::default();
+        state_comparator
+            .expect_state_differences()
+            .once()
+            .return_const(state_difference_tree);
+        state_comparator_context
+            .expect()
+            .once()
+            .return_once(|_, _| state_comparator);
+        server
+            .server_state
+            .expect_generate_new_state()
+            .once()
+            .return_once(move |_, _| Ok(state_generation_result));
+        server
+            .server_state
+            .expect_update()
+            .once()
+            .return_const(Ok(Some(AddedDeletedWorkloads {
+                added_workloads,
+                deleted_workloads,
+            })));
+
+        server
+            .log_campaign_store
+            .expect_remove_collector_campaign_entry()
+            .return_const(HashSet::new());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(true);
+
+        let mut expected_workload_states_map = WorkloadStatesMapSpec::default();
+        expected_workload_states_map.process_new_states(vec![WorkloadStateSpec {
+            instance_name: updated_w1.instance_name.clone(),
+            execution_state: ExecutionStateSpec::initial(),
+        }]);
+
+        server
+            .event_handler
+            .expect_send_events()
+            .with(
+                mockall::predicate::always(),
+                mockall::predicate::eq(expected_workload_states_map),
+                mockall::predicate::eq(AgentMapSpec::default()),
+                mockall::predicate::eq(expected_state_difference_tree),
+                mockall::predicate::function(move |event_sender_channel: &FromServerSender| {
+                    event_sender_channel.same_channel(&to_agents)
+                }),
+            )
+            .once()
+            .return_const(());
+
+        // send new state to server
+        let update_state_result = to_server
+            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
+            .await;
+        assert!(update_state_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-sends-state-differences-as-events~1]
+    #[tokio::test]
+    async fn utest_server_sends_events_upon_update_state_with_updated_configs() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut update_state = CompleteStateSpec::default();
+        update_state.desired_state.configs = generate_test_config_map();
+        update_state
+            .desired_state
+            .configs
+            .configs
+            .retain(|key, _| key == "config_2");
+
+        let update_mask = vec!["desiredState.configs".to_owned()];
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        let updated_desired_state = update_state.desired_state.clone();
+
+        let state_generation_result = StateGenerationResult {
+            new_desired_state: (updated_desired_state.clone(), Default::default()),
+            ..Default::default()
+        };
+
+        let mut expected_state_difference_tree = StateDifferenceTree::new();
+        let updated_path = vec![
+            "desiredState".to_owned(),
+            "configs".to_owned(),
+            "config_2".to_owned(),
+        ];
+        expected_state_difference_tree
+            .updated_tree
+            .full_difference_tree = generate_difference_tree_from_paths(&[updated_path.clone()]);
+
+        let state_difference_tree = expected_state_difference_tree.clone();
+        let state_comparator_context = MockStateComparator::new_context();
+        let mut state_comparator = MockStateComparator::default();
+        state_comparator
+            .expect_state_differences()
+            .once()
+            .return_const(state_difference_tree);
+        state_comparator_context
+            .expect()
+            .once()
+            .return_once(|_, _| state_comparator);
+        server
+            .server_state
+            .expect_generate_new_state()
+            .once()
+            .return_once(move |_, _| Ok(state_generation_result));
+        server
+            .server_state
+            .expect_update()
+            .once()
+            .return_const(Ok(None));
+
+        server
+            .log_campaign_store
+            .expect_remove_collector_campaign_entry()
+            .return_const(HashSet::new());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .return_const(true);
+
+        server
+            .event_handler
+            .expect_send_events()
+            .with(
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::eq(expected_state_difference_tree),
+                mockall::predicate::always(),
+            )
+            .once()
+            .return_const(());
+
+        // send new state to server
+        let update_state_result = to_server
+            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
+            .await;
+        assert!(update_state_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-sends-state-differences-as-events~1]
+    #[tokio::test]
+    async fn utest_server_sends_events_for_workload_states() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        server.server_state.expect_cleanup_state().return_const(());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .return_const(true);
+
+        let workload_state_1 = generate_test_workload_state(
+            fixtures::WORKLOAD_NAMES[0],
+            ExecutionStateSpec::succeeded(),
+        );
+
+        let workload_state_2 = generate_test_workload_state(
+            fixtures::WORKLOAD_NAMES[1],
+            ExecutionStateSpec::removed(),
+        );
+
+        let updated_instance_name = workload_state_1.instance_name.clone();
+        let removed_instance_name = workload_state_2.instance_name.clone();
+
+        let mut expected_state_difference_tree = StateDifferenceTree::new();
+        expected_state_difference_tree
+            .updated_tree
+            .full_difference_tree = generate_difference_tree_from_paths(&[vec![
+            "workloadStates".to_owned(),
+            updated_instance_name.agent_name().to_owned(),
+            updated_instance_name.workload_name().to_owned(),
+            updated_instance_name.id().to_owned(),
+        ]]);
+
+        expected_state_difference_tree
+            .removed_tree
+            .first_difference_tree = generate_difference_tree_from_paths(&[vec![
+            "workloadStates".to_owned(),
+            removed_instance_name.agent_name().to_owned(),
+            removed_instance_name.workload_name().to_owned(),
+            removed_instance_name.id().to_owned(),
+        ]]);
+
+        expected_state_difference_tree
+            .removed_tree
+            .full_difference_tree = expected_state_difference_tree
+            .removed_tree
+            .first_difference_tree
+            .clone();
+
+        let mut state_comparator = MockStateComparator::default();
+        let state_difference_tree = expected_state_difference_tree.clone();
+        state_comparator
+            .expect_state_differences()
+            .once()
+            .return_once(|| state_difference_tree);
+
+        let mock_state_comparator = MockStateComparator::new_context();
+        mock_state_comparator
+            .expect()
+            .once()
+            .return_once(|_, _| state_comparator);
+
+        server
+            .event_handler
+            .expect_remove_workload_subscriber()
+            .once()
+            .return_const(());
+
+        server
+            .event_handler
+            .expect_send_events()
+            .with(
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::eq(expected_state_difference_tree),
+                mockall::predicate::always(),
+            )
+            .once()
+            .return_const(());
+
+        let update_workload_state_result = to_server
+            .update_workload_state(vec![workload_state_1, workload_state_2])
+            .await;
+        assert!(update_workload_state_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-sends-state-differences-as-events~1]
+    #[tokio::test]
+    async fn utest_server_sends_events_for_agent_load_status() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .agent_map
+            .agents
+            .entry(fixtures::AGENT_NAMES[0].to_owned())
+            .or_default();
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(true);
+
+        let mut expected_state_difference_tree = StateDifferenceTree::new();
+        expected_state_difference_tree
+            .updated_tree
+            .full_difference_tree = generate_difference_tree_from_paths(&[
+            vec![
+                "agents".to_owned(),
+                fixtures::AGENT_NAMES[0].to_owned(),
+                "status".to_owned(),
+                "cpuUsage".to_owned(),
+            ],
+            vec![
+                "agents".to_owned(),
+                fixtures::AGENT_NAMES[0].to_owned(),
+                "status".to_owned(),
+                "freeMemory".to_owned(),
+            ],
+        ]);
+
+        let mut state_comparator = MockStateComparator::default();
+        let state_difference_tree = expected_state_difference_tree.clone();
+        state_comparator
+            .expect_state_differences()
+            .once()
+            .return_once(|| state_difference_tree);
+
+        let mock_state_comparator = MockStateComparator::new_context();
+        mock_state_comparator
+            .expect()
+            .once()
+            .return_once(|_, _| state_comparator);
+
+        server
+            .event_handler
+            .expect_send_events()
+            .with(
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::eq(expected_state_difference_tree),
+                mockall::predicate::always(),
+            )
+            .once()
+            .return_const(());
+
+        let new_agent_load_status = AgentLoadStatus {
+            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+            cpu_usage: fixtures::CPU_USAGE_SPEC,
+            free_memory: fixtures::FREE_MEMORY_SPEC,
+        };
+        let update_agent_load_status_result =
+            to_server.agent_load_status(new_agent_load_status).await;
+        assert!(update_agent_load_status_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-removes-event-subscription-for-disconnected-cli~1]
+    #[tokio::test]
+    async fn utest_server_removes_event_subscriber_on_cli_disconnect() {
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .log_campaign_store
+            .expect_remove_cli_log_campaign_entry()
+            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
+            .once()
+            .return_const(HashSet::default());
+
+        server
+            .event_handler
+            .expect_remove_cli_subscriber()
+            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
+            .once()
+            .return_const(());
+
+        assert!(
+            to_server
+                .goodbye(CLI_CONNECTION_NAME.to_owned())
+                .await
+                .is_ok()
+        );
+        assert!(to_server.stop().await.is_ok());
+
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-removes-subscription-for-deleted-subscriber-workload~1]
+    #[tokio::test]
+    async fn utest_server_remove_subscription_for_deleted_subscriber_workload() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        server.server_state.expect_cleanup_state().return_const(());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .return_const(true);
+
+        let expected_state_difference_tree = StateDifferenceTree::new();
+        let mut state_comparator = MockStateComparator::default();
+        let state_difference_tree = expected_state_difference_tree.clone();
+        state_comparator
+            .expect_state_differences()
+            .once()
+            .return_once(|| state_difference_tree);
+
+        let mock_state_comparator = MockStateComparator::new_context();
+        mock_state_comparator
+            .expect()
+            .once()
+            .return_once(|_, _| state_comparator);
+
+        let removed_workload_state = generate_test_workload_state_with_agent(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            ExecutionStateSpec::removed(),
+        );
+
+        server
+            .event_handler
+            .expect_remove_workload_subscriber()
+            .with(
+                mockall::predicate::eq(fixtures::AGENT_NAMES[0].to_owned()),
+                mockall::predicate::eq(fixtures::WORKLOAD_NAMES[0].to_owned()),
+            )
+            .once()
+            .return_const(());
+
+        server
+            .event_handler
+            .expect_send_events()
+            .once()
+            .return_const(());
+
+        let update_workload_state_result = to_server
+            .update_workload_state(vec![removed_workload_state])
+            .await;
+        assert!(update_workload_state_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-state-updates-agent-tags~1]
+    #[tokio::test]
+    async fn utest_set_complete_state_only_updates_tags_for_existing_agents() {
+        const OTHER_CPU_USAGE: u32 = 75;
+        const OTHER_FREE_MEMORY: u64 = 512;
+
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let update_state = CompleteStateSpec {
+            agents: AgentMapSpec {
+                agents: [
+                    (
+                        AGENT_NAMES[0].to_string(),
+                        AgentAttributesSpec {
+                            status: Some(AgentStatusSpec {
+                                // Status changed
+                                cpu_usage: Some(CpuUsageSpec { cpu_usage: 99 }),
+                                free_memory: Some(FreeMemorySpec { free_memory: 1 }),
+                            }),
+                            tags: TagsSpec {
+                                tags: HashMap::from([
+                                    ("location".to_string(), "on-car".to_string()), // Updated
+                                    ("new_tag".to_string(), "value".to_string()),   // Added
+                                                                                    // "type" removed
+                                ]),
+                            },
+                        },
+                    ),
+                    ("new_agent".to_string(), AgentAttributesSpec::default()),
+                ]
+                .into(),
+            },
+            ..Default::default()
+        };
+        let update_mask = vec![
+            format!("agents.{}", AGENT_NAMES[0].to_string()),
+            "agents.new_agent".to_string(),
+        ];
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+
+        let agents_clone = update_state.agents.clone();
+
+        mock_server_state
+            .expect_generate_new_state()
+            .with(
+                mockall::predicate::eq(update_state.clone()),
+                mockall::predicate::eq(update_mask.clone()),
+            )
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: (Default::default(), agents_clone.clone()),
+                    ..Default::default()
+                })
+            });
+        mock_server_state
+            .expect_update()
+            .with(mockall::predicate::eq(update_state.desired_state.clone()))
+            .once()
+            .return_const(Ok(None));
+        mock_server_state
+            .expect_get_complete_state_by_field_mask()
+            .returning(|_, _, agents| {
+                Ok(CompleteState {
+                    agents: Some(agents.to_owned().into()),
+                    ..Default::default()
+                })
+            });
+        server.server_state = mock_server_state;
+        server.agent_map.agents.insert(
+            fixtures::AGENT_NAMES[0].to_string(),
+            AgentAttributesSpec {
+                status: Some(AgentStatusSpec {
+                    cpu_usage: Some(fixtures::CPU_USAGE_SPEC),
+                    free_memory: Some(fixtures::FREE_MEMORY_SPEC),
+                }),
+                tags: TagsSpec {
+                    tags: HashMap::from([
+                        ("type".to_string(), "AI-agent".to_string()),
+                        ("location".to_string(), "online".to_string()),
+                    ]),
+                },
+            },
+        );
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .return_const(false);
+
+        server.agent_map.agents.insert(
+            fixtures::AGENT_NAMES[1].to_string(),
+            AgentAttributesSpec {
+                status: Some(AgentStatusSpec {
+                    cpu_usage: Some(CpuUsageSpec {
+                        cpu_usage: OTHER_CPU_USAGE,
+                    }),
+                    free_memory: Some(FreeMemorySpec {
+                        free_memory: OTHER_FREE_MEMORY,
+                    }),
+                }),
+                tags: TagsSpec {
+                    tags: HashMap::from([("type".to_string(), "watchdog".to_string())]),
+                },
+            },
+        );
+
+        let update_state = CompleteStateSpec {
+            agents: AgentMapSpec {
+                agents: [
+                    (
+                        AGENT_NAMES[0].to_string(),
+                        AgentAttributesSpec {
+                            status: Some(AgentStatusSpec {
+                                // Status changed
+                                cpu_usage: Some(CpuUsageSpec { cpu_usage: 99 }),
+                                free_memory: Some(FreeMemorySpec { free_memory: 1 }),
+                            }),
+                            tags: TagsSpec {
+                                tags: HashMap::from([
+                                    ("location".to_string(), "on-car".to_string()), // Updated
+                                    ("new_tag".to_string(), "value".to_string()),   // Added
+                                                                                    // "type" removed
+                                ]),
+                            },
+                        },
+                    ),
+                    ("new_agent".to_string(), AgentAttributesSpec::default()),
+                ]
+                .into(),
+            },
+            ..Default::default()
+        };
+
+        let update_mask = vec![
+            format!("agents.{}", AGENT_NAMES[0].to_string()),
+            "agents.new_agent".to_string(),
+        ];
+
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        // send new state to server
+        let update_state_result = to_server
+            .update_state(fixtures::REQUEST_ID.to_string(), update_state, update_mask)
+            .await;
+        assert!(update_state_result.is_ok());
+
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id,
+                response_content: Some(ResponseContent::UpdateStateSuccess(_)),
+            }) if request_id == fixtures::REQUEST_ID
+        ));
+
+        let request_id_2 = REQUEST_ID.to_string() + "2";
+
+        let request_complete_state_result = to_server
+            .request_complete_state(
+                request_id_2.clone(),
+                CompleteStateRequestSpec {
+                    field_mask: ["agents".to_string()].into(),
+                    subscribe_for_events: false,
+                },
+            )
+            .await;
+        assert!(request_complete_state_result.is_ok());
+        let foo = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert!(matches!(
+            foo,
+            FromServer::Response(Response {
+                request_id,
+                response_content: Some(ResponseContent::CompleteStateResponse(complete_state_response)),
+            }) if request_id == request_id_2 && get_agent_names(&complete_state_response) == Some(HashSet::from([AGENT_NAMES[0].to_string(), AGENT_NAMES[1].to_string()]))
+        ));
+
+        fn get_agent_names(
+            complete_state_response: &CompleteStateResponse,
+        ) -> Option<HashSet<String>> {
+            Some(
+                complete_state_response
+                    .complete_state
+                    .as_ref()?
+                    .agents
+                    .as_ref()?
+                    .agents
+                    .keys()
+                    .map(|k| k.to_string())
+                    .collect::<HashSet<_>>(),
+            )
+        }
 
         server_task.abort();
         assert!(comm_middle_ware_receiver.try_recv().is_err());

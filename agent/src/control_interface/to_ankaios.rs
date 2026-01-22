@@ -94,6 +94,7 @@ mod tests {
                 request_id: fixtures::REQUEST_ID.into(),
                 request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                     field_mask: vec![FIELD_1.into(), FIELD_2.into()],
+                    subscribe_for_events: false,
                 })),
             })),
         };
@@ -102,6 +103,7 @@ mod tests {
             request_id: fixtures::REQUEST_ID.into(),
             request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_1.into(), FIELD_2.into()],
+                subscribe_for_events: false,
             }),
         });
 

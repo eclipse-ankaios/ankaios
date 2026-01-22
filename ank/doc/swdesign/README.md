@@ -1055,6 +1055,114 @@ Needs:
 - impl
 - utest
 
+### `ank get events`
+
+![Get events](plantuml/seq_get_events.svg)
+
+#### CLI provides get events command
+`swdd~cli-provides-get-events-command~1`
+
+Status: approved
+
+The Ankaios CLI shall provide a function to get real-time state change events from the Ankaios server with a field mask as argument for filtering events to specific parts of the state.
+
+Rationale:
+The get events command enables users to monitor state changes in real-time, which is essential for observability and debugging in dynamic workload orchestration scenarios.
+
+Tags:
+- Cli
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI subscribes for events from server
+`swdd~cli-subscribes-for-events~1`
+
+Status: approved
+
+When the user invokes the CLI with a request to get events, the CLI shall subscribe to the Ankaios server using a `CompleteStateRequest` message with the `subscribe_for_events` flag set to true and an optional field mask to filter events to specific parts of the state.
+
+Tags:
+- ServerConnection
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI processes received events
+`swdd~cli-receives-events~1`
+
+Status: approved
+
+When the CLI is subscribed to events, the CLI shall:
+* continuously receive state change events from the Ankaios server
+* skip the initial complete state response as it represents a baseline snapshot
+* process only messages matching the subscription request ID with ignoring all other messages.
+
+Tags:
+- ServerConnection
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI handles event errors and interruptions
+`swdd~cli-handles-event-subscription-errors~1`
+
+Status: approved
+
+When the CLI listens for events and encounters an error response from the server, a termination signal, or a connection interruption,
+the CLI shall gracefully terminate with an appropriate error message.
+
+Tags:
+- ServerConnection
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI outputs events with metadata
+`swdd~cli-outputs-events-with-timestamp~1`
+
+Status: approved
+
+When the CLI receives an event from the Ankaios server, the CLI shall output the event with:
+* an RFC3339 formatted timestamp
+* altered fields information (added, updated, and removed fields)
+* the complete state using the same state representation format as the `get state` command.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI supports configurable event output formats
+`swdd~cli-supports-multiple-output-types-for-events~1`
+
+Status: approved
+
+When the CLI receives events from the Ankaios server, the CLI shall support presenting the events in both YAML (default) and JSON formats as specified by the output format command-line argument.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
 ### `ank get config`
 #### CLI provides the list of configs
 `swdd~cli-provides-list-of-configs~1`

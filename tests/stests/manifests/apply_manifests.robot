@@ -37,7 +37,8 @@ Test Ankaios apply workload specifications showing progress via spinner
 
     # Preconditions
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config successfully
+    And Ankaios server is started without manifest successfully
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank apply ${manifest12_yaml_file}"
@@ -62,9 +63,10 @@ Test Ankaios apply workload specifications via Ankaios Manifest files
     ...        AND    Set Global Variable    ${manifest2_yaml_file}    ${CONFIGS_DIR}/manifest2.yaml
 
     # Preconditions
-    Given Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with manifest "${simple_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     When user triggers "ank -v apply ${manifest1_yaml_file} ${manifest2_yaml_file}"
     # Asserts
@@ -80,9 +82,10 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
     ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
 
     # Preconditions
-    Given Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with manifest "${simple_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     When user triggers "ank apply -" passing "${manifest1_yaml_file}" through stdin
     # Asserts
@@ -97,10 +100,11 @@ Test Ankaios apply workload specification overwriting the agent names
     ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
 
     # Preconditions
-    Given Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with manifest "${simple_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     When user triggers "ank apply --agent agent_B ${manifest1_yaml_file}"
     # Asserts
@@ -113,10 +117,11 @@ Test Ankaios apply workload specification defining the agent names
     [Setup]           Run Keywords    Setup Ankaios
 
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     When user triggers "ank apply --agent agent_B ${CONFIGS_DIR}/manifest_no_agent_name.yaml"
     # Asserts
@@ -128,9 +133,10 @@ Test Ankaios apply workload specification defining the agent names
 Test Ankaios apply workload specification without agent name
     [Setup]   Run Keywords    Setup Ankaios
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/manifest_no_agent_name.yaml"
     # Asserts
@@ -141,9 +147,10 @@ Test Ankaios apply workload specification without agent name
 Test Ankaios apply workload specification with empty agent name
     [Setup]   Run Keywords    Setup Ankaios
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/manifest_empty_agent_name.yaml"
     # Asserts
@@ -155,9 +162,10 @@ Test Ankaios apply workload specification with empty agent name
 Test Ankaios apply workload with empty agent name cli argument
   [Setup]   Run Keywords    Setup Ankaios
   # Preconditions
-  Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+  Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
+  And the CLI listens for workload states
   And Ankaios agent is started with name "agent_A"
-  And all workloads of agent "agent_A" have an initial execution state
+  And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
   # Actions
   When user triggers "ank apply --agent "" ${CONFIGS_DIR}/manifest_no_agent_name.yaml"
   # Asserts
@@ -172,33 +180,35 @@ Test Ankaios apply workload specifications via Ankaios Manifest files for deleti
     ...        AND    Set Global Variable    ${manifest2_yaml_file}    ${CONFIGS_DIR}/manifest2.yaml
 
     # Preconditions
-    Given Ankaios server is started with config "${manifest12_yaml_file}"
+    Given Ankaios server is started with manifest "${manifest12_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "sleepy_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "sleepy_from_manifest2" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Actions
-    When user triggers "ank apply -d ${manifest1_yaml_file} ${manifest2_yaml_file}"
+    When user triggers "ank --no-wait apply -d ${manifest1_yaml_file} ${manifest2_yaml_file}"
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "sleepy_from_manifest1" shall not exist within "20" seconds
-    And the workload "sleepy_from_manifest2" shall not exist within "20" seconds
+    And the workload "sleepy_from_manifest1" shall be removed and not exist on agent "agent_A" within "20" seconds
+    And the workload "sleepy_from_manifest2" shall be removed and not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-send-update-state~1]
 # [stest->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
 Test Ankaios apply workload specifications via Ankaios Manifest content through stdin for deletion
     [Setup]           Run Keywords    Setup Ankaios
-    ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
     ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
 
     # Preconditions
-    Given Ankaios server is started with config "${manifest1_yaml_file}"
+    Given Ankaios server is started with manifest "${manifest1_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "sleepy_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Actions
-    When user triggers "ank apply -d -" passing "${manifest1_yaml_file}" through stdin
+    When user triggers "ank --no-wait apply -d -" passing "${manifest1_yaml_file}" through stdin
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "sleepy_from_manifest1" shall not exist within "20" seconds
+    And the workload "sleepy_from_manifest1" shall be removed and not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-send-update-state~1]
@@ -208,7 +218,8 @@ Test Ankaios apply workload specifications in Ankaios manifest with templated fi
     # Preconditions
     # This test assumes that all containers in Podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config successfully
+    And Ankaios server is started without manifest successfully
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/manifest_with_configs.yaml"
@@ -225,9 +236,10 @@ Test Ankaios apply workload specification with wrong api version
     ...        AND    Set Global Variable    ${manifest_wrong_api_version}    ${CONFIGS_DIR}/manifest_wrong_api_version.yaml
 
     # Preconditions
-    Given Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with manifest "${simple_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     When user triggers "ank apply ${manifest_wrong_api_version}"
     # Asserts
@@ -241,9 +253,10 @@ Test Ankaios apply workload specification with wrong api version format
     ...        AND    Set Global Variable    ${manifest_wrong_api_version_format}    ${CONFIGS_DIR}/manifest_wrong_api_version_format.yaml
 
     # Preconditions
-    Given Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with manifest "${simple_yaml_file}"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
     When user triggers "ank apply ${manifest_wrong_api_version_format}"
     # Asserts
@@ -253,15 +266,15 @@ Test Ankaios apply workload specification with wrong api version format
 # [stest->swdd~server-validates-startup-manifest-tags-format~1]
 Test Ankaios Podman Update workload with current API version
     [Setup]    Run Keywords    Setup Ankaios
-
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Podman has deleted all existing pods
     And Podman has deleted all existing volumes
-    And Ankaios insecure server is started with config "${CONFIGS_DIR}/default_deprecated_api.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/default_deprecated_api.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Actions
     When user triggers "ank -k apply ${CONFIGS_DIR}/default.yaml"
     And user triggers "ank -k get workloads"
@@ -280,7 +293,8 @@ Test Ankaios Podman Update workload with deprecated API version v0.1
     Given Podman has deleted all existing containers
     And Podman has deleted all existing pods
     And Podman has deleted all existing volumes
-    And Ankaios server is started without config successfully
+    And Ankaios server is started without manifest successfully
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k apply ${CONFIGS_DIR}/default_deprecated_api.yaml"

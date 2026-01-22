@@ -19,13 +19,16 @@ import json
 import re
 import uuid
 import functools
+import signal
+from fnmatch import fnmatch
 from robot.api import logger
 from robot.libraries.BuiltIn import BuiltIn
 from tempfile import TemporaryDirectory
-from os import path
+from os import path, environ
 from typing import Union
 import shutil
 import tomllib
+import multiprocessing as mp
 
 
 ###############################################################################
@@ -41,6 +44,9 @@ MANIFEST_TEMPLATE: str = "control_interface_workload.yaml.template"
 STARTUP_MANIFEST: str = "startup_config.yaml"
 DEFAULT_AGENT_NAME: str = "agent_A"
 FORCE_TRACE: bool = False
+EVENT_BUFFER: list = []
+EVENTS_RECEIVED = mp.Event()
+EVENT_PROCESS = None
 
 
 if FORCE_TRACE:
@@ -263,50 +269,11 @@ def get_pod_id_by_pod_name_from_podman(pod_name: str) -> str:
     pod_id = pod_ids[0]
     return pod_id
 
-
-def wait_for_initial_execution_state(command: str, agent_name: str, timeout: float=10, next_try_in_sec: float=0.25):
-        start_time = get_time_secs()
-        logger.trace(run_command("ps aux | grep ank").stdout)
-        logger.trace(run_command("podman ps -a").stdout)
-        res = run_command(command)
-        table = table_to_list(res.stdout if res else "")
-        logger.trace(table)
-        while (get_time_secs() - start_time) < timeout:
-            if table and all([(len(row["EXECUTION STATE"].strip()) > 0 and row["EXECUTION STATE"].strip() != "Pending(Initial)") for row in filter(lambda r: r["AGENT"] == agent_name, table)]):
-                return table
-
-            time.sleep(next_try_in_sec)
-            logger.trace(run_command("ps aux | grep ank").stdout)
-            logger.trace(run_command("podman ps -a").stdout)
-            res = run_command(command)
-            logger.trace(res)
-            table = table_to_list(res.stdout if res else "")
-            logger.trace(table)
-        return list()
-
-
 def workload_with_execution_state(table: list, workload_name: str, expected_state: str) -> list:
     logger.trace(table)
     if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
         return table
     return list()
-
-
-def wait_for_execution_state(command: str, workload_name: str, agent_name: str, expected_state: str, timeout: float=10, next_try_in_sec: float=0.25) -> list:
-        start_time = get_time_secs()
-        res = run_command(command)
-        table = table_to_list(res.stdout if res else "")
-        logger.trace(table)
-        while (get_time_secs() - start_time) < timeout:
-            if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name and r["AGENT"] == agent_name, table)]):
-                return table
-
-            time.sleep(next_try_in_sec)
-            res = run_command(command)
-            table = table_to_list(res.stdout if res else "")
-            logger.trace(table)
-        return list()
-
 
 def replace_config(data: Union[dict, list], filter_path: str, new_value: Union[str, int, dict]) -> Union[dict, list]:
     filter_path = filter_path.split('.')
@@ -333,18 +300,22 @@ def find_control_interface_test_tag():
 
 def prepare_test_control_interface_workload():
     global control_interface_workload_config
+    global control_interface_result_expectations
     global manifest_files_location
     global next_manifest_number
     global control_interface_allow_rules
     global control_interface_deny_rules
     global logs_requests
+    global events_requests
 
     control_interface_workload_config = []
+    control_interface_result_expectations = []
     manifest_files_location = []
     next_manifest_number = 0
     control_interface_allow_rules = []
     control_interface_deny_rules = []
     logs_requests = {}
+    events_requests = {}
 
 
 def create_control_interface_config_for_test() -> TemporaryDirectory:
@@ -411,23 +382,6 @@ def extract_agent_name_from_config_file(config_file: str) -> str:
         agent_name = parsed_config_file["name"]
 
         return agent_name
-
-
-def wait_for_workload_removal(command: str, workload_name: str, expected_agent_name: str, timeout: float=10, next_try_in_sec: float=0.25) -> list:
-        start_time = get_time_secs()
-        res = run_command(command)
-        table = table_to_list(res.stdout if res else "")
-        logger.trace(table)
-        while (get_time_secs() - start_time) < timeout:
-            if table and any([not expected_agent_name or row["AGENT"].strip() == expected_agent_name for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
-                time.sleep(next_try_in_sec)
-                res = run_command(command)
-                table = table_to_list(res.stdout if res else "")
-                logger.trace(table)
-            else:
-                return list()
-        return table
-
 
 # MANDATORY FOR STABLE SYSTEM TESTS
 @err_logging_decorator
@@ -506,6 +460,16 @@ def internal_log_deny_control_interface(workload_names: str):
 ## Internal operations - control interface commands
 ###############################################################################
 
+@err_logging_decorator
+def internal_controller_wait_milliseconds(milliseconds: str):
+    global control_interface_workload_config
+
+    control_interface_workload_config.append({
+        "command": {
+            "type": "Timeout",
+            "duration_ms": int(milliseconds)
+        }
+    })
 
 @err_logging_decorator
 def internal_add_update_state_command(manifest: str, update_mask: str):
@@ -540,8 +504,14 @@ def internal_send_initial_hello(version: str):
 
 
 @err_logging_decorator
-def internal_add_get_state_command(field_mask: str):
+def internal_add_get_state_command(field_mask: str, subscribe_for_events: bool=False):
     global control_interface_workload_config
+    global events_requests
+
+    request_id = generate_request_id()
+    if subscribe_for_events:
+        events_requests[field_mask] = request_id
+
 
     field_mask = field_mask.replace(" and ", ", ").split(", ")
     if field_mask == [""]:
@@ -549,8 +519,71 @@ def internal_add_get_state_command(field_mask: str):
     control_interface_workload_config.append({
         "command": {
             "type": "GetState",
-            "field_mask": field_mask
+            "field_mask": field_mask,
+            "subscribe_for_events": subscribe_for_events,
+            "request_id": request_id
         }
+    })
+
+@err_logging_decorator
+def internal_add_cancel_events_command(field_mask: str):
+    global control_interface_workload_config
+
+    assert field_mask in events_requests, f"Workload names {field_mask} are not in previous events requests"
+    request_id = events_requests.get(field_mask)
+    control_interface_workload_config.append({
+        "command": {
+            "type": "CancelEvents",
+            "request_id": request_id
+        }
+    })
+
+@err_logging_decorator
+def internal_add_get_event_command(field_mask: str):
+    global control_interface_workload_config
+
+    assert field_mask in events_requests, f"Workload names {field_mask} are not in previous event subscription"
+    request_id = events_requests.get(field_mask)
+    control_interface_workload_config.append({
+        "command": {
+            "type": "GetEvent",
+            "request_id": request_id,
+        }
+    })
+
+@err_logging_decorator
+def internal_check_control_interface_workloads_in_last_result(workload_names: str):
+    global control_interface_result_expectations
+
+    workload_names = [m for m in workload_names.replace(" and ", ", ").split(", ") if m]
+    control_interface_result_expectations.append({
+        "response_number": len(control_interface_workload_config)-1,
+        "type": "exact_workloads",
+        "workload_names": workload_names}
+    )
+
+@err_logging_decorator
+def internal_check_control_interface_workload_fields_in_last_result(workload_name: str, field_names: str):
+    global control_interface_result_expectations
+
+    field_names = field_names.replace(" and ", ", ").split(", ")
+    control_interface_result_expectations.append({
+        "response_number": len(control_interface_workload_config)-1,
+        "type": "exact_workload_fields",
+        "workload_name": workload_name,
+        "field_names": field_names
+    })
+
+@err_logging_decorator
+def internal_check_control_interface_altered_fields_in_last_result(alteration_type: str, masks: str):
+    global control_interface_result_expectations
+
+    masks = [m for m in masks.replace(" and ", ", ").split(", ") if m]
+    control_interface_result_expectations.append({
+        "response_number": len(control_interface_workload_config)-1,
+        "type": "exact_altered_fields",
+        "alteration_type": alteration_type,
+        "masks": masks
     })
 
 
@@ -607,6 +640,8 @@ def internal_get_logs_command(workload_names: str):
     })
 
 
+
+
 @err_logging_decorator
 def internal_add_cancel_logs_request_command(workload_names: str):
     global control_interface_workload_config
@@ -633,11 +668,53 @@ def internal_check_all_control_interface_requests_succeeded(tmp_folder):
     output = read_yaml(output_file_path)
     logger.trace(output)
     for test_number, test_result in enumerate(output):
-        if test_result["result"]["type"] == "NoCheckNeeded":
+        if test_result["result"]["type"] == "OK":
             continue
         test_result = test_result["result"]["value"]["type"] == "Ok"
         assert test_result, \
             f"Expected request {test_number + 1} to succeed, but it failed"
+
+@err_logging_decorator
+def internal_check_all_result_expectations_succeeded(tmp_folder):
+    output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    for expectation in control_interface_result_expectations:
+        response_number = expectation["response_number"]
+        test_result = output[response_number]
+        if expectation["type"] == "exact_workloads":
+            expected_workload_names = expectation["workload_names"]
+            try:
+                actual_workload_names = list(test_result["result"]["value"]["value"][0]["desiredState"]["workloads"].keys())
+            except:
+                actual_workload_names = []
+            assert set(expected_workload_names) == set(actual_workload_names), f"Expected workloads {expected_workload_names} but found {actual_workload_names}"
+        elif expectation["type"] == "exact_workload_fields":
+            workload_name = expectation["workload_name"]
+            expected_field_names = expectation["field_names"]
+            try:
+                actual_field_names = [k for (k,v) in test_result["result"]["value"]["value"][0]["desiredState"]["workloads"][workload_name].items() if v is not None]
+            except:
+                actual_field_names = []
+            assert set(expected_field_names) == set(actual_field_names), f"Expected fields {expected_field_names} but found {actual_field_names}"
+        elif expectation["type"] == "exact_altered_fields":
+            alteration_type = expectation["alteration_type"]
+            expected_masks = expectation["masks"]
+            try:
+                actual_masks = test_result["result"]["value"]["value"][1][alteration_type]
+            except KeyError:
+                actual_masks = []
+            actual_masks_clone = actual_masks.copy()
+            for em in expected_masks:
+                failed = True
+                for i in range(len(actual_masks)):
+                    am = actual_masks[i]
+                    if fnmatch(am, em):
+                        failed = False
+                        del actual_masks[i]
+                        break
+                if failed:
+                    assert False, f"Expected {alteration_type} to match {expected_masks} but found {actual_masks_clone}"
+            if len(actual_masks) != 0:
+                assert False, f"Expected {alteration_type} to match {expected_masks} but found {actual_masks_clone}"
 
 @err_logging_decorator
 def internal_check_last_control_interface_request_failed(tmp_folder):
@@ -776,3 +853,357 @@ def get_instance_name_from_ankaios_workload_states(workload_states: str, workloa
 
     logger.warning(f"Workload '{workload_name}' not found in workload states")
     return ""
+
+@err_logging_decorator
+def event_output_shall_be_valid_yaml_format(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    documents = [doc.strip() for doc in content.strip().split('---') if doc.strip()]
+
+    assert len(documents) > 0, "No YAML documents found in event output"
+
+    for doc in documents:
+        try:
+            yaml.safe_load(doc)
+        except yaml.YAMLError as e:
+            raise AssertionError(f"Invalid YAML format in event output: {e}")
+
+    logger.trace(f"Event output contains {len(documents)} valid YAML documents")
+
+
+@err_logging_decorator
+def event_output_shall_be_valid_json_format(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    lines = [line.strip() for line in content.strip().split('\n') if line.strip()]
+
+    assert len(lines) > 0, "No JSON objects found in event output"
+
+    for i, line in enumerate(lines):
+        try:
+            json.loads(line)
+        except json.JSONDecodeError as e:
+            raise AssertionError(f"Invalid JSON format in event {i+1}: {e}\nLine: {line[:200]}...")
+
+    logger.trace(f"Event output contains {len(lines)} valid JSONL events")
+
+
+@err_logging_decorator
+def event_output_shall_contain_timestamp(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    assert "timestamp" in content, "No timestamp field found in event output"
+    logger.trace("Event output contains timestamp")
+
+
+@err_logging_decorator
+def event_output_shall_contain_timestamp_in_rfc3339_format(output_file: str):
+    import re
+
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    rfc3339_pattern = r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})'
+
+    assert re.search(rfc3339_pattern, content), \
+        "No RFC3339 formatted timestamp found in event output"
+
+    logger.trace("Event output contains RFC3339 formatted timestamp")
+
+
+@err_logging_decorator
+def event_output_shall_contain_only_desiredstate_workloads(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    documents = [doc.strip() for doc in content.strip().split('---') if doc.strip()]
+
+    for doc in documents:
+        data = yaml.safe_load(doc)
+        if data and ('complete_state' in data or 'completeState' in data):
+            complete_state = data.get('complete_state') or data.get('completeState')
+            if complete_state:
+                desired_state = complete_state.get('desiredState') or complete_state.get('desired_state')
+                assert desired_state is not None, "desiredState not found in event output"
+                assert 'workloads' in desired_state, "workloads field not found in desiredState"
+                logger.trace("Event output contains only desiredState workloads")
+                return
+
+    raise AssertionError("Could not verify desiredState.workloads in event output")
+
+
+@err_logging_decorator
+def event_output_shall_contain_at_least_n_events(count: str, output_file: str):
+    expected_count = int(count)
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    content_stripped = content.strip()
+    if content_stripped.startswith('---'):
+        yaml_docs = [doc.strip() for doc in content_stripped.split('---') if doc.strip()]
+        assert len(yaml_docs) >= expected_count, \
+            f"Expected at least {expected_count} events, but found {len(yaml_docs)}"
+        logger.trace(f"Found at least {expected_count} events (YAML format)")
+    else:
+        json_lines = [line.strip() for line in content_stripped.split('\n') if line.strip()]
+        assert len(json_lines) >= expected_count, \
+            f"Expected at least {expected_count} events, but found {len(json_lines)}"
+        logger.trace(f"Found at least {expected_count} events (JSONL format)")
+
+
+@err_logging_decorator
+def each_event_in_output_shall_contain_timestamp(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    content_stripped = content.strip()
+    if content_stripped.startswith('---'):
+        yaml_docs = [doc.strip() for doc in content_stripped.split('---') if doc.strip()]
+
+        for doc in yaml_docs:
+            data = yaml.safe_load(doc)
+            assert 'timestamp' in data, f"Event missing timestamp field: {doc[:100]}"
+
+        logger.trace("Each event contains timestamp (YAML format)")
+    else:
+        lines = [line.strip() for line in content_stripped.split('\n') if line.strip()]
+
+        for line in lines:
+            data = json.loads(line)
+            assert 'timestamp' in data, f"Event missing timestamp field: {line[:100]}"
+
+        logger.trace("Each event contains timestamp (JSONL format)")
+
+@err_logging_decorator
+def event_output_shall_contain_workload(workload_name: str, output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    assert workload_name in content, f"Workload '{workload_name}' not found in event output"
+    logger.trace(f"Found workload '{workload_name}' in event output")
+
+@err_logging_decorator
+def event_output_shall_contain_field_name(output_file: str, field_name: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    assert field_name in content, \
+        f"{field_name} field not found in event output"
+
+    logger.trace(f"Event output contains {field_name}")
+
+@err_logging_decorator
+def event_output_shall_contain_altered_fields_with_removed_workloads(output_file: str):
+    assert path.exists(output_file), f"Event output file {output_file} does not exist"
+
+    with open(output_file, 'r') as f:
+        content = f.read()
+
+    found_removal = False
+
+    content_stripped = content.strip()
+    if content_stripped.startswith('---'):
+        yaml_docs = [doc.strip() for doc in content_stripped.split('---') if doc.strip()]
+
+        for doc in yaml_docs:
+            data = yaml.safe_load(doc)
+            if data:
+                removed = data.get('removedFields') or data.get('removed_fields', [])
+                if removed and len(removed) > 0:
+                    found_removal = True
+                    break
+                if 'altered_fields' in data or 'alteredFields' in data:
+                    altered = data.get('altered_fields') or data.get('alteredFields')
+                    if altered:
+                        removed = altered.get('removed_fields') or altered.get('removedFields', [])
+                        if removed and len(removed) > 0:
+                            found_removal = True
+                            break
+    else:
+        lines = [line.strip() for line in content_stripped.split('\n') if line.strip()]
+
+        for line in lines:
+            data = json.loads(line)
+            removed = data.get('removedFields') or data.get('removed_fields', [])
+            if removed and len(removed) > 0:
+                found_removal = True
+                break
+            if 'alteredFields' in data or 'altered_fields' in data:
+                altered = data.get('alteredFields') or data.get('altered_fields')
+                if altered:
+                    removed = altered.get('removedFields') or altered.get('removed_fields', [])
+                    if removed and len(removed) > 0:
+                        found_removal = True
+                        break
+
+    assert found_removal, "No removed workloads found in altered_fields"
+    logger.trace("Event output contains altered fields with removed workloads")
+
+
+@err_logging_decorator
+def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bin_dir: str=None, timeout: str="10", insecure: bool=False):
+    timeout_float = float(timeout)
+    def listen_with_timeout(field_mask: str, event_buffer: list, log_output_file: str, timeout: float, ank_bin_dir: str=None, insecure: bool=False):
+        # separate log file for the event process otherwise corrupted robot framework output.xml may occur because of concurrent writes
+        log_file_handle = open(log_output_file, 'w+', buffering=1)  # Line buffering
+        log_file_handle.write(f"Listening for events with timeout of {timeout_float} seconds\n")
+
+        if ank_bin_dir is None:
+            ank_bin_dir = environ.get('ANK_BIN_DIR', '.')
+
+        ank_path = path.join(ank_bin_dir, 'ank')
+
+
+        if insecure:
+            cmd = [ank_path, '--insecure', 'get', 'events', '-o', 'json']
+        else:
+            cmd = [ank_path, 'get', 'events', '-o', 'json']
+        if field_mask:
+            cmd.append(field_mask)
+
+        process = None
+
+        try:
+            log_file_handle.write(f"Starting event listener: {' '.join(cmd)}\n")
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1
+            )
+
+            start_time = get_time_secs()
+            first_event_received = False
+
+            while (get_time_secs() - start_time) < timeout:
+
+                EVENTS_RECEIVED.clear()
+                new_line = process.stdout.readline()  # blocks until a line or EOF
+
+                if new_line:
+                    try:
+                        event = json.loads(new_line)
+                        first_event_received = True
+                        log_file_handle.write(f"Received event: {event}\n")
+                        event_buffer.append(event)
+                        EVENTS_RECEIVED.set()
+                    except json.JSONDecodeError as e:
+                        log_file_handle.write(f"Failed to parse event line: '{new_line}' with error: {e}\n")
+                        pass
+                else:
+                    stderr = process.stderr.read()
+                    if "could not connect to ankaios server" in stderr.lower():
+                        # when the server is not yet available, restart the process until the timeout is reached
+                        process.terminate()
+                        process.wait(timeout=2)
+
+                        process = subprocess.Popen(
+                            cmd,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            bufsize=1
+                        )
+                        log_file_handle.write("Restarted event listener process. This might happen and does not indicate a test failure.\n")
+                    else:
+                        log_file_handle.write(f"Event listener process terminated: {stderr}\n")
+                        break
+
+
+            log_file_handle.write(f"Event waiting timed out after {timeout}s, first_event_received={first_event_received}\n")
+            if not first_event_received:
+                log_file_handle.write(f"No events received from 'ank get events' after {timeout}s - possible connection or subscription issue\n")
+            if process:
+                process.send_signal(signal.SIGTERM)
+                process.wait(timeout=2)
+
+        except Exception as e:
+            log_file_handle.write(f"Error while listening for events: {e}\n")
+        finally:
+            if log_file_handle:
+                log_file_handle.close()
+            if process:
+                try:
+                    process.terminate()
+                    process.wait(timeout=2)
+                except:
+                    pass
+
+    global EVENT_PROCESS
+    global EVENT_BUFFER
+    manager = mp.Manager()
+    EVENT_BUFFER = manager.list()
+    EVENT_PROCESS = mp.Process(target=listen_with_timeout, args=(field_mask, EVENT_BUFFER, log_output_file, timeout_float, ank_bin_dir, insecure))
+    EVENT_PROCESS.start()
+
+@err_logging_decorator
+def unsubscribe_from_events():
+    logger.trace(f"Unsubscribing from events.")
+    global EVENT_PROCESS
+    global EVENT_BUFFER
+    if EVENT_PROCESS:
+        EVENT_PROCESS.kill()
+        EVENT_PROCESS.join()
+    logger.trace(f"Event listener process terminated.")
+    del EVENT_BUFFER[:]
+
+def workload_has_execution_state(workload_name: str, agent_name: str, expected_state: str, timeout: str="10"):
+    """
+    Condition fulfilled if:
+    - specified agent is connected
+    - specified workload of the agent has reached the expected execution state
+    """
+    global EVENTS_RECEIVED
+    global EVENT_BUFFER
+    timeout_float = float(timeout)
+    start_time = get_time_secs()
+
+    while (get_time_secs() - start_time) < float(timeout_float):
+        for event in EVENT_BUFFER:
+            complete_state: dict = event.get('completeState', {})
+            workload_states: dict = complete_state.get('workloadStates', {})
+            agent_workloads = workload_states.get(agent_name, {})
+            workload = agent_workloads.get(workload_name, {})
+            logger.trace(f"Complete state: {complete_state}")
+            logger.trace(f"Agent workloads: {agent_workloads}")
+
+            # special handling for Removed state (no entry in state of event means removed)
+            if expected_state == "Removed" and not workload:
+                removed_fields = event.get('removedFields', [])
+                for field in removed_fields:
+                    if field == f"workloadStates.{agent_name}.{workload_name}" or field == f"workloadStates.{agent_name}":
+                        logger.trace(f"Workload '{workload_name}' has been removed from agent '{agent_name}' indicated by removed field: '{field}'.")
+                        return True
+
+            for _, instance_state in workload.items():
+                state = instance_state.get('state', '')
+                sub_state = instance_state.get('subState', '')
+                current_state = f"{state}({sub_state})" if sub_state else state
+
+                logger.trace(f"Current state of workload '{workload_name}': {current_state}")
+
+                if current_state == expected_state:
+                    return True
+
+        remaining_time = timeout_float - (get_time_secs() - start_time)
+        if remaining_time > 0:
+            EVENTS_RECEIVED.wait(timeout=remaining_time)
+        else: break
+
+    return False

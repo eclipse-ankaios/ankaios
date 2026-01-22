@@ -330,6 +330,7 @@ mod tests {
             request_id: fixtures::REQUEST_ID.into(),
             request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![field_mask.into()],
+                subscribe_for_events: false,
             })),
         };
         let test_output_request = control_api::ToAnkaios {
@@ -345,7 +346,7 @@ mod tests {
 
         let response = Response {
             request_id: fixtures::REQUEST_ID.into(),
-            response_content: Some(ResponseContent::CompleteState(Default::default())),
+            response_content: Some(ResponseContent::CompleteStateResponse(Default::default())),
         };
 
         let test_command_binary = control_api::FromAnkaios {
@@ -545,6 +546,7 @@ mod tests {
                 request_id: fixtures::REQUEST_ID.into(),
                 request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                     field_mask: vec![],
+                    subscribe_for_events: false,
                 })),
             })),
         };
@@ -634,6 +636,7 @@ mod tests {
             request_id: fixtures::REQUEST_ID.into(),
             request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec!["desiredState.workloads.nginx".to_string()],
+                subscribe_for_events: false,
             })),
         };
         let test_output_request = control_api::ToAnkaios {

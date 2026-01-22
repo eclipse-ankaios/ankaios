@@ -27,7 +27,8 @@ Test Ankaios shall not start a workload with an invalid runtime
     # This test assumes that all containers and volumes in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Podman has deleted all existing volumes
-    And Ankaios server is started with config "${CONFIGS_DIR}/simple_with_invalid_runtime.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/simple_with_invalid_runtime.yaml"
+    And the CLI listens for workload states
     # Actions
     When Ankaios agent is started with name "agent_A"
     # Asserts

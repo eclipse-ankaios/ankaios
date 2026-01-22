@@ -37,7 +37,8 @@ Test Ankaios restarts podman kube workloads with restart policy ALWAYS.
     And Podman has deleted all existing volumes
     And Podman has deleted all existing pods
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies.yaml"
+    When Ankaios server is started with manifest "${CONFIGS_DIR}/state_with_restart_policies.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_B"
     And podman kube has assigned an id for pod "kube_restarted_always" of workload "kube_restarted_always" on agent "agent_B"
     # Asserts

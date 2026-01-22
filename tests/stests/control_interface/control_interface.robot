@@ -21,6 +21,7 @@ Resource            ../../resources/variables.resource
 
 *** Variables ***
 ${agent_name}            agent_A
+${workload_name}         simple
 
 *** Test Cases ***
 
@@ -29,12 +30,12 @@ Test Ankaios workload successful start-up without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
 
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "${agent_name}" have an initial execution state
-    # Actions
     # Asserts
-    Then the mount point for the control interface has not been generated for ${agent_name}
+    Then the workload "${workload_name}" shall have the execution state "Succeeded(Ok)" on agent "${agent_name}"
+    And the mount point for the control interface has not been generated for ${agent_name}
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-control-interface-created-for-eligible-workloads~1]
@@ -42,9 +43,10 @@ Test Ankaios workload restart after update without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
 
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/simple_with_control.yaml"
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple_with_control.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "${agent_name}" have an initial execution state
+    And the workload "${workload_name}" shall have the execution state "Succeeded(Ok)" on agent "${agent_name}"
     # Actions
     When user triggers "ank -k apply ${CONFIGS_DIR}/simple.yaml"
     # Asserts
@@ -56,9 +58,10 @@ Test Ankaios workload restart after update with a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
 
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "${agent_name}" have an initial execution state
+    And the workload "${workload_name}" shall have the execution state "Succeeded(Ok)" on agent "${agent_name}"
     And the mount point for the control interface has not been generated for ${agent_name}
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/simple_with_control.yaml"
@@ -71,9 +74,10 @@ Test Ankaios containerd workload restart after update with a Control Interface a
     [Setup]           Run Keywords    Setup Ankaios
 
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/simple_containerd.yaml"
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple_containerd.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "{agent_name}" have an initial execution state
+    And the workload "${workload_name}" shall have the execution state "Succeeded(Ok)" on agent "${agent_name}"
     And the mount point for the control interface has not been generated for ${agent_name}
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/simple_with_control_containerd.yaml"
@@ -94,9 +98,10 @@ Test Control Interface closes connection when initial hello missing
 Test workload with empty Control Interface access field mask rejected
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "${agent_name}" have an initial execution state
+    And the workload "${workload_name}" shall have the execution state "Succeeded(Ok)" on agent "${agent_name}"
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/faulty_with_control_as_empty.yaml"
     # Asserts
@@ -107,7 +112,7 @@ Test workload with empty Control Interface access field mask rejected
 Test server started with empty Control Interface access field mask fails
     [Setup]           Run Keywords    Setup Ankaios
     # Actions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/faulty_with_control_as_empty.yaml"
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/faulty_with_control_as_empty.yaml"
     # Asserts
     Then the last command finished with exit code "1"
     [Teardown]    Clean up Ankaios
@@ -116,9 +121,10 @@ Test server started with empty Control Interface access field mask fails
 Test Ankaios podman-kube workload restart after update without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/simple_kube_with_control.yaml"
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple_kube_with_control.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "${agent_name}" have an initial execution state
+    And the workload "simple-kube" shall have the execution state "Running(Ok)" on agent "${agent_name}"
     And podman kube has assigned an id for pod "simple-pod" of workload "simple-kube" on agent "${agent_name}"
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/simple_kube.yaml"
@@ -130,9 +136,10 @@ Test Ankaios podman-kube workload restart after update without a Control Interfa
 Test Ankaios podman-kube workload restart after update with a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/simple_kube.yaml"
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple_kube.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "${agent_name}" have an initial execution state
+    And the workload "simple-kube" shall have the execution state "Running(Ok)" on agent "${agent_name}"
     And the mount point for the control interface has not been generated for ${agent_name}
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/simple_kube_with_control.yaml"
@@ -145,10 +152,10 @@ Test Ankaios podman-kube workload restart after update with a Control Interface 
 Test target path from control interface access is limited to the designated pod and container
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
-    And Ankaios server is started with config "${CONFIGS_DIR}/multi_container_podman_kube.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/multi_container_podman_kube.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "${agent_name}" have an initial execution state
-    And the workload "simple" shall have the execution state "Running(Ok)" on agent "${agent_name}"
+    And the workload "${workload_name}" shall have the execution state "Running(Ok)" on agent "${agent_name}"
     And the mount point for the control interface has been generated for ${agent_name}
     # Asserts
     Then verify multi container control interface access    simple
@@ -158,9 +165,9 @@ Test target path from control interface access is limited to the designated pod 
 Test target path from control interface access is limited to the designated deployment pod and container
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
-    And Ankaios server is started with config "${CONFIGS_DIR}/multi_container_podman_kube_deployment.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/multi_container_podman_kube_deployment.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "${agent_name}" have an initial execution state
     And the workload "simple" shall have the execution state "Running(Ok)" on agent "${agent_name}"
     And the mount point for the control interface has been generated for ${agent_name}
     # Asserts

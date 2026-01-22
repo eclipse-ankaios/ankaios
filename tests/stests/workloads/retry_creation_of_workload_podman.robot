@@ -29,7 +29,7 @@ Test Ankaios Podman retry creation of a workload on creation failure
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/podman_wrong_image_name.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/podman_wrong_image_name.yaml"
     And Ankaios agent is started with name "agent_A"
     # Asserts
     Then the workload state of workload "hello1" shall contain an additional info signaling retries within "5" seconds
@@ -45,7 +45,8 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/podman_wrong_image_name.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/podman_wrong_image_name.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload state of workload "hello1" shall contain an additional info signaling retries within "5" seconds
     # Actions
@@ -67,12 +68,12 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/podman_wrong_image_name.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/podman_wrong_image_name.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload state of workload "hello1" shall contain an additional info signaling retries within "5" seconds
     # Actions
-    When user triggers "ank -k delete workload hello1"
+    When user triggers "ank -k --no-wait delete workload hello1"
     # Asserts
-    Then podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
-    And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
+    Then the workload "hello1" shall be removed and not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios

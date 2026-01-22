@@ -33,14 +33,15 @@ Test Ankaios Podman delete kube workload
     # This test assumes that all pods and volume in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing pods
     And Podman has deleted all existing volumes
-    And Ankaios server is started with config "${CONFIGS_DIR}/kube.yaml"
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/kube.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "hello-k8s" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Actions
-    When user triggers "ank -k delete workload hello-k8s"
+    When user triggers "ank --no-wait -k delete workload hello-k8s"
     # Asserts
     Then podman shall not have a container for workload "hello-pod-hello-container" on agent "agent_A"
     And volumes for "hello-k8s" shall not exist on "agent_A" within "20" seconds
     And podman shall not have a container for workload "hello-k8s" on agent "agent_A" within "20" seconds
-    And the workload "hello-k8s" shall not exist on agent "agent_A" within "20" seconds
+    And the workload "hello-k8s" shall be removed and not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios

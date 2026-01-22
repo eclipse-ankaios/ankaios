@@ -481,8 +481,11 @@ mod tests {
 
         let response = ank_base::Response {
             request_id: request_id.clone(),
-            response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                complete_state.clone(),
+            response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
+                Box::new(ank_base::CompleteStateResponse {
+                    complete_state: Some(complete_state.clone()),
+                    ..Default::default()
+                }),
             )),
         };
 
@@ -509,7 +512,9 @@ mod tests {
 
         let handle = tokio::spawn(async move { agent_manager.start().await });
 
-        let complete_state_result = to_manager.complete_state(request_id, complete_state).await;
+        let complete_state_result = to_manager
+            .complete_state(request_id, complete_state, None)
+            .await;
         assert!(complete_state_result.is_ok());
 
         // Terminate the infinite receiver loop

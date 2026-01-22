@@ -13,15 +13,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::Path;
+use crate::std_extensions::UnreachableOption;
 
-use ankaios_api::ank_base::{CompleteState, CompleteStateSpec, State, StateSpec};
+use ankaios_api::ank_base::{CompleteState, CompleteStateSpec, State, StateSpec, WILDCARD_SYMBOL};
 
 use serde_yaml::{
     Mapping, Value, from_value,
-    mapping::{Entry::Occupied, Entry::Vacant},
+    mapping::Entry::{Occupied, Vacant},
     to_value,
 };
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Object {
@@ -132,6 +133,17 @@ impl TryInto<CompleteState> for Object {
     }
 }
 
+impl TryFrom<Object> for serde_yaml::Mapping {
+    type Error = String;
+
+    fn try_from(value: Object) -> Result<Self, Self::Error> {
+        match value.data {
+            Value::Mapping(map) => Ok(map),
+            _ => Err("Object does not contain a mapping at the root".to_owned()),
+        }
+    }
+}
+
 fn generate_paths_from_yaml_node(
     node: &Value,
     start_path: &str,
@@ -208,7 +220,13 @@ impl From<&Object> for Vec<Path> {
         get_paths_from_yaml_node(&value.data, true)
     }
 }
+
 impl Object {
+    pub fn is_empty(&self) -> bool {
+        self.data.as_mapping().unwrap_or_unreachable().is_empty()
+    }
+
+    //[impl->swdd~common-state-manipulation-set~1]
     pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
         let mut current = self
@@ -219,6 +237,7 @@ impl Object {
         for path_part in path_head.parts() {
             let next = match current.entry(path_part.to_owned().into()) {
                 Occupied(value) => &mut *value.into_mut(),
+                //[impl->swdd~common-state-manipulation-set-add-missing-objects~1]
                 Vacant(value) => &mut *value.insert(Value::Mapping(Mapping::default())),
             };
 
@@ -229,16 +248,17 @@ impl Object {
         Ok(())
     }
 
-    pub fn remove(&mut self, path: &Path) -> Result<(), String> {
+    //[impl->swdd~common-state-manipulation-remove~1]
+    pub fn remove(&mut self, path: &Path) -> Result<Option<serde_yaml::Value>, String> {
         let (path_head, path_last) = path.split_last()?;
 
-        self.get_as_mapping(&path_head)
+        Ok(self
+            .get_as_mapping_mut(&path_head)
             .ok_or_else(|| format!("{path_head:?} is not mapping"))?
-            .remove(Value::String(path_last));
-        Ok(())
+            .remove(Value::String(path_last)))
     }
 
-    fn get_as_mapping(&mut self, path: &Path) -> Option<&mut Mapping> {
+    fn get_as_mapping_mut(&mut self, path: &Path) -> Option<&mut Mapping> {
         if let Value::Mapping(mapping) = self.get_mut(path)? {
             Some(mapping)
         } else {
@@ -246,6 +266,7 @@ impl Object {
         }
     }
 
+    //[impl->swdd~common-state-manipulation-get~1]
     pub fn get(&self, path: &Path) -> Option<&Value> {
         let mut current_obj = &self.data;
         for p in path.parts() {
@@ -278,6 +299,68 @@ impl Object {
         Some(current_obj)
     }
 
+    /// Expands wildcard paths into all concrete paths present in the object.
+    ///
+    /// For each input path, this method performs a depth-first search, replacing any wildcard segment (e.g., "*") with all available keys at that level.
+    /// ## Arguments
+    ///
+    /// - `path`: A slice of [`Path`] that may contain wildcards
+    ///
+    /// ## Returns
+    ///
+    /// - a [Vec<`Path`>] containing every concrete path that matches the provided wildcard patterns.
+    ///
+    //[impl->swdd~common-state-manipulation-expand-wildcards~1]
+    pub fn expand_wildcards(&self, path: &[Path]) -> Vec<Path> {
+        let value = &self.data;
+        let mut result = Vec::new();
+        let mut to_do = path
+            .iter()
+            .map(|p| (Vec::<String>::new(), value, p.parts().as_slice()))
+            .collect::<VecDeque<_>>();
+
+        while let Some((mut current_prefix, mut current_value, mut remaining_path)) =
+            to_do.pop_front()
+        {
+            let mut current_result_valid = true;
+            while !remaining_path.is_empty() {
+                let path_element;
+                (path_element, remaining_path) =
+                    remaining_path.split_first().unwrap_or_unreachable();
+                if path_element == WILDCARD_SYMBOL {
+                    current_result_valid = false;
+                    if let Value::Mapping(map) = current_value {
+                        for (key, value) in map {
+                            let key = match key {
+                                Value::String(s) => s.clone(),
+                                Value::Number(n) if n.is_i64() || n.is_u64() => n.to_string(),
+                                _ => continue,
+                            };
+                            let mut new_prefix = current_prefix.clone();
+                            new_prefix.push(key);
+                            to_do.push_front((new_prefix, value, remaining_path));
+                        }
+                    }
+
+                    break;
+                } else {
+                    current_prefix.push(path_element.clone());
+                    current_value = if let Some(next_element) = current_value.get(path_element) {
+                        next_element
+                    } else {
+                        current_result_valid = false;
+                        break;
+                    }
+                }
+            }
+            if current_result_valid {
+                result.push(current_prefix.into());
+            }
+        }
+
+        result
+    }
+
     pub fn check_if_provided_path_exists(&self, path: &Path) -> bool {
         self.get(path).is_some()
     }
@@ -294,13 +377,15 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use super::Object;
+
     use ankaios_api::ank_base::{CompleteStateSpec, ExecutionStateSpec, StateSpec};
     use ankaios_api::test_utils::{
         fixtures, generate_test_agent_map_from_workloads, generate_test_state_from_workloads,
         generate_test_workload_named, generate_test_workload_states_map_with_data,
     };
 
-    use serde_yaml::Value;
+    use serde_yaml::{Mapping, Value};
+    use std::collections::HashSet;
 
     #[test]
     fn utest_object_from_state() {
@@ -379,6 +464,23 @@ mod tests {
     }
 
     #[test]
+    fn utest_mapping_from_object() {
+        let object = Object {
+            data: object::generate_test_state().into(),
+        };
+
+        let mapping = object.clone().try_into();
+
+        let expected = match object.data {
+            Value::Mapping(map) => map,
+            _ => Mapping::default(),
+        };
+
+        assert_eq!(mapping, Ok(expected));
+    }
+
+    //[utest->swdd~common-state-manipulation-set~1]
+    #[test]
     fn utest_object_set_fails_on_empty() {
         let expected = Object {
             data: object::generate_test_state().into(),
@@ -393,6 +495,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set~1]
     #[test]
     fn utest_object_set_fails_as_base_not_mapping() {
         let expected = Object {
@@ -411,6 +514,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set~1]
     #[test]
     fn utest_object_set_existing() {
         let mut expected = Object {
@@ -445,6 +549,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set~1]
     #[test]
     fn utest_object_set_new() {
         let mut expected = Object {
@@ -479,6 +584,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set-add-missing-objects~1]
     #[test]
     fn utest_object_set_in_new_mapping() {
         let mut expected = Object {
@@ -514,6 +620,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_existing() {
         let mut expected = Object {
@@ -545,6 +652,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_non_existing_end_of_path() {
         let expected = Object {
@@ -562,6 +670,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_non_existing_in_path() {
         let expected = Object {
@@ -578,6 +687,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_non_map_in_path() {
         let expected = Object {
@@ -600,6 +710,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_empty_path() {
         let expected = Object {
@@ -616,6 +727,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-get~1]
     #[test]
     fn utest_object_get_existing() {
         let data = Object {
@@ -629,6 +741,7 @@ mod tests {
         assert_eq!(res.expect(""), &serde_yaml::Value::from("ALWAYS"));
     }
 
+    //[utest->swdd~common-state-manipulation-get~1]
     #[test]
     fn utest_object_get_non_existing() {
         let data = Object {
@@ -641,6 +754,7 @@ mod tests {
         assert!(res.is_none());
     }
 
+    //[utest->swdd~common-state-manipulation-get~1]
     #[test]
     fn utest_object_get_from_not_map() {
         let data = Object {
@@ -653,6 +767,7 @@ mod tests {
         assert!(res.is_none());
     }
 
+    //[utest->swdd~common-state-manipulation-get~1]
     #[test]
     fn utest_object_get_from_sequence() {
         let data = Object {
@@ -662,6 +777,122 @@ mod tests {
         let res = data.get(&"B.0".into());
 
         assert!(res.is_some());
+    }
+
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
+    #[test]
+    fn utest_object_expand_wildcards_with_no_wildcards() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let paths = ["A.a.age".into(), "B.b.name".into()];
+
+        let expanded = data.expand_wildcards(&paths);
+
+        let x = expanded
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            x,
+            (paths
+                .iter()
+                .map(ToString::to_string)
+                .collect::<HashSet<_>>())
+        );
+    }
+
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
+    #[test]
+    fn utest_object_expand_wildcards_with_one_wildcard() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expanded = data.expand_wildcards(&["A.*.age".into(), "B.*.name".into()]);
+
+        let x = expanded
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            x,
+            HashSet::from([
+                "A.a.age".into(),
+                "A.b.age".into(),
+                "A.c.age".into(),
+                "B.a.name".into(),
+                "B.b.name".into(),
+                "B.c.name".into(),
+            ])
+        );
+    }
+
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
+    #[test]
+    fn utest_object_expand_wildcards_with_two_wildcard() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expanded = data.expand_wildcards(&["*.*.name".into()]);
+
+        let x = expanded
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            x,
+            HashSet::from([
+                "A.a.name".into(),
+                "A.b.name".into(),
+                "A.c.name".into(),
+                "B.a.name".into(),
+                "B.b.name".into(),
+                "B.c.name".into(),
+            ])
+        );
+    }
+
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
+    #[test]
+    fn utest_object_expand_wildcards_with_two_wildcard_exclude_intermediate_missing() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expanded = data.expand_wildcards(&["*.a.*".into()]);
+
+        let x = expanded
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            x,
+            HashSet::from(["A.a.name".into(), "A.a.age".into(), "B.a.name".into(),])
+        );
+    }
+
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
+    #[test]
+    fn utest_object_expand_wildcards_ignore_non_string_keys() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expanded = data.expand_wildcards(&["C.*.*".into()]);
+
+        let x = expanded
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(x, HashSet::from(["C.d.a".into(), "C.d.c".into(),]));
     }
 
     #[test]
@@ -867,6 +1098,40 @@ mod tests {
                 B: [bb1, bb2]
                 C: 666
                 42: true # integer as object key
+                "#,
+            )
+            .unwrap()
+        }
+
+        pub fn generate_test_value_object_for_wildcards() -> Value {
+            serde_yaml::from_str(
+                r#"
+                A:
+                    a:
+                        name: Anton
+                        age: 42
+                    b:
+                        name: Berta
+                        age: 36
+                    c:
+                        name: Caesar
+                        age: 12
+                B:
+                    a:
+                        name: Alpha
+                    b:
+                        name: Beta
+                    c:
+                        name: Charlie
+                C:
+                    d:
+                        a: b
+                        c: d
+                    32: "number as key"
+                    23:
+                    - one
+                    - two
+                    - three
                 "#,
             )
             .unwrap()

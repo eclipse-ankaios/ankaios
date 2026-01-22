@@ -327,7 +327,10 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                CompleteStateRequestSpec { field_mask: vec![] },
+                CompleteStateRequestSpec {
+                    field_mask: vec![],
+                    subscribe_for_events: false,
+                },
             )
             .await;
 
@@ -342,10 +345,11 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
                 RequestSpec{
                     request_id,
                     request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
-                        field_mask
+                        field_mask,
+                        subscribe_for_events
                     })
                 }
-            ))) if request_id.contains(test_request_id) && field_mask.is_empty()
+            ))) if request_id.contains(test_request_id) && field_mask.is_empty() && !subscribe_for_events
         ));
     }
 
@@ -369,7 +373,10 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                CompleteStateRequestSpec { field_mask: vec![] },
+                CompleteStateRequestSpec {
+                    field_mask: vec![],
+                    subscribe_for_events: false,
+                },
             )
             .await;
 
@@ -384,10 +391,11 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
                 RequestSpec{
                     request_id,
                     request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
-                        field_mask
+                        field_mask,
+                        subscribe_for_events
                     })
                 }
-            ))) if request_id.contains(test_request_id) && field_mask.is_empty()
+            ))) if request_id.contains(test_request_id) && field_mask.is_empty() && !subscribe_for_events
         ));
     }
 

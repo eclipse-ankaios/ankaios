@@ -251,6 +251,15 @@ pub enum GetCommands {
     /// For automation use "ank get state -o json" and process desiredState.configs
     #[command(visible_alias("configs"), verbatim_doc_comment)]
     Config {},
+    /// Real-time state change events from the Ankaios system
+    Events {
+        /// Specify the output format
+        #[arg(short = 'o', value_enum, default_value_t = OutputFormat::Yaml)]
+        output_format: OutputFormat,
+        /// Select which parts of the state object shall be output e.g. 'desiredState.workloads.nginx' [default: empty = the complete state]
+        #[arg(add = ArgValueCompleter::new(object_field_mask_completer))]
+        object_field_mask: Vec<String>,
+    },
 }
 
 /// Update the state of Ankaios system

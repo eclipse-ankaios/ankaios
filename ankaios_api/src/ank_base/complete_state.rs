@@ -14,7 +14,9 @@
 
 use std::collections::HashMap;
 
-use crate::ank_base::{ConfigItemEnumSpec, ConfigItemSpec, StateSpec};
+use crate::ank_base::{
+    CompleteStateResponse, CompleteStateSpec, ConfigItemEnumSpec, ConfigItemSpec, StateSpec,
+};
 use crate::{
     ALLOWED_CHAR_SET, CONSTRAINT_FIELD_DESCRIPTION, CURRENT_API_VERSION, MAX_FIELD_LENGTH,
     PREVIOUS_API_VERSION,
@@ -98,6 +100,15 @@ impl StateSpec {
             .try_for_each(|workload_spec| workload_spec.validate_config_reference_format())?;
 
         Ok(())
+    }
+}
+
+impl From<CompleteStateSpec> for CompleteStateResponse {
+    fn from(item: CompleteStateSpec) -> Self {
+        Self {
+            complete_state: Some(item.into()),
+            ..Default::default()
+        }
     }
 }
 

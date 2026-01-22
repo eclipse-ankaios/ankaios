@@ -37,7 +37,8 @@ Test Ankaios restarts workloads with restart policy ALWAYS.
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies.yaml"
+    When Ankaios server is started with manifest "${CONFIGS_DIR}/state_with_restart_policies.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And podman has assigned a container id for workload "restarted_always" on agent "agent_A"
     And podman has assigned a container id for workload "restarted_never" on agent "agent_A"
@@ -58,7 +59,8 @@ Test Ankaios restarts workloads with restart policy ON_FAILURE.
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies.yaml"
+    When Ankaios server is started with manifest "${CONFIGS_DIR}/state_with_restart_policies.yaml"
+    And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And podman has assigned a container id for workload "restarted_on_failure" on agent "agent_A"
     # Asserts
