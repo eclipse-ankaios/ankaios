@@ -1567,6 +1567,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#alteredfields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AlteredFields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#completestate" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1582,6 +1593,17 @@
     <span class="md-ellipsis">
       
         CompleteStateRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#completestateresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CompleteStateResponse
       
     </span>
   </a>
@@ -1725,6 +1747,28 @@
     <span class="md-ellipsis">
       
         Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eventscancelaccepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EventsCancelAccepted
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eventscancelrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EventsCancelRequest
       
     </span>
   </a>
@@ -2880,6 +2924,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#alteredfields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AlteredFields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#completestate" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2895,6 +2950,17 @@
     <span class="md-ellipsis">
       
         CompleteStateRequest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#completestateresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CompleteStateResponse
       
     </span>
   </a>
@@ -3038,6 +3104,28 @@
     <span class="md-ellipsis">
       
         Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eventscancelaccepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EventsCancelAccepted
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eventscancelrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EventsCancelRequest
       
     </span>
   </a>
@@ -3569,8 +3657,10 @@
 <li><a href="#ank_base-AgentMap">AgentMap</a></li>
 <li><a href="#ank_base-AgentMap-AgentsEntry">AgentMap.AgentsEntry</a></li>
 <li><a href="#ank_base-AgentStatus">AgentStatus</a></li>
+<li><a href="#ank_base-AlteredFields">AlteredFields</a></li>
 <li><a href="#ank_base-CompleteState">CompleteState</a></li>
 <li><a href="#ank_base-CompleteStateRequest">CompleteStateRequest</a></li>
+<li><a href="#ank_base-CompleteStateResponse">CompleteStateResponse</a></li>
 <li><a href="#ank_base-ConfigArray">ConfigArray</a></li>
 <li><a href="#ank_base-ConfigItem">ConfigItem</a></li>
 <li><a href="#ank_base-ConfigMap">ConfigMap</a></li>
@@ -3584,6 +3674,8 @@
 <li><a href="#ank_base-Dependencies">Dependencies</a></li>
 <li><a href="#ank_base-Dependencies-DependenciesEntry">Dependencies.DependenciesEntry</a></li>
 <li><a href="#ank_base-Error">Error</a></li>
+<li><a href="#ank_base-EventsCancelAccepted">EventsCancelAccepted</a></li>
+<li><a href="#ank_base-EventsCancelRequest">EventsCancelRequest</a></li>
 <li><a href="#ank_base-ExecutionState">ExecutionState</a></li>
 <li><a href="#ank_base-ExecutionsStatesForId">ExecutionsStatesForId</a></li>
 <li><a href="#ank_base-ExecutionsStatesForId-IdStateMapEntry">ExecutionsStatesForId.IdStateMapEntry</a></li>
@@ -3890,6 +3982,39 @@ The first level allows searches by agent name.</p>
 </tr>
 </tbody>
 </table>
+<p><a name="ank_base-AlteredFields"></a></p>
+<h3 id="alteredfields">AlteredFields<a class="headerlink" href="#alteredfields" title="Permanent link">&para;</a></h3>
+<p>A message containing a list of fields that were added, updated, or removed in the state compared to the previous state.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>addedFields</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td>The fields that were added in the state compared to the previous state.</td>
+</tr>
+<tr>
+<td>updatedFields</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td>The fields that were updated in the state compared to the previous state.</td>
+</tr>
+<tr>
+<td>removedFields</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td>The fields that were removed in the state compared to the previous state.</td>
+</tr>
+</tbody>
+</table>
 <p><a name="ank_base-CompleteState"></a></p>
 <h3 id="completestate">CompleteState<a class="headerlink" href="#completestate" title="Permanent link">&para;</a></h3>
 <p>A message containing the complete state of the Ankaios system.
@@ -3943,6 +4068,41 @@ This is usually answered with a <a href="#completestate">CompleteState</a> messa
 <td><a href="#string">string</a></td>
 <td>repeated</td>
 <td>A list of symbolic field paths within the State message structure, e.g., &#39;desiredState.workloads.nginx&#39;.</td>
+</tr>
+<tr>
+<td>subscribeForEvents</td>
+<td><a href="#bool">bool</a></td>
+<td></td>
+<td>If true, the server will send updates to the client whenever the state changes. The updates will contain only the fields specified in the fieldMask. If false, the server will send only one response.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-CompleteStateResponse"></a></p>
+<h3 id="completestateresponse">CompleteStateResponse<a class="headerlink" href="#completestateresponse" title="Permanent link">&para;</a></h3>
+<p>A message containing the complete state of the Ankaios system along with information about what has changed.
+This is a response to the <a href="#completestaterequest">CompleteStateRequest</a> message.
+If this is the first response to a CompleteStateRequest, the addedFields, updatedFields, and removedFields will all be empty.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>completeState</td>
+<td><a href="#ank_base-CompleteState">CompleteState</a></td>
+<td></td>
+<td>The complete state of the Ankaios system.</td>
+</tr>
+<tr>
+<td>alteredFields</td>
+<td><a href="#ank_base-AlteredFields">AlteredFields</a></td>
+<td></td>
+<td>The fields that were added, updated, or removed in the state compared to the previous state.</td>
 </tr>
 </tbody>
 </table>
@@ -4266,6 +4426,13 @@ Only if a matching allow rule is found, and no matching deny rules is found, the
 </tr>
 </tbody>
 </table>
+<p><a name="ank_base-EventsCancelAccepted"></a></p>
+<h3 id="eventscancelaccepted">EventsCancelAccepted<a class="headerlink" href="#eventscancelaccepted" title="Permanent link">&para;</a></h3>
+<p>A message indicating that the request for canceling the event campaign was accepted.
+Please note that the actual stopping of the event campaign could take longer so other event notifications could be delivered also after receiving this message.</p>
+<p><a name="ank_base-EventsCancelRequest"></a></p>
+<h3 id="eventscancelrequest">EventsCancelRequest<a class="headerlink" href="#eventscancelrequest" title="Permanent link">&para;</a></h3>
+<p>A message stopping the event campaign previously started.</p>
 <p><a name="ank_base-ExecutionState"></a></p>
 <h3 id="executionstate">ExecutionState<a class="headerlink" href="#executionstate" title="Permanent link">&para;</a></h3>
 <p>A message containing information about the detailed state of a workload in the Ankaios system.</p>
@@ -4712,6 +4879,12 @@ Please note that the actual stopping of the log collection campaign could take l
 <td></td>
 <td>A message to Ankaios server to stop the request for workload logs.</td>
 </tr>
+<tr>
+<td>eventsCancelRequest</td>
+<td><a href="#ank_base-EventsCancelRequest">EventsCancelRequest</a></td>
+<td></td>
+<td>A message to Ankaios server to stop a specific event campaign.</td>
+</tr>
 </tbody>
 </table>
 <p><a name="ank_base-Response"></a></p>
@@ -4741,8 +4914,8 @@ The response content depends on the request content previously sent to the Ankai
 <td></td>
 </tr>
 <tr>
-<td>completeState</td>
-<td><a href="#ank_base-CompleteState">CompleteState</a></td>
+<td>completeStateResponse</td>
+<td><a href="#ank_base-CompleteStateResponse">CompleteStateResponse</a></td>
 <td></td>
 <td>A message containing the complete state (or a filtered part) on the Ankaios cluster.</td>
 </tr>
@@ -4775,6 +4948,12 @@ The response content depends on the request content previously sent to the Ankai
 <td><a href="#ank_base-LogsCancelAccepted">LogsCancelAccepted</a></td>
 <td></td>
 <td>A message indicating that the request for canceling the log collection was accepted. Please note that the actual stopping of the log collection campaign could take longer.</td>
+</tr>
+<tr>
+<td>eventsCancelAccepted</td>
+<td><a href="#ank_base-EventsCancelAccepted">EventsCancelAccepted</a></td>
+<td></td>
+<td>A message indicating that the request for canceling the event campaign was accepted. Please note that the actual stopping of the event campaign could take longer.</td>
 </tr>
 </tbody>
 </table>

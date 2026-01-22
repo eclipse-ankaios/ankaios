@@ -2346,19 +2346,24 @@ A basic Ankaios system test consists of the following sections:</p>
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>Test Ankaios CLI get workloads
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    [Setup]        Setup Ankaios
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    # Preconditions
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    Given Ankaios server is started with &quot;ank-server --startup-manifest ${CONFIGS_DIR}/default.yaml&quot;
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    And Ankaios agent is started with &quot;ank-agent --name agent_B&quot;
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    And all workloads of agent &quot;agent_B&quot; have an initial execution state
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    And Ankaios agent is started with &quot;ank-agent --name agent_A&quot;
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    And all workloads of agent &quot;agent_A&quot; have an initial execution state
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    # Actions
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>    When user triggers &quot;ank -k get workloads&quot;
-<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>    # Asserts
-<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    Then the workload &quot;nginx&quot; shall have the execution state &quot;Running&quot; on agent &quot;agent_A&quot;
-<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>    And the workload &quot;hello1&quot; shall have the execution state &quot;Removed&quot; from agent &quot;agent_B&quot;
-<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    And the workload &quot;hello2&quot; shall have the execution state &quot;Succeeded&quot; on agent &quot;agent_B&quot;
-<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    And the workload &quot;hello3&quot; shall have the execution state &quot;Succeeded&quot; on agent &quot;agent_B&quot;
-<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>    [Teardown]    Clean up Ankaios
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    # This test assumes that all containers in the podman have been created with this test -&gt; clean it up first
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    Given Podman has deleted all existing containers
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    And Ankaios server is started with manifest &quot;${CONFIGS_DIR}/default.yaml&quot;
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    # subscribe to events for asserting workload states later on
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    And the CLI listens for workload states
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    And Ankaios agent is started with name &quot;agent_B&quot;
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>    And Ankaios agent is started with name &quot;agent_A&quot;
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>    And the workload &quot;sleepy&quot; shall have the execution state &quot;Running(Ok)&quot; on agent &quot;agent_A&quot;
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    And the workload &quot;hello1&quot; shall have the execution state &quot;Failed(Lost)&quot; on agent &quot;agent_B&quot;
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>    And the workload &quot;hello2&quot; shall have the execution state &quot;Succeeded(Ok)&quot; on agent &quot;agent_B&quot;
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    And the workload &quot;hello3&quot; shall have the execution state &quot;Succeeded(Ok)&quot; on agent &quot;agent_B&quot;
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    # Actions
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>    When user triggers &quot;ank -k get workloads&quot;
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>    # Asserts
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>    Then in the last result, the workload &quot;sleepy&quot; shall have the execution state &quot;Running(Ok)&quot; on agent &quot;agent_A&quot;
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>    And in the last result, the workload &quot;hello1&quot; shall have the execution state &quot;Failed(Lost)&quot; on agent &quot;agent_B&quot;
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>    And in the last result, the workload &quot;hello2&quot; shall have the execution state &quot;Succeeded(Ok)&quot; on agent &quot;agent_B&quot;
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>    And in the last result, the workload &quot;hello3&quot; shall have the execution state &quot;Succeeded(Ok)&quot; on agent &quot;agent_B&quot;
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
