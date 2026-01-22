@@ -27,8 +27,8 @@ Test agent uses TMPDIR for default run folder
 
     # Preconditions
     Environment Variable Should Not Be Set    TMPDIR
-    Ankaios server is started with config "${CONFIGS_DIR}/simple_kube_with_control.yaml"
-    And Ankaios server is available
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple_kube_with_control.yaml"
+    And the CLI listens for workload states
 
     ${run_result}=    Run Process
     ...    command=echo "/tmp/$(tr -dc 'a-z0-9' </dev/urandom | head -c 10)"
@@ -44,7 +44,7 @@ Test agent uses TMPDIR for default run folder
     ${expected_tmp_ankaios_dir}=    Catenate    SEPARATOR=${/}    ${tmpdir}    ankaios
 
     # Actions
-    When Ankaios agent is started with name "agent_A"
+    And Ankaios agent is started with name "agent_A"
     And the workload "simple-kube" shall have the execution state "Running(Ok)" on agent "agent_A" within "60" seconds
     # Asserts
     Then Directory Should Exist    ${expected_tmp_ankaios_dir}
