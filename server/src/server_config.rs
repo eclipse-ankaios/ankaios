@@ -14,46 +14,17 @@
 
 use crate::cli::Arguments;
 use common::DEFAULT_SOCKET_ADDRESS;
+use common::config::{CONFIG_VERSION, ConfigFile, ConversionErrors};
 use common::std_extensions::{UnreachableOption, UnreachableResult};
 use grpc::security::read_pem_file;
 
 use serde::{Deserialize, Deserializer};
-use std::fmt;
 use std::fs::read_to_string;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use toml::from_str;
 
-const CONFIG_VERSION: &str = "v1";
-
 pub const DEFAULT_SERVER_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-server.conf";
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ConversionErrors {
-    WrongVersion(String),
-    ConflictingCertificates(String),
-    InvalidServerConfig(String),
-    InvalidCertificate(String),
-}
-
-impl fmt::Display for ConversionErrors {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ConversionErrors::WrongVersion(msg) => {
-                write!(f, "Wrong version: {msg}")
-            }
-            ConversionErrors::ConflictingCertificates(msg) => {
-                write!(f, "Conflicting certificates: {msg}")
-            }
-            ConversionErrors::InvalidServerConfig(msg) => {
-                write!(f, "Server Config could not have been parsed due to: {msg}")
-            }
-            ConversionErrors::InvalidCertificate(msg) => {
-                write!(f, "Certificate could not have been read due to: {msg}")
-            }
-        }
-    }
-}
 
 pub fn get_default_address() -> SocketAddr {
     DEFAULT_SOCKET_ADDRESS.parse().unwrap_or_unreachable()
@@ -103,12 +74,12 @@ impl Default for ServerConfig {
     }
 }
 
-impl ServerConfig {
-    pub fn from_file(file_path: PathBuf) -> Result<ServerConfig, ConversionErrors> {
+impl ConfigFile for ServerConfig {
+    fn from_file(file_path: PathBuf) -> Result<ServerConfig, ConversionErrors> {
         let server_config_content = read_to_string(file_path.to_str().unwrap_or_unreachable())
-            .map_err(|err| ConversionErrors::InvalidServerConfig(err.to_string()))?;
+            .map_err(|err| ConversionErrors::InvalidConfig(err.to_string()))?;
         let mut server_config: ServerConfig = from_str(&server_config_content)
-            .map_err(|err| ConversionErrors::InvalidServerConfig(err.to_string()))?;
+            .map_err(|err| ConversionErrors::InvalidConfig(err.to_string()))?;
 
         if server_config.version != CONFIG_VERSION {
             return Err(ConversionErrors::WrongVersion(server_config.version));
@@ -141,7 +112,9 @@ impl ServerConfig {
 
         Ok(server_config)
     }
+}
 
+impl ServerConfig {
     pub fn update_with_args(&mut self, args: &Arguments) {
         if let Some(path) = &args.manifest_path {
             self.startup_manifest = Some(path.to_string());
@@ -185,10 +158,11 @@ impl ServerConfig {
 mod tests {
     use super::DEFAULT_SERVER_CONFIG_FILE_PATH;
     use super::ServerConfig;
-    use crate::{cli::Arguments, server_config::ConversionErrors};
+    use crate::cli::Arguments;
 
     use ankaios_api::test_utils::fixtures;
     use common::DEFAULT_SOCKET_ADDRESS;
+    use common::config::{ConfigFile, ConversionErrors};
 
     use std::io::Write;
     use std::net::SocketAddr;
@@ -281,9 +255,18 @@ mod tests {
             TEST_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap()
         );
         assert_eq!(server_config.insecure, Some(false));
-        assert_eq!(server_config.ca_pem, Some(fixtures::CA_PEM_PATH.to_string()));
-        assert_eq!(server_config.crt_pem, Some(fixtures::CRT_PEM_PATH.to_string()));
-        assert_eq!(server_config.key_pem, Some(fixtures::KEY_PEM_PATH.to_string()));
+        assert_eq!(
+            server_config.ca_pem,
+            Some(fixtures::CA_PEM_PATH.to_string())
+        );
+        assert_eq!(
+            server_config.crt_pem,
+            Some(fixtures::CRT_PEM_PATH.to_string())
+        );
+        assert_eq!(
+            server_config.key_pem,
+            Some(fixtures::KEY_PEM_PATH.to_string())
+        );
     }
 
     // [utest->swdd~server-loads-config-file~1]
