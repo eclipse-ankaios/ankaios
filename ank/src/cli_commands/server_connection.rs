@@ -432,6 +432,7 @@ impl ServerConnection {
     pub async fn receive_next_event(
         &mut self,
         subscription: &mut EventSubscription,
+        detailed: bool,
     ) -> Result<Option<CompleteStateResponse>, ServerConnectionError> {
         output_debug!("Listening for events from server...");
         loop {
@@ -450,7 +451,10 @@ impl ServerConnection {
                             if !subscription.initial_response_received {
                                 output_debug!("Received initial state response, subscription active");
                                 subscription.initial_response_received = true;
-                                continue;
+
+                                if detailed {
+                                    return Ok(Some(*res));
+                                }
                             } else {
                                 output_debug!("Received event from server: {res:?}");
                                 return Ok(Some(*res));
@@ -1982,14 +1986,14 @@ mod tests {
         };
 
         let result = server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(&mut subscription, false)
             .await;
         assert!(result.is_ok());
         assert!(subscription.initial_response_received);
         assert!(result.unwrap().is_some());
 
         let result = server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(&mut subscription, false)
             .await;
         assert!(result.is_ok());
         let event = result.unwrap();
@@ -2019,7 +2023,7 @@ mod tests {
         };
 
         let result = server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(&mut subscription, false)
             .await;
 
         assert!(result.is_ok());
@@ -2053,7 +2057,7 @@ mod tests {
         };
 
         let result = server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(&mut subscription, false)
             .await;
 
         assert!(result.is_err());
@@ -2090,7 +2094,7 @@ mod tests {
         };
 
         let result = server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(&mut subscription, false)
             .await;
 
         assert!(result.is_err());
@@ -2170,7 +2174,7 @@ mod tests {
         };
 
         let result = server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(&mut subscription, false)
             .await;
 
         assert!(result.is_ok());
@@ -2242,7 +2246,7 @@ mod tests {
         };
 
         let result = server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(&mut subscription, false)
             .await;
         assert!(result.is_ok());
         assert!(subscription.initial_response_received);
@@ -2250,7 +2254,7 @@ mod tests {
 
         for _ in 1..=2 {
             let result = server_connection
-                .receive_next_event(&mut subscription)
+                .receive_next_event(&mut subscription, false)
                 .await;
             assert!(result.is_ok());
             assert!(result.unwrap().is_some());

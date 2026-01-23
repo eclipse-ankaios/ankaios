@@ -172,6 +172,7 @@ async fn main() {
             // [impl->swdd~cli-provides-get-events-command~1]
             Some(cli::GetCommands::Events {
                 output_format,
+                detailed,
                 object_field_mask,
             }) => {
                 output_debug!(
@@ -180,7 +181,10 @@ async fn main() {
                     object_field_mask
                 );
 
-                if let Err(error) = cmd.get_events(object_field_mask, output_format).await {
+                if let Err(error) = cmd
+                    .get_events(object_field_mask, output_format, detailed)
+                    .await
+                {
                     output_and_error!("Failed to get events: '{}'", error);
                 }
             }

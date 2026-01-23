@@ -61,6 +61,7 @@ impl CliCommands {
         &mut self,
         object_field_mask: Vec<String>,
         output_format: OutputFormat,
+        detailed: bool,
     ) -> Result<(), CliError> {
         output_debug!(
             "Got: object_field_mask: {:?}, output_format: {:?} ",
@@ -77,7 +78,7 @@ impl CliCommands {
         // [impl->swdd~cli-handles-event-subscription-errors~1]
         while let Some(event) = self
             .server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(&mut subscription, detailed)
             .await?
         {
             Self::output_event(&event, &output_format)?;
@@ -157,7 +158,7 @@ mod tests {
         mock_server_connection
             .expect_receive_next_event()
             .times(2)
-            .returning(move |_| {
+            .returning(move |_, _| {
                 static mut CALL_COUNT: usize = 0;
                 unsafe {
                     CALL_COUNT += 1;
@@ -188,7 +189,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml, false).await;
         assert!(result.is_ok());
     }
 
@@ -214,7 +215,7 @@ mod tests {
         mock_server_connection
             .expect_receive_next_event()
             .times(1)
-            .returning(|_| Ok(None));
+            .returning(|_, _| Ok(None));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
@@ -222,7 +223,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let result = cmd.get_events(field_mask, OutputFormat::Json).await;
+        let result = cmd.get_events(field_mask, OutputFormat::Json, false).await;
         assert!(result.is_ok());
     }
 
@@ -247,7 +248,7 @@ mod tests {
         mock_server_connection
             .expect_receive_next_event()
             .times(1)
-            .returning(|_| Ok(None));
+            .returning(|_, _| Ok(None));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
@@ -255,7 +256,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml, false).await;
         assert!(result.is_ok());
     }
 
@@ -284,7 +285,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml, false).await;
         assert!(result.is_err());
     }
 
@@ -309,7 +310,7 @@ mod tests {
         mock_server_connection
             .expect_receive_next_event()
             .times(1)
-            .returning(|_| {
+            .returning(|_, _| {
                 Err(
                     crate::cli_commands::server_connection::ServerConnectionError::ExecutionError(
                         "Connection error".to_string(),
@@ -323,7 +324,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml, false).await;
         assert!(result.is_err());
     }
 
@@ -348,7 +349,7 @@ mod tests {
         mock_server_connection
             .expect_receive_next_event()
             .times(4)
-            .returning(move |_| {
+            .returning(move |_, _| {
                 static mut CALL_COUNT: usize = 0;
                 unsafe {
                     CALL_COUNT += 1;
@@ -415,7 +416,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml, false).await;
         assert!(result.is_ok());
     }
 
