@@ -72,13 +72,13 @@ impl CliCommands {
         // [impl->swdd~cli-subscribes-for-events~1]
         let mut subscription = self
             .server_connection
-            .subscribe_and_listen_for_events(object_field_mask)
+            .subscribe_and_listen_for_events(object_field_mask, detailed)
             .await?;
 
         // [impl->swdd~cli-handles-event-subscription-errors~1]
         while let Some(event) = self
             .server_connection
-            .receive_next_event(&mut subscription, detailed)
+            .receive_next_event(&mut subscription)
             .await?
         {
             Self::output_event(&event, &output_format)?;
@@ -146,19 +146,20 @@ mod tests {
 
         mock_server_connection
             .expect_subscribe_and_listen_for_events()
-            .with(eq(field_mask.clone()))
+            .with(eq(field_mask.clone()), eq(false))
             .times(1)
-            .returning(|_| {
+            .returning(|_, _| {
                 Ok(crate::cli_commands::server_connection::EventSubscription {
                     request_id: fixtures::REQUEST_ID.to_string(),
                     initial_response_received: false,
+                    output_initial_response: false,
                 })
             });
 
         mock_server_connection
             .expect_receive_next_event()
             .times(2)
-            .returning(move |_, _| {
+            .returning(move |_| {
                 static mut CALL_COUNT: usize = 0;
                 unsafe {
                     CALL_COUNT += 1;
@@ -203,19 +204,20 @@ mod tests {
 
         mock_server_connection
             .expect_subscribe_and_listen_for_events()
-            .with(eq(field_mask.clone()))
+            .with(eq(field_mask.clone()), eq(false))
             .times(1)
-            .returning(|_| {
+            .returning(|_, _| {
                 Ok(crate::cli_commands::server_connection::EventSubscription {
                     request_id: fixtures::REQUEST_ID.to_string(),
                     initial_response_received: false,
+                    output_initial_response: false,
                 })
             });
 
         mock_server_connection
             .expect_receive_next_event()
             .times(1)
-            .returning(|_, _| Ok(None));
+            .returning(|_| Ok(None));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
@@ -236,19 +238,20 @@ mod tests {
 
         mock_server_connection
             .expect_subscribe_and_listen_for_events()
-            .with(eq(field_mask.clone()))
+            .with(eq(field_mask.clone()), eq(false))
             .times(1)
-            .returning(|_| {
+            .returning(|_, _| {
                 Ok(crate::cli_commands::server_connection::EventSubscription {
                     request_id: fixtures::REQUEST_ID.to_string(),
                     initial_response_received: false,
+                    output_initial_response: false,
                 })
             });
 
         mock_server_connection
             .expect_receive_next_event()
             .times(1)
-            .returning(|_, _| Ok(None));
+            .returning(|_| Ok(None));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
@@ -269,9 +272,9 @@ mod tests {
 
         mock_server_connection
             .expect_subscribe_and_listen_for_events()
-            .with(eq(field_mask.clone()))
+            .with(eq(field_mask.clone()), eq(false))
             .times(1)
-            .returning(|_| {
+            .returning(|_, _| {
                 Err(
                     crate::cli_commands::server_connection::ServerConnectionError::ExecutionError(
                         "Subscription failed".to_string(),
@@ -298,19 +301,20 @@ mod tests {
 
         mock_server_connection
             .expect_subscribe_and_listen_for_events()
-            .with(eq(field_mask.clone()))
+            .with(eq(field_mask.clone()), eq(false))
             .times(1)
-            .returning(|_| {
+            .returning(|_, _| {
                 Ok(crate::cli_commands::server_connection::EventSubscription {
                     request_id: fixtures::REQUEST_ID.to_string(),
                     initial_response_received: false,
+                    output_initial_response: false,
                 })
             });
 
         mock_server_connection
             .expect_receive_next_event()
             .times(1)
-            .returning(|_, _| {
+            .returning(|_| {
                 Err(
                     crate::cli_commands::server_connection::ServerConnectionError::ExecutionError(
                         "Connection error".to_string(),
@@ -337,19 +341,20 @@ mod tests {
 
         mock_server_connection
             .expect_subscribe_and_listen_for_events()
-            .with(eq(field_mask.clone()))
+            .with(eq(field_mask.clone()), eq(false))
             .times(1)
-            .returning(|_| {
+            .returning(|_, _| {
                 Ok(crate::cli_commands::server_connection::EventSubscription {
                     request_id: fixtures::REQUEST_ID.to_string(),
                     initial_response_received: false,
+                    output_initial_response: false,
                 })
             });
 
         mock_server_connection
             .expect_receive_next_event()
             .times(4)
-            .returning(move |_, _| {
+            .returning(move |_| {
                 static mut CALL_COUNT: usize = 0;
                 unsafe {
                     CALL_COUNT += 1;

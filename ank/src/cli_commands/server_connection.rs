@@ -405,6 +405,7 @@ impl ServerConnection {
     pub async fn subscribe_and_listen_for_events(
         &mut self,
         field_mask: Vec<String>,
+        detailed: bool,
     ) -> Result<EventSubscription, ServerConnectionError> {
         output_debug!(
             "Subscribing for events from server with field mask: {:?}",
@@ -424,6 +425,7 @@ impl ServerConnection {
         Ok(EventSubscription {
             request_id,
             initial_response_received: false,
+            output_initial_response: detailed,
         })
     }
 
@@ -432,7 +434,6 @@ impl ServerConnection {
     pub async fn receive_next_event(
         &mut self,
         subscription: &mut EventSubscription,
-        detailed: bool,
     ) -> Result<Option<CompleteStateResponse>, ServerConnectionError> {
         output_debug!("Listening for events from server...");
         loop {
@@ -452,7 +453,7 @@ impl ServerConnection {
                                 output_debug!("Received initial state response, subscription active");
                                 subscription.initial_response_received = true;
 
-                                if detailed {
+                                if subscription.output_initial_response {
                                     return Ok(Some(*res));
                                 }
                             } else {
@@ -488,6 +489,7 @@ impl ServerConnection {
 pub struct EventSubscription {
     pub(crate) request_id: String,
     pub(crate) initial_response_received: bool,
+    pub(crate) output_initial_response: bool,
 }
 
 // [impl->swdd~cli-handles-log-responses-from-server~1]
@@ -1836,7 +1838,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .subscribe_and_listen_for_events(field_mask)
+            .subscribe_and_listen_for_events(field_mask, false)
             .await;
 
         assert!(result.is_ok());
@@ -1866,7 +1868,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .subscribe_and_listen_for_events(field_mask)
+            .subscribe_and_listen_for_events(field_mask, false)
             .await;
 
         assert!(result.is_ok());
@@ -1888,7 +1890,7 @@ mod tests {
         server_connection.to_server = to_server;
 
         let result = server_connection
-            .subscribe_and_listen_for_events(field_mask)
+            .subscribe_and_listen_for_events(field_mask, false)
             .await;
 
         assert!(result.is_err());
@@ -1983,17 +1985,18 @@ mod tests {
         let mut subscription = super::EventSubscription {
             request_id: fixtures::REQUEST_ID.to_string(),
             initial_response_received: false,
+            output_initial_response: false,
         };
 
         let result = server_connection
-            .receive_next_event(&mut subscription, false)
+            .receive_next_event(&mut subscription)
             .await;
         assert!(result.is_ok());
         assert!(subscription.initial_response_received);
         assert!(result.unwrap().is_some());
 
         let result = server_connection
-            .receive_next_event(&mut subscription, false)
+            .receive_next_event(&mut subscription)
             .await;
         assert!(result.is_ok());
         let event = result.unwrap();
@@ -2020,10 +2023,11 @@ mod tests {
         let mut subscription = super::EventSubscription {
             request_id: fixtures::REQUEST_ID.to_string(),
             initial_response_received: true,
+            output_initial_response: false,
         };
 
         let result = server_connection
-            .receive_next_event(&mut subscription, false)
+            .receive_next_event(&mut subscription)
             .await;
 
         assert!(result.is_ok());
@@ -2054,10 +2058,11 @@ mod tests {
         let mut subscription = super::EventSubscription {
             request_id: fixtures::REQUEST_ID.to_string(),
             initial_response_received: true,
+            output_initial_response: false,
         };
 
         let result = server_connection
-            .receive_next_event(&mut subscription, false)
+            .receive_next_event(&mut subscription)
             .await;
 
         assert!(result.is_err());
@@ -2091,10 +2096,11 @@ mod tests {
         let mut subscription = super::EventSubscription {
             request_id: fixtures::REQUEST_ID.to_string(),
             initial_response_received: true,
+            output_initial_response: false,
         };
 
         let result = server_connection
-            .receive_next_event(&mut subscription, false)
+            .receive_next_event(&mut subscription)
             .await;
 
         assert!(result.is_err());
@@ -2171,10 +2177,11 @@ mod tests {
         let mut subscription = super::EventSubscription {
             request_id: fixtures::REQUEST_ID.to_string(),
             initial_response_received: true,
+            output_initial_response: false,
         };
 
         let result = server_connection
-            .receive_next_event(&mut subscription, false)
+            .receive_next_event(&mut subscription)
             .await;
 
         assert!(result.is_ok());
@@ -2243,10 +2250,11 @@ mod tests {
         let mut subscription = super::EventSubscription {
             request_id: fixtures::REQUEST_ID.to_string(),
             initial_response_received: false,
+            output_initial_response: false,
         };
 
         let result = server_connection
-            .receive_next_event(&mut subscription, false)
+            .receive_next_event(&mut subscription)
             .await;
         assert!(result.is_ok());
         assert!(subscription.initial_response_received);
@@ -2254,7 +2262,7 @@ mod tests {
 
         for _ in 1..=2 {
             let result = server_connection
-                .receive_next_event(&mut subscription, false)
+                .receive_next_event(&mut subscription)
                 .await;
             assert!(result.is_ok());
             assert!(result.unwrap().is_some());
