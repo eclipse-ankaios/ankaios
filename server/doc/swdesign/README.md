@@ -1361,6 +1361,24 @@ Needs:
 - utest
 - stest
 
+#### Server removes event subscription for deleted subscriber workload
+`swdd~server-removes-subscription-for-deleted-subscriber-workload~1`
+
+Status: approved
+
+When the Ankaios server receives an `UpdateWorkloadState` message from the channel provided by the communication middleware and detects deleted workloads, the Ankaios server shall request the EventHandler to remove the subscription for each deleted workload by providing the workload name.
+
+Rationale:
+A deleted workload cannot receive events anymore, so its subscription must be removed to prevent subscription corpses that remain in the system.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
 #### Server removes event subscription for disconnected cli
 `swdd~server-removes-event-subscription-for-disconnected-cli~1`
 
