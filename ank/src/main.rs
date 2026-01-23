@@ -12,41 +12,22 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::PathBuf;
-
 mod ank_config;
 mod cli;
 mod cli_commands;
+mod cli_error;
 mod cli_signals;
+mod log;
+
+use crate::log::{IS_QUIET, IS_VERBOSE};
 use ank_config::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH};
 use cli_commands::CliCommands;
+use common::config::handle_config;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult};
 use grpc::security::TLSConfig;
 
-use crate::log::{IS_QUIET, IS_VERBOSE};
-mod cli_error;
-mod log;
-
 #[cfg(test)]
 pub mod test_helper;
-
-// [impl->swdd~cli-loads-config-file~1]
-fn handle_ank_config(config_path: &Option<String>, default_path: &str) -> AnkConfig {
-    match config_path {
-        Some(config_path) => {
-            let config_path = PathBuf::from(config_path);
-            AnkConfig::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
-        }
-        None => {
-            let default_path = PathBuf::from(default_path.as_ref() as &std::path::Path);
-            if !default_path.try_exists().unwrap_or(false) {
-                AnkConfig::default()
-            } else {
-                AnkConfig::from_file(default_path).expect("Config file could not be parsed")
-            }
-        }
-    }
-}
 
 // [impl->swdd~cli-standalone-application~1]
 #[tokio::main]
@@ -54,7 +35,7 @@ async fn main() {
     let args = cli::parse();
 
     // [impl->swdd~cli-loads-config-file~1]
-    let mut ank_config = handle_ank_config(&args.config_path, &DEFAULT_ANK_CONFIG_FILE_PATH);
+    let mut ank_config: AnkConfig = handle_config(&args.config_path, &DEFAULT_ANK_CONFIG_FILE_PATH);
     ank_config.update_with_args(&args);
 
     let cli_name = "ank-cli";
@@ -285,51 +266,4 @@ async fn main() {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
-mod tests {
-    use crate::{AnkConfig, ank_config::DEFAULT_ANK_CONFIG_FILE_PATH, handle_ank_config};
-    use std::io::Write;
-    use tempfile::NamedTempFile;
-
-    const VALID_ANK_CONFIG_CONTENT: &str = r"#
-    version = 'v1'
-    response_timeout = 2500
-    [default]
-    #";
-
-    #[test]
-    fn utest_handle_ank_config_valid_config() {
-        let mut tmp_config_file = NamedTempFile::new().expect("could not create temp file");
-        write!(tmp_config_file, "{VALID_ANK_CONFIG_CONTENT}")
-            .expect("could not write to temp file");
-
-        let ank_config = handle_ank_config(
-            &Some(
-                tmp_config_file
-                    .into_temp_path()
-                    .to_str()
-                    .unwrap()
-                    .to_string(),
-            ),
-            &DEFAULT_ANK_CONFIG_FILE_PATH,
-        );
-
-        assert_eq!(ank_config.response_timeout, 2500);
-    }
-
-    #[test]
-    fn utest_handle_ank_config_default_path() {
-        let mut file = tempfile::NamedTempFile::new().expect("Failed to create file");
-        writeln!(file, "{VALID_ANK_CONFIG_CONTENT}").expect("Failed to write to file");
-
-        let ank_config = handle_ank_config(&None, file.path().to_str().unwrap());
-
-        assert_eq!(ank_config.response_timeout, 2500);
-    }
-
-    #[test]
-    fn utest_handle_ank_config_default() {
-        let ank_config = handle_ank_config(&None, "/a/very/invalid/path/to/config/file");
-
-        assert_eq!(ank_config, AnkConfig::default());
-    }
-}
+mod tests {}
