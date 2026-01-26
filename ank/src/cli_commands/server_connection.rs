@@ -50,6 +50,45 @@ pub struct ServerConnection {
     missed_from_server_messages: Vec<FromServer>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct CompleteStateRequestDetails {
+    request_id: String,
+    pub(crate) field_masks: Vec<String>,
+    pub(crate) subscribe_for_events: bool,
+}
+
+impl CompleteStateRequestDetails {
+    pub fn new(field_masks: Vec<String>, subscribe_for_events: bool) -> Self {
+        Self {
+            request_id: Uuid::new_v4().to_string(),
+            field_masks,
+            subscribe_for_events,
+        }
+    }
+
+    pub fn get_request_id(&self) -> &str {
+        &self.request_id
+    }
+}
+
+impl Default for CompleteStateRequestDetails {
+    fn default() -> Self {
+        Self::new(vec![], false)
+    }
+}
+
+#[cfg(test)]
+pub fn generate_test_complete_state_request_details(
+    field_masks: Vec<String>,
+    subscribe_for_events: bool,
+) -> CompleteStateRequestDetails {
+    CompleteStateRequestDetails {
+        request_id: ankaios_api::test_utils::fixtures::REQUEST_ID.to_string(),
+        subscribe_for_events,
+        field_masks,
+    }
+}
+
 #[cfg_attr(test, automock)]
 impl ServerConnection {
     // [impl->swdd~server-handle-cli-communication~1]
@@ -97,21 +136,19 @@ impl ServerConnection {
 
     pub async fn get_complete_state(
         &mut self,
-        object_field_mask: &[String],
+        request_details: CompleteStateRequestDetails,
     ) -> Result<CompleteState, ServerConnectionError> {
         output_debug!(
             "get_complete_state: object_field_mask={:?} ",
-            object_field_mask
+            request_details.field_masks
         );
-
-        let request_id = Uuid::new_v4().to_string();
 
         self.to_server
             .request_complete_state(
-                request_id.to_owned(),
+                request_details.request_id.to_owned(),
                 CompleteStateRequestSpec {
-                    field_mask: object_field_mask.to_vec(),
-                    subscribe_for_events: false,
+                    field_mask: request_details.field_masks,
+                    subscribe_for_events: request_details.subscribe_for_events,
                 },
             )
             .await
@@ -123,7 +160,7 @@ impl ServerConnection {
                     Some(FromServer::Response(Response {
                         request_id: received_request_id,
                         response_content: Some(ResponseContent::CompleteStateResponse(res)),
-                    })) if received_request_id == request_id => {
+                    })) if received_request_id == *request_details.request_id => {
                         output_debug!("Received from server: {res:?} ");
                         return Ok(res.complete_state.unwrap_or_default());
                     }
@@ -401,39 +438,11 @@ impl ServerConnection {
         }
     }
 
-    // [impl->swdd~cli-subscribes-for-events~1]
-    pub async fn subscribe_and_listen_for_events(
-        &mut self,
-        field_mask: Vec<String>,
-        detailed: bool,
-    ) -> Result<EventSubscription, ServerConnectionError> {
-        output_debug!(
-            "Subscribing for events from server with field mask: {:?}",
-            field_mask
-        );
-        let request_id = uuid::Uuid::new_v4().to_string();
-        let events_request = CompleteStateRequestSpec {
-            field_mask,
-            subscribe_for_events: true,
-        };
-
-        self.to_server
-            .request_complete_state(request_id.clone(), events_request)
-            .await
-            .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
-
-        Ok(EventSubscription {
-            request_id,
-            initial_response_received: false,
-            output_initial_response: detailed,
-        })
-    }
-
     // [impl->swdd~cli-receives-events~1]
     // [impl->swdd~cli-handles-event-subscription-errors~1]
     pub async fn receive_next_event(
         &mut self,
-        subscription: &mut EventSubscription,
+        request_id: &str,
     ) -> Result<Option<CompleteStateResponse>, ServerConnectionError> {
         output_debug!("Listening for events from server...");
         loop {
@@ -448,24 +457,15 @@ impl ServerConnection {
                             request_id: received_request_id,
                             response_content:
                                 Some(ResponseContent::CompleteStateResponse(res)),
-                        })) if received_request_id == subscription.request_id => {
-                            if !subscription.initial_response_received {
-                                output_debug!("Received initial state response, subscription active");
-                                subscription.initial_response_received = true;
-
-                                if subscription.output_initial_response {
-                                    return Ok(Some(*res));
-                                }
-                            } else {
+                        })) if received_request_id == request_id => {
                                 output_debug!("Received event from server: {res:?}");
                                 return Ok(Some(*res));
-                            }
                         }
                         Some(FromServer::Response(Response {
                             request_id: received_request_id,
                             response_content:
                                 Some(ResponseContent::Error(error)),
-                        })) if received_request_id == subscription.request_id => {
+                        })) if received_request_id == request_id => {
                             return Err(ServerConnectionError::ExecutionError(format!(
                                 "Event subscription failed: '{}'",
                                 error.message
@@ -484,12 +484,6 @@ impl ServerConnection {
             }
         }
     }
-}
-
-pub struct EventSubscription {
-    pub(crate) request_id: String,
-    pub(crate) initial_response_received: bool,
-    pub(crate) output_initial_response: bool,
 }
 
 // [impl->swdd~cli-handles-log-responses-from-server~1]
@@ -645,7 +639,8 @@ mod tests {
     use crate::{
         cli::LogsArgs,
         cli_commands::server_connection::{
-            ServerConnectionError, TEST_LOG_OUTPUT_DATA, select_log_format_function,
+            ServerConnectionError, TEST_LOG_OUTPUT_DATA,
+            generate_test_complete_state_request_details, select_log_format_function,
         },
         cli_signals::MockSignalHandler,
         test_helper::MOCKALL_CONTEXT_SYNC,
@@ -844,7 +839,10 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let received_complete_state = server_connection
-            .get_complete_state(&[FIELD_MASK.into()])
+            .get_complete_state(generate_test_complete_state_request_details(
+                vec![FIELD_MASK.into()],
+                false,
+            ))
             .await;
         let expected_complete_state = proto_complete_state;
 
@@ -862,7 +860,10 @@ mod tests {
         server_connection.to_server = to_server;
 
         let result = server_connection
-            .get_complete_state(&[FIELD_MASK.into()])
+            .get_complete_state(generate_test_complete_state_request_details(
+                vec![FIELD_MASK.into()],
+                false,
+            ))
             .await;
         assert!(result.is_err());
     }
@@ -880,7 +881,10 @@ mod tests {
         let (_checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .get_complete_state(&[FIELD_MASK.into()])
+            .get_complete_state(generate_test_complete_state_request_details(
+                vec![FIELD_MASK.into()],
+                false,
+            ))
             .await;
         assert!(result.is_err());
     }
@@ -925,7 +929,10 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .get_complete_state(&[FIELD_MASK.into()])
+            .get_complete_state(generate_test_complete_state_request_details(
+                vec![FIELD_MASK.into()],
+                false,
+            ))
             .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), proto_complete_state);
@@ -966,7 +973,10 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .get_complete_state(&[FIELD_MASK.into()])
+            .get_complete_state(generate_test_complete_state_request_details(
+                vec![FIELD_MASK.into()],
+                false,
+            ))
             .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), proto_complete_state);
@@ -1823,85 +1833,20 @@ mod tests {
 
     // [utest->swdd~cli-subscribes-for-events~1]
     #[tokio::test]
-    async fn utest_subscribe_and_listen_for_events_success() {
+    async fn utest_get_complete_state_subscribe_for_events_success() {
         let field_mask = vec!["desiredState.workloads".to_string()];
+
+        let request_details =
+            generate_test_complete_state_request_details(field_mask.clone(), true);
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
             RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
-                field_mask: field_mask.clone(),
-                subscribe_for_events: true,
+                field_mask: request_details.field_masks.clone(),
+                subscribe_for_events: request_details.subscribe_for_events,
             }),
         );
-
-        let (checker, mut server_connection) = sim.create_server_connection();
-
-        let result = server_connection
-            .subscribe_and_listen_for_events(field_mask, false)
-            .await;
-
-        assert!(result.is_ok());
-        let subscription = result.unwrap();
-        assert!(!subscription.initial_response_received);
-        assert!(!subscription.request_id.is_empty());
-
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-
-        checker.check_communication();
-    }
-
-    // [utest->swdd~cli-subscribes-for-events~1]
-    #[tokio::test]
-    async fn utest_subscribe_and_listen_for_events_empty_field_mask() {
-        let field_mask = vec![];
-
-        let mut sim = CommunicationSimulator::default();
-        sim.expect_receive_request(
-            fixtures::REQUEST_ID,
-            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
-                field_mask: field_mask.clone(),
-                subscribe_for_events: true,
-            }),
-        );
-
-        let (checker, mut server_connection) = sim.create_server_connection();
-
-        let result = server_connection
-            .subscribe_and_listen_for_events(field_mask, false)
-            .await;
-
-        assert!(result.is_ok());
-
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-
-        checker.check_communication();
-    }
-
-    // [utest->swdd~cli-handles-event-subscription-errors~1]
-    #[tokio::test]
-    async fn utest_subscribe_and_listen_for_events_fails_channel_closed() {
-        let field_mask = vec!["desiredState.workloads".to_string()];
-
-        let sim = CommunicationSimulator::default();
-        let (_, mut server_connection) = sim.create_server_connection();
-
-        let (to_server, _) = tokio::sync::mpsc::channel(1);
-        server_connection.to_server = to_server;
-
-        let result = server_connection
-            .subscribe_and_listen_for_events(field_mask, false)
-            .await;
-
-        assert!(result.is_err());
-    }
-
-    // [utest->swdd~cli-receives-events~1]
-    #[tokio::test]
-    async fn utest_receive_next_event_initial_state_then_event() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
-
-        let mut sim = CommunicationSimulator::default();
 
         sim.will_send_message(FromServer::Response(Response {
             request_id: fixtures::REQUEST_ID.to_string(),
@@ -1910,97 +1855,27 @@ mod tests {
                 Workload {
                     agent: Some(fixtures::AGENT_NAMES[0].to_string()),
                     runtime: Some(fixtures::RUNTIME_NAMES[0].to_string()),
-                    tags: Some(Tags::default()),
-                    dependencies: Some(Dependencies::default()),
-                    restart_policy: Some(RestartPolicy::Never as i32),
                     runtime_config: Some(String::default()),
-                    control_interface_access: None,
-                    configs: Some(ConfigMappings {
-                        configs: [
-                            ("ref1".into(), "config_1".into()),
-                            ("ref2".into(), "config_2".into()),
-                        ]
-                        .into(),
-                    }),
-                    files: Some(generate_test_files().into()),
+                    ..Default::default()
                 },
             )])),
         }));
-
-        sim.will_send_message(FromServer::Response(Response {
-            request_id: fixtures::REQUEST_ID.to_string(),
-            response_content: Some(generate_test_complete_state_response(&[(
-                fixtures::WORKLOAD_NAMES[1],
-                Workload {
-                    agent: Some(fixtures::AGENT_NAMES[0].to_string()),
-                    runtime: Some(fixtures::RUNTIME_NAMES[0].to_string()),
-                    tags: Some(Tags::default()),
-                    dependencies: Some(Dependencies::default()),
-                    restart_policy: Some(RestartPolicy::Never as i32),
-                    runtime_config: Some(String::default()),
-                    control_interface_access: None,
-                    configs: Some(ConfigMappings {
-                        configs: [
-                            ("ref1".into(), "config_1".into()),
-                            ("ref2".into(), "config_2".into()),
-                        ]
-                        .into(),
-                    }),
-                    files: Some(generate_test_files().into()),
-                },
-            )])),
-        }));
-
-        sim.will_send_message(FromServer::Response(Response {
-            request_id: fixtures::REQUEST_ID.to_string(),
-            response_content: Some(generate_test_complete_state_response(&[(
-                fixtures::WORKLOAD_NAMES[2],
-                Workload {
-                    agent: Some(fixtures::AGENT_NAMES[0].to_string()),
-                    runtime: Some(fixtures::RUNTIME_NAMES[0].to_string()),
-                    tags: Some(Tags::default()),
-                    dependencies: Some(Dependencies::default()),
-                    restart_policy: Some(RestartPolicy::Never as i32),
-                    runtime_config: Some(String::default()),
-                    control_interface_access: None,
-                    configs: Some(ConfigMappings {
-                        configs: [
-                            ("ref1".into(), "config_1".into()),
-                            ("ref2".into(), "config_2".into()),
-                        ]
-                        .into(),
-                    }),
-                    files: Some(generate_test_files().into()),
-                },
-            )])),
-        }));
-
-        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
-        signal_handler_context
-            .expect()
-            .returning(|| Box::pin(std::future::pending()));
 
         let (checker, mut server_connection) = sim.create_server_connection();
 
-        let mut subscription = super::EventSubscription {
-            request_id: fixtures::REQUEST_ID.to_string(),
-            initial_response_received: false,
-            output_initial_response: false,
-        };
-
-        let result = server_connection
-            .receive_next_event(&mut subscription)
-            .await;
+        let result = server_connection.get_complete_state(request_details).await;
         assert!(result.is_ok());
-        assert!(subscription.initial_response_received);
-        assert!(result.unwrap().is_some());
+        let initial_state_response = result.unwrap();
+        let state_workloads = initial_state_response
+            .desired_state
+            .unwrap_or_default()
+            .workloads
+            .unwrap_or_default()
+            .workloads;
+        assert_eq!(state_workloads.len(), 1);
+        assert!(state_workloads.contains_key(fixtures::WORKLOAD_NAMES[0]));
 
-        let result = server_connection
-            .receive_next_event(&mut subscription)
-            .await;
-        assert!(result.is_ok());
-        let event = result.unwrap();
-        assert!(event.is_some());
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
 
         checker.check_communication();
     }
@@ -2020,14 +1895,8 @@ mod tests {
 
         let (_, mut server_connection) = sim.create_server_connection();
 
-        let mut subscription = super::EventSubscription {
-            request_id: fixtures::REQUEST_ID.to_string(),
-            initial_response_received: true,
-            output_initial_response: false,
-        };
-
         let result = server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(fixtures::REQUEST_ID)
             .await;
 
         assert!(result.is_ok());
@@ -2055,14 +1924,8 @@ mod tests {
 
         let (checker, mut server_connection) = sim.create_server_connection();
 
-        let mut subscription = super::EventSubscription {
-            request_id: fixtures::REQUEST_ID.to_string(),
-            initial_response_received: true,
-            output_initial_response: false,
-        };
-
         let result = server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(fixtures::REQUEST_ID)
             .await;
 
         assert!(result.is_err());
@@ -2093,14 +1956,8 @@ mod tests {
 
         server_connection.from_server.close();
 
-        let mut subscription = super::EventSubscription {
-            request_id: fixtures::REQUEST_ID.to_string(),
-            initial_response_received: true,
-            output_initial_response: false,
-        };
-
         let result = server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(fixtures::REQUEST_ID)
             .await;
 
         assert!(result.is_err());
@@ -2174,14 +2031,8 @@ mod tests {
 
         let (checker, mut server_connection) = sim.create_server_connection();
 
-        let mut subscription = super::EventSubscription {
-            request_id: fixtures::REQUEST_ID.to_string(),
-            initial_response_received: true,
-            output_initial_response: false,
-        };
-
         let result = server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(fixtures::REQUEST_ID)
             .await;
 
         assert!(result.is_ok());
@@ -2197,26 +2048,6 @@ mod tests {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let mut sim = CommunicationSimulator::default();
-
-        sim.will_send_message(FromServer::Response(Response {
-            request_id: fixtures::REQUEST_ID.to_string(),
-            response_content: Some(generate_test_complete_state_response(&[(
-                fixtures::WORKLOAD_NAMES[0],
-                Workload {
-                    agent: Some(fixtures::AGENT_NAMES[0].to_string()),
-                    runtime: Some(fixtures::RUNTIME_NAMES[0].to_string()),
-                    tags: Some(Tags::default()),
-                    dependencies: Some(Dependencies::default()),
-                    restart_policy: Some(RestartPolicy::Never as i32),
-                    runtime_config: Some(String::default()),
-                    control_interface_access: None,
-                    configs: Some(ConfigMappings {
-                        configs: HashMap::new(),
-                    }),
-                    files: Some(generate_test_files().into()),
-                },
-            )])),
-        }));
 
         for i in 1..=3 {
             sim.will_send_message(FromServer::Response(Response {
@@ -2247,22 +2078,15 @@ mod tests {
 
         let (checker, mut server_connection) = sim.create_server_connection();
 
-        let mut subscription = super::EventSubscription {
-            request_id: fixtures::REQUEST_ID.to_string(),
-            initial_response_received: false,
-            output_initial_response: false,
-        };
-
         let result = server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(fixtures::REQUEST_ID)
             .await;
         assert!(result.is_ok());
-        assert!(subscription.initial_response_received);
         assert!(result.unwrap().is_some());
 
         for _ in 1..=2 {
             let result = server_connection
-                .receive_next_event(&mut subscription)
+                .receive_next_event(fixtures::REQUEST_ID)
                 .await;
             assert!(result.is_ok());
             assert!(result.unwrap().is_some());

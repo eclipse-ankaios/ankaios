@@ -12,7 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{cli::OutputFormat, cli_error::CliError, output_debug};
+use crate::{
+    cli::OutputFormat, cli_commands::server_connection::CompleteStateRequestDetails,
+    cli_error::CliError, output_debug,
+};
 
 use super::CliCommands;
 
@@ -29,9 +32,10 @@ impl CliCommands {
         );
 
         // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
+        let request_details = CompleteStateRequestDetails::new(object_field_mask, false);
         let filtered_complete_state = self
             .server_connection
-            .get_complete_state(&object_field_mask)
+            .get_complete_state(request_details)
             .await?;
 
         output_debug!("Raw complete state: {:?}", filtered_complete_state);
@@ -62,26 +66,34 @@ mod tests {
 
     use ankaios_api::ank_base::{CompleteState, Workload};
     use ankaios_api::test_utils::{
-        generate_test_proto_complete_state, generate_test_workload_with_params, fixtures,
+        fixtures, generate_test_proto_complete_state, generate_test_workload_with_params,
     };
-    use mockall::predicate::eq;
 
     fn generate_test_data() -> CompleteState {
         generate_test_proto_complete_state(&[
             (
                 fixtures::WORKLOAD_NAMES[0],
-                generate_test_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::RUNTIME_NAMES[0])
-                    .into(),
+                generate_test_workload_with_params(
+                    fixtures::AGENT_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
+                )
+                .into(),
             ),
             (
                 fixtures::WORKLOAD_NAMES[1],
-                generate_test_workload_with_params(fixtures::AGENT_NAMES[1], fixtures::RUNTIME_NAMES[0])
-                    .into(),
+                generate_test_workload_with_params(
+                    fixtures::AGENT_NAMES[1],
+                    fixtures::RUNTIME_NAMES[0],
+                )
+                .into(),
             ),
             (
                 fixtures::WORKLOAD_NAMES[2],
-                generate_test_workload_with_params(fixtures::AGENT_NAMES[1], fixtures::RUNTIME_NAMES[0])
-                    .into(),
+                generate_test_workload_with_params(
+                    fixtures::AGENT_NAMES[1],
+                    fixtures::RUNTIME_NAMES[0],
+                )
+                .into(),
             ),
         ])
     }
@@ -98,7 +110,9 @@ mod tests {
         let test_data_clone = test_data.clone();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| Ok(test_data_clone));
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
@@ -144,10 +158,14 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![format!(
-                "desiredState.workloads.{}.runtime",
-                fixtures::WORKLOAD_NAMES[2]
-            )]))
+            .withf(|request_details| {
+                request_details.field_masks
+                    == vec![format!(
+                        "desiredState.workloads.{}.runtime",
+                        fixtures::WORKLOAD_NAMES[2]
+                    )]
+                    && !request_details.subscribe_for_events
+            })
             .return_once(|_| Ok(test_data_clone));
 
         let mut cmd = CliCommands {
@@ -183,10 +201,20 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![
-                format!("desiredState.workloads.{}.runtime", fixtures::WORKLOAD_NAMES[0]),
-                format!("desiredState.workloads.{}.runtime", fixtures::WORKLOAD_NAMES[1]),
-            ]))
+            .withf(|request_details| {
+                request_details.field_masks
+                    == vec![
+                        format!(
+                            "desiredState.workloads.{}.runtime",
+                            fixtures::WORKLOAD_NAMES[0]
+                        ),
+                        format!(
+                            "desiredState.workloads.{}.runtime",
+                            fixtures::WORKLOAD_NAMES[1]
+                        ),
+                    ]
+                    && !request_details.subscribe_for_events
+            })
             .return_once(|_| Ok(test_data_clone));
 
         let mut cmd = CliCommands {
@@ -198,8 +226,14 @@ mod tests {
         let cmd_text = cmd
             .get_state(
                 vec![
-                    format!("desiredState.workloads.{}.runtime", fixtures::WORKLOAD_NAMES[0]),
-                    format!("desiredState.workloads.{}.runtime", fixtures::WORKLOAD_NAMES[1]),
+                    format!(
+                        "desiredState.workloads.{}.runtime",
+                        fixtures::WORKLOAD_NAMES[0]
+                    ),
+                    format!(
+                        "desiredState.workloads.{}.runtime",
+                        fixtures::WORKLOAD_NAMES[1]
+                    ),
                 ],
                 OutputFormat::Yaml,
             )
@@ -217,7 +251,10 @@ mod tests {
         let test_data_clone = test_data.clone();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec!["workloadStates".to_owned()]))
+            .withf(|request_details| {
+                request_details.field_masks == vec!["workloadStates".to_owned()]
+                    && !request_details.subscribe_for_events
+            })
             .return_once(|_| Ok(test_data_clone));
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
