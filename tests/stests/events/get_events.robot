@@ -35,7 +35,7 @@ Test Ankaios CLI get events with field mask filter
     And Ankaios server is started without manifest successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
-    When user starts event listener with format "yaml" and field mask "desiredState.workloads" in background
+    When user starts the CLI to subscribe to events with format "yaml" and field mask "desiredState.workloads" in background
     And user triggers "ank -k apply ${CONFIGS_DIR}/nginx.yaml"
     And the user waits "3" seconds
     # Asserts
@@ -44,6 +44,24 @@ Test Ankaios CLI get events with field mask filter
     And the event output shall contain only desiredState workloads
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~cli-provides-get-events-command~1]
+Test Ankaios CLI get events with initial complete state output
+    [Documentation]    Subscribe to events and output initial complete state response
+    [Setup]    Setup Ankaios
+
+    # Preconditions
+    Given Podman has deleted all existing containers
+    And Ankaios server is started with manifest "${CONFIGS_DIR}/nginx.yaml"
+    And Ankaios server is available
+    And Ankaios agent is started with name "agent_A"
+    # Actions
+    When user starts the CLI to subscribe to events with detailed mode enabled with format "yaml" and field mask "desiredState.workloads" in background
+    And the user waits "1" seconds
+    # Asserts
+    Then the event output shall contain workload "nginx"
+    And the event output shall be valid yaml format
+    And the event output shall contain only desiredState workloads
+    [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-receives-events~1]
 # [stest->swdd~cli-outputs-events-with-timestamp~1]
@@ -59,7 +77,7 @@ Test Ankaios CLI get events receives multiple sequential events
     And Ankaios agent is started with name "agent_A"
     And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
-    When user starts event listener with format "json" and field mask "" in background
+    When user starts the CLI to subscribe to events with format "json" and field mask "" in background
     And the user waits "3" seconds
     And user triggers "ank -k apply ${CONFIGS_DIR}/nginx.yaml"
     And the user waits "3" seconds
@@ -97,7 +115,7 @@ Test Ankaios CLI get events with workload state changes
     And Ankaios agent is started with name "agent_A"
     And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
-    When user starts event listener with format "yaml" and field mask "workloadStates" in background
+    When user starts the CLI to subscribe to events with format "yaml" and field mask "workloadStates" in background
     And the user waits "2" seconds
     And user triggers "ank -k apply ${CONFIGS_DIR}/nginx.yaml"
     And the user waits "3" seconds
@@ -119,7 +137,7 @@ Test Ankaios CLI get events includes timestamp in output
     And Ankaios agent is started with name "agent_A"
     And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
-    When user starts event listener with format "json" and field mask "" in background
+    When user starts the CLI to subscribe to events with format "json" and field mask "" in background
     And the user waits "3" seconds
     And user triggers "ank -k apply ${CONFIGS_DIR}/nginx.yaml"
     And the user waits "5" seconds
@@ -140,7 +158,7 @@ Test Ankaios CLI get events with empty field mask
     And Ankaios agent is started with name "agent_A"
     And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Actions
-    When user starts event listener with format "yaml" and field mask "" in background
+    When user starts the CLI to subscribe to events with format "yaml" and field mask "" in background
     And the user waits "3" seconds
     And user triggers "ank -k apply ${CONFIGS_DIR}/nginx.yaml"
     And the user waits "5" seconds
@@ -164,7 +182,7 @@ Test Ankaios CLI get events with workload deletion
     And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "hello1" shall have the execution state "Failed(Lost)" on agent "agent_B"
     # Actions
-    When user starts event listener with format "json" and field mask "desiredState.workloads" in background
+    When user starts the CLI to subscribe to events with format "json" and field mask "desiredState.workloads" in background
     And the user waits "3" seconds
     And user triggers "ank -k delete workload sleepy hello1"
     And the user waits "5" seconds
