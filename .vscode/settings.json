@@ -49,5 +49,12 @@
     "protobuf.diagnostics.namingConventions": false,
     "protobuf.includes": [
         "/workspaces/ankaios/ankaios_api/proto"
+    ],
+    "robotcode.robot.env": {
+        "ANK_BIN_DIR": "${workspaceFolder}/target/x86_64-unknown-linux-musl/debug"
+    },
+    "robotcode.robot.args": [
+        "--pythonpath",
+        "tests"
     ]
 }
