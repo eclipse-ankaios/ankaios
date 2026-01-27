@@ -15,6 +15,8 @@
 use ankaios_api::ank_base::{LogEntriesResponse, LogEntry};
 use prost::Message;
 
+// [impl->swdd~agent-checks-size-of-logs~1]
+
 const LOGS_MAX_SIZE_MB: usize = 2;
 const LOGS_MAX_SIZE_BYTES: usize = LOGS_MAX_SIZE_MB * 1024 * 1024;
 const TRUNCATION_NOTICE: &str = " [truncated]";
@@ -121,6 +123,8 @@ mod tests {
     use super::*;
     use ankaios_api::ank_base::WorkloadInstanceName;
     use ankaios_api::test_utils::fixtures;
+
+    // [utest->swdd~agent-checks-size-of-logs~1]
 
     fn create_log_entry(message: &str) -> LogEntry {
         LogEntry {
@@ -304,7 +308,11 @@ mod tests {
         assert_eq!(result[0].log_entries[0], small_entry);
 
         assert_eq!(result[1].log_entries.len(), 2);
-        assert!(result[1].log_entries[0].message.ends_with(TRUNCATION_NOTICE));
+        assert!(
+            result[1].log_entries[0]
+                .message
+                .ends_with(TRUNCATION_NOTICE)
+        );
         assert!(result[1].log_entries[1].message.contains("truncated"));
 
         assert!(result[0].encoded_len() <= LOGS_MAX_SIZE_BYTES);

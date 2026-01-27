@@ -107,6 +107,7 @@ impl<T: AsyncRead + std::fmt::Debug + std::marker::Unpin> GenericSingleLogFetche
         }
     }
 
+    // [impl->swdd~agent-checks-size-of-logs~1]
     async fn next_lines(&mut self) -> Option<Vec<String>> {
         let mut start_byte = self.read_data.len();
         if self.limit_exceeded {
@@ -349,7 +350,7 @@ pub mod test {
         assert_eq!(log_fetcher.next_lines().await, None);
     }
 
-    // [utest->swdd~agent-log-fetching-collects-logs~1]
+    // [utest->swdd~agent-checks-size-of-logs~1]
     #[tokio::test]
     async fn utest_log_size_limit_exceeded() {
         let large_data = vec![b'x'; LOG_SIZE_LIMIT_MB * 1024 * 1024 + 1];
