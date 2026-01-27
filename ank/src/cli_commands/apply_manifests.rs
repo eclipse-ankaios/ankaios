@@ -16,9 +16,10 @@ use super::{CliCommands, InputSourcePair};
 use crate::cli_error::CliError;
 use crate::{cli::ApplyArgs, output, output_debug};
 
+use ankaios_api::ank_base::StateSpec;
 use ankaios_api::{
     ALLOWED_CHAR_SET,
-    ank_base::{CompleteStateSpec, StateSpec, validate_tags},
+    ank_base::{CompleteState, State, validate_tags},
 };
 use ankaios_api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use common::state_manipulation::{Object, Path};
@@ -98,7 +99,7 @@ pub fn handle_agent_overwrite(
     filter_masks: &Vec<Path>,
     cli_specified_agent_name: &Option<String>,
     mut state_obj: Object,
-) -> Result<StateSpec, String> {
+) -> Result<State, String> {
     for mask_path in filter_masks {
         if mask_path.parts().starts_with(&["workloads".into()]) {
             let workload_agent_mask: Path = format!("{}.agent", String::from(mask_path)).into();
@@ -165,7 +166,7 @@ pub fn create_filter_masks_from_paths(paths: &[Path], prefix: &str) -> Vec<Strin
 pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
-) -> Result<Option<(CompleteStateSpec, Vec<String>)>, String> {
+) -> Result<Option<(CompleteState, Vec<String>)>, String> {
     let mut req_obj: Object = StateSpec::default().try_into().map_err(|err| {
         format!("Could not create initial empty state object from StateSpec: {err}")
     })?;
@@ -187,14 +188,14 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
 
     let complete_state_req_obj = if apply_args.delete_mode {
-        CompleteStateSpec {
+        CompleteState {
             ..Default::default()
         }
     } else {
         let state_from_req_obj =
             handle_agent_overwrite(&req_paths, &apply_args.agent_name, req_obj)?;
-        CompleteStateSpec {
-            desired_state: state_from_req_obj,
+        CompleteState {
+            desired_state: Some(state_from_req_obj),
             ..Default::default()
         }
     };

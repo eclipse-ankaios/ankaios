@@ -20,7 +20,7 @@ use crate::control_interface::authorizer::path_pattern::PathPattern;
 
 use ankaios_api::ank_base::{
     AccessRightsRuleEnumSpec, AccessRightsRuleSpec, ControlInterfaceAccessSpec, ReadWriteEnum,
-    RequestContentSpec, RequestSpec,
+    Request, RequestContent,
 };
 use path_pattern::{AllowPathPattern, DenyPathPattern, PathPatternMatcher};
 use rules::{LogRule, StateRule};
@@ -49,7 +49,7 @@ pub struct Authorizer {
 mock! {
     #[derive(Debug)]
     pub Authorizer {
-        pub fn authorize(&self, request: &RequestSpec) -> bool;
+        pub fn authorize(&self, request: &Request) -> bool;
     }
 
     impl PartialEq for Authorizer {
@@ -64,35 +64,44 @@ mock! {
 impl Authorizer {
     // [impl->swdd~agent-authorizing-request-operations~2]
     // [impl->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
-    pub fn authorize(&self, request: &RequestSpec) -> bool {
-        match &request.request_content {
-            RequestContentSpec::CompleteStateRequest(r) => Self::check_state_rules(
+    pub fn authorize(&self, request: &Request) -> bool {
+        let Some(request_content) = &request.request_content else {
+            // TODO #now think about this, but why should we forward empty requests?
+            log::info!(
+                "Denying request '{}' as request content is None",
+                request.request_id
+            );
+            return false;
+        };
+
+        match request_content {
+            RequestContent::CompleteStateRequest(r) => Self::check_state_rules(
                 &request.request_id,
                 &r.field_mask,
                 &self.state_allow_read,
                 &self.state_deny_read,
             ),
-            RequestContentSpec::UpdateStateRequest(r) => Self::check_state_rules(
+            RequestContent::UpdateStateRequest(r) => Self::check_state_rules(
                 &request.request_id,
                 &r.update_mask,
                 &self.state_allow_write,
                 &self.state_deny_write,
             ),
             // [impl->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
-            RequestContentSpec::LogsRequest(logs_request) => {
+            RequestContent::LogsRequest(logs_request) => {
                 let not_allowed_workload =
                     logs_request.workload_names.iter().find(|instance_name| {
                         !self
                             .log_allow
                             .iter()
-                            .any(|allow_rule| allow_rule.matches(instance_name.workload_name()))
+                            .any(|allow_rule| allow_rule.matches(&instance_name.workload_name))
                     });
 
                 if let Some(instance_name) = not_allowed_workload {
                     log::info!(
                         "Deny log request '{}' as workload '{}' is not present in the allow rules",
                         request.request_id,
-                        instance_name.workload_name()
+                        instance_name.workload_name
                     );
                     return false;
                 }
@@ -103,9 +112,14 @@ impl Authorizer {
                     .find(|instance_name| {
                         self.log_deny
                             .iter()
-                            .any(|deny_rule| deny_rule.matches(instance_name.workload_name()))
+                            .any(|deny_rule| deny_rule.matches(&instance_name.workload_name))
                     })
-                    .map(|instance_name| format!("denied by rule for workload '{instance_name}'"))
+                    .map(|instance_name| {
+                        format!(
+                            "denied by rule for workload '{}'",
+                            instance_name.workload_name
+                        )
+                    })
                 {
                     log::info!(
                         "Deny log request '{}' it is allowed, but also denied by '{}'",
@@ -119,8 +133,8 @@ impl Authorizer {
                 true
             }
             // [impl->swdd~agent-authorizing-logs-cancel-always-allowed~1]
-            RequestContentSpec::LogsCancelRequest(_) => true,
-            RequestContentSpec::EventsCancelRequest(_) => true,
+            RequestContent::LogsCancelRequest(_) => true,
+            RequestContent::EventsCancelRequest(_) => true,
         }
     }
 

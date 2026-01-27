@@ -18,9 +18,7 @@ use crate::cli_signals::SignalHandler;
 use crate::{output_and_error, output_debug};
 
 use ankaios_api::ank_base::{
-    CompleteState, CompleteStateRequestSpec, CompleteStateResponse, CompleteStateSpec, LogEntry,
-    LogsRequestAccepted, LogsRequestSpec, Response, ResponseContent, UpdateStateSuccess,
-    WorkloadInstanceName, WorkloadInstanceNameSpec,
+    CompleteState, CompleteStateRequest, CompleteStateResponse, LogEntry, LogsRequestAccepted, LogsRequestSpec, Response, ResponseContent, UpdateStateSuccess, WorkloadInstanceName, WorkloadInstanceNameSpec
 };
 use common::{
     commands::UpdateWorkloadState,
@@ -109,7 +107,7 @@ impl ServerConnection {
         self.to_server
             .request_complete_state(
                 request_id.to_owned(),
-                CompleteStateRequestSpec {
+                CompleteStateRequest {
                     field_mask: object_field_mask.to_vec(),
                     subscribe_for_events: false,
                 },
@@ -148,7 +146,7 @@ impl ServerConnection {
 
     pub async fn update_state(
         &mut self,
-        new_state: CompleteStateSpec,
+        new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<UpdateStateSuccess, ServerConnectionError> {
         let request_id = Uuid::new_v4().to_string();
@@ -411,7 +409,7 @@ impl ServerConnection {
             field_mask
         );
         let request_id = uuid::Uuid::new_v4().to_string();
-        let events_request = CompleteStateRequestSpec {
+        let events_request = CompleteStateRequest {
             field_mask,
             subscribe_for_events: true,
         };

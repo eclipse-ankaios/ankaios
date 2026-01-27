@@ -15,7 +15,7 @@
 use super::CliCommands;
 use crate::{cli_error::CliError, output_debug};
 
-use ankaios_api::ank_base::{CompleteStateSpec, TagsSpec, WorkloadSpec};
+use ankaios_api::ank_base::{CompleteState, State, Tags, Workload, WorkloadMap};
 
 use std::collections::HashMap;
 
@@ -30,27 +30,24 @@ impl CliCommands {
         agent_name: String,
         tags: HashMap<String, String>,
     ) -> Result<(), CliError> {
-        let new_workload = WorkloadSpec {
-            agent: agent_name,
-            runtime: runtime_name,
-            tags: TagsSpec { tags },
-            runtime_config,
-            restart_policy: Default::default(),
-            dependencies: Default::default(),
-            control_interface_access: Default::default(),
-            configs: Default::default(),
-            files: Default::default(),
+        let new_workload = Workload {
+            agent: Some(agent_name),
+            runtime: Some(runtime_name),
+            tags: Some(Tags { tags }),
+            runtime_config: Some(runtime_config),
+            ..Default::default()
         };
         output_debug!("Request to run new workload: {:?}", new_workload);
 
         let update_mask = vec![format!("desiredState.workloads.{}", workload_name)];
 
-        let mut complete_state_update = CompleteStateSpec::default();
-        complete_state_update
-            .desired_state
-            .workloads
-            .workloads
-            .insert(workload_name, new_workload);
+        let mut complete_state_update = CompleteState::default();
+        complete_state_update.desired_state = Some(State {
+            workloads: Some(WorkloadMap {
+                workloads: HashMap::from([(workload_name, new_workload)]),
+            }),
+            ..Default::default()
+        });
 
         output_debug!(
             "The complete state update: {:?}, update mask {:?}",
