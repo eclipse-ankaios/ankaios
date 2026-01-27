@@ -23,10 +23,12 @@ use tokio::{
 // [impl->swdd~agent-log-fetching-collects-logs~1]
 
 const LINE_FEED: u8 = 0x0A;
+const LOG_SIZE_LIMIT_MB: usize = 50;
 
 #[derive(Debug)]
 pub struct GenericSingleLogFetcher<T: AsyncRead + std::fmt::Debug> {
     reader: T,
+    limit_exceeded: bool,
     read_data: BytesMut,
 }
 
@@ -100,12 +102,16 @@ impl<T: AsyncRead + std::fmt::Debug + std::marker::Unpin> GenericSingleLogFetche
     pub fn new(read: T) -> Self {
         Self {
             reader: read,
+            limit_exceeded: false,
             read_data: BytesMut::new(),
         }
     }
 
     async fn next_lines(&mut self) -> Option<Vec<String>> {
         let mut start_byte = self.read_data.len();
+        if self.limit_exceeded {
+            return None;
+        }
         match self.reader.read_buf(&mut self.read_data).await {
             Ok(0) => {
                 if start_byte == 0 {
@@ -118,7 +124,18 @@ impl<T: AsyncRead + std::fmt::Debug + std::marker::Unpin> GenericSingleLogFetche
                 log::warn!("Failed to read log lines: {err:?}");
                 return None;
             }
-            _ => {}
+            Ok(_) => {
+                if self.read_data.len() > LOG_SIZE_LIMIT_MB * 1024 * 1024 {
+                    log::warn!(
+                        "Log line buffer exceeded {LOG_SIZE_LIMIT_MB} MB, closing the log campaign."
+                    );
+                    self.read_data.clear();
+                    self.limit_exceeded = true;
+                    return Some(vec![format!(
+                        "The previous log message exceeded the maximum {LOG_SIZE_LIMIT_MB} MB size. Closing the log campaign."
+                    )]);
+                }
+            }
         }
 
         let mut res = Vec::<String>::new();
@@ -159,7 +176,7 @@ fn convert_to_string(vec: impl Into<Vec<u8>>) -> String {
 
 #[cfg(test)]
 pub mod test {
-    use super::NextLinesResult;
+    use super::{LOG_SIZE_LIMIT_MB, NextLinesResult};
     use crate::runtime_connectors::{
         generic_log_fetcher::{GenericLogFetcher, GenericSingleLogFetcher},
         log_fetcher::{LogFetcher, StreamTrait},
@@ -211,13 +228,25 @@ pub mod test {
             _cx: &mut Context<'_>,
             buf: &mut tokio::io::ReadBuf<'_>,
         ) -> Poll<std::io::Result<()>> {
-            let element = self.data.pop_front();
+            let element = self.data.front_mut();
             match element {
                 Some(MockReadDataEntry::Data(data)) => {
-                    buf.put_slice(&data);
+                    let to_copy = data.len().min(buf.remaining());
+                    buf.put_slice(&data[..to_copy]);
+                    if to_copy == data.len() {
+                        self.data.pop_front();
+                    } else {
+                        data.drain(..to_copy);
+                    }
                     Poll::Ready(std::io::Result::Ok(()))
                 }
-                Some(MockReadDataEntry::Error(err)) => Poll::Ready(std::io::Result::Err(err)),
+                Some(MockReadDataEntry::Error(_)) => {
+                    if let Some(MockReadDataEntry::Error(err)) = self.data.pop_front() {
+                        Poll::Ready(std::io::Result::Err(err))
+                    } else {
+                        unreachable!()
+                    }
+                }
                 None => Poll::Ready(std::io::Result::Ok(())),
             }
         }
@@ -317,6 +346,26 @@ pub mod test {
 
         let mut log_fetcher = GenericSingleLogFetcher::new(read);
         assert_eq!(log_fetcher.next_lines().await, Some(vec![LINE_1.into()]));
+        assert_eq!(log_fetcher.next_lines().await, None);
+    }
+
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
+    #[tokio::test]
+    async fn utest_log_size_limit_exceeded() {
+        let large_data = vec![b'x'; LOG_SIZE_LIMIT_MB * 1024 * 1024 + 1];
+        let read = MockRead {
+            data: vec![MockReadDataEntry::Data(large_data)].into(),
+        };
+
+        let mut log_fetcher = GenericSingleLogFetcher::new(read);
+
+        let result = log_fetcher.next_lines().await;
+        assert!(result.is_some());
+        let lines = result.unwrap();
+        assert_eq!(lines.len(), 1);
+        assert!(lines[0].contains("exceeded the maximum"));
+        assert!(lines[0].contains("50 MB"));
+
         assert_eq!(log_fetcher.next_lines().await, None);
     }
 
