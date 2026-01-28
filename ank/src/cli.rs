@@ -76,7 +76,7 @@ fn completions_configs(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandida
         .collect()
 }
 
-// [impl->swdd~cli-shell-completion~1]
+// [impl->swdd~cli-shell-completion~2]
 fn workload_completer(current: &OsStr) -> Vec<CompletionCandidate> {
     completions_workloads(state_from_command("desiredState.workloads"), current)
 }
@@ -90,6 +90,7 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
     const WORKLOADS: &str = "workloads";
     const CONFIGS: &str = "configs";
     const WORKLOAD_STATES: &str = "workloadStates";
+    const AGENTS: &str = "agents";
 
     let mut result = Vec::new();
 
@@ -105,7 +106,7 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
                 result.push(format!("{DESIRED_STATE}.{WORKLOADS}.{workload_name}"));
             }
         }
-        result.push(CONFIGS.to_string());
+
         if let Some(ConfigMap { configs }) = desired_state.configs {
             result.push(format!("{DESIRED_STATE}.{CONFIGS}"));
             for config_name in configs.keys() {
@@ -126,6 +127,20 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
         }
     }
 
+    if let Some(agents) = state.agents {
+        result.push(AGENTS.to_owned());
+        for (agent_name, agent_data) in agents.agents {
+            result.push(format!("{AGENTS}.{agent_name}"));
+            if let Some(_status) = agent_data.status {
+                result.push(format!("{AGENTS}.{agent_name}.status"));
+            }
+
+            if let Some(_tags) = agent_data.tags {
+                result.push(format!("{AGENTS}.{agent_name}.tags"));
+            }
+        }
+    }
+
     let cur = current.to_str().unwrap_or("");
     result
         .into_iter()
@@ -134,7 +149,7 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
         .collect()
 }
 
-// [impl->swdd~cli-shell-completion~1]
+// [impl->swdd~cli-shell-completion~2]
 fn object_field_mask_completer(current: &OsStr) -> Vec<CompletionCandidate> {
     completions_object_field_mask(state_from_command(""), current)
 }
@@ -428,7 +443,7 @@ mod tests {
         }
     "#;
 
-    // [utest->swdd~cli-shell-completion~1]
+    // [utest->swdd~cli-shell-completion~2]
     #[test]
     fn utest_completions_workloads() {
         let state = WORKLOAD_STATE.as_bytes();
@@ -445,7 +460,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-shell-completion~1]
+    // [utest->swdd~cli-shell-completion~2]
     #[test]
     fn utest_completions_workloads_with_current() {
         let state = WORKLOAD_STATE.as_bytes();
@@ -459,7 +474,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-shell-completion~1]
+    // [utest->swdd~cli-shell-completion~2]
     #[test]
     fn utest_completions_workloads_invalid_input() {
         let state = "".as_bytes();
@@ -492,6 +507,9 @@ mod tests {
                 "runtime": "podman",
                 "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.3\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
               }
+            },
+            "configs": {
+                "item1": "some configuration data"
             }
           },
           "workloadStates": {
@@ -511,11 +529,20 @@ mod tests {
                 }
               }
             }
+          },
+          "agents": {
+            "agent_A": {
+                "status": {
+                    "cpuUsage": 0,
+                    "freeMemory": 6447071232
+                },
+                "tags": {}
+            }
           }
         }
     "#;
 
-    // [utest->swdd~cli-shell-completion~1]
+    // [utest->swdd~cli-shell-completion~2]
     #[test]
     fn utest_completions_object_field_mask() {
         let state = OBJECT_FIELD_MASK_STATE.as_bytes();
@@ -525,8 +552,13 @@ mod tests {
         assert_eq!(
             completions,
             vec![
-                CompletionCandidate::new("configs"),
+                CompletionCandidate::new("agents"),
+                CompletionCandidate::new("agents.agent_A"),
+                CompletionCandidate::new("agents.agent_A.status"),
+                CompletionCandidate::new("agents.agent_A.tags"),
                 CompletionCandidate::new("desiredState"),
+                CompletionCandidate::new("desiredState.configs"),
+                CompletionCandidate::new("desiredState.configs.item1"),
                 CompletionCandidate::new("desiredState.workloads"),
                 CompletionCandidate::new("desiredState.workloads.databroker"),
                 CompletionCandidate::new("desiredState.workloads.speed-provider"),
@@ -539,7 +571,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-shell-completion~1]
+    // [utest->swdd~cli-shell-completion~2]
     #[test]
     fn utest_completions_object_field_mask_with_current() {
         let state = OBJECT_FIELD_MASK_STATE.as_bytes();
@@ -559,7 +591,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-shell-completion~1]
+    // [utest->swdd~cli-shell-completion~2]
     #[test]
     fn utest_completions_object_field_mask_invalid_input() {
         let state = "".as_bytes();
