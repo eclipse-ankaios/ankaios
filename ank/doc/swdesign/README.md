@@ -1441,11 +1441,15 @@ Needs:
 - utest
 
 ### Shell completion
-`swdd~cli-shell-completion~1`
+`swdd~cli-shell-completion~2`
 
 Status: approved
 
-When the user starts typing an Ankaios CLI command, the zsh and bash shell shall propose completions for arguments including dynamic completions for workload names, object field masks and agents.
+When the user starts typing an Ankaios CLI command, the zsh and bash shell shall propose completions for arguments including dynamic completions for:
+* workload names
+* object field masks
+* configs
+* agents
 
 Rationale:
 A user's productivity is increased when command completions are provided which reduces lookups for the user.
