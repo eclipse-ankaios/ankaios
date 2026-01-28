@@ -257,7 +257,7 @@ pub enum GetCommands {
         #[arg(short = 'o', value_enum, default_value_t = OutputFormat::Yaml)]
         output_format: OutputFormat,
         /// Specify if the first complete state response shall be included in the output
-        #[arg(short = 'd', long = "detailed", default_value_t = false)]
+        #[arg(short = 'c', long = "include-current-state", default_value_t = false)]
         detailed: bool,
         /// Select which parts of the state object shall be output e.g. 'desiredState.workloads.nginx' [default: empty = the complete state]
         #[arg(add = ArgValueCompleter::new(object_field_mask_completer))]

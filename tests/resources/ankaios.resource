@@ -1084,7 +1084,7 @@ user starts the CLI to subscribe to events with format "${format}" and field mas
 
 user starts the CLI to subscribe to events with detailed mode enabled with format "${format}" and field mask "${field_mask}" in background
     ${field_mask_arg}=    Set Variable If    "${field_mask}" == ""    ${EMPTY}    ${field_mask}
-    ${cmd}=    Set Variable If    "${field_mask}" == ""    %{ANK_BIN_DIR}${/}ank -k get events -o ${format}    %{ANK_BIN_DIR}${/}ank -k get events \"${field_mask_arg}\" --detailed -o ${format}
+    ${cmd}=    Set Variable If    "${field_mask}" == ""    %{ANK_BIN_DIR}${/}ank -k get events -o ${format}    %{ANK_BIN_DIR}${/}ank -k get events \"${field_mask_arg}\" --include-current-state -o ${format}
     Start Process    ${cmd}    shell=True    stdout=target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/events_error.txt    alias=event-listener
 
 the CLI listens for workload states
