@@ -1060,11 +1060,15 @@ Needs:
 ![Get events](plantuml/seq_get_events.svg)
 
 #### CLI provides get events command
-`swdd~cli-provides-get-events-command~1`
+`swdd~cli-provides-get-events-command~2`
 
 Status: approved
 
-The Ankaios CLI shall provide a function to get real-time state change events from the Ankaios server with a field mask as argument for filtering events to specific parts of the state.
+The Ankaios CLI shall provide a function to get real-time state change events from the Ankaios server with the following arguments:
+
+* a filter mask to filter events to specific parts of the state
+* a `include-current-state` (short: `c`) flag to include the initial state response in the output when subscribing for events
+* an output format flag to specify the output format (YAML (default) or JSON)
 
 Rationale:
 The get events command enables users to monitor state changes in real-time, which is essential for observability and debugging in dynamic workload orchestration scenarios.

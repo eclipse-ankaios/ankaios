@@ -54,7 +54,11 @@ use wait_list_display::WaitListDisplay;
 #[cfg_attr(test, mockall_double::double)]
 use self::server_connection::ServerConnection;
 use crate::{
-    cli_commands::wait_list::ParsedUpdateStateSuccess, cli_error::CliError, output, output_debug,
+    cli_commands::{
+        server_connection::CompleteStateRequestDetails, wait_list::ParsedUpdateStateSuccess,
+    },
+    cli_error::CliError,
+    output, output_debug,
 };
 
 #[cfg(test)]
@@ -197,9 +201,10 @@ impl CliCommands {
 
     // [impl->swdd~processes-complete-state-to-list-workloads~1]
     async fn get_workloads(&mut self) -> Result<WorkloadInfos, CliError> {
+        let request_details = CompleteStateRequestDetails::default();
         let res_complete_state = self
             .server_connection
-            .get_complete_state(&Vec::new())
+            .get_complete_state(request_details)
             .await?;
 
         Ok(self.transform_into_workload_infos(res_complete_state))
@@ -299,10 +304,10 @@ impl CliCommands {
             );
         }
 
-        let field_mask_whole_complete_state = Vec::new();
+        let request_details = CompleteStateRequestDetails::default();
         let mut new_complete_state = self
             .server_connection
-            .get_complete_state(&field_mask_whole_complete_state)
+            .get_complete_state(request_details)
             .await?;
 
         let connected_agents: HashSet<String> = new_complete_state

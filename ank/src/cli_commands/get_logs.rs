@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::CliCommands;
-use crate::cli::LogsArgs;
 use crate::cli_error::CliError;
+use crate::{cli::LogsArgs, cli_commands::server_connection::CompleteStateRequestDetails};
 
 use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadState};
 use std::collections::{BTreeSet, HashMap};
@@ -38,10 +38,11 @@ impl CliCommands {
         &mut self,
         workload_names: Vec<String>,
     ) -> Result<BTreeSet<WorkloadInstanceNameSpec>, CliError> {
-        let filter_mask_workload_states = ["workloadStates".to_string()];
+        let request_details =
+            CompleteStateRequestDetails::new(vec!["workloadStates".to_string()], false);
         let complete_state = self
             .server_connection
-            .get_complete_state(&filter_mask_workload_states)
+            .get_complete_state(request_details)
             .await?;
 
         if let Some(wl_states) = complete_state.workload_states {
@@ -113,7 +114,7 @@ mod tests {
 
     use ankaios_api::ank_base::{CompleteState, WorkloadInstanceNameSpec};
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_workload_named_with_params, fixtures,
+        fixtures, generate_test_complete_state, generate_test_workload_named_with_params,
     };
 
     use mockall::predicate;
@@ -134,7 +135,10 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(predicate::eq(vec!["workloadStates".to_string()]))
+            .withf(|request_details| {
+                request_details.field_masks == vec!["workloadStates".to_string()]
+                    && !request_details.subscribe_for_events
+            })
             .return_once(|_| {
                 Ok(CompleteState::from(generate_test_complete_state(vec![
                     cloned_log_workload,

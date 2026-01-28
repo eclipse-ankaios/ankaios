@@ -118,7 +118,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .once()
             .return_once(|_| Ok(CompleteState::default()));
         mock_server_connection
@@ -145,7 +147,9 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .once()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| Ok(CompleteState::from(complete_state_update)));
         mock_server_connection
             .expect_take_missed_from_server_messages()

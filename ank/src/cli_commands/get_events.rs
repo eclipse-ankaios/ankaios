@@ -15,52 +15,21 @@
 use super::CliCommands;
 use crate::cli::OutputFormat;
 use crate::cli_error::CliError;
-use crate::output;
 use crate::output_debug;
 
-use ankaios_api::ank_base::{AlteredFields, CompleteState, CompleteStateResponse};
-use chrono::Utc;
-use serde::{Deserialize, Serialize};
+use super::server_connection::CompleteStateRequestDetails;
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct EventOutput {
-    pub timestamp: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default, flatten)]
-    pub altered_fields: Option<AlteredFields>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
-    pub complete_state: Option<CompleteState>,
-}
-
-impl From<&CompleteStateResponse> for EventOutput {
-    fn from(response: &CompleteStateResponse) -> Self {
-        let timestamp_str = Utc::now().to_rfc3339();
-
-        let filtered_state = (*response).clone().complete_state;
-
-        let altered_fields = response.altered_fields.as_ref().map(|af| AlteredFields {
-            added_fields: af.added_fields.clone(),
-            updated_fields: af.updated_fields.clone(),
-            removed_fields: af.removed_fields.clone(),
-        });
-
-        EventOutput {
-            timestamp: timestamp_str,
-            altered_fields,
-            complete_state: filtered_state,
-        }
-    }
-}
+#[cfg_attr(test, mockall_double::double)]
+use event_output::EventSerializer;
 
 impl CliCommands {
-    // [impl->swdd~cli-provides-get-events-command~1]
+    // [impl->swdd~cli-provides-get-events-command~2]
     // [impl->swdd~cli-receives-events~1]
     pub async fn get_events(
         &mut self,
         object_field_mask: Vec<String>,
         output_format: OutputFormat,
+        detailed: bool,
     ) -> Result<(), CliError> {
         output_debug!(
             "Got: object_field_mask: {:?}, output_format: {:?} ",
@@ -68,46 +37,111 @@ impl CliCommands {
             output_format
         );
 
+        let request_details = CompleteStateRequestDetails::new(object_field_mask, true);
+
+        let request_id = request_details.get_request_id().to_owned();
+
         // [impl->swdd~cli-subscribes-for-events~1]
-        let mut subscription = self
+        let initial_state_response = self
             .server_connection
-            .subscribe_and_listen_for_events(object_field_mask)
+            .get_complete_state(request_details)
             .await?;
+
+        output_debug!("Received initial state response, subscription active");
+        if detailed {
+            EventSerializer::serialize(initial_state_response.into(), &output_format)?;
+        }
 
         // [impl->swdd~cli-handles-event-subscription-errors~1]
         while let Some(event) = self
             .server_connection
-            .receive_next_event(&mut subscription)
+            .receive_next_event(&request_id)
             .await?
         {
-            Self::output_event(&event, &output_format)?;
+            EventSerializer::serialize(event.into(), &output_format)?;
         }
 
         Ok(())
     }
+}
 
-    // [impl->swdd~cli-outputs-events-with-timestamp~1]
-    fn output_event(
-        event: &CompleteStateResponse,
-        output_format: &OutputFormat,
-    ) -> Result<(), CliError> {
-        let event_output: EventOutput = event.into();
+mod event_output {
+    use ankaios_api::ank_base::{AlteredFields, CompleteState, CompleteStateResponse};
+    use chrono::Utc;
+    #[cfg(test)]
+    use mockall::automock;
+    use serde::{Deserialize, Serialize};
 
+    use crate::{cli::OutputFormat, cli_error::CliError, output};
+
+    #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct EventOutput {
+        pub timestamp: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(default, flatten)]
+        pub altered_fields: Option<AlteredFields>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
+        pub complete_state: Option<CompleteState>,
+    }
+
+    pub struct EventSerializer;
+
+    #[cfg_attr(test, automock)]
+    impl EventSerializer {
+        // [impl->swdd~cli-outputs-events-with-timestamp~1]
         // [impl->swdd~cli-supports-multiple-output-types-for-events~1]
-        match output_format {
-            OutputFormat::Yaml => {
-                let yaml_output = serde_yaml::to_string(&event_output)
-                    .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-                output!("---\n{}", yaml_output.trim_end());
-            }
-            OutputFormat::Json => {
-                let json_output = serde_json::to_string(&event_output)
-                    .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-                output!("{json_output}");
-            }
-        };
+        pub fn serialize(
+            event: EventOutput,
+            output_format: &OutputFormat,
+        ) -> Result<(), super::CliError> {
+            match output_format {
+                OutputFormat::Yaml => {
+                    let yaml_output = serde_yaml::to_string(&event)
+                        .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+                    output!("---\n{}", yaml_output.trim_end());
+                }
+                OutputFormat::Json => {
+                    let json_output = serde_json::to_string(&event)
+                        .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+                    output!("{json_output}");
+                }
+            };
 
-        Ok(())
+            Ok(())
+        }
+    }
+
+    impl From<CompleteStateResponse> for EventOutput {
+        fn from(response: CompleteStateResponse) -> Self {
+            let timestamp_str = Utc::now().to_rfc3339();
+
+            let filtered_state = response.complete_state;
+
+            let altered_fields = response.altered_fields.as_ref().map(|af| AlteredFields {
+                added_fields: af.added_fields.clone(),
+                updated_fields: af.updated_fields.clone(),
+                removed_fields: af.removed_fields.clone(),
+            });
+
+            EventOutput {
+                timestamp: timestamp_str,
+                altered_fields,
+                complete_state: filtered_state,
+            }
+        }
+    }
+
+    impl From<CompleteState> for EventOutput {
+        fn from(complete_state: CompleteState) -> Self {
+            let timestamp_str = Utc::now().to_rfc3339();
+            EventOutput {
+                timestamp: timestamp_str,
+                altered_fields: None,
+                complete_state: Some(complete_state),
+            }
+        }
     }
 }
 
@@ -123,64 +157,74 @@ impl CliCommands {
 mod tests {
     use crate::{
         cli::OutputFormat,
-        cli_commands::{CliCommands, server_connection::MockServerConnection},
+        cli_commands::{
+            CliCommands,
+            get_events::event_output::{EventSerializer, MockEventSerializer},
+            server_connection::MockServerConnection,
+        },
     };
 
-    use ankaios_api::ank_base::{AlteredFields, CompleteStateResponse};
     use ankaios_api::test_utils::{
-        fixtures, generate_test_complete_state, generate_test_workload_named,
-        generate_test_workload_named_with_params,
+        fixtures, generate_test_complete_state, generate_test_workload,
+        generate_test_workload_named, generate_test_workload_named_with_params,
+    };
+    use ankaios_api::{
+        ank_base::{AlteredFields, CompleteStateResponse},
+        test_utils::generate_test_proto_complete_state,
     };
 
-    use mockall::predicate::eq;
-
-    // [utest->swdd~cli-provides-get-events-command~1]
+    // [utest->swdd~cli-provides-get-events-command~2]
     // [utest->swdd~cli-receives-events~1]
     // [utest->swdd~cli-supports-multiple-output-types-for-events~1]
     #[tokio::test]
     async fn utest_get_events_yaml_output() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
         let field_mask = vec!["desiredState.workloads".to_string()];
+
+        let mock_event_serializer = MockEventSerializer::serialize_context();
+        mock_event_serializer
+            .expect()
+            .once()
+            .returning(|_, _| Ok(()));
 
         let mut mock_server_connection = MockServerConnection::default();
 
+        let clone_field_mask = field_mask.clone();
         mock_server_connection
-            .expect_subscribe_and_listen_for_events()
-            .with(eq(field_mask.clone()))
+            .expect_get_complete_state()
+            .withf(move |request_details| {
+                request_details.field_masks == clone_field_mask
+                    && request_details.subscribe_for_events
+            })
             .times(1)
-            .returning(|_| {
-                Ok(crate::cli_commands::server_connection::EventSubscription {
-                    request_id: fixtures::REQUEST_ID.to_string(),
-                    initial_response_received: false,
-                })
+            .returning(|_| Ok(generate_test_proto_complete_state(&Vec::default())));
+
+        mock_server_connection
+            .expect_receive_next_event()
+            .once()
+            .returning(move |_| {
+                Ok(Some(CompleteStateResponse {
+                    complete_state: Some(
+                        generate_test_complete_state(vec![generate_test_workload_named()]).into(),
+                    ),
+                    altered_fields: Some(AlteredFields {
+                        added_fields: vec![format!(
+                            "desiredState.workloads.{}",
+                            fixtures::WORKLOAD_NAMES[0]
+                        )],
+                        updated_fields: vec![],
+                        removed_fields: vec![],
+                    }),
+                }))
             });
 
         mock_server_connection
             .expect_receive_next_event()
-            .times(2)
-            .returning(move |_| {
-                static mut CALL_COUNT: usize = 0;
-                unsafe {
-                    CALL_COUNT += 1;
-                    if CALL_COUNT == 1 {
-                        Ok(Some(CompleteStateResponse {
-                            complete_state: Some(
-                                generate_test_complete_state(vec![generate_test_workload_named()])
-                                    .into(),
-                            ),
-                            altered_fields: Some(AlteredFields {
-                                added_fields: vec![format!(
-                                    "desiredState.workloads.{}",
-                                    fixtures::WORKLOAD_NAMES[0]
-                                )],
-                                updated_fields: vec![],
-                                removed_fields: vec![],
-                            }),
-                        }))
-                    } else {
-                        Ok(None)
-                    }
-                }
-            });
+            .once()
+            .returning(|_| Ok(None));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
@@ -188,11 +232,11 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml, false).await;
         assert!(result.is_ok());
     }
 
-    // [utest->swdd~cli-provides-get-events-command~1]
+    // [utest->swdd~cli-provides-get-events-command~2]
     // [utest->swdd~cli-supports-multiple-output-types-for-events~1]
     #[tokio::test]
     async fn utest_get_events_json_output() {
@@ -201,15 +245,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
 
         mock_server_connection
-            .expect_subscribe_and_listen_for_events()
-            .with(eq(field_mask.clone()))
+            .expect_get_complete_state()
             .times(1)
-            .returning(|_| {
-                Ok(crate::cli_commands::server_connection::EventSubscription {
-                    request_id: fixtures::REQUEST_ID.to_string(),
-                    initial_response_received: false,
-                })
-            });
+            .returning(|_| Ok(generate_test_proto_complete_state(&Vec::default())));
 
         mock_server_connection
             .expect_receive_next_event()
@@ -222,7 +260,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let result = cmd.get_events(field_mask, OutputFormat::Json).await;
+        let result = cmd.get_events(field_mask, OutputFormat::Json, false).await;
         assert!(result.is_ok());
     }
 
@@ -233,15 +271,19 @@ mod tests {
 
         let mut mock_server_connection = MockServerConnection::default();
 
+        let clone_field_mask = field_mask.clone();
         mock_server_connection
-            .expect_subscribe_and_listen_for_events()
-            .with(eq(field_mask.clone()))
+            .expect_get_complete_state()
+            .withf(move |request_details| {
+                request_details.field_masks == clone_field_mask
+                    && request_details.subscribe_for_events
+            })
             .times(1)
             .returning(|_| {
-                Ok(crate::cli_commands::server_connection::EventSubscription {
-                    request_id: fixtures::REQUEST_ID.to_string(),
-                    initial_response_received: false,
-                })
+                Ok(generate_test_proto_complete_state(&[(
+                    fixtures::WORKLOAD_NAMES[0],
+                    generate_test_workload().into(),
+                )]))
             });
 
         mock_server_connection
@@ -255,7 +297,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml, false).await;
         assert!(result.is_ok());
     }
 
@@ -267,8 +309,7 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
 
         mock_server_connection
-            .expect_subscribe_and_listen_for_events()
-            .with(eq(field_mask.clone()))
+            .expect_get_complete_state()
             .times(1)
             .returning(|_| {
                 Err(
@@ -284,7 +325,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml, false).await;
         assert!(result.is_err());
     }
 
@@ -296,15 +337,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
 
         mock_server_connection
-            .expect_subscribe_and_listen_for_events()
-            .with(eq(field_mask.clone()))
+            .expect_get_complete_state()
             .times(1)
-            .returning(|_| {
-                Ok(crate::cli_commands::server_connection::EventSubscription {
-                    request_id: fixtures::REQUEST_ID.to_string(),
-                    initial_response_received: false,
-                })
-            });
+            .returning(|_| Ok(generate_test_proto_complete_state(&Vec::default())));
 
         mock_server_connection
             .expect_receive_next_event()
@@ -323,91 +358,112 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml, false).await;
         assert!(result.is_err());
     }
 
     // [utest->swdd~cli-receives-events~1]
     #[tokio::test]
     async fn utest_get_events_multiple_events() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
         let field_mask = vec!["desiredState.workloads".to_string()];
+
+        let mock_event_serializer = MockEventSerializer::serialize_context();
+        mock_event_serializer
+            .expect()
+            .times(3)
+            .returning(|_, _| Ok(()));
+
+        let mut event_seq = mockall::Sequence::new();
 
         let mut mock_server_connection = MockServerConnection::default();
 
         mock_server_connection
-            .expect_subscribe_and_listen_for_events()
-            .with(eq(field_mask.clone()))
-            .times(1)
-            .returning(|_| {
-                Ok(crate::cli_commands::server_connection::EventSubscription {
-                    request_id: fixtures::REQUEST_ID.to_string(),
-                    initial_response_received: false,
-                })
+            .expect_get_complete_state()
+            .once()
+            .in_sequence(&mut event_seq)
+            .returning(|_| Ok(generate_test_proto_complete_state(&Vec::default())));
+
+        mock_server_connection
+            .expect_receive_next_event()
+            .once()
+            .in_sequence(&mut event_seq)
+            .returning(move |_| {
+                Ok(Some(CompleteStateResponse {
+                    complete_state: Some(
+                        generate_test_complete_state(vec![
+                            generate_test_workload_named_with_params(
+                                fixtures::WORKLOAD_NAMES[0],
+                                fixtures::AGENT_NAMES[0],
+                                fixtures::RUNTIME_NAMES[0],
+                            ),
+                        ])
+                        .into(),
+                    ),
+                    altered_fields: Some(AlteredFields {
+                        added_fields: vec![format!(
+                            "desiredState.workloads.{}",
+                            fixtures::WORKLOAD_NAMES[0]
+                        )],
+                        updated_fields: vec![],
+                        removed_fields: vec![],
+                    }),
+                }))
             });
 
         mock_server_connection
             .expect_receive_next_event()
-            .times(4)
+            .once()
+            .in_sequence(&mut event_seq)
             .returning(move |_| {
-                static mut CALL_COUNT: usize = 0;
-                unsafe {
-                    CALL_COUNT += 1;
-                    match CALL_COUNT {
-                        1 => Ok(Some(CompleteStateResponse {
-                            complete_state: Some(
-                                generate_test_complete_state(vec![
-                                    generate_test_workload_named_with_params(
-                                        fixtures::WORKLOAD_NAMES[0],
-                                        fixtures::AGENT_NAMES[0],
-                                        fixtures::RUNTIME_NAMES[0],
-                                    ),
-                                ])
-                                .into(),
+                Ok(Some(CompleteStateResponse {
+                    complete_state: Some(
+                        generate_test_complete_state(vec![
+                            generate_test_workload_named_with_params(
+                                fixtures::WORKLOAD_NAMES[1],
+                                fixtures::AGENT_NAMES[1],
+                                fixtures::RUNTIME_NAMES[0],
                             ),
-                            altered_fields: Some(AlteredFields {
-                                added_fields: vec![format!(
-                                    "desiredState.workloads.{}",
-                                    fixtures::WORKLOAD_NAMES[0]
-                                )],
-                                updated_fields: vec![],
-                                removed_fields: vec![],
-                            }),
-                        })),
-                        2 => Ok(Some(CompleteStateResponse {
-                            complete_state: Some(
-                                generate_test_complete_state(vec![
-                                    generate_test_workload_named_with_params(
-                                        fixtures::WORKLOAD_NAMES[1],
-                                        fixtures::AGENT_NAMES[1],
-                                        fixtures::RUNTIME_NAMES[0],
-                                    ),
-                                ])
-                                .into(),
-                            ),
-                            altered_fields: Some(AlteredFields {
-                                added_fields: vec![format!(
-                                    "desiredState.workloads.{}",
-                                    fixtures::WORKLOAD_NAMES[1]
-                                )],
-                                updated_fields: vec![],
-                                removed_fields: vec![],
-                            }),
-                        })),
-                        3 => Ok(Some(CompleteStateResponse {
-                            complete_state: Some(generate_test_complete_state(vec![]).into()),
-                            altered_fields: Some(AlteredFields {
-                                added_fields: vec![],
-                                updated_fields: vec![],
-                                removed_fields: vec![format!(
-                                    "desiredState.workloads.{}",
-                                    fixtures::WORKLOAD_NAMES[0]
-                                )],
-                            }),
-                        })),
-                        _ => Ok(None),
-                    }
-                }
+                        ])
+                        .into(),
+                    ),
+                    altered_fields: Some(AlteredFields {
+                        added_fields: vec![format!(
+                            "desiredState.workloads.{}",
+                            fixtures::WORKLOAD_NAMES[1]
+                        )],
+                        updated_fields: vec![],
+                        removed_fields: vec![],
+                    }),
+                }))
             });
+
+        mock_server_connection
+            .expect_receive_next_event()
+            .once()
+            .in_sequence(&mut event_seq)
+            .returning(move |_| {
+                Ok(Some(CompleteStateResponse {
+                    complete_state: Some(generate_test_complete_state(vec![]).into()),
+                    altered_fields: Some(AlteredFields {
+                        added_fields: vec![],
+                        updated_fields: vec![],
+                        removed_fields: vec![format!(
+                            "desiredState.workloads.{}",
+                            fixtures::WORKLOAD_NAMES[0]
+                        )],
+                    }),
+                }))
+            });
+
+        mock_server_connection
+            .expect_receive_next_event()
+            .once()
+            .in_sequence(&mut event_seq)
+            .returning(|_| Ok(None));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
@@ -415,7 +471,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml, false).await;
         assert!(result.is_ok());
     }
 
@@ -442,7 +498,7 @@ mod tests {
             }),
         };
 
-        let result = CliCommands::output_event(&event, &OutputFormat::Yaml);
+        let result = EventSerializer::serialize(event.into(), &OutputFormat::Yaml);
         assert!(result.is_ok());
     }
 
@@ -464,7 +520,7 @@ mod tests {
             }),
         };
 
-        let result = CliCommands::output_event(&event, &OutputFormat::Json);
+        let result = EventSerializer::serialize(event.into(), &OutputFormat::Json);
         assert!(result.is_ok());
     }
 
@@ -478,7 +534,7 @@ mod tests {
             altered_fields: None,
         };
 
-        let result = CliCommands::output_event(&event, &OutputFormat::Yaml);
+        let result = EventSerializer::serialize(event.into(), &OutputFormat::Yaml);
         assert!(result.is_ok());
     }
 
@@ -494,7 +550,7 @@ mod tests {
             }),
         };
 
-        let result = CliCommands::output_event(&event, &OutputFormat::Yaml);
+        let result = EventSerializer::serialize(event.into(), &OutputFormat::Yaml);
         assert!(result.is_ok());
     }
 
@@ -515,7 +571,56 @@ mod tests {
             }),
         };
 
-        let result = CliCommands::output_event(&event, &OutputFormat::Json);
+        let result = EventSerializer::serialize(event.into(), &OutputFormat::Json);
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~cli-provides-get-events-command~2]
+    #[tokio::test]
+    async fn utest_get_events_output_current_state_response() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let field_mask = vec!["desiredState.workloads".to_string()];
+
+        let mock_event_serializer = MockEventSerializer::serialize_context();
+        mock_event_serializer
+            .expect()
+            .once()
+            .returning(|_, _| Ok(()));
+
+        let mut mock_server_connection = MockServerConnection::default();
+
+        let clone_field_mask = field_mask.clone();
+        mock_server_connection
+            .expect_get_complete_state()
+            .withf(move |request_details| {
+                request_details.field_masks == clone_field_mask
+                    && request_details.subscribe_for_events
+            })
+            .times(1)
+            .returning(|_| Ok(generate_test_proto_complete_state(&Vec::default())));
+
+        mock_server_connection
+            .expect_receive_next_event()
+            .once()
+            .returning(|_| Ok(None));
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let output_initial_state_response = true;
+
+        let result = cmd
+            .get_events(
+                field_mask,
+                OutputFormat::Yaml,
+                output_initial_state_response,
+            )
+            .await;
         assert!(result.is_ok());
     }
 }

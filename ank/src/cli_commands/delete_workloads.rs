@@ -107,7 +107,9 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .times(2)
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .returning(move |_| Ok(CompleteState::from(complete_state_update.clone())));
 
         mock_server_connection
