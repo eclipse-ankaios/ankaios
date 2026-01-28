@@ -23,7 +23,7 @@ use super::server_connection::CompleteStateRequestDetails;
 use event_output::EventSerializer;
 
 impl CliCommands {
-    // [impl->swdd~cli-provides-get-events-command~1]
+    // [impl->swdd~cli-provides-get-events-command~2]
     // [impl->swdd~cli-receives-events~1]
     pub async fn get_events(
         &mut self,
@@ -173,7 +173,7 @@ mod tests {
         test_utils::generate_test_proto_complete_state,
     };
 
-    // [utest->swdd~cli-provides-get-events-command~1]
+    // [utest->swdd~cli-provides-get-events-command~2]
     // [utest->swdd~cli-receives-events~1]
     // [utest->swdd~cli-supports-multiple-output-types-for-events~1]
     #[tokio::test]
@@ -236,7 +236,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // [utest->swdd~cli-provides-get-events-command~1]
+    // [utest->swdd~cli-provides-get-events-command~2]
     // [utest->swdd~cli-supports-multiple-output-types-for-events~1]
     #[tokio::test]
     async fn utest_get_events_json_output() {
@@ -575,7 +575,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // [utest->swdd~cli-provides-get-events-command~1]
+    // [utest->swdd~cli-provides-get-events-command~2]
     #[tokio::test]
     async fn utest_get_events_output_initial_state_response() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

@@ -22,7 +22,7 @@ Resource            ../../resources/variables.resource
 
 *** Test Cases ***
 
-# [stest->swdd~cli-provides-get-events-command~1]
+# [stest->swdd~cli-provides-get-events-command~2]
 # [stest->swdd~cli-subscribes-for-events~1]
 # [stest->swdd~cli-receives-events~1]
 # [stest->swdd~cli-supports-multiple-output-types-for-events~1]
@@ -44,7 +44,7 @@ Test Ankaios CLI get events with field mask filter
     And the event output shall contain only desiredState workloads
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~cli-provides-get-events-command~1]
+# [stest->swdd~cli-provides-get-events-command~2]
 Test Ankaios CLI get events with current complete state output
     [Documentation]    Subscribe to events and output current complete state response
     [Setup]    Setup Ankaios

@@ -169,7 +169,7 @@ async fn main() {
                     Err(error) => output_and_error!("Failed to get configs: '{}'", error),
                 }
             }
-            // [impl->swdd~cli-provides-get-events-command~1]
+            // [impl->swdd~cli-provides-get-events-command~2]
             Some(cli::GetCommands::Events {
                 output_format,
                 detailed,
