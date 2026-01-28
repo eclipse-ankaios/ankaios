@@ -286,11 +286,11 @@ mod tests {
     };
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
-    use ankaios_api::test_utils::fixtures;
+    use ankaios_api::{ank_base::LogsCancelRequest, test_utils::fixtures};
     use ankaios_api::{
         ank_base::{
-            CompleteStateRequest, Error as AnkError, LogEntriesResponse, LogsCancelRequestSpec,
-            Request, RequestContent, RequestContentSpec, RequestSpec, Response, ResponseContent,
+            CompleteStateRequest, Error as AnkError, LogEntriesResponse,
+            Request, RequestContent, Response, ResponseContent,
         },
         control_api,
     };
@@ -521,9 +521,9 @@ mod tests {
 
         tokio::spawn(async { control_interface_task.run().await });
 
-        let mut expected_log_cancel_request = RequestSpec {
+        let mut expected_log_cancel_request = Request {
             request_id: response.request_id,
-            request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
+            request_content: Some(RequestContent::LogsCancelRequest(LogsCancelRequest {})),
         };
         expected_log_cancel_request.prefix_request_id(request_id_prefix);
         assert_eq!(
@@ -696,7 +696,7 @@ mod tests {
 
         control_interface_task.run().await;
 
-        let mut expected_request: RequestSpec = ank_request.try_into().unwrap();
+        let mut expected_request = ank_request;
         expected_request.prefix_request_id(request_id_prefix);
         assert_eq!(
             output_pipe_receiver.recv().await,

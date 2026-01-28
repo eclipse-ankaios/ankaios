@@ -16,7 +16,7 @@ use ankaios_api::ank_base::Request;
 use ankaios_api::control_api;
 
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ToAnkaios {
     Request(Request),
     Hello(Hello),
@@ -78,8 +78,7 @@ impl Default for Hello {
 mod tests {
     use super::{ToAnkaios, control_api};
     use ankaios_api::ank_base::{
-        CompleteStateRequest, CompleteStateRequestSpec, Request, RequestContent,
-        RequestContentSpec, RequestSpec,
+        CompleteStateRequest, Request, RequestContent,
     };
     use ankaios_api::test_utils::fixtures;
 
@@ -99,14 +98,15 @@ mod tests {
             })),
         };
 
-        let expected = ToAnkaios::Request(RequestSpec {
+        let expected = ToAnkaios::Request(Request {
             request_id: fixtures::REQUEST_ID.into(),
-            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+            request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![FIELD_1.into(), FIELD_2.into()],
                 subscribe_for_events: false,
-            }),
+            })),
         });
 
-        assert_eq!(ToAnkaios::try_from(proto_request).unwrap(), expected);
+        let converted = ToAnkaios::try_from(proto_request).unwrap();
+        assert_eq!(converted, expected);
     }
 }

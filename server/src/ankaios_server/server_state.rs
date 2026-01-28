@@ -1139,14 +1139,17 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let server_state = ServerState::default(); // empty old state
 
+        let expected_complete_state = CompleteStateSpec::default();
+        let new_complete_state: CompleteState = expected_complete_state.clone().into();
+
         let state_generation_result = server_state
-            .generate_new_state(CompleteState::default(), vec![])
+            .generate_new_state(new_complete_state, vec![])
             .unwrap();
         assert_eq!(
             state_generation_result.new_desired_state,
             StateSpec::default()
         );
-        assert_eq!(server_state.state, CompleteStateSpec::default());
+        assert_eq!(expected_complete_state, server_state.state);
     }
 
     // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]

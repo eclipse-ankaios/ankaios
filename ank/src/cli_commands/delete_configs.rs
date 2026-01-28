@@ -57,7 +57,7 @@ impl CliCommands {
 mod tests {
     use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
 
-    use ankaios_api::ank_base::{CompleteState, CompleteStateSpec, UpdateStateSuccess};
+    use ankaios_api::ank_base::{CompleteState, UpdateStateSuccess};
     use ankaios_api::test_utils::fixtures;
     use mockall::predicate::eq;
 
@@ -76,7 +76,7 @@ mod tests {
         mock_server_connection
             .expect_update_state()
             .with(
-                eq(CompleteStateSpec::default()),
+                eq(CompleteState::default()),
                 eq(vec![
                     ["desiredState.configs.", CONFIG_1].join(""),
                     ["desiredState.configs.", CONFIG_2].join(""),
@@ -118,13 +118,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state_update = CompleteStateSpec::default();
-
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_update_state()
             .with(
-                eq(complete_state_update),
+                eq(CompleteState::default()),
                 eq(vec!["desiredState.configs.unknown_config".to_string()]),
             )
             .return_once(|_, _| {

@@ -250,9 +250,7 @@ mod tests {
         to_server_interface::{ToServer, ToServerInterface},
     };
     use ankaios_api::ank_base::{
-        CompleteStateRequestSpec, ExecutionStateSpec, LogEntriesResponse, LogEntry,
-        LogsCancelRequestSpec, LogsRequestSpec, LogsStopResponse, RequestContentSpec, RequestSpec,
-        Tags, UpdateStateRequestSpec, WorkloadInstanceName, WorkloadInstanceNameSpec,
+        CompleteState, CompleteStateRequest, ExecutionStateSpec, LogEntriesResponse, LogEntry, LogsCancelRequest, LogsRequest, LogsStopResponse, Request, RequestContent, Tags, UpdateStateRequest, WorkloadInstanceName,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_complete_state, generate_test_workload_named,
@@ -337,7 +335,7 @@ mod tests {
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload1 = generate_test_workload_named();
-        let complete_state = generate_test_complete_state(vec![workload1]);
+        let complete_state: CompleteState = generate_test_complete_state(vec![workload1]).into();
         assert!(
             tx.update_state(
                 fixtures::REQUEST_ID.to_string(),
@@ -350,14 +348,14 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(RequestSpec {
+            ToServer::Request(Request {
                 request_id: fixtures::REQUEST_ID.to_string(),
-                request_content: RequestContentSpec::UpdateStateRequest(Box::new(
-                    UpdateStateRequestSpec {
-                        new_state: complete_state,
+                request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                    UpdateStateRequest {
+                        new_state: Some(complete_state),
                         update_mask: vec![FIELD_MASK.to_string()]
                     },
-                )),
+                ))),
             })
         )
     }
@@ -392,23 +390,21 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let complete_state_request = CompleteStateRequestSpec {
+        let complete_state_request = CompleteStateRequest {
             field_mask: vec![FIELD_MASK.to_string()],
             subscribe_for_events: false,
         };
-        let request_content =
-            RequestContentSpec::CompleteStateRequest(complete_state_request.clone());
         assert!(
-            tx.request_complete_state(fixtures::REQUEST_ID.to_string(), complete_state_request)
+            tx.request_complete_state(fixtures::REQUEST_ID.to_string(), complete_state_request.clone())
                 .await
                 .is_ok()
         );
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(RequestSpec {
+            ToServer::Request(Request {
                 request_id: fixtures::REQUEST_ID.to_string(),
-                request_content
+                request_content: Some(RequestContent::CompleteStateRequest(complete_state_request))
             })
         )
     }
@@ -418,29 +414,28 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let logs_request = LogsRequestSpec {
-            workload_names: vec![WorkloadInstanceNameSpec::new(
-                fixtures::AGENT_NAMES[0],
-                fixtures::WORKLOAD_NAMES[0],
-                "id",
-            )],
-            follow: true,
-            tail: 10,
+        let logs_request = LogsRequest {
+            workload_names: vec![WorkloadInstanceName{
+                agent_name: fixtures::AGENT_NAMES[0].into(),
+                workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                id: "id".into(),
+            }],
+            follow: Some(true),
+            tail: Some(10),
             since: None,
             until: None,
         };
-        let request_content = RequestContentSpec::LogsRequest(logs_request.clone());
         assert!(
-            tx.logs_request(fixtures::REQUEST_ID.into(), logs_request.into())
+            tx.logs_request(fixtures::REQUEST_ID.into(), logs_request.clone())
                 .await
                 .is_ok()
         );
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(RequestSpec {
+            ToServer::Request(Request {
                 request_id: fixtures::REQUEST_ID.to_string(),
-                request_content
+                request_content: Some(RequestContent::LogsRequest(logs_request.clone()))
             })
         )
     }
@@ -450,7 +445,6 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let request_content = RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {});
         assert!(
             tx.logs_cancel_request(fixtures::REQUEST_ID.into())
                 .await
@@ -459,9 +453,9 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(RequestSpec {
+            ToServer::Request(Request {
                 request_id: fixtures::REQUEST_ID.to_string(),
-                request_content
+                request_content: Some(RequestContent::LogsCancelRequest(LogsCancelRequest {}))
             })
         )
     }

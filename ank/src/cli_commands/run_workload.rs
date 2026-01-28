@@ -41,13 +41,15 @@ impl CliCommands {
 
         let update_mask = vec![format!("desiredState.workloads.{}", workload_name)];
 
-        let mut complete_state_update = CompleteState::default();
-        complete_state_update.desired_state = Some(State {
-            workloads: Some(WorkloadMap {
-                workloads: HashMap::from([(workload_name, new_workload)]),
+        let complete_state_update = CompleteState {
+            desired_state: Some(State {
+                workloads: Some(WorkloadMap {
+                    workloads: HashMap::from([(workload_name, new_workload)]),
+                }),
+                ..Default::default()
             }),
             ..Default::default()
-        });
+        };
 
         output_debug!(
             "The complete state update: {:?}, update mask {:?}",
@@ -72,8 +74,8 @@ mod tests {
     use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
 
     use ankaios_api::ank_base::{
-        CompleteState, CompleteStateSpec, ExecutionStateSpec, TagsSpec, UpdateStateSuccess,
-        WorkloadSpec, WorkloadStateSpec,
+        CompleteState, ExecutionStateSpec, State, Tags, UpdateStateSuccess, Workload, WorkloadMap,
+        WorkloadStateSpec,
     };
     use ankaios_api::test_utils::fixtures;
     use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
@@ -92,25 +94,24 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let new_workload = WorkloadSpec {
-            agent: fixtures::AGENT_NAMES[0].to_owned(),
-            runtime: fixtures::RUNTIME_NAMES[0].to_owned(),
-            tags: TagsSpec {
+        let new_workload = Workload {
+            agent: Some(fixtures::AGENT_NAMES[0].to_owned()),
+            runtime: Some(fixtures::RUNTIME_NAMES[0].to_owned()),
+            tags: Some(Tags {
                 tags: HashMap::from([("key".to_string(), "value".to_string())]),
-            },
-            runtime_config: test_workload_runtime_cfg.clone(),
-            restart_policy: Default::default(),
-            dependencies: Default::default(),
-            control_interface_access: Default::default(),
-            configs: Default::default(),
-            files: Default::default(),
+            }),
+            runtime_config: Some(test_workload_runtime_cfg.clone()),
+            ..Default::default()
         };
-        let mut complete_state_update = CompleteStateSpec::default();
-        complete_state_update
-            .desired_state
-            .workloads
-            .workloads
-            .insert(fixtures::WORKLOAD_NAMES[0].into(), new_workload);
+        let complete_state_update = CompleteState {
+            desired_state: Some(State {
+                workloads: Some(WorkloadMap {
+                    workloads: HashMap::from([(fixtures::WORKLOAD_NAMES[0].into(), new_workload)]),
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
@@ -143,7 +144,7 @@ mod tests {
             .expect_get_complete_state()
             .once()
             .with(eq(vec![]))
-            .return_once(|_| Ok(CompleteState::from(complete_state_update)));
+            .return_once(|_| Ok(complete_state_update));
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(|| {

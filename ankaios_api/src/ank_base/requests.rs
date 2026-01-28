@@ -40,7 +40,7 @@ mod tests {
     fn test_prefix_request_id() {
         let mut request_spec = Request {
             request_id: "12345".to_string(),
-            request_content: RequestContent::LogsCancelRequest(LogsCancelRequest {}),
+            request_content: Some(RequestContent::LogsCancelRequest(LogsCancelRequest {})),
         };
         request_spec.prefix_request_id("PRE");
         assert_eq!(request_spec.request_id, "PRE12345");

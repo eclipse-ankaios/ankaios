@@ -54,7 +54,7 @@ mod tests {
 
     use ankaios_api::{
         ank_base::{
-            CompleteState, CompleteStateSpec, ExecutionStateSpec, UpdateStateSuccess,
+            CompleteState, ExecutionStateSpec, UpdateStateSuccess,
             WorkloadStateSpec,
         },
         test_utils::fixtures,
@@ -72,13 +72,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state_update = CompleteStateSpec::default();
-
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_update_state()
             .with(
-                eq(complete_state_update.clone()),
+                eq(CompleteState::default()),
                 eq(vec![
                     format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]),
                     format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[1]),
@@ -108,7 +106,7 @@ mod tests {
             .expect_get_complete_state()
             .times(2)
             .with(eq(vec![]))
-            .returning(move |_| Ok(CompleteState::from(complete_state_update.clone())));
+            .returning(move |_| Ok(CompleteState::default()));
 
         mock_server_connection
             .expect_take_missed_from_server_messages()
@@ -164,8 +162,6 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state_update = CompleteStateSpec::default();
-
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
@@ -174,7 +170,7 @@ mod tests {
         mock_server_connection
             .expect_update_state()
             .with(
-                eq(complete_state_update),
+                eq(CompleteState::default()),
                 eq(vec!["desiredState.workloads.unknown_workload".to_string()]),
             )
             .return_once(|_, _| {

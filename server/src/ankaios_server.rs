@@ -94,20 +94,11 @@ impl AnkaiosServer {
     pub async fn start(&mut self, startup_state: Option<CompleteStateSpec>) -> Result<(), String> {
         if let Some(state) = startup_state {
             // [impl->swdd~server-validates-desired-state-api-version~1]
-
-            // TODO #now maybe change the validate_pre_rendering to work on CompleteState directly
             state.desired_state.validate_pre_rendering()?;
 
             match self.server_state.update(state.desired_state) {
                 Ok(Some(added_deleted_workloads)) => {
-                    // for (agent_name, agent_attributes) in
-                    //     state_generation_result.new_agent_map.agents.iter()
-                    // {
-                    //     self.agent_map
-                    //         .agents
-                    //         .entry(agent_name.to_owned())
-                    //         .insert_entry(agent_attributes.to_owned());
-                    // }
+
                     let added_workloads = added_deleted_workloads.added_workloads;
                     let deleted_workloads = added_deleted_workloads.deleted_workloads;
 
@@ -427,38 +418,7 @@ impl AnkaiosServer {
                                 "Received UpdateState. State '{new_state:?}', update mask '{update_mask:?}'"
                             );
 
-                            // [impl->swdd~update-desired-state-with-invalid-version~1]
-                            // [impl->swdd~update-desired-state-with-missing-version~1]
-                            // [impl->swdd~server-desired-state-field-conventions~1]
-                            // TODO #now combine this somehow with the check above for the new_state presence
-                            // let Some(_new_desired_state) = &new_state.desired_state else {
-                            //     log::warn!(
-                            //         "The UpdateStateRequest does not contain a desired state -> ignoring the request"
-                            //     );
-                            //     self.to_agents
-                            //         .error(
-                            //             request_id,
-                            //             "The UpdateStateRequest does not contain a desired state"
-                            //                 .to_string(),
-                            //         )
-                            //         .await
-                            //         .unwrap_or_illegal_state();
-                            //     continue;
-                            // };
-                            // // [impl->swdd~server-validates-desired-state-api-version~1]
 
-                            // TODO #now
-                            // if let Err(error_message) = new_desired_state.validate_pre_rendering() {
-                            //     log::warn!(
-                            //         "The CompleteState in the request has wrong format. {error_message} -> ignoring the request"
-                            //     );
-
-                            //     self.to_agents
-                            //         .error(request_id, error_message)
-                            //         .await
-                            //         .unwrap_or_illegal_state();
-                            //     continue;
-                            // }
 
                             // [impl->swdd~update-desired-state-with-update-mask~1]
                             // [impl->swdd~update-desired-state-empty-update-mask~1]
@@ -480,6 +440,22 @@ impl AnkaiosServer {
                                     continue;
                                 }
                             };
+
+                            // [impl->swdd~update-desired-state-with-invalid-version~1]
+                            // [impl->swdd~update-desired-state-with-missing-version~1]
+                            // [impl->swdd~server-desired-state-field-conventions~1]
+                            // [impl->swdd~server-validates-desired-state-api-version~1]
+                            if let Err(error_message) = state_generation_result.new_desired_state.validate_pre_rendering() {
+                                log::warn!(
+                                    "The CompleteState in the request has wrong format. {error_message} -> ignoring the request"
+                                );
+
+                                self.to_agents
+                                    .error(request_id, error_message)
+                                    .await
+                                    .unwrap_or_illegal_state();
+                                continue;
+                            }
 
                             match self
                                 .server_state
@@ -1231,16 +1207,6 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
-        let new_desired_state = startup_state.desired_state.clone();
-        mock_server_state
-            .expect_generate_new_state()
-            .once()
-            .returning(move |_, _| {
-                Ok(StateGenerationResult {
-                    new_desired_state: new_desired_state.clone(),
-                    ..Default::default()
-                })
-            });
         mock_server_state
             .expect_update()
             .with(mockall::predicate::eq(startup_state.desired_state.clone()))
@@ -1468,7 +1434,7 @@ mod tests {
                 workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         fixtures::WORKLOAD_NAMES[0].to_owned(),
-                        w1.workload.clone().into(),
+                        w1.workload.clone(),
                     )]),
                 },
                 ..Default::default()
@@ -1577,7 +1543,7 @@ mod tests {
                 workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         fixtures::WORKLOAD_NAMES[0].to_owned(),
-                        w1.workload.clone().into(),
+                        w1.workload.clone(),
                     )]),
                 },
                 ..Default::default()
@@ -1669,7 +1635,7 @@ mod tests {
                 workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         fixtures::WORKLOAD_NAMES[0].to_owned(),
-                        w1.clone().into(),
+                        w1.clone(),
                     )]),
                 },
                 ..Default::default()
@@ -2319,7 +2285,7 @@ mod tests {
                 workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         fixtures::WORKLOAD_NAMES[0].to_owned(),
-                        updated_w1.workload.clone().into(),
+                        updated_w1.workload.clone(),
                     )]),
                 },
                 ..Default::default()
@@ -2551,26 +2517,37 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let update_state = CompleteState {
-            desired_state: Some(State {
+        let update_state = CompleteStateSpec {
+            desired_state: StateSpec {
                 api_version: "incompatible_version".to_string(),
                 ..Default::default()
-            }),
+            },
             ..Default::default()
         };
 
         let update_mask = vec![format!(
-            "desiredState.workloads.{}",
-            fixtures::WORKLOAD_NAMES[0]
+            "desiredState"
         )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        let mut mock_server_state = MockServerState::new();
+        let new_desired_state = update_state.desired_state.clone();
+        mock_server_state
+            .expect_generate_new_state()
+            .once()
+            .return_once(move |_, _| Ok(StateGenerationResult{
+                new_desired_state,
+                ..Default::default()
+            }));
+        server.server_state = mock_server_state;
+
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
         let update_state_result = to_server
             .update_state(
                 fixtures::REQUEST_ID.to_string(),
-                update_state.clone(),
+                update_state.into(),
                 update_mask,
             )
             .await;
@@ -2603,26 +2580,37 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let update_state_ankaios_no_version = CompleteState {
-            desired_state: Some(State {
+        let update_state_ankaios_no_version = CompleteStateSpec {
+            desired_state: StateSpec {
                 api_version: "".to_string(),
                 ..Default::default()
-            }),
+            },
             ..Default::default()
         };
 
         let update_mask = vec![format!(
-            "desiredState.workloads.{}",
-            fixtures::WORKLOAD_NAMES[0]
+            "desiredState"
         )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        let mut mock_server_state = MockServerState::new();
+        let new_desired_state = update_state_ankaios_no_version.desired_state.clone();
+        mock_server_state
+            .expect_generate_new_state()
+            .once()
+            .return_once(move |_, _| Ok(StateGenerationResult{
+                new_desired_state,
+                ..Default::default()
+            }));
+        server.server_state = mock_server_state;
+
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
         let update_state_result = to_server
             .update_state(
                 fixtures::REQUEST_ID.to_string(),
-                update_state_ankaios_no_version.clone(),
+                update_state_ankaios_no_version.into(),
                 update_mask,
             )
             .await;
@@ -4150,7 +4138,7 @@ mod tests {
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
                     new_desired_state: Default::default(),
-                    new_agent_map: agents_clone.clone().into(),
+                    new_agent_map: agents_clone.clone(),
                     ..Default::default()
                 })
             });

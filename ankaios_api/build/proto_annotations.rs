@@ -112,6 +112,10 @@ fn annotate_workload(builder: Builder) -> Builder {
             "#[serde(skip_serializing_if = \"Option::is_none\")]",
         )
         .field_attribute(
+            "Workload.configs",
+            "#[serde(skip_serializing_if = \"Option::is_none\")]",
+        )
+        .field_attribute(
             "Workload.files",
             "#[serde(skip_serializing_if = \"Option::is_none\")]",
         )

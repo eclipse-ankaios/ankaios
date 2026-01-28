@@ -16,7 +16,6 @@ use super::{CliCommands, InputSourcePair};
 use crate::cli_error::CliError;
 use crate::{cli::ApplyArgs, output, output_debug};
 
-use ankaios_api::ank_base::StateSpec;
 use ankaios_api::{
     ALLOWED_CHAR_SET,
     ank_base::{CompleteState, State, validate_tags},
@@ -167,8 +166,11 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
 ) -> Result<Option<(CompleteState, Vec<String>)>, String> {
-    let mut req_obj: Object = StateSpec::default().try_into().map_err(|err| {
-        format!("Could not create initial empty state object from StateSpec: {err}")
+    let mut req_obj: Object = State{
+        api_version: CURRENT_API_VERSION.to_string(),
+        ..Default::default()
+    }.try_into().map_err(|err| {
+        format!("Could not create initial empty state object from State: {err}")
     })?;
     let mut req_paths: Vec<Path> = Vec::new();
     for manifest in manifests.iter_mut() {
@@ -249,8 +251,7 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{
-        CompleteState, CompleteStateSpec, ExecutionStateSpec, Response, ResponseContent, StateSpec,
-        UpdateStateSuccess, WorkloadInstanceNameSpec, WorkloadStateSpec,
+        CompleteState, ExecutionStateSpec, Response, ResponseContent, StateSpec, UpdateStateSuccess, WorkloadInstanceNameSpec, WorkloadStateSpec
     };
     use ankaios_api::test_utils::{
         generate_test_state_from_workloads, generate_test_workload_named,
@@ -543,7 +544,7 @@ mod tests {
         let mut new_workload = workload.clone();
         new_workload.workload.agent = overwritten_agent_name.to_owned();
         new_workload.instance_name.agent_name = overwritten_agent_name.to_owned();
-        let expected_state = generate_test_state_from_workloads(vec![new_workload]);
+        let expected_state = generate_test_state_from_workloads(vec![new_workload]).into();
 
         assert_eq!(
             handle_agent_overwrite(
@@ -568,7 +569,7 @@ mod tests {
                 state.clone().try_into().unwrap(),
             )
             .unwrap(),
-            state
+            state.into()
         );
     }
 
@@ -598,7 +599,7 @@ mod tests {
                 state.clone().try_into().unwrap(),
             )
             .unwrap(),
-            state
+            state.into()
         );
     }
 
@@ -647,7 +648,7 @@ mod tests {
                 obj,
             )
             .unwrap(),
-            expected_state
+            expected_state.into()
         );
     }
 
@@ -669,7 +670,7 @@ mod tests {
                 state.try_into().unwrap(),
             )
             .unwrap(),
-            expected_state
+            expected_state.into()
         );
     }
 
@@ -701,7 +702,7 @@ mod tests {
         let mut data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut data);
 
-        let expected_complete_state_obj = CompleteStateSpec {
+        let expected_complete_state_obj = CompleteState {
             desired_state: serde_yaml::from_str(&data).unwrap(),
             ..Default::default()
         };
@@ -745,7 +746,7 @@ mod tests {
             fixtures::AGENT_NAMES[0]
         ));
 
-        let expected_complete_state_obj = CompleteStateSpec {
+        let expected_complete_state_obj = CompleteState {
             ..Default::default()
         };
 
@@ -794,7 +795,7 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteStateSpec {
+        let updated_state = CompleteState {
             ..Default::default()
         };
 
@@ -828,7 +829,7 @@ mod tests {
             .expect_get_complete_state()
             .times(2)
             .with(eq(vec![]))
-            .returning(move |_| Ok(CompleteState::from(updated_state_clone.clone())));
+            .returning(move |_| Ok(updated_state_clone.clone()));
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(std::vec::Vec::new);
@@ -892,7 +893,7 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteStateSpec {
+        let updated_state = CompleteState {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
@@ -931,10 +932,10 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                Ok(CompleteState::from(CompleteStateSpec {
+                Ok(CompleteState {
                     desired_state: updated_state.desired_state,
                     ..Default::default()
-                }))
+                })
             });
         let added_workload_instance_name_clone = added_workload_instance_name.clone();
         mock_server_connection
@@ -998,16 +999,18 @@ mod tests {
             .await;
 
         let manifest_content =
-            Cursor::new(b"apiVersion: \"v1\"\nworkloads: {}\nconfigs:\n  config_1: config_value_1");
+            Cursor::new(b"apiVersion: \"v1\"\nconfigs:\n  config_1: config_value_1");
 
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteStateSpec {
+
+
+        let updated_state = CompleteState {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
-
+        println!("Expected new state: {updated_state:?}");
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_update_state()
@@ -1120,7 +1123,7 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteStateSpec {
+        let updated_state = CompleteState {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
@@ -1150,10 +1153,10 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                Ok(CompleteState::from(CompleteStateSpec {
+                Ok(CompleteState {
                     desired_state: updated_state.desired_state,
                     ..Default::default()
-                }))
+                })
             });
         let added_workload_instance_name_clone = added_workload_instance_name.clone();
         mock_server_connection

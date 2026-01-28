@@ -260,17 +260,19 @@ mod test {
         path_pattern::{AllowPathPattern, DenyPathPattern},
     };
 
-    use ankaios_api::ank_base::{
-        AccessRightsRuleSpec, CompleteStateRequestSpec, ControlInterfaceAccessSpec,
-        LogsCancelRequestSpec, LogsRequestSpec, ReadWriteEnum, RequestContentSpec, RequestSpec,
-        UpdateStateRequestSpec, WorkloadInstanceNameSpec,
+    use ankaios_api::{
+        ank_base::{
+            AccessRightsRuleSpec, CompleteStateRequest, ControlInterfaceAccessSpec,
+            LogsCancelRequest, LogsRequest, ReadWriteEnum, Request, RequestContent,
+            UpdateStateRequest, WorkloadInstanceName,
+        },
+        test_utils::fixtures,
     };
     use std::sync::Arc;
 
     const MATCHING_PATH: &str = "matching.path";
     const MATCHING_PATH_2: &str = "matching.path.2";
     const NON_MATCHING_PATH: &str = "non.matching.path";
-    const WORKLOAD_NAME: &str = "workload_name";
     const NON_EXISTING_WORKLOAD_NAME: &str = "non_existing_workload_name";
 
     type FieldMasks = Vec<String>;
@@ -356,21 +358,21 @@ mod test {
     #[test]
     fn utest_request_without_filter_mask() {
         let mut authorizer = Authorizer::default();
-        let complete_state_request = RequestSpec {
+        let complete_state_request = Request {
             request_id: "".into(),
-            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+            request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![],
                 subscribe_for_events: false,
-            }),
+            })),
         };
-        let update_state_request = RequestSpec {
+        let update_state_request = Request {
             request_id: "".into(),
-            request_content: RequestContentSpec::UpdateStateRequest(Box::new(
-                UpdateStateRequestSpec {
+            request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
                     new_state: Default::default(),
                     update_mask: vec![],
                 },
-            )),
+            ))),
         };
 
         assert!(!authorizer.authorize(&complete_state_request));
@@ -395,12 +397,12 @@ mod test {
     // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]
     fn utest_read_requests_operations() {
-        let request = RequestSpec {
+        let request = Request {
             request_id: "".into(),
-            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+            request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![MATCHING_PATH.into()],
                 subscribe_for_events: false,
-            }),
+            })),
         };
 
         let authorizer = Authorizer::default();
@@ -434,14 +436,14 @@ mod test {
     // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]
     fn utest_write_requests_operations() {
-        let request = RequestSpec {
+        let request = Request {
             request_id: "".into(),
-            request_content: RequestContentSpec::UpdateStateRequest(Box::new(
-                UpdateStateRequestSpec {
+            request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into()],
                 },
-            )),
+            ))),
         };
 
         let authorizer = Authorizer::default();
@@ -477,23 +479,23 @@ mod test {
         let authorizer =
             create_authorizer(&[RuleType::StateAllowReadWrite(vec![MATCHING_PATH.into()])]);
 
-        let request = RequestSpec {
+        let request = Request {
             request_id: "".into(),
-            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+            request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
                 subscribe_for_events: false,
-            }),
+            })),
         };
         assert!(authorizer.authorize(&request));
 
-        let request = RequestSpec {
+        let request = Request {
             request_id: "".into(),
-            request_content: RequestContentSpec::UpdateStateRequest(Box::new(
-                UpdateStateRequestSpec {
+            request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
                 },
-            )),
+            ))),
         };
         assert!(authorizer.authorize(&request));
     }
@@ -504,23 +506,23 @@ mod test {
         let authorizer =
             create_authorizer(&[RuleType::StateAllowReadWrite(vec![MATCHING_PATH.into()])]);
 
-        let request = RequestSpec {
+        let request = Request {
             request_id: "".into(),
-            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+            request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
                 subscribe_for_events: false,
-            }),
+            })),
         };
         assert!(!authorizer.authorize(&request));
 
-        let request = RequestSpec {
+        let request = Request {
             request_id: "".into(),
-            request_content: RequestContentSpec::UpdateStateRequest(Box::new(
-                UpdateStateRequestSpec {
+            request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
                 },
-            )),
+            ))),
         };
         assert!(!authorizer.authorize(&request));
     }
@@ -528,15 +530,15 @@ mod test {
     // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
     #[test]
     fn utest_log_request_empty_is_allowed() {
-        let request = RequestSpec {
+        let request = Request {
             request_id: "".into(),
-            request_content: RequestContentSpec::LogsRequest(LogsRequestSpec {
+            request_content: Some(RequestContent::LogsRequest(LogsRequest {
                 workload_names: vec![],
-                follow: false,
-                tail: -1,
+                follow: Some(false),
+                tail: Some(-1),
                 since: None,
                 until: None,
-            }),
+            })),
         };
 
         let authorizer = Authorizer::default();
@@ -546,34 +548,38 @@ mod test {
     // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
     #[test]
     fn utest_log_requests_general_cases() {
-        let request = RequestSpec {
+        let request = Request {
             request_id: "".into(),
-            request_content: RequestContentSpec::LogsRequest(LogsRequestSpec {
-                workload_names: vec![WorkloadInstanceNameSpec::new("", WORKLOAD_NAME, "")],
-                follow: false,
-                tail: -1,
+            request_content: Some(RequestContent::LogsRequest(LogsRequest {
+                workload_names: vec![WorkloadInstanceName {
+                    workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+                    agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                    id: fixtures::WORKLOAD_IDS[0].to_string(),
+                }],
+                follow: Some(false),
+                tail: Some(-1),
                 since: None,
                 until: None,
-            }),
+            })),
         };
 
         let authorizer = Authorizer::default();
         assert!(!authorizer.authorize(&request));
 
-        let authorizer = create_authorizer(&[RuleType::LogAllow(vec![WORKLOAD_NAME.into()])]);
+        let authorizer = create_authorizer(&[RuleType::LogAllow(vec![fixtures::WORKLOAD_NAMES[0].to_string()])]);
         assert!(authorizer.authorize(&request));
 
-        let authorizer = create_authorizer(&[RuleType::LogDeny(vec![WORKLOAD_NAME.into()])]);
+        let authorizer = create_authorizer(&[RuleType::LogDeny(vec![fixtures::WORKLOAD_NAMES[0].to_string()])]);
         assert!(!authorizer.authorize(&request));
 
         let authorizer = create_authorizer(&[
-            RuleType::LogAllow(vec![WORKLOAD_NAME.into()]),
-            RuleType::LogDeny(vec![WORKLOAD_NAME.into()]),
+            RuleType::LogAllow(vec![fixtures::WORKLOAD_NAMES[0].to_string()]),
+            RuleType::LogDeny(vec![fixtures::WORKLOAD_NAMES[0].to_string()]),
         ]);
         assert!(!authorizer.authorize(&request));
 
         let authorizer = create_authorizer(&[
-            RuleType::LogAllow(vec![WORKLOAD_NAME.into()]),
+            RuleType::LogAllow(vec![fixtures::WORKLOAD_NAMES[0].to_string()]),
             RuleType::LogDeny(vec![NON_EXISTING_WORKLOAD_NAME.into()]),
         ]);
         assert!(authorizer.authorize(&request));
@@ -582,19 +588,23 @@ mod test {
     // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
     #[test]
     fn utest_log_requests_complex_cases() {
-        fn request(workloads: &[&str]) -> RequestSpec {
-            RequestSpec {
+        fn request(workloads: &[&str]) -> Request {
+            Request {
                 request_id: "".into(),
-                request_content: RequestContentSpec::LogsRequest(LogsRequestSpec {
+                request_content: Some(RequestContent::LogsRequest(LogsRequest {
                     workload_names: workloads
                         .iter()
-                        .map(|name| WorkloadInstanceNameSpec::new("", *name, ""))
+                        .map(|name| WorkloadInstanceName {
+                            workload_name: name.to_string(),
+                            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                            id: fixtures::WORKLOAD_IDS[0].to_string(),
+                        })
                         .collect(),
-                    follow: false,
-                    tail: -1,
+                    follow: Some(false),
+                    tail: Some(-1),
                     since: None,
                     until: None,
-                }),
+                })),
             }
         }
 
@@ -616,20 +626,20 @@ mod test {
     // [utest->swdd~agent-authorizing-logs-cancel-always-allowed~1]
     #[test]
     fn utest_log_cancel_request() {
-        let request = RequestSpec {
+        let request = Request {
             request_id: "".into(),
-            request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
+            request_content: Some(RequestContent::LogsCancelRequest(LogsCancelRequest {})),
         };
 
         let authorizer = Authorizer::default();
         assert!(authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::LogAllow(vec![WORKLOAD_NAME.into()])]);
+        let authorizer = create_authorizer(&[RuleType::LogAllow(vec![fixtures::WORKLOAD_NAMES[0].to_string()])]);
         assert!(authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::LogDeny(vec![WORKLOAD_NAME.into()])]);
+        let authorizer = create_authorizer(&[RuleType::LogDeny(vec![fixtures::WORKLOAD_NAMES[0].to_string()])]);
         assert!(authorizer.authorize(&request));
         let authorizer = create_authorizer(&[
-            RuleType::LogAllow(vec![WORKLOAD_NAME.into()]),
-            RuleType::LogDeny(vec![WORKLOAD_NAME.into()]),
+            RuleType::LogAllow(vec![fixtures::WORKLOAD_NAMES[0].to_string()]),
+            RuleType::LogDeny(vec![fixtures::WORKLOAD_NAMES[0].to_string()]),
         ]);
         assert!(authorizer.authorize(&request));
     }

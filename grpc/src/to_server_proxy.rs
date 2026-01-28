@@ -75,31 +75,23 @@ pub async fn forward_from_proto_to_ankaios(
                             update_mask,
                         } = *update_state_request;
                         log::debug!("Received UpdateStateRequest from '{agent_name}'");
-                        match new_state.unwrap_or_default().try_into() {
-                            Ok(new_state) => {
+                        match new_state {
+                            Some(new_state) => {
                                 sink.update_state(request_id, new_state, update_mask)
                                     .await?;
                             }
-                            Err(error) => {
-                                return Err(GrpcMiddlewareError::ConversionError(format!(
-                                    "Could not convert UpdateStateRequest for forwarding: '{error}'"
-                                )));
+                            None => {
+                                return Err(GrpcMiddlewareError::ConversionError(
+                                    "No CompleteState for forwarding.".to_string(),
+                                ));
                             }
                         };
                     }
                     RequestContent::CompleteStateRequest(complete_state_request) => {
                         log::trace!("Received RequestCompleteState from '{agent_name}'");
-                        match complete_state_request.try_into() {
-                            Ok(complete_state_request) => {
-                                sink.request_complete_state(request_id, complete_state_request)
-                                    .await?;
-                            }
-                            Err(error) => {
-                                return Err(GrpcMiddlewareError::ConversionError(format!(
-                                    "Could not convert CompleteStateRequest for forwarding: '{error}'"
-                                )));
-                            }
-                        };
+
+                        sink.request_complete_state(request_id, complete_state_request)
+                            .await?;
                     }
                     RequestContent::LogsRequest(logs_request) => {
                         log::trace!("Received LogsRequest from '{agent_name}'");
@@ -200,7 +192,7 @@ pub async fn forward_from_ankaios_to_proto(
                 log::trace!("Received Request from agent");
                 grpc_tx
                     .send(grpc_api::ToServer {
-                        to_server_enum: Some(ToServerEnum::Request(request.into())),
+                        to_server_enum: Some(ToServerEnum::Request(request)),
                     })
                     .await?;
             }
@@ -313,11 +305,9 @@ mod tests {
     use crate::grpc_api::{self, to_server::ToServerEnum};
 
     use ankaios_api::ank_base::{
-        CompleteState, CompleteStateRequest, CompleteStateRequestSpec, ExecutionStateSpec,
-        LogEntriesResponse, LogEntry, LogsCancelRequest, LogsCancelRequestSpec, LogsRequest,
-        LogsRequestSpec, LogsStopResponse, Request, RequestContent, RequestContentSpec,
-        RequestSpec, UpdateStateRequest, WorkloadInstanceName, WorkloadInstanceNameSpec,
-        WorkloadState,
+        CompleteState, CompleteStateRequest, ExecutionStateSpec, LogEntriesResponse, LogEntry,
+        LogsCancelRequest, LogsRequest, LogsStopResponse, Request, RequestContent,
+        UpdateStateRequest, WorkloadInstanceName, WorkloadState,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_complete_state, generate_test_workload_named,
@@ -432,7 +422,7 @@ mod tests {
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
         let workload_named = generate_test_workload_named(); //.name(vars::WORKLOAD_NAMES[0]);
-        let input_state = generate_test_complete_state(vec![workload_named]);
+        let input_state: CompleteState = generate_test_complete_state(vec![workload_named]).into();
         let update_mask = vec!["bla".into()];
 
         // As the channel capacity is big enough the await is satisfied right away
@@ -454,12 +444,10 @@ mod tests {
 
         let result = grpc_rx.recv().await.unwrap();
 
-        let proto_state = input_state.into();
-
         assert!(matches!(
             result.to_server_enum,
             Some(ToServerEnum::Request(Request{request_id, request_content: Some(RequestContent::UpdateStateRequest(update_state_request))}))
-            if request_id == fixtures::REQUEST_ID && update_state_request.new_state == Some(proto_state) && update_state_request.update_mask == update_mask));
+            if request_id == fixtures::REQUEST_ID && update_state_request.new_state == Some(input_state) && update_state_request.update_mask == update_mask));
     }
 
     // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
@@ -564,25 +552,6 @@ mod tests {
         let workload_named = generate_test_workload_named();
         let agent_name = workload_named.workload.agent.clone();
 
-        let mut ankaios_state: CompleteState =
-            generate_test_complete_state(vec![workload_named]).into();
-        *ankaios_state
-            .desired_state
-            .as_mut()
-            .unwrap()
-            .workloads
-            .as_mut()
-            .unwrap()
-            .workloads
-            .get_mut(fixtures::WORKLOAD_NAMES[0])
-            .unwrap()
-            .dependencies
-            .as_mut()
-            .unwrap()
-            .dependencies
-            .get_mut(&String::from(fixtures::WORKLOAD_NAMES[1]))
-            .unwrap() = -1;
-
         let ankaios_update_mask = vec!["bla".into()];
 
         // simulate the reception of an update workload state grpc from server message
@@ -593,7 +562,7 @@ mod tests {
                         request_id: fixtures::REQUEST_ID.to_owned(),
                         request_content: Some(RequestContent::UpdateStateRequest(Box::new(
                             UpdateStateRequest {
-                                new_state: Some(ankaios_state),
+                                new_state: None,
                                 update_mask: ankaios_update_mask.clone(),
                             },
                         ))),
@@ -619,7 +588,8 @@ mod tests {
         let workload_named = generate_test_workload_named(); //.name(vars::WORKLOAD_NAMES[0]);
         let agent_name = workload_named.workload.agent.clone();
 
-        let ankaios_state = generate_test_complete_state(vec![workload_named]);
+        let ankaios_state: CompleteState =
+            generate_test_complete_state(vec![workload_named]).into();
         let ankaios_update_mask = vec!["bla".into()];
 
         // simulate the reception of an update workload state grpc from server message
@@ -630,7 +600,7 @@ mod tests {
                         request_id: fixtures::REQUEST_ID.to_owned(),
                         request_content: Some(RequestContent::UpdateStateRequest(Box::new(
                             UpdateStateRequest {
-                                new_state: Some(ankaios_state.clone().into()),
+                                new_state: Some(ankaios_state.clone()),
                                 update_mask: ankaios_update_mask.clone(),
                             },
                         ))),
@@ -655,11 +625,11 @@ mod tests {
 
         assert!(matches!(
             result,
-            ToServer::Request(RequestSpec {
+            ToServer::Request(Request {
                 request_id,
-                request_content: RequestContentSpec::UpdateStateRequest(update_request),
+                request_content: Some(RequestContent::UpdateStateRequest(update_request)),
             })
-            if request_id == expected_prefixed_my_request_id && update_request.new_state == ankaios_state && update_request.update_mask == ankaios_update_mask));
+            if request_id == expected_prefixed_my_request_id && update_request.new_state.clone().unwrap() == ankaios_state && update_request.update_mask == ankaios_update_mask));
     }
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
@@ -744,12 +714,12 @@ mod tests {
         let expected_prefixed_my_request_id =
             format!("{}@{}", fixtures::AGENT_NAMES[0], fixtures::REQUEST_ID);
         let expected_empty_field_mask: Vec<String> = vec![];
-        assert!(matches!(result, ToServer::Request(RequestSpec {
+        assert!(matches!(result, ToServer::Request(Request {
                 request_id,
                 request_content:
-                    RequestContentSpec::CompleteStateRequest(
-                        CompleteStateRequestSpec { field_mask, subscribe_for_events },
-                    ),
+                    Some(RequestContent::CompleteStateRequest(
+                        CompleteStateRequest { field_mask, subscribe_for_events },
+                    )),
             }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask && !subscribe_for_events));
     }
 
@@ -758,7 +728,7 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let request_complete_state = CompleteStateRequestSpec {
+        let request_complete_state = CompleteStateRequest {
             field_mask: vec![],
             subscribe_for_events: false,
         };
@@ -838,28 +808,28 @@ mod tests {
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
         let expected_prefixed_my_request_id =
             format!("{}@{}", fixtures::AGENT_NAMES[0], fixtures::REQUEST_ID);
-        let expected_workload_names: Vec<WorkloadInstanceNameSpec> = vec![
-            WorkloadInstanceNameSpec::new(
-                fixtures::AGENT_NAMES[0],
-                fixtures::WORKLOAD_NAMES[0],
-                fixtures::WORKLOAD_IDS[0],
-            ),
-            WorkloadInstanceNameSpec::new(
-                fixtures::AGENT_NAMES[0],
-                fixtures::WORKLOAD_NAMES[1],
-                fixtures::WORKLOAD_IDS[1],
-            ),
+        let expected_workload_names: Vec<WorkloadInstanceName> = vec![
+            WorkloadInstanceName {
+                workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+                agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                id: fixtures::WORKLOAD_IDS[0].to_string(),
+            },
+            WorkloadInstanceName {
+                workload_name: fixtures::WORKLOAD_NAMES[1].to_string(),
+                agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                id: fixtures::WORKLOAD_IDS[1].to_string(),
+            },
         ];
 
-        assert!(matches!(result, ToServer::Request(RequestSpec {
+        assert!(matches!(result, ToServer::Request(Request {
                 request_id,
                 request_content:
-                    RequestContentSpec::LogsRequest(
-                        LogsRequestSpec { workload_names, follow, tail, since, until },
-                    ),
+                    Some(RequestContent::LogsRequest(
+                        LogsRequest { workload_names, follow, tail, since, until },
+                    )),
             }) if request_id == expected_prefixed_my_request_id
                    && workload_names == expected_workload_names
-                   && follow && tail == 10
+                   && follow == Some(true) && tail == Some(10)
                    && since == Some("since".into())  && until.is_none()));
     }
 
@@ -897,11 +867,11 @@ mod tests {
 
         assert!(matches!(
             result,
-            ToServer::Request(RequestSpec {
+            ToServer::Request(Request {
                 request_id,
-                request_content: RequestContentSpec::LogsCancelRequest(
-                    LogsCancelRequestSpec{}
-                ),
+                request_content: Some(RequestContent::LogsCancelRequest(
+                    LogsCancelRequest {},
+                )),
             }) if request_id == expected_prefixed_my_request_id
         ));
     }
