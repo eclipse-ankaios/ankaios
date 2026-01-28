@@ -45,8 +45,8 @@ Test Ankaios CLI get events with field mask filter
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-provides-get-events-command~1]
-Test Ankaios CLI get events with initial complete state output
-    [Documentation]    Subscribe to events and output initial complete state response
+Test Ankaios CLI get events with current complete state output
+    [Documentation]    Subscribe to events and output current complete state response
     [Setup]    Setup Ankaios
 
     # Preconditions
