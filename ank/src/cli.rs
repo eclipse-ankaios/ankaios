@@ -91,6 +91,8 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
     const CONFIGS: &str = "configs";
     const WORKLOAD_STATES: &str = "workloadStates";
     const AGENTS: &str = "agents";
+    const AGENT_STATUS_FIELD: &str = "status";
+    const AGENT_TAGS_FIELD: &str = "tags";
 
     let mut result = Vec::new();
 
@@ -132,11 +134,11 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
         for (agent_name, agent_data) in agents.agents {
             result.push(format!("{AGENTS}.{agent_name}"));
             if let Some(_status) = agent_data.status {
-                result.push(format!("{AGENTS}.{agent_name}.status"));
+                result.push(format!("{AGENTS}.{agent_name}.{AGENT_STATUS_FIELD}"));
             }
 
             if let Some(_tags) = agent_data.tags {
-                result.push(format!("{AGENTS}.{agent_name}.tags"));
+                result.push(format!("{AGENTS}.{agent_name}.{AGENT_TAGS_FIELD}"));
             }
         }
     }
