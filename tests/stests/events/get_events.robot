@@ -55,7 +55,7 @@ Test Ankaios CLI get events with initial complete state output
     And Ankaios server is available
     And Ankaios agent is started with name "agent_A"
     # Actions
-    When user starts the CLI to subscribe to events with detailed mode enabled with format "yaml" and field mask "desiredState.workloads" in background
+    When user starts the CLI to subscribe to events with format "yaml", field mask "desiredState.workloads" and current state output enabled in background
     And the user waits "1" seconds
     # Asserts
     Then the event output shall contain workload "nginx"
