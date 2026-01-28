@@ -577,7 +577,7 @@ mod tests {
 
     // [utest->swdd~cli-provides-get-events-command~2]
     #[tokio::test]
-    async fn utest_get_events_output_initial_state_response() {
+    async fn utest_get_events_output_current_state_response() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
