@@ -133,7 +133,7 @@ async fn main() {
 
     let args = cli::parse();
 
-    // [impl->swdd~agent-loads-config-file~1]
+    // [impl->swdd~agent-loads-config-file~2]
     let mut agent_config: AgentConfig =
         handle_config(&args.config_path, DEFAULT_AGENT_CONFIG_FILE_PATH);
 

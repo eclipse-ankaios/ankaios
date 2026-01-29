@@ -143,6 +143,22 @@ Needs:
 - impl
 - utest
 
+#### Provide common config handling
+`swdd~common-config-handling~1`
+
+Status: approved
+
+The Common library shall provide a common function for handling config files that supports user-provided and default paths with fallback to default configuration values.
+
+Rationale: This prevents code duplication in accordance to the DRY principle and ensures consistent config handling across Ankaios components.
+
+Tags:
+- CommonHelpers
+
+Needs:
+- impl
+- utest
+
 ### State manipulation
 
 Provides methods for accessing or updating parts of objects, as used by field masks.

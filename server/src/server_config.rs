@@ -39,7 +39,7 @@ where
     s.parse::<SocketAddr>().map_err(serde::de::Error::custom)
 }
 
-// [impl->swdd~server-loads-config-file~1]
+// [impl->swdd~server-loads-config-file~2]
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct ServerConfig {
     pub version: String,
@@ -173,7 +173,7 @@ mod tests {
     const STARTUP_MANIFEST_PATH: &str = "some_path_to_config/config.yaml";
     const TEST_SOCKET_ADDRESS: &str = "127.0.0.1:3333";
 
-    // [utest->swdd~server-loads-config-file~1]
+    // [utest->swdd~server-loads-config-file~2]
     #[test]
     fn utest_default_server_config() {
         let default_server_config = ServerConfig::default();
@@ -186,7 +186,7 @@ mod tests {
         assert_eq!(default_server_config.version, "v1");
     }
 
-    // [utest->swdd~server-loads-config-file~1]
+    // [utest->swdd~server-loads-config-file~2]
     #[test]
     fn utest_server_config_wrong_version() {
         let server_config_content: &str = r"#
@@ -204,7 +204,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~server-loads-config-file~1]
+    // [utest->swdd~server-loads-config-file~2]
     #[test]
     fn utest_server_config_conflicting_certificates() {
         let server_config_content = format!(
@@ -230,7 +230,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~server-loads-config-file~1]
+    // [utest->swdd~server-loads-config-file~2]
     #[test]
     fn utest_server_config_update_with_args() {
         let mut server_config = ServerConfig::default();
@@ -269,7 +269,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~server-loads-config-file~1]
+    // [utest->swdd~server-loads-config-file~2]
     #[test]
     fn utest_server_config_update_with_args_certificates_content() {
         let server_config_content = format!(
@@ -315,7 +315,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~server-loads-config-file~1]
+    // [utest->swdd~server-loads-config-file~2]
     #[test]
     fn utest_server_config_from_file_successful() {
         let server_config_content = format!(

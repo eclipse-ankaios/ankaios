@@ -62,7 +62,7 @@ async fn main() {
 
     let args = cli::parse();
 
-    // [impl->swdd~server-loads-config-file~1]
+    // [impl->swdd~server-loads-config-file~2]
     let mut server_config: ServerConfig =
         handle_config(&args.config_path, DEFAULT_SERVER_CONFIG_FILE_PATH);
 

@@ -16,6 +16,8 @@ use crate::std_extensions::GracefulExitResult;
 use std::fmt;
 use std::path::PathBuf;
 
+// [impl->swdd~common-config-handling~1]
+
 pub const CONFIG_VERSION: &str = "v1";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -84,6 +86,7 @@ pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_path: 
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
+// [utest->swdd~common-config-handling~1]
 #[cfg(test)]
 mod tests {
     use super::{ConfigFile, ConversionErrors, handle_config};

@@ -196,11 +196,11 @@ The following diagram shows the startup sequence of the Ankaios Agent:
 ![Startup](plantuml/seq_startup.svg)
 
 #### Agent loads config file
-`swdd~agent-loads-config-file~1`
+`swdd~agent-loads-config-file~2`
 
 Status: approved
 
-The Ankaios agent shall accept configuration files read at startup that specify the general startup configuration of the agent with a lower precedence than environment variables and command line arguments.
+The Ankaios agent shall accept configuration files read at startup using the Common library that specify the general startup configuration of the agent with a lower precedence than environment variables and command line arguments.
 
 Rationale:
 Agent configuration files allow a reproducible execution of the agent with lower effort.

@@ -32,7 +32,7 @@ pub fn get_default_url() -> String {
     DEFAULT_SERVER_ADDRESS.to_string()
 }
 
-// [impl->swdd~agent-loads-config-file~1]
+// [impl->swdd~agent-loads-config-file~2]
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct AgentConfig {
     pub version: String,
@@ -76,7 +76,7 @@ impl Default for AgentConfig {
     }
 }
 
-// [impl->swdd~agent-loads-config-file~1]
+// [impl->swdd~agent-loads-config-file~2]
 impl ConfigFile for AgentConfig {
     fn from_file(file_path: PathBuf) -> Result<AgentConfig, ConversionErrors> {
         let agent_config_content = read_to_string(file_path.to_str().unwrap_or_unreachable())
@@ -179,7 +179,7 @@ mod tests {
     use std::path::PathBuf;
     use tempfile::NamedTempFile;
 
-    // [utest->swdd~agent-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_default_agent_config() {
         let default_agent_config = AgentConfig::default();
@@ -192,7 +192,7 @@ mod tests {
         assert_eq!(default_agent_config.version, CONFIG_VERSION);
     }
 
-    // [utest->swdd~agent-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_agent_config_wrong_version() {
         let agent_config_content: &str = r"#
@@ -210,7 +210,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_agent_config_conflicting_certificates() {
         let agent_config_content = format!(
@@ -236,7 +236,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_agent_config_update_with_args() {
         let default_run_folder = default_run_folder_string();
@@ -270,7 +270,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_agent_config_update_with_args_certificates_content() {
         let default_run_folder = default_run_folder_string();
@@ -319,7 +319,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_agent_config_from_file_successful() {
         let default_run_folder = default_run_folder_string();

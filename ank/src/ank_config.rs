@@ -46,7 +46,7 @@ fn get_default_url() -> String {
     DEFAULT_SERVER_ADDRESS.to_string()
 }
 
-// [impl->swdd~cli-loads-config-file~1]
+// [impl->swdd~cli-loads-config-file~2]
 #[derive(Debug, PartialEq)]
 pub struct AnkConfig {
     pub version: String,
@@ -180,7 +180,7 @@ impl Default for AnkConfig {
     }
 }
 
-// [impl->swdd~cli-loads-config-file~1]
+// [impl->swdd~cli-loads-config-file~2]
 impl ConfigFile for AnkConfig {
     fn from_file(file_path: PathBuf) -> Result<AnkConfig, ConversionErrors> {
         let ank_config_content = read_to_string(file_path.to_str().unwrap_or_unreachable())
@@ -288,7 +288,7 @@ mod tests {
 
     const TEST_SERVER_URL: &str = r"https://127.0.0.1:25555";
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_default_ank_config() {
         let default_ank_config = AnkConfig::default();
@@ -309,7 +309,7 @@ mod tests {
         assert!(default_ank_config.key_pem_content.is_none());
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_wrong_version() {
         let ank_config_content: &str = r"#
@@ -327,7 +327,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_conflicting_certificates() {
         let ank_config_content = format!(
@@ -354,7 +354,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_update_with_args() {
         let mut ank_config = AnkConfig::default();
@@ -390,7 +390,7 @@ mod tests {
         assert_eq!(ank_config.key_pem, Some(fixtures::KEY_PEM_PATH.to_string()));
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_update_with_args_certificates_content() {
         let ank_config_content = format!(
@@ -445,7 +445,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_update_with_args_flags_unset() {
         let ank_config_content = format!(
@@ -492,7 +492,7 @@ mod tests {
         assert!(!ank_config.insecure);
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_no_context_returns_default() {
         let ank_config_content = r"#
@@ -513,7 +513,7 @@ mod tests {
         assert!(ank_config.key_pem_content.is_none());
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_multiple_contexts_found() {
         let ank_config_content = r"#
@@ -529,7 +529,7 @@ mod tests {
         assert!(ank_config.is_ok());
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_from_file_successful() {
         let ank_config_content = format!(

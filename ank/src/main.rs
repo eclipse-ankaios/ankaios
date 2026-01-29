@@ -34,7 +34,7 @@ pub mod test_helper;
 async fn main() {
     let args = cli::parse();
 
-    // [impl->swdd~cli-loads-config-file~1]
+    // [impl->swdd~cli-loads-config-file~2]
     let mut ank_config: AnkConfig = handle_config(&args.config_path, &DEFAULT_ANK_CONFIG_FILE_PATH);
     ank_config.update_with_args(&args);
 
