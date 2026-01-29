@@ -150,7 +150,7 @@ Status: approved
 
 The Common library shall provide a common function for handling config files that supports user-provided and default paths with fallback to default configuration values.
 
-Rationale: This prevents code duplication in accordance to the DRY principle and ensures consistent config handling across Ankaios components.
+Rationale: This ensures a unified and consistent config handling across Ankaios components.
 
 Tags:
 - CommonHelpers
