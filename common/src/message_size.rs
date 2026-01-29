@@ -99,7 +99,7 @@ fn truncate_log_entry(entry: LogEntry) -> (LogEntry, LogEntry) {
         }
         format!("{}{}", &entry.message[..end], TRUNCATION_NOTICE)
     } else {
-        entry.message.clone()
+        entry.message
     };
 
     let truncated_entry = LogEntry {
@@ -126,7 +126,7 @@ mod tests {
 
     // [utest->swdd~agent-checks-size-of-logs~1]
 
-    fn create_log_entry(message: &str) -> LogEntry {
+    fn generate_test_log_entry(message: &str) -> LogEntry {
         LogEntry {
             workload_name: Some(WorkloadInstanceName {
                 agent_name: fixtures::AGENT_NAMES[0].into(),
@@ -137,19 +137,19 @@ mod tests {
         }
     }
 
-    fn create_log_entry_with_size(target_size: usize) -> LogEntry {
-        let entry = create_log_entry("");
+    fn generate_test_log_entry_with_size(target_size: usize) -> LogEntry {
+        let entry = generate_test_log_entry("");
         let overhead = entry.encoded_len();
         let message = "A".repeat(target_size.saturating_sub(overhead));
-        create_log_entry(&message)
+        generate_test_log_entry(&message)
     }
 
     #[test]
     fn utest_process_multiple_entries_under_limit() {
         let entry_size = LOGS_MAX_SIZE_BYTES / 4;
-        let entry1 = create_log_entry_with_size(entry_size);
-        let entry2 = create_log_entry_with_size(entry_size);
-        let entry3 = create_log_entry_with_size(entry_size);
+        let entry1 = generate_test_log_entry_with_size(entry_size);
+        let entry2 = generate_test_log_entry_with_size(entry_size);
+        let entry3 = generate_test_log_entry_with_size(entry_size);
 
         let response = LogEntriesResponse {
             log_entries: vec![entry1.clone(), entry2.clone(), entry3.clone()],
@@ -168,8 +168,8 @@ mod tests {
     #[test]
     fn utest_process_entries_together_exceed_limit() {
         let entry_size = LOGS_MAX_SIZE_BYTES / 2 + 1000;
-        let entry1 = create_log_entry_with_size(entry_size);
-        let entry2 = create_log_entry_with_size(entry_size);
+        let entry1 = generate_test_log_entry_with_size(entry_size);
+        let entry2 = generate_test_log_entry_with_size(entry_size);
         assert!(entry1.encoded_len() <= LOGS_MAX_SIZE_BYTES);
         assert!(entry2.encoded_len() <= LOGS_MAX_SIZE_BYTES);
 
@@ -200,7 +200,7 @@ mod tests {
     #[test]
     fn utest_process_single_entry_exceeds_limit() {
         let large_message = "A".repeat(LOGS_MAX_SIZE_BYTES + 1000);
-        let entry = create_log_entry(&large_message);
+        let entry = generate_test_log_entry(&large_message);
         let original_workload_name = entry.workload_name.clone();
         assert!(entry.encoded_len() > LOGS_MAX_SIZE_BYTES);
 
@@ -244,8 +244,8 @@ mod tests {
     fn utest_process_two_entries_both_exceed_limit() {
         let large_message1 = "B".repeat(LOGS_MAX_SIZE_BYTES + 500);
         let large_message2 = "C".repeat(LOGS_MAX_SIZE_BYTES + 800);
-        let entry1 = create_log_entry(&large_message1);
-        let entry2 = create_log_entry(&large_message2);
+        let entry1 = generate_test_log_entry(&large_message1);
+        let entry2 = generate_test_log_entry(&large_message2);
 
         // Verify precondition: both entries exceed limit
         assert!(entry1.encoded_len() > LOGS_MAX_SIZE_BYTES);
@@ -289,9 +289,9 @@ mod tests {
 
     #[test]
     fn utest_process_small_entry_and_large_entry() {
-        let small_entry = create_log_entry("small message");
+        let small_entry = generate_test_log_entry("small message");
         let large_message = "D".repeat(LOGS_MAX_SIZE_BYTES + 1000);
-        let large_entry = create_log_entry(&large_message);
+        let large_entry = generate_test_log_entry(&large_message);
 
         assert!(small_entry.encoded_len() <= LOGS_MAX_SIZE_BYTES);
         assert!(large_entry.encoded_len() > LOGS_MAX_SIZE_BYTES);

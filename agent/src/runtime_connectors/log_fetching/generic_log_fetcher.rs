@@ -109,10 +109,11 @@ impl<T: AsyncRead + std::fmt::Debug + std::marker::Unpin> GenericSingleLogFetche
 
     // [impl->swdd~agent-checks-size-of-logs~1]
     async fn next_lines(&mut self) -> Option<Vec<String>> {
-        let mut start_byte = self.read_data.len();
         if self.limit_exceeded {
             return None;
         }
+
+        let mut start_byte = self.read_data.len();
         match self.reader.read_buf(&mut self.read_data).await {
             Ok(0) => {
                 if start_byte == 0 {
