@@ -40,17 +40,16 @@ use agent_config::{AgentConfig, DEFAULT_AGENT_CONFIG_FILE_PATH};
 use agent_manager::AgentManager;
 use ankaios_api::{ALLOWED_CHAR_SET, ank_base::WorkloadStateSpec};
 
-use common::config::handle_config;
-use common::from_server_interface::FromServer;
-use common::objects::AgentName;
-use common::std_extensions::GracefulExitResult;
-use common::to_server_interface::ToServer;
-use common::{communications_client::CommunicationsClient, std_extensions::IllegalStateResult};
+use common::{
+    communications_client::CommunicationsClient,
+    config::handle_config,
+    from_server_interface::FromServer,
+    objects::AgentName,
+    std_extensions::{GracefulExitResult, IllegalStateResult},
+    to_server_interface::ToServer,
+};
 
 use generic_polling_state_checker::GenericPollingStateChecker;
-use grpc::client::GRPCCommunicationsClient;
-use grpc::security::TLSConfig;
-use regex::Regex;
 use runtime_connectors::{
     GenericRuntimeFacade, RuntimeConnector, RuntimeFacade, SUPPORTED_RUNTIMES,
     containerd::{self, ContainerdRuntime, ContainerdWorkloadId},
@@ -58,6 +57,9 @@ use runtime_connectors::{
     podman_kube::{self, PodmanKubeRuntime, PodmanKubeWorkloadId},
 };
 
+use grpc::client::GRPCCommunicationsClient;
+use grpc::security::TLSConfig;
+use regex::Regex;
 use std::collections::HashMap;
 
 const BUFFER_SIZE: usize = 20;
