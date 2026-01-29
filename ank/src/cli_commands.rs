@@ -254,8 +254,6 @@ impl CliCommands {
         let current_workload_infos: BTreeMap<WorkloadInstanceNameSpec, WorkloadTableRow> =
             self.get_workloads().await?.into_iter().collect();
 
-
-        println!("New state: {new_state:?}");
         let update_state_success = self
             .server_connection
             .update_state(new_state, update_mask)

@@ -707,7 +707,7 @@ mod tests {
                     runtime_config: None,
                     control_interface_access: None,
                     configs: None,
-                    files: Some(Default::default()),
+                    files: None,
                 },
             ),
             (
@@ -721,7 +721,7 @@ mod tests {
                     runtime_config: None,
                     control_interface_access: None,
                     configs: None,
-                    files: Some(Default::default()),
+                    files: None,
                 },
             ),
             (

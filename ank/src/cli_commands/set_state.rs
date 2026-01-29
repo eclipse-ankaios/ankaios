@@ -114,6 +114,7 @@ mod tests {
     }
 
     const SAMPLE_CONFIG: &str = r#"desiredState:
+        apiVersion: v1
         workloads:
           nginx:
             agent: agent_A
@@ -171,9 +172,6 @@ mod tests {
     // [utest->swdd~cli-provides-set-desired-state~1]
     #[tokio::test]
     async fn utest_set_state_ok() {
-        let update_mask = vec!["desiredState.workloads.nginx.restartPolicy".to_string()];
-        let state_object_file = SAMPLE_CONFIG.to_owned();
-
         let workload = Workload {
             restart_policy: Some(RestartPolicy::Always as i32),
             ..Default::default()
@@ -188,6 +186,10 @@ mod tests {
             }),
             ..Default::default()
         };
+
+        let update_mask = vec!["desiredState.workloads.nginx.restartPolicy".to_string()];
+        let state_object_file = serde_yaml::to_string(&updated_state).unwrap();
+
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()

@@ -136,10 +136,6 @@ fn annotate_workload(builder: Builder) -> Builder {
         .message_attribute("Tags", "#[derive(Eq)]")
         .field_attribute(
             "Files.files",
-            "#[serde(default, skip_serializing_if = \"Vec::is_empty\")]",
-        )
-        .field_attribute(
-            "Files.files",
             // Yes, this is not a map, but this is the only way to get the desired serialization behavior without ! in the YAML and a custom serializer
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
         )
