@@ -126,7 +126,7 @@ fn annotate_workload(builder: Builder) -> Builder {
         )
         .field_attribute(
             "Workload.controlInterfaceAccess",
-            "#[serde(skip_serializing_if = \"Option::is_none\")]",
+            "#[serde(skip_serializing_if = \"should_skip_control_interface_serialization\")]",
         )
         .field_attribute(
             "Workload.configs",

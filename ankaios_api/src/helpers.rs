@@ -17,7 +17,10 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::json;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::{ALLOWED_CHAR_SET, CONSTRAINT_FIELD_DESCRIPTION, MAX_FIELD_LENGTH};
+use crate::{
+    ALLOWED_CHAR_SET, CONSTRAINT_FIELD_DESCRIPTION, MAX_FIELD_LENGTH,
+    ank_base::ControlInterfaceAccess,
+};
 
 pub fn trim_string<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
@@ -156,6 +159,15 @@ pub fn validate_max_length_filter(value: &str) -> Result<(), String> {
     }
 }
 
+pub fn should_skip_control_interface_serialization(
+    control_interface_access: &Option<ControlInterfaceAccess>,
+) -> bool {
+    match control_interface_access {
+        None => true,
+        Some(access) => access.allow_rules.is_empty() && access.deny_rules.is_empty(),
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -166,6 +178,8 @@ pub fn validate_max_length_filter(value: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_utils::generate_test_control_interface_access;
+
     use super::*;
 
     #[test]
@@ -359,5 +373,34 @@ mod tests {
                 .get("pattern")
                 .is_none()
         );
+    }
+
+    #[test]
+    fn utest_should_skip_control_interface_serialization() {
+        let empty_access: Option<ControlInterfaceAccess> = None;
+        assert!(should_skip_control_interface_serialization(&empty_access));
+
+        let access_with_no_rules = Some(ControlInterfaceAccess {
+            allow_rules: vec![],
+            deny_rules: vec![],
+        });
+        assert!(should_skip_control_interface_serialization(
+            &access_with_no_rules
+        ));
+
+        let mut access_with_allow_rules: ControlInterfaceAccess =
+            generate_test_control_interface_access().into();
+        access_with_allow_rules.deny_rules = vec![];
+
+        assert!(!should_skip_control_interface_serialization(&Some(
+            access_with_allow_rules
+        )));
+
+        let mut access_with_deny_rules: ControlInterfaceAccess =
+            generate_test_control_interface_access().into();
+        access_with_deny_rules.deny_rules = vec![];
+        assert!(!should_skip_control_interface_serialization(&Some(
+            access_with_deny_rules
+        )));
     }
 }
