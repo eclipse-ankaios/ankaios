@@ -4313,6 +4313,23 @@ Needs:
 - impl
 - utest
 
+#### Logs sizes should be checked
+`swdd~agent-checks-size-of-logs~1`
+
+Status: approved
+
+Logs should be processed in the following way:
+* if a single log line exceeds 50MB during collection, the log collection shall be interrupted
+* if a single log entry exceeds 2MB when sending to the server, the log message shall be truncated
+* if multiple log entries together exceed 2MB, they shall be split into separate responses
+
+Tags:
+- LogFetching
+
+Needs:
+- impl
+- utest
+
 #### Podman LogFetching collects logs
 `swdd~podman-log-fetching-collects-logs~1`
 

@@ -21,6 +21,7 @@ tokio = { version = "1.41", features = [
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 log = "0.4"
+prost = "0.14"
 semver = "1.0"
 toml = "0.9"
 

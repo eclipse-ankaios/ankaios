@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::{self, AgentLoadStatus};
+use crate::message_size::process_log_entries_response;
 use crate::std_extensions::UnreachableResult;
 use ankaios_api::ank_base::{
     CompleteStateRequestSpec, CompleteStateSpec, EventsCancelRequestSpec, LogEntriesResponse,
@@ -199,9 +200,17 @@ impl ToServerInterface for ToServerSender {
         request_id: String,
         logs_response: LogEntriesResponse,
     ) -> Result<(), ToServerError> {
-        Ok(self
-            .send(ToServer::LogEntriesResponse(request_id, logs_response))
-            .await?)
+        let resized_logs_responses: Vec<LogEntriesResponse> =
+            process_log_entries_response(logs_response);
+
+        for resized_log_response in resized_logs_responses {
+            self.send(ToServer::LogEntriesResponse(
+                request_id.clone(),
+                resized_log_response,
+            ))
+            .await?
+        }
+        Ok(())
     }
 
     async fn logs_stop_response(
