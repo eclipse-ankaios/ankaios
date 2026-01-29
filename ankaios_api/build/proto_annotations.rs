@@ -61,6 +61,10 @@ fn annotate_complete_state(builder: Builder) -> Builder {
             "State.configs",
             "#[serde(skip_serializing_if = \"Option::is_none\")]",
         )
+        .field_attribute(
+            "State.configs",
+            "#[serde(flatten)]",
+        )
         // Execution states
         .enum_attribute(
             "ExecutionStateEnum",
@@ -101,7 +105,16 @@ fn annotate_workload(builder: Builder) -> Builder {
         )
         .field_attribute(
             "Workload.restartPolicy",
+            // TODO now: why default?
             "#[serde(default, skip_serializing_if = \"Option::is_none\")]",
+        )
+        .field_attribute(
+            "Workload.dependencies",
+            "#[serde(skip_serializing_if = \"Option::is_none\")]",
+        )
+        .field_attribute(
+            "Workload.tags",
+            "#[serde(skip_serializing_if = \"Option::is_none\")]",
         )
         .field_attribute(
             "Workload.runtime",
@@ -109,6 +122,10 @@ fn annotate_workload(builder: Builder) -> Builder {
         )
         .field_attribute(
             "Workload.runtimeConfig",
+            "#[serde(skip_serializing_if = \"Option::is_none\")]",
+        )
+        .field_attribute(
+            "Workload.controlInterfaceAccess",
             "#[serde(skip_serializing_if = \"Option::is_none\")]",
         )
         .field_attribute(
@@ -120,8 +137,20 @@ fn annotate_workload(builder: Builder) -> Builder {
             "#[serde(skip_serializing_if = \"Option::is_none\")]",
         )
         .field_attribute(
-            "Workload.controlInterfaceAccess",
-            "#[serde(skip_serializing_if = \"Option::is_none\")]",
+            "Tags.tags",
+            "#[serde(skip_serializing_if = \"::std::collections::HashMap::is_empty\")]",
+        )
+        .field_attribute(
+            "Dependencies.dependencies",
+            "#[serde(skip_serializing_if = \"::std::collections::HashMap::is_empty\")]",
+        )
+        .field_attribute(
+            "ConfigMappings.configs",
+            "#[serde(skip_serializing_if = \"::std::collections::HashMap::is_empty\")]",
+        )
+        .field_attribute(
+            "Files.files",
+            "#[serde(skip_serializing_if = \"Vec::is_empty\")]",
         )
         // Flatten fields
         .field_attribute("Workload.tags", "#[serde(flatten)]")
@@ -203,7 +232,7 @@ fn annotate_agent(builder: Builder) -> Builder {
 
 fn annotate_configs(builder: Builder) -> Builder {
     builder
-        .field_attribute("ConfigMap.configs", "#[serde(flatten)]")
+        .field_attribute("ConfigMap.configs", "#[serde(skip_serializing_if = \"::std::collections::HashMap::is_empty\")]")
         .message_attribute("ank_base.ConfigItem", "#[serde(transparent)]")
         .message_attribute("ank_base.ConfigArray", "#[serde(transparent)]")
         .message_attribute("ank_base.ConfigObject", "#[serde(transparent)]")
