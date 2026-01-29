@@ -22,6 +22,7 @@ pub mod commands;
 pub mod communications_client;
 pub mod communications_error;
 pub mod communications_server;
+pub mod config;
 pub mod from_server_interface;
 pub mod helpers;
 pub mod message_size;

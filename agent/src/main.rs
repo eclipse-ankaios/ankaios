@@ -12,16 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use ankaios_api::{ALLOWED_CHAR_SET, ank_base::WorkloadStateSpec};
-use common::objects::AgentName;
-use common::to_server_interface::ToServer;
-use common::{communications_client::CommunicationsClient, std_extensions::IllegalStateResult};
-use generic_polling_state_checker::GenericPollingStateChecker;
-use grpc::security::TLSConfig;
-use regex::Regex;
-use std::collections::HashMap;
-use std::path::PathBuf;
-
 mod agent_config;
 mod agent_manager;
 mod cli;
@@ -43,15 +33,23 @@ mod workload_state;
 
 mod io_utils;
 
-use common::from_server_interface::FromServer;
-use common::std_extensions::GracefulExitResult;
-use grpc::client::GRPCCommunicationsClient;
+#[cfg_attr(test, mockall_double::double)]
+use crate::runtime_manager::RuntimeManager;
 
 use agent_config::{AgentConfig, DEFAULT_AGENT_CONFIG_FILE_PATH};
 use agent_manager::AgentManager;
+use ankaios_api::{ALLOWED_CHAR_SET, ank_base::WorkloadStateSpec};
 
-#[cfg_attr(test, mockall_double::double)]
-use crate::runtime_manager::RuntimeManager;
+use common::{
+    communications_client::CommunicationsClient,
+    config::handle_config,
+    from_server_interface::FromServer,
+    objects::AgentName,
+    std_extensions::{GracefulExitResult, IllegalStateResult},
+    to_server_interface::ToServer,
+};
+
+use generic_polling_state_checker::GenericPollingStateChecker;
 use runtime_connectors::{
     GenericRuntimeFacade, RuntimeConnector, RuntimeFacade, SUPPORTED_RUNTIMES,
     containerd::{self, ContainerdRuntime, ContainerdWorkloadId},
@@ -59,38 +57,12 @@ use runtime_connectors::{
     podman_kube::{self, PodmanKubeRuntime, PodmanKubeWorkloadId},
 };
 
-const BUFFER_SIZE: usize = 20;
+use grpc::client::GRPCCommunicationsClient;
+use grpc::security::TLSConfig;
+use regex::Regex;
+use std::collections::HashMap;
 
-// [impl->swdd~agent-loads-config-file~1]
-fn handle_agent_config(config_path: &Option<String>, default_path: &str) -> AgentConfig {
-    match config_path {
-        Some(config_path) => {
-            let config_path = PathBuf::from(config_path);
-            log::info!(
-                "Loading agent config from user provided path '{}'",
-                config_path.display()
-            );
-            AgentConfig::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
-        }
-        None => {
-            let default_path = PathBuf::from(default_path);
-            if !default_path.try_exists().unwrap_or(false) {
-                log::debug!(
-                    "No config file found at default path '{}'. Using cli arguments and environment variables only.",
-                    default_path.display()
-                );
-                AgentConfig::default()
-            } else {
-                log::info!(
-                    "Loading agent config from default path '{}'",
-                    default_path.display()
-                );
-                AgentConfig::from_file(default_path)
-                    .unwrap_or_exit("Config file could not be parsed")
-            }
-        }
-    }
-}
+const BUFFER_SIZE: usize = 20;
 
 // [impl->swdd~agent-naming-convention~1]
 pub fn validate_agent_name(agent_name: &str) -> Result<(), String> {
@@ -161,8 +133,9 @@ async fn main() {
 
     let args = cli::parse();
 
-    // [impl->swdd~agent-loads-config-file~1]
-    let mut agent_config = handle_agent_config(&args.config_path, DEFAULT_AGENT_CONFIG_FILE_PATH);
+    // [impl->swdd~agent-loads-config-file~2]
+    let mut agent_config: AgentConfig =
+        handle_config(&args.config_path, DEFAULT_AGENT_CONFIG_FILE_PATH);
 
     agent_config.update_with_args(&args);
 
@@ -299,67 +272,6 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::{SUPPORTED_RUNTIMES, validate_agent_name, validate_runtimes};
-    use crate::{AgentConfig, agent_config::DEFAULT_AGENT_CONFIG_FILE_PATH, handle_agent_config};
-    use ankaios_api::test_utils::fixtures;
-
-    use std::io::Write;
-    use tempfile::NamedTempFile;
-
-    const VALID_AGENT_CONFIG_TEMPLATE: &str = r#"
-    version = 'v1'
-    name = '{AGENT_NAME}'
-    server_url = 'https://127.0.0.1:25551'
-    run_folder = '{RUN_FOLDER}'
-    insecure = true
-    "#;
-
-    #[test]
-    fn utest_handle_agent_config_valid_config() {
-        let mut tmp_config = NamedTempFile::new().expect("could not create temp file");
-        let config_content = VALID_AGENT_CONFIG_TEMPLATE
-            .replace("{AGENT_NAME}", fixtures::AGENT_NAMES[0])
-            .replace("{RUN_FOLDER}", fixtures::RUN_FOLDER);
-        write!(tmp_config, "{config_content}").expect("could not write to temp file");
-
-        let agent_config = handle_agent_config(
-            &Some(tmp_config.into_temp_path().to_str().unwrap().to_string()),
-            DEFAULT_AGENT_CONFIG_FILE_PATH,
-        );
-
-        assert_eq!(agent_config.name, fixtures::AGENT_NAMES[0].to_string());
-        assert_eq!(
-            agent_config.server_url,
-            "https://127.0.0.1:25551".to_string()
-        );
-        assert_eq!(agent_config.run_folder, fixtures::RUN_FOLDER.to_string());
-        assert!(agent_config.insecure);
-    }
-
-    #[test]
-    fn utest_handle_agent_config_default_path() {
-        let mut file = tempfile::NamedTempFile::new().expect("Failed to create file");
-        let config_content = VALID_AGENT_CONFIG_TEMPLATE
-            .replace("{AGENT_NAME}", fixtures::AGENT_NAMES[0])
-            .replace("{RUN_FOLDER}", fixtures::RUN_FOLDER);
-        writeln!(file, "{config_content}").expect("Failed to write to file");
-
-        let agent_config = handle_agent_config(&None, file.path().to_str().unwrap());
-
-        assert_eq!(agent_config.name, fixtures::AGENT_NAMES[0].to_string());
-        assert_eq!(
-            agent_config.server_url,
-            "https://127.0.0.1:25551".to_string()
-        );
-        assert_eq!(agent_config.run_folder, fixtures::RUN_FOLDER.to_string());
-        assert!(agent_config.insecure);
-    }
-
-    #[test]
-    fn utest_handle_agent_config_default() {
-        let agent_config = handle_agent_config(&None, "/a/very/invalid/path/to/config/file");
-
-        assert_eq!(agent_config, AgentConfig::default());
-    }
 
     // [utest->swdd~agent-naming-convention~1]
     #[test]

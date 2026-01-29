@@ -16,52 +16,23 @@ use crate::cli::Arguments;
 use crate::io_utils::default_run_folder_string;
 
 use common::DEFAULT_SERVER_ADDRESS;
+use common::config::{CONFIG_VERSION, ConfigFile, ConversionErrors};
 use common::std_extensions::UnreachableOption;
 use grpc::security::read_pem_file;
 
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::fmt;
 use std::fs::read_to_string;
 use std::path::PathBuf;
 use toml::from_str;
 
-const CONFIG_VERSION: &str = "v1";
-
 pub const DEFAULT_AGENT_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-agent.conf";
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ConversionErrors {
-    WrongVersion(String),
-    ConflictingCertificates(String),
-    InvalidAgentConfig(String),
-    InvalidCertificate(String),
-}
-
-impl fmt::Display for ConversionErrors {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ConversionErrors::WrongVersion(msg) => {
-                write!(f, "Wrong version: {msg}")
-            }
-            ConversionErrors::ConflictingCertificates(msg) => {
-                write!(f, "Conflicting certificates: {msg}")
-            }
-            ConversionErrors::InvalidAgentConfig(msg) => {
-                write!(f, "Agent Config could not have been parsed due to: {msg}")
-            }
-            ConversionErrors::InvalidCertificate(msg) => {
-                write!(f, "Certificate could not have been read due to: {msg}")
-            }
-        }
-    }
-}
 
 pub fn get_default_url() -> String {
     DEFAULT_SERVER_ADDRESS.to_string()
 }
 
-// [impl->swdd~agent-loads-config-file~1]
+// [impl->swdd~agent-loads-config-file~2]
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct AgentConfig {
     pub version: String,
@@ -105,13 +76,13 @@ impl Default for AgentConfig {
     }
 }
 
-// [impl->swdd~agent-loads-config-file~1]
-impl AgentConfig {
-    pub fn from_file(file_path: PathBuf) -> Result<AgentConfig, ConversionErrors> {
+// [impl->swdd~agent-loads-config-file~2]
+impl ConfigFile for AgentConfig {
+    fn from_file(file_path: PathBuf) -> Result<AgentConfig, ConversionErrors> {
         let agent_config_content = read_to_string(file_path.to_str().unwrap_or_unreachable())
-            .map_err(|err| ConversionErrors::InvalidAgentConfig(err.to_string()))?;
+            .map_err(|err| ConversionErrors::InvalidConfig(err.to_string()))?;
         let mut agent_config: AgentConfig = from_str(&agent_config_content)
-            .map_err(|err| ConversionErrors::InvalidAgentConfig(err.to_string()))?;
+            .map_err(|err| ConversionErrors::InvalidConfig(err.to_string()))?;
 
         if agent_config.version != CONFIG_VERSION {
             return Err(ConversionErrors::WrongVersion(agent_config.version));
@@ -144,7 +115,9 @@ impl AgentConfig {
 
         Ok(agent_config)
     }
+}
 
+impl AgentConfig {
     pub fn update_with_args(&mut self, args: &Arguments) {
         if let Some(name) = &args.agent_name {
             self.name = name.to_string();
@@ -195,8 +168,9 @@ impl AgentConfig {
 #[cfg(test)]
 mod tests {
     use super::{AgentConfig, CONFIG_VERSION};
+    use crate::cli::Arguments;
     use crate::io_utils::default_run_folder_string;
-    use crate::{agent_config::ConversionErrors, cli::Arguments};
+    use common::config::{ConfigFile, ConversionErrors};
 
     use ankaios_api::test_utils::fixtures;
     use common::DEFAULT_SERVER_ADDRESS;
@@ -205,7 +179,7 @@ mod tests {
     use std::path::PathBuf;
     use tempfile::NamedTempFile;
 
-    // [utest->swdd~agent-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_default_agent_config() {
         let default_agent_config = AgentConfig::default();
@@ -218,7 +192,7 @@ mod tests {
         assert_eq!(default_agent_config.version, CONFIG_VERSION);
     }
 
-    // [utest->swdd~agent-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_agent_config_wrong_version() {
         let agent_config_content: &str = r"#
@@ -236,7 +210,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_agent_config_conflicting_certificates() {
         let agent_config_content = format!(
@@ -262,7 +236,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_agent_config_update_with_args() {
         let default_run_folder = default_run_folder_string();
@@ -296,7 +270,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_agent_config_update_with_args_certificates_content() {
         let default_run_folder = default_run_folder_string();
@@ -345,7 +319,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_agent_config_from_file_successful() {
         let default_run_folder = default_run_folder_string();

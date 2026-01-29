@@ -429,6 +429,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_yaml",
+ "tempfile",
  "tokio",
  "toml",
 ]

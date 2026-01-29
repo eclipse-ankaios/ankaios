@@ -14,6 +14,7 @@
 
 use crate::cli::AnkCli;
 use common::DEFAULT_SERVER_ADDRESS;
+use common::config::{CONFIG_VERSION, ConfigFile, ConversionErrors};
 use common::std_extensions::{GracefulExitResult, UnreachableOption};
 use grpc::security::read_pem_file;
 
@@ -29,7 +30,6 @@ use std::fmt;
 use std::fs::read_to_string;
 use std::path::PathBuf;
 
-pub const CONFIG_VERSION: &str = "v1";
 pub const DEFAULT_CONFIG: &str = "default";
 pub const DEFAULT_RESPONSE_TIMEOUT: u64 = 3000;
 
@@ -37,31 +37,6 @@ pub static DEFAULT_ANK_CONFIG_FILE_PATH: Lazy<String> = Lazy::new(|| {
     let home_dir = env::var("HOME").unwrap_or_exit("HOME environment variable not set");
     format!("{home_dir}/.config/ankaios/ank.conf")
 });
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ConversionErrors {
-    WrongVersion(String),
-    ConflictingCertificates(String),
-    InvalidAnkConfig(String),
-    InvalidCertificate(String),
-}
-
-impl fmt::Display for ConversionErrors {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ConversionErrors::WrongVersion(msg) => write!(f, "Wrong version: {msg}"),
-            ConversionErrors::ConflictingCertificates(msg) => {
-                write!(f, "Conflicting certificates: {msg}")
-            }
-            ConversionErrors::InvalidAnkConfig(msg) => {
-                write!(f, "Ank Config could not have been parsed due to: {msg}")
-            }
-            ConversionErrors::InvalidCertificate(msg) => {
-                write!(f, "Certificate could not have been read due to: {msg}")
-            }
-        }
-    }
-}
 
 fn get_default_response_timeout() -> u64 {
     DEFAULT_RESPONSE_TIMEOUT
@@ -71,7 +46,7 @@ fn get_default_url() -> String {
     DEFAULT_SERVER_ADDRESS.to_string()
 }
 
-// [impl->swdd~cli-loads-config-file~1]
+// [impl->swdd~cli-loads-config-file~2]
 #[derive(Debug, PartialEq)]
 pub struct AnkConfig {
     pub version: String,
@@ -205,13 +180,13 @@ impl Default for AnkConfig {
     }
 }
 
-impl AnkConfig {
-    // [impl->swdd~cli-loads-config-file~1]
-    pub fn from_file(file_path: PathBuf) -> Result<AnkConfig, ConversionErrors> {
+// [impl->swdd~cli-loads-config-file~2]
+impl ConfigFile for AnkConfig {
+    fn from_file(file_path: PathBuf) -> Result<AnkConfig, ConversionErrors> {
         let ank_config_content = read_to_string(file_path.to_str().unwrap_or_unreachable())
-            .map_err(|err| ConversionErrors::InvalidAnkConfig(err.to_string()))?;
+            .map_err(|err| ConversionErrors::InvalidConfig(err.to_string()))?;
         let mut ank_config: AnkConfig = from_str(&ank_config_content)
-            .map_err(|err| ConversionErrors::InvalidAnkConfig(err.to_string()))?;
+            .map_err(|err| ConversionErrors::InvalidConfig(err.to_string()))?;
 
         if ank_config.version != CONFIG_VERSION {
             return Err(ConversionErrors::WrongVersion(ank_config.version));
@@ -244,7 +219,9 @@ impl AnkConfig {
 
         Ok(ank_config)
     }
+}
 
+impl AnkConfig {
     pub fn update_with_args(&mut self, args: &AnkCli) {
         if let Some(response_timeout) = args.response_timeout_ms {
             self.response_timeout = response_timeout;
@@ -297,12 +274,13 @@ impl AnkConfig {
 mod tests {
     use super::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH};
     use crate::{
-        ank_config::{ConversionErrors, get_default_response_timeout, get_default_url},
+        ank_config::{get_default_response_timeout, get_default_url},
         cli::{AnkCli, Commands, GetArgs, GetCommands},
     };
 
     use ankaios_api::test_utils::fixtures;
     use common::DEFAULT_SERVER_ADDRESS;
+    use common::config::{ConfigFile, ConversionErrors};
 
     use std::io::Write;
     use std::path::PathBuf;
@@ -310,7 +288,7 @@ mod tests {
 
     const TEST_SERVER_URL: &str = r"https://127.0.0.1:25555";
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_default_ank_config() {
         let default_ank_config = AnkConfig::default();
@@ -331,7 +309,7 @@ mod tests {
         assert!(default_ank_config.key_pem_content.is_none());
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_wrong_version() {
         let ank_config_content: &str = r"#
@@ -349,7 +327,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_conflicting_certificates() {
         let ank_config_content = format!(
@@ -376,7 +354,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_update_with_args() {
         let mut ank_config = AnkConfig::default();
@@ -412,7 +390,7 @@ mod tests {
         assert_eq!(ank_config.key_pem, Some(fixtures::KEY_PEM_PATH.to_string()));
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_update_with_args_certificates_content() {
         let ank_config_content = format!(
@@ -467,7 +445,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_update_with_args_flags_unset() {
         let ank_config_content = format!(
@@ -514,7 +492,7 @@ mod tests {
         assert!(!ank_config.insecure);
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_no_context_returns_default() {
         let ank_config_content = r"#
@@ -535,7 +513,7 @@ mod tests {
         assert!(ank_config.key_pem_content.is_none());
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_multiple_contexts_found() {
         let ank_config_content = r"#
@@ -551,7 +529,7 @@ mod tests {
         assert!(ank_config.is_ok());
     }
 
-    // [utest->swdd~cli-loads-config-file~1]
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_from_file_successful() {
         let ank_config_content = format!(

@@ -136,11 +136,11 @@ Implementation of each command is detailed in the next sub-chapters.
 ![Startup](plantuml/seq_cmd_startup.svg)
 
 #### Ankaios CLI loads config file
-`swdd~cli-loads-config-file~1`
+`swdd~cli-loads-config-file~2`
 
 Status: approved
 
-The Ankaios CLI shall accept configuration files read at startup that specify the general startup configuration of the CLI with a lower precedence than environment variables and command line arguments.
+The Ankaios CLI shall accept configuration files read at startup using the Common library helper that specify the general startup configuration of the CLI with a lower precedence than environment variables and command line arguments.
 
 Rationale:
 Ankaios CLI configuration files allow a reproducible execution of the CLI with lower effort.
