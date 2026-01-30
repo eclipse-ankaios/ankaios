@@ -66,7 +66,6 @@ impl Authorizer {
     // [impl->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     pub fn authorize(&self, request: &Request) -> bool {
         let Some(request_content) = &request.request_content else {
-            // TODO #now think about this, but why should we forward empty requests?
             log::info!(
                 "Denying request '{}' as request content is None",
                 request.request_id

@@ -340,7 +340,6 @@ impl AnkaiosServer {
                     request_id,
                     request_content,
                 }) => {
-                    // TODO #now - again a check with a an error
                     let Some(request_content) = request_content else {
                         log::warn!(
                             "The Request with id '{request_id}' does not contain any content -> ignoring the request",
