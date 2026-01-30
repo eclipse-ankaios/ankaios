@@ -196,11 +196,11 @@ The following diagram shows the startup sequence of the Ankaios Agent:
 ![Startup](plantuml/seq_startup.svg)
 
 #### Agent loads config file
-`swdd~agent-loads-config-file~1`
+`swdd~agent-loads-config-file~2`
 
 Status: approved
 
-The Ankaios agent shall accept configuration files read at startup that specify the general startup configuration of the agent with a lower precedence than environment variables and command line arguments.
+The Ankaios agent shall accept configuration files read at startup using the Common library that specify the general startup configuration of the agent with a lower precedence than environment variables and command line arguments.
 
 Rationale:
 Agent configuration files allow a reproducible execution of the agent with lower effort.
@@ -4305,6 +4305,23 @@ Status: approved
 When a log fetcher is ran, it shall:
 * collect logs from a runtime specific log fetcher
 * send them on the logs collection channel
+
+Tags:
+- LogFetching
+
+Needs:
+- impl
+- utest
+
+#### Logs sizes should be checked
+`swdd~agent-checks-size-of-logs~1`
+
+Status: approved
+
+Logs should be processed in the following way:
+* if a single log line exceeds 50MB during collection, the log collection shall be interrupted
+* if a single log entry exceeds 2MB when sending to the server, the log message shall be truncated
+* if multiple log entries together exceed 2MB, they shall be split into separate responses
 
 Tags:
 - LogFetching

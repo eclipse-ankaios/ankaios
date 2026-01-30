@@ -228,12 +228,12 @@ mod tests {
         CompleteState, CompleteStateSpec, ExecutionStateSpec, WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_workload_named_with_params,
-        generate_test_workload_states_map_with_data, fixtures,
+        fixtures, generate_test_complete_state, generate_test_workload_named_with_params,
+        generate_test_workload_states_map_with_data,
     };
     use common::commands::UpdateWorkloadState;
 
-    use mockall::{Sequence, predicate::eq};
+    use mockall::Sequence;
     use std::collections::BTreeMap;
 
     fn generate_test_data() -> CompleteStateSpec {
@@ -250,7 +250,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| Ok(CompleteState::from(generate_test_complete_state(vec![]))));
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
@@ -280,7 +282,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| Ok(CompleteState::from(test_data)));
 
         let mut cmd = CliCommands {
@@ -311,7 +315,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| Ok(CompleteState::from(test_data)));
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
@@ -341,7 +347,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| Ok(CompleteState::from(test_data)));
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
@@ -371,7 +379,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| Ok(CompleteState::from(test_data)));
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
@@ -405,7 +415,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| Ok(CompleteState::from(test_data)));
         let mut cmd = CliCommands {
             _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
@@ -480,7 +492,9 @@ mod tests {
 
         mock_server
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .times(1)
             .in_sequence(&mut seq)
             .return_once(move |_| Ok(CompleteState::from(initial_state)));
@@ -498,7 +512,9 @@ mod tests {
 
         mock_server
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .times(1)
             .in_sequence(&mut seq)
             .return_once(move |_| Ok(CompleteState::from(updated_state)));

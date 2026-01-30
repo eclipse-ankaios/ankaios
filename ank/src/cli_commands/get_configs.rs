@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::cli_commands::server_connection::CompleteStateRequestDetails;
 use crate::cli_commands::{
     DESIRED_STATE_CONFIGS, cli_table::CliTable, config_table_row::ConfigTableRow,
 };
@@ -22,9 +23,11 @@ impl CliCommands {
     // [impl->swdd~cli-provides-list-of-configs~1]
     // [impl->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     pub async fn get_configs(&mut self) -> Result<String, CliError> {
+        let request_details =
+            CompleteStateRequestDetails::new(vec![DESIRED_STATE_CONFIGS.to_string()], false);
         let filtered_complete_state: CompleteState = self
             .server_connection
-            .get_complete_state(&[DESIRED_STATE_CONFIGS.to_string()])
+            .get_complete_state(request_details)
             .await?;
 
         let configs = filtered_complete_state
@@ -73,8 +76,7 @@ mod tests {
     };
 
     use ankaios_api::ank_base::CompleteState;
-    use ankaios_api::test_utils::{generate_test_complete_state_with_configs, fixtures};
-    use mockall::predicate::eq;
+    use ankaios_api::test_utils::{fixtures, generate_test_complete_state_with_configs};
 
     const CONFIG_1: &str = "config_1";
     const CONFIG_2: &str = "config_2";
@@ -89,7 +91,10 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![DESIRED_STATE_CONFIGS.to_string()]))
+            .withf(|request_details| {
+                request_details.field_masks == vec![DESIRED_STATE_CONFIGS.to_string()]
+                    && !request_details.subscribe_for_events
+            })
             .return_once(|_| {
                 Ok(CompleteState::from(
                     generate_test_complete_state_with_configs(vec![
@@ -118,7 +123,10 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![DESIRED_STATE_CONFIGS.to_string()]))
+            .withf(|request_details| {
+                request_details.field_masks == vec![DESIRED_STATE_CONFIGS.to_string()]
+                    && !request_details.subscribe_for_events
+            })
             .return_once(|_| Ok(CompleteState::default()));
 
         let mut cmd = CliCommands {
@@ -140,7 +148,10 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![DESIRED_STATE_CONFIGS.to_string()]))
+            .withf(|request_details| {
+                request_details.field_masks == vec![DESIRED_STATE_CONFIGS.to_string()]
+                    && !request_details.subscribe_for_events
+            })
             .return_once(|_| {
                 Err(ServerConnectionError::ExecutionError(
                     "connection error".to_string(),

@@ -254,8 +254,8 @@ mod tests {
         CompleteState, ExecutionStateSpec, Response, ResponseContent, StateSpec, UpdateStateSuccess, WorkloadInstanceNameSpec, WorkloadStateSpec
     };
     use ankaios_api::test_utils::{
-        generate_test_state_from_workloads, generate_test_workload_named,
-        generate_test_workload_named_with_params, fixtures,
+        fixtures, generate_test_state_from_workloads, generate_test_workload_named,
+        generate_test_workload_named_with_params,
     };
     use common::{
         commands::UpdateWorkloadState,
@@ -828,7 +828,9 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .times(2)
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .returning(move |_| Ok(updated_state_clone.clone()));
         mock_server_connection
             .expect_take_missed_from_server_messages()
@@ -930,7 +932,9 @@ mod tests {
 
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| {
                 Ok(CompleteState {
                     desired_state: updated_state.desired_state,
@@ -1151,7 +1155,9 @@ mod tests {
             });
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| {
                 Ok(CompleteState {
                     desired_state: updated_state.desired_state,

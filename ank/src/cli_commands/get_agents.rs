@@ -14,14 +14,15 @@
 
 use super::CliCommands;
 use crate::{
-    cli_commands::{agent_table_row::AgentTableRow, cli_table::CliTable},
+    cli_commands::{
+        agent_table_row::AgentTableRow, cli_table::CliTable,
+        server_connection::CompleteStateRequestDetails,
+    },
     cli_error::CliError,
     output_debug,
 };
 
 use ankaios_api::ank_base::{AgentAttributes, AgentStatus, WorkloadStatesMapSpec};
-
-const EMPTY_FILTER_MASK: [String; 0] = [];
 
 impl CliCommands {
     // [impl->swdd~cli-provides-list-of-agents~1]
@@ -29,7 +30,7 @@ impl CliCommands {
     pub async fn get_agents(&mut self) -> Result<String, CliError> {
         let filtered_complete_state = self
             .server_connection
-            .get_complete_state(&EMPTY_FILTER_MASK)
+            .get_complete_state(CompleteStateRequestDetails::default())
             .await?;
 
         let workload_states_map = filtered_complete_state
@@ -124,11 +125,10 @@ mod tests {
     };
     use ankaios_api::ank_base::{AgentMapSpec, CompleteState, ExecutionStateSpec};
     use ankaios_api::test_utils::{
-        generate_test_agent_map, generate_test_agent_map_from_workloads,
+        fixtures, generate_test_agent_map, generate_test_agent_map_from_workloads,
         generate_test_complete_state, generate_test_workload_named_with_params,
-        generate_test_workload_states_map_with_data, fixtures,
+        generate_test_workload_states_map_with_data,
     };
-    use mockall::predicate::eq;
 
     const AGENT_UNCONNECTED_NAME: &str = "agent_not_connected";
 
@@ -140,7 +140,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| {
                 Ok(CompleteState::from(generate_test_complete_state(vec![
                     generate_test_workload_named_with_params(
@@ -180,7 +182,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| {
                 let mut complete_state =
                     generate_test_complete_state(vec![generate_test_workload_named_with_params(
@@ -212,7 +216,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| {
                 let mut complete_state = generate_test_complete_state(vec![]);
 
@@ -243,7 +249,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| {
                 Err(ServerConnectionError::ExecutionError(
                     "connection error".to_string(),
@@ -266,7 +274,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| {
                 let workload1 = generate_test_workload_named_with_params(
                     fixtures::WORKLOAD_NAMES[1],
@@ -310,7 +320,9 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .withf(|request_details| {
+                request_details.field_masks.is_empty() && !request_details.subscribe_for_events
+            })
             .return_once(|_| {
                 let mut complete_state = generate_test_complete_state(vec![]);
                 complete_state.agents = generate_test_agent_map(fixtures::AGENT_NAMES[0]);

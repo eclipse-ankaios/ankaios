@@ -18,7 +18,7 @@ Resource    ../../resources/variables.resource
 
 *** Test Cases ***
 
-# [stest->swdd~server-loads-config-file~1]
+# [stest->swdd~server-loads-config-file~2]
 Test server config file successful start-up
     [Setup]        Setup Ankaios
     # Preconditions
@@ -28,7 +28,7 @@ Test server config file successful start-up
     # Asserts
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~agent-loads-config-file~1]
+# [stest->swdd~agent-loads-config-file~2]
 Test agent config file successful start-up
     [Setup]        Setup Ankaios
     # Preconditions
@@ -42,7 +42,7 @@ Test agent config file successful start-up
     Pass Execution If    ${result_config} == False    The agent name "Invalid@gent.name" is not allowed
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~server-loads-config-file~1]
+# [stest->swdd~server-loads-config-file~2]
 Test server config overwrite manifest with cli arguments
     [Setup]        Setup Ankaios
     # Preconditions

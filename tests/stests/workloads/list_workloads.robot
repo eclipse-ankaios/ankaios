@@ -42,7 +42,7 @@ Test Ankaios CLI get workloads
 
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~cli-loads-config-file~1]
+# [stest->swdd~cli-loads-config-file~2]
 Test Ankaios CLI get workloads with config files
     [Setup]    Setup Ankaios    mtls_enabled=True
     # Preconditions

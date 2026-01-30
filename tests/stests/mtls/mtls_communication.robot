@@ -100,9 +100,9 @@ Test Ankaios insecure mode by providing --insecure command line arguments
 
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~server-loads-config-file~1]
-# [stest->swdd~agent-loads-config-file~1]
-# [stest->swdd~cli-loads-config-file~1]
+# [stest->swdd~server-loads-config-file~2]
+# [stest->swdd~agent-loads-config-file~2]
+# [stest->swdd~cli-loads-config-file~2]
 Test Ankaios MTLS by providing PEM files via config files
     [Setup]    Run Keyword    Setup Ankaios without MTLS Setup
     # Preconditions

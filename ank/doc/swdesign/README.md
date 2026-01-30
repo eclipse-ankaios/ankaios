@@ -136,11 +136,11 @@ Implementation of each command is detailed in the next sub-chapters.
 ![Startup](plantuml/seq_cmd_startup.svg)
 
 #### Ankaios CLI loads config file
-`swdd~cli-loads-config-file~1`
+`swdd~cli-loads-config-file~2`
 
 Status: approved
 
-The Ankaios CLI shall accept configuration files read at startup that specify the general startup configuration of the CLI with a lower precedence than environment variables and command line arguments.
+The Ankaios CLI shall accept configuration files read at startup using the Common library helper that specify the general startup configuration of the CLI with a lower precedence than environment variables and command line arguments.
 
 Rationale:
 Ankaios CLI configuration files allow a reproducible execution of the CLI with lower effort.
@@ -1060,11 +1060,15 @@ Needs:
 ![Get events](plantuml/seq_get_events.svg)
 
 #### CLI provides get events command
-`swdd~cli-provides-get-events-command~1`
+`swdd~cli-provides-get-events-command~2`
 
 Status: approved
 
-The Ankaios CLI shall provide a function to get real-time state change events from the Ankaios server with a field mask as argument for filtering events to specific parts of the state.
+The Ankaios CLI shall provide a function to get real-time state change events from the Ankaios server with the following arguments:
+
+* a filter mask to filter events to specific parts of the state
+* a `include-current-state` (short: `c`) flag to include the initial state response in the output when subscribing for events
+* an output format flag to specify the output format (YAML (default) or JSON)
 
 Rationale:
 The get events command enables users to monitor state changes in real-time, which is essential for observability and debugging in dynamic workload orchestration scenarios.
@@ -1441,11 +1445,15 @@ Needs:
 - utest
 
 ### Shell completion
-`swdd~cli-shell-completion~1`
+`swdd~cli-shell-completion~2`
 
 Status: approved
 
-When the user starts typing an Ankaios CLI command, the zsh and bash shell shall propose completions for arguments including dynamic completions for workload names, object field masks and agents.
+When the user starts typing an Ankaios CLI command, the zsh and bash shell shall propose completions for arguments including dynamic completions for:
+* workload names
+* object field masks
+* configs
+* agents
 
 Rationale:
 A user's productivity is increased when command completions are provided which reduces lookups for the user.

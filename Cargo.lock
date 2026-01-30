@@ -425,9 +425,11 @@ dependencies = [
  "ankaios-api",
  "async-trait",
  "log",
+ "prost",
  "semver",
  "serde",
  "serde_yaml",
+ "tempfile",
  "tokio",
  "toml",
 ]

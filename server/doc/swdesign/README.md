@@ -104,11 +104,11 @@ The following diagram shows the startup sequence of the Ankaios Server:
 ![Startup](plantuml/seq_startup.svg)
 
 #### Server loads config file
-`swdd~server-loads-config-file~1`
+`swdd~server-loads-config-file~2`
 
 Status: approved
 
-The Ankaios server shall accept configuration files read at startup that specify the general startup configuration of the server with a lower precedence than environment variables and command line arguments.
+The Ankaios server shall accept configuration files read at startup using the Common library that specify the general startup configuration of the server with a lower precedence than environment variables and command line arguments.
 
 Rationale:
 Server configuration files allow a reproducible execution of the server with lower effort.
@@ -1360,6 +1360,24 @@ Needs:
 - impl
 - utest
 - stest
+
+#### Server removes event subscription for deleted subscriber workload
+`swdd~server-removes-subscription-for-deleted-subscriber-workload~1`
+
+Status: approved
+
+When the Ankaios server receives an `UpdateWorkloadState` message from the channel provided by the communication middleware and detects deleted workloads, the Ankaios server shall request the EventHandler to remove the subscription for each deleted workload by providing the workload name.
+
+Rationale:
+A deleted workload cannot receive events anymore, so its subscription must be removed to prevent subscription corpses that remain in the system.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
 
 #### Server removes event subscription for disconnected cli
 `swdd~server-removes-event-subscription-for-disconnected-cli~1`

@@ -16,51 +16,20 @@ mod ankaios_server;
 mod cli;
 mod server_config;
 
-use std::fs;
-use std::path::PathBuf;
-
 use ankaios_api::ank_base::{CompleteStateSpec, StateSpec, validate_tags};
-use common::std_extensions::GracefulExitResult;
+use ankaios_server::{AnkaiosServer, create_from_server_channel, create_to_server_channel};
 
 use common::communications_server::CommunicationsServer;
-
-use ankaios_server::{AnkaiosServer, create_from_server_channel, create_to_server_channel};
-use server_config::{DEFAULT_SERVER_CONFIG_FILE_PATH, ServerConfig};
+use common::config::handle_config;
+use common::std_extensions::GracefulExitResult;
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
+use server_config::{DEFAULT_SERVER_CONFIG_FILE_PATH, ServerConfig};
+
+use std::fs;
 
 #[cfg(test)]
 pub mod test_helper;
-
-fn handle_sever_config(config_path: &Option<String>, default_path: &str) -> ServerConfig {
-    match config_path {
-        Some(config_path) => {
-            let config_path = PathBuf::from(config_path);
-            log::info!(
-                "Loading server config from user provided path '{}'",
-                config_path.display()
-            );
-            ServerConfig::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
-        }
-        None => {
-            let default_path = PathBuf::from(default_path);
-            if !default_path.try_exists().unwrap_or(false) {
-                log::debug!(
-                    "No config file found at default path '{}'. Using cli arguments and environment variables only.",
-                    default_path.display()
-                );
-                ServerConfig::default()
-            } else {
-                log::info!(
-                    "Loading server config from default path '{}'",
-                    default_path.display()
-                );
-                ServerConfig::from_file(default_path)
-                    .unwrap_or_exit("Config file could not be parsed")
-            }
-        }
-    }
-}
 
 // [impl->swdd~server-validates-startup-manifest-tags-format~1]
 fn validate_tags_format_in_manifest(data: &str) -> Result<(), String> {
@@ -93,8 +62,9 @@ async fn main() {
 
     let args = cli::parse();
 
-    // [impl->swdd~server-loads-config-file~1]
-    let mut server_config = handle_sever_config(&args.config_path, DEFAULT_SERVER_CONFIG_FILE_PATH);
+    // [impl->swdd~server-loads-config-file~2]
+    let mut server_config: ServerConfig =
+        handle_config(&args.config_path, DEFAULT_SERVER_CONFIG_FILE_PATH);
 
     server_config.update_with_args(&args);
 
@@ -183,65 +153,7 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        ServerConfig, handle_sever_config, server_config::DEFAULT_SERVER_CONFIG_FILE_PATH,
-        validate_tags_format_in_manifest,
-    };
-    use std::{io::Write, net::SocketAddr};
-    use tempfile::NamedTempFile;
-
-    const VALID_SERVER_CONFIG_CONTENT: &str = r"#
-    version = 'v1'
-    startup_manifest = '/workspaces/ankaios/server/resources/startConfig.yaml'
-    address = '127.0.0.1:25551'
-    insecure = true
-    #";
-
-    #[test]
-    fn utest_handle_server_config_valid_config() {
-        let mut tmp_config = NamedTempFile::new().expect("could not create temp file");
-        write!(tmp_config, "{VALID_SERVER_CONFIG_CONTENT}").expect("could not write to temp file");
-
-        let server_config = handle_sever_config(
-            &Some(tmp_config.into_temp_path().to_str().unwrap().to_string()),
-            DEFAULT_SERVER_CONFIG_FILE_PATH,
-        );
-
-        assert_eq!(
-            server_config.startup_manifest,
-            Some("/workspaces/ankaios/server/resources/startConfig.yaml".to_string())
-        );
-        assert_eq!(
-            server_config.address,
-            "127.0.0.1:25551".parse::<SocketAddr>().unwrap()
-        );
-        assert_eq!(server_config.insecure, Some(true));
-    }
-
-    #[test]
-    fn utest_handle_server_config_default_path() {
-        let mut file = tempfile::NamedTempFile::new().expect("Failed to create file");
-        writeln!(file, "{VALID_SERVER_CONFIG_CONTENT}").expect("Failed to write to file");
-
-        let server_config = handle_sever_config(&None, file.path().to_str().unwrap());
-
-        assert_eq!(
-            server_config.startup_manifest,
-            Some("/workspaces/ankaios/server/resources/startConfig.yaml".to_string())
-        );
-        assert_eq!(
-            server_config.address,
-            "127.0.0.1:25551".parse::<SocketAddr>().unwrap()
-        );
-        assert_eq!(server_config.insecure, Some(true));
-    }
-
-    #[test]
-    fn utest_handle_server_config_default() {
-        let server_config = handle_sever_config(&None, "/a/very/invalid/path/to/config/file");
-
-        assert_eq!(server_config, ServerConfig::default());
-    }
+    use crate::validate_tags_format_in_manifest;
 
     // [utest->swdd~server-validates-startup-manifest-tags-format~1]
     #[test]
