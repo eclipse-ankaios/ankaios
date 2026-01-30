@@ -71,6 +71,10 @@ build-stest-image:
         echo 'Had to build control_interface_tester image. Consider uploading it with `podman push ghcr.io/eclipse-ankaios/control_interface_tester:'"$SRC_HASH"'`'
     fi
 
+# Build and run only the specified system test(s) (wildcard supported)
+stests-filter filter: build build-stest-image
+    ./tools/run_robot_tests.sh --test "{{ filter }}" tests
+
 # Only execute the stests without building
 stest-only tests="tests":
     ./tools/run_robot_tests.sh {{ tests }}

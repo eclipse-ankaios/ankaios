@@ -14,11 +14,10 @@
 
 use crate::commands::{self, AgentLoadStatus};
 use crate::message_size::process_log_entries_response;
-use crate::std_extensions::UnreachableResult;
 use ankaios_api::ank_base::{
-    CompleteStateRequestSpec, CompleteStateSpec, EventsCancelRequestSpec, LogEntriesResponse,
-    LogsCancelRequestSpec, LogsRequest, LogsRequestSpec, LogsStopResponse, RequestContentSpec,
-    RequestSpec, Tags, UpdateStateRequestSpec, WorkloadStateSpec,
+    CompleteState, CompleteStateRequest, LogEntriesResponse,
+    LogsCancelRequest, LogsRequest, LogsStopResponse, Request, RequestContent, Tags,
+    UpdateStateRequest, WorkloadStateSpec, EventsCancelRequest
 };
 
 use async_trait::async_trait;
@@ -31,7 +30,7 @@ pub enum ToServer {
     AgentHello(commands::AgentHello),
     AgentLoadStatus(AgentLoadStatus),
     AgentGone(commands::AgentGone),
-    Request(RequestSpec),
+    Request(Request),
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Stop(commands::Stop),
     Goodbye(commands::Goodbye),
@@ -64,7 +63,7 @@ pub trait ToServerInterface {
     async fn update_state(
         &self,
         request_id: String,
-        new_state: CompleteStateSpec,
+        new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError>;
     async fn update_workload_state(
@@ -74,7 +73,7 @@ pub trait ToServerInterface {
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: CompleteStateRequestSpec,
+        request_complete_state: CompleteStateRequest,
     ) -> Result<(), ToServerError>;
     async fn logs_request(
         &self,
@@ -129,18 +128,18 @@ impl ToServerInterface for ToServerSender {
     async fn update_state(
         &self,
         request_id: String,
-        new_state: CompleteStateSpec,
+        new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestSpec {
+            .send(ToServer::Request(Request {
                 request_id,
-                request_content: RequestContentSpec::UpdateStateRequest(Box::new(
-                    UpdateStateRequestSpec {
-                        new_state,
+                request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                    UpdateStateRequest {
+                        new_state: Some(new_state),
                         update_mask,
                     },
-                )),
+                ))),
             }))
             .await?)
     }
@@ -161,12 +160,12 @@ impl ToServerInterface for ToServerSender {
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: CompleteStateRequestSpec,
+        request_complete_state: CompleteStateRequest,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestSpec {
+            .send(ToServer::Request(Request {
                 request_id,
-                request_content: RequestContentSpec::CompleteStateRequest(request_complete_state),
+                request_content: Some(RequestContent::CompleteStateRequest(request_complete_state)),
             }))
             .await?)
     }
@@ -177,20 +176,18 @@ impl ToServerInterface for ToServerSender {
         logs_request: LogsRequest,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestSpec {
+            .send(ToServer::Request(Request {
                 request_id,
-                request_content: RequestContentSpec::LogsRequest(
-                    LogsRequestSpec::try_from(logs_request).unwrap_or_unreachable(),
-                ),
+                request_content: Some(RequestContent::LogsRequest(logs_request)),
             }))
             .await?)
     }
 
     async fn logs_cancel_request(&self, request_id: String) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestSpec {
+            .send(ToServer::Request(Request {
                 request_id,
-                request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
+                request_content: Some(RequestContent::LogsCancelRequest(LogsCancelRequest {})),
             }))
             .await?)
     }
@@ -225,11 +222,11 @@ impl ToServerInterface for ToServerSender {
 
     async fn event_cancel_request(&self, request_id: String) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestSpec {
+            .send(ToServer::Request(Request {
                 request_id,
-                request_content: RequestContentSpec::EventsCancelRequest(
-                    EventsCancelRequestSpec {},
-                ),
+                request_content: Some(RequestContent::EventsCancelRequest(
+                    EventsCancelRequest {},
+                )),
             }))
             .await?)
     }
@@ -261,9 +258,7 @@ mod tests {
         to_server_interface::{ToServer, ToServerInterface},
     };
     use ankaios_api::ank_base::{
-        CompleteStateRequestSpec, ExecutionStateSpec, LogEntriesResponse, LogEntry,
-        LogsCancelRequestSpec, LogsRequestSpec, LogsStopResponse, RequestContentSpec, RequestSpec,
-        Tags, UpdateStateRequestSpec, WorkloadInstanceName, WorkloadInstanceNameSpec,
+        CompleteState, CompleteStateRequest, ExecutionStateSpec, LogEntriesResponse, LogEntry, LogsCancelRequest, LogsRequest, LogsStopResponse, Request, RequestContent, Tags, UpdateStateRequest, WorkloadInstanceName,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_complete_state, generate_test_workload_named,
@@ -348,7 +343,7 @@ mod tests {
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload1 = generate_test_workload_named();
-        let complete_state = generate_test_complete_state(vec![workload1]);
+        let complete_state: CompleteState = generate_test_complete_state(vec![workload1]).into();
         assert!(
             tx.update_state(
                 fixtures::REQUEST_ID.to_string(),
@@ -361,14 +356,14 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(RequestSpec {
+            ToServer::Request(Request {
                 request_id: fixtures::REQUEST_ID.to_string(),
-                request_content: RequestContentSpec::UpdateStateRequest(Box::new(
-                    UpdateStateRequestSpec {
-                        new_state: complete_state,
+                request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                    UpdateStateRequest {
+                        new_state: Some(complete_state),
                         update_mask: vec![FIELD_MASK.to_string()]
                     },
-                )),
+                ))),
             })
         )
     }
@@ -403,23 +398,21 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let complete_state_request = CompleteStateRequestSpec {
+        let complete_state_request = CompleteStateRequest {
             field_mask: vec![FIELD_MASK.to_string()],
             subscribe_for_events: false,
         };
-        let request_content =
-            RequestContentSpec::CompleteStateRequest(complete_state_request.clone());
         assert!(
-            tx.request_complete_state(fixtures::REQUEST_ID.to_string(), complete_state_request)
+            tx.request_complete_state(fixtures::REQUEST_ID.to_string(), complete_state_request.clone())
                 .await
                 .is_ok()
         );
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(RequestSpec {
+            ToServer::Request(Request {
                 request_id: fixtures::REQUEST_ID.to_string(),
-                request_content
+                request_content: Some(RequestContent::CompleteStateRequest(complete_state_request))
             })
         )
     }
@@ -429,29 +422,28 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let logs_request = LogsRequestSpec {
-            workload_names: vec![WorkloadInstanceNameSpec::new(
-                fixtures::AGENT_NAMES[0],
-                fixtures::WORKLOAD_NAMES[0],
-                "id",
-            )],
-            follow: true,
-            tail: 10,
+        let logs_request = LogsRequest {
+            workload_names: vec![WorkloadInstanceName{
+                agent_name: fixtures::AGENT_NAMES[0].into(),
+                workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                id: "id".into(),
+            }],
+            follow: Some(true),
+            tail: Some(10),
             since: None,
             until: None,
         };
-        let request_content = RequestContentSpec::LogsRequest(logs_request.clone());
         assert!(
-            tx.logs_request(fixtures::REQUEST_ID.into(), logs_request.into())
+            tx.logs_request(fixtures::REQUEST_ID.into(), logs_request.clone())
                 .await
                 .is_ok()
         );
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(RequestSpec {
+            ToServer::Request(Request {
                 request_id: fixtures::REQUEST_ID.to_string(),
-                request_content
+                request_content: Some(RequestContent::LogsRequest(logs_request.clone()))
             })
         )
     }
@@ -461,7 +453,6 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let request_content = RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {});
         assert!(
             tx.logs_cancel_request(fixtures::REQUEST_ID.into())
                 .await
@@ -470,9 +461,9 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(RequestSpec {
+            ToServer::Request(Request {
                 request_id: fixtures::REQUEST_ID.to_string(),
-                request_content
+                request_content: Some(RequestContent::LogsCancelRequest(LogsCancelRequest {}))
             })
         )
     }

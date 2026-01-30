@@ -101,6 +101,16 @@ impl TryFrom<&CompleteStateSpec> for Object {
     }
 }
 
+impl TryFrom<State> for Object {
+    type Error = serde_yaml::Error;
+
+    fn try_from(value: State) -> Result<Self, Self::Error> {
+        Ok(Object {
+            data: to_value(value)?,
+        })
+    }
+}
+
 impl TryInto<StateSpec> for Object {
     type Error = serde_yaml::Error;
 

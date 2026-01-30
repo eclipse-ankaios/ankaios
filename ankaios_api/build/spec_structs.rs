@@ -31,7 +31,6 @@ pub fn setup_spec_objects(mut builder: Builder) -> Builder {
     builder = setup_spec_workload_states(builder);
     builder = setup_spec_workload(builder);
     builder = setup_spec_state(builder);
-    builder = setup_spec_requests(builder);
     builder
 }
 
@@ -481,53 +480,3 @@ fn setup_spec_workload_states(builder: Builder) -> Builder {
     )
 }
 
-/// This function is used to create and configure the following structs:
-/// - LogsRequestSpec
-/// - LogsCancelRequestSpec
-/// - EventsCancelRequestSpec
-/// - UpdateStateRequestSpec
-/// - CompleteStateRequestSpec
-/// - RequestContentSpec
-/// - RequestSpec
-fn setup_spec_requests(builder: Builder) -> Builder {
-    builder
-        .message_attribute("LogsRequest", "#[derive(spec_macros::Spec)]")
-        .message_attribute(
-            "LogsRequest",
-            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
-        )
-        .field_attribute("LogsRequest.follow", "#[spec_default(false)]")
-        .field_attribute("LogsRequest.tail", "#[spec_default(-1)]")
-        .message_attribute("LogsCancelRequest", "#[derive(spec_macros::Spec)]")
-        .message_attribute(
-            "LogsCancelRequest",
-            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
-        )
-        .message_attribute("EventsCancelRequest", "#[derive(spec_macros::Spec)]")
-        .message_attribute(
-            "EventsCancelRequest",
-            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
-        )
-        .message_attribute("UpdateStateRequest", "#[derive(spec_macros::Spec)]")
-        .message_attribute(
-            "UpdateStateRequest",
-            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
-        )
-        .field_attribute("UpdateStateRequest.newState", "#[spec_mandatory]")
-        .message_attribute("CompleteStateRequest", "#[derive(spec_macros::Spec)]")
-        .message_attribute(
-            "CompleteStateRequest",
-            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
-        )
-        .enum_attribute("RequestContent", "#[derive(spec_macros::Spec)]")
-        .enum_attribute(
-            "RequestContent",
-            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
-        )
-        .message_attribute("Request", "#[derive(spec_macros::Spec)]")
-        .message_attribute(
-            "Request",
-            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
-        )
-        .field_attribute("Request.RequestContent", "#[spec_mandatory]")
-}

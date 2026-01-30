@@ -12,15 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cli::LogsArgs;
+use crate::cli::{LogsArgs, logs_args_to_request};
 #[cfg_attr(test, mockall_double::double)]
 use crate::cli_signals::SignalHandler;
 use crate::{output_and_error, output_debug};
 
 use ankaios_api::ank_base::{
-    CompleteState, CompleteStateRequestSpec, CompleteStateResponse, CompleteStateSpec, LogEntry,
-    LogsRequestAccepted, LogsRequestSpec, Response, ResponseContent, UpdateStateSuccess,
-    WorkloadInstanceName, WorkloadInstanceNameSpec,
+    CompleteState, CompleteStateRequest, CompleteStateResponse, LogEntry, LogsRequestAccepted,
+    Response, ResponseContent, UpdateStateSuccess, WorkloadInstanceName, WorkloadInstanceNameSpec,
 };
 use common::{
     commands::UpdateWorkloadState,
@@ -146,7 +145,7 @@ impl ServerConnection {
         self.to_server
             .request_complete_state(
                 request_details.request_id.to_owned(),
-                CompleteStateRequestSpec {
+                CompleteStateRequest {
                     field_mask: request_details.field_masks,
                     subscribe_for_events: request_details.subscribe_for_events,
                 },
@@ -185,7 +184,7 @@ impl ServerConnection {
 
     pub async fn update_state(
         &mut self,
-        new_state: CompleteStateSpec,
+        new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<UpdateStateSuccess, ServerConnectionError> {
         let request_id = Uuid::new_v4().to_string();
@@ -301,16 +300,16 @@ impl ServerConnection {
         workload_instance_names: Vec<WorkloadInstanceNameSpec>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
-        let logs_request = LogsRequestSpec {
-            workload_names: workload_instance_names,
-            follow: args.follow,
-            tail: args.tail,
-            since: args.since,
-            until: args.until,
-        };
+        let logs_request = logs_args_to_request(
+            &args,
+            workload_instance_names
+                .into_iter()
+                .map(|name| name.into())
+                .collect(),
+        );
 
         self.to_server
-            .logs_request(request_id.to_string(), logs_request.into())
+            .logs_request(request_id.to_string(), logs_request)
             .await
             .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))
     }
@@ -637,7 +636,7 @@ lazy_static! {
 mod tests {
     use super::ServerConnection;
     use crate::{
-        cli::LogsArgs,
+        cli::{LogsArgs, logs_args_to_request},
         cli_commands::server_connection::{
             ServerConnectionError, TEST_LOG_OUTPUT_DATA,
             generate_test_complete_state_request_details, select_log_format_function,
@@ -647,12 +646,11 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{
-        CompleteStateRequestSpec, CompleteStateResponse, CompleteStateSpec, ConfigMappings,
-        Dependencies, Error, ExecutionStateSpec, LogEntriesResponse, LogEntry,
-        LogsCancelRequestSpec, LogsRequestAccepted, LogsRequestSpec, LogsStopResponse,
-        RequestContentSpec, Response, ResponseContent, RestartPolicy, StateSpec, Tags,
-        UpdateStateRequestSpec, UpdateStateSuccess, Workload, WorkloadInstanceNameSpec,
-        WorkloadMapSpec, WorkloadSpec, WorkloadStateSpec,
+        CompleteState, CompleteStateRequest, CompleteStateResponse, ConfigMappings, Dependencies,
+        Error, ExecutionStateSpec, LogEntriesResponse, LogEntry, LogsCancelRequest,
+        LogsRequestAccepted, LogsStopResponse, RequestContent, Response, ResponseContent,
+        RestartPolicy, State, Tags, UpdateStateRequest, UpdateStateSuccess, Workload,
+        WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap, WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_complete_state_response, generate_test_files,
@@ -686,7 +684,7 @@ mod tests {
     enum CommunicationSimulatorAction {
         WillSendMessage(FromServer),
         WillSendResponse(String, ResponseContent),
-        ExpectReceiveRequest(String, RequestContentSpec),
+        ExpectReceiveRequest(String, RequestContent),
     }
 
     impl CommunicationSimulator {
@@ -722,7 +720,7 @@ mod tests {
                                 panic!("Expected a request")
                             };
                             request_ids.insert(request_name, actual_request.request_id);
-                            assert_eq!(actual_request.request_content, expected_request);
+                            assert_eq!(actual_request.request_content, Some(expected_request));
                         }
                     }
                 }
@@ -756,7 +754,7 @@ mod tests {
                 ));
         }
 
-        pub fn expect_receive_request(&mut self, request_name: &str, request: RequestContentSpec) {
+        pub fn expect_receive_request(&mut self, request_name: &str, request: RequestContent) {
             self.actions
                 .push(CommunicationSimulatorAction::ExpectReceiveRequest(
                     request_name.to_string(),
@@ -783,34 +781,39 @@ mod tests {
         }
     }
 
-    fn complete_state(workload_name: &str) -> CompleteStateSpec {
-        CompleteStateSpec {
-            desired_state: StateSpec {
-                workloads: WorkloadMapSpec {
-                    workloads: [(
+    fn complete_state(workload_name: &str) -> CompleteState {
+        CompleteState {
+            desired_state: Some(State {
+                workloads: Some(WorkloadMap {
+                    workloads: HashMap::from([(
                         workload_name.into(),
-                        WorkloadSpec {
-                            agent: fixtures::AGENT_NAMES[0].into(),
-                            runtime: fixtures::RUNTIME_NAMES[0].into(),
+                        Workload {
+                            agent: Some(fixtures::AGENT_NAMES[0].into()),
+                            runtime: Some(fixtures::RUNTIME_NAMES[0].into()),
                             ..Default::default()
                         },
-                    )]
-                    .into(),
-                },
+                    )]),
+                }),
                 ..Default::default()
-            },
+            }),
             ..Default::default()
         }
     }
 
-    fn instance_name(workload_name: &str) -> WorkloadInstanceNameSpec {
-        format!(
-            "{workload_name}.{}.{}",
-            fixtures::WORKLOAD_IDS[0],
-            fixtures::AGENT_NAMES[0]
-        )
-        .try_into()
-        .unwrap()
+    fn instance_name(workload_name: &str) -> WorkloadInstanceName {
+        WorkloadInstanceName {
+            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+            workload_name: workload_name.to_string(),
+            id: fixtures::WORKLOAD_IDS[0].to_string(),
+        }
+    }
+
+    fn instance_name_spec(workload_name: &str) -> WorkloadInstanceNameSpec {
+        WorkloadInstanceNameSpec {
+            agent_name: fixtures::AGENT_NAMES[0].to_string(),
+            workload_name: workload_name.to_string(),
+            id: fixtures::WORKLOAD_IDS[0].to_string(),
+        }
     }
 
     #[tokio::test]
@@ -818,7 +821,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![FIELD_MASK.into()],
                 subscribe_for_events: false,
             }),
@@ -873,7 +876,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![FIELD_MASK.into()],
                 subscribe_for_events: false,
             }),
@@ -913,7 +916,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![FIELD_MASK.into()],
                 subscribe_for_events: false,
             }),
@@ -957,7 +960,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![FIELD_MASK.into()],
                 subscribe_for_events: false,
             }),
@@ -997,8 +1000,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
-                new_state: complete_state(fixtures::WORKLOAD_NAMES[0]),
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -1043,8 +1046,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
-                new_state: complete_state(fixtures::WORKLOAD_NAMES[0]),
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -1066,8 +1069,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
-                new_state: complete_state(fixtures::WORKLOAD_NAMES[0]),
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -1094,8 +1097,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
-                new_state: complete_state(fixtures::WORKLOAD_NAMES[0]),
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -1138,8 +1141,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
-                new_state: complete_state(fixtures::WORKLOAD_NAMES[0]),
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -1180,8 +1183,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
-                new_state: complete_state(fixtures::WORKLOAD_NAMES[0]),
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -1212,7 +1215,7 @@ mod tests {
     async fn utest_read_next_update_workload_state() {
         let update_workload_state = UpdateWorkloadState {
             workload_states: vec![WorkloadStateSpec {
-                instance_name: instance_name(fixtures::WORKLOAD_NAMES[0]),
+                instance_name: instance_name_spec(fixtures::WORKLOAD_NAMES[0]),
                 execution_state: ExecutionStateSpec::running(),
             }],
         };
@@ -1239,7 +1242,7 @@ mod tests {
         });
         let update_workload_state = UpdateWorkloadState {
             workload_states: vec![WorkloadStateSpec {
-                instance_name: instance_name(fixtures::WORKLOAD_NAMES[0]),
+                instance_name: instance_name_spec(fixtures::WORKLOAD_NAMES[0]),
                 execution_state: ExecutionStateSpec::running(),
             }],
         };
@@ -1297,37 +1300,30 @@ mod tests {
 
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone(), instance_name_2.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
-            instance_names.iter().cloned().collect();
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> = instance_names
+            .iter()
+            .map(|name| name.clone().try_into().unwrap())
+            .collect();
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::LogsRequest(LogsRequestSpec {
-                workload_names: instance_names,
-                follow: log_args.follow,
-                tail: log_args.tail,
-                since: log_args.since.clone(),
-                until: log_args.until.clone(),
-            }),
+            RequestContent::LogsRequest(logs_args_to_request(&log_args, instance_names)),
         );
 
         sim.will_send_response(
             fixtures::REQUEST_ID,
             ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
-                workload_names: vec![
-                    instance_name_1.clone().into(),
-                    instance_name_2.clone().into(),
-                ],
+                workload_names: vec![instance_name_1.clone(), instance_name_2.clone()],
             }),
         );
 
         let log_entries = vec![
             LogEntry {
-                workload_name: Some(instance_name_1.clone().into()),
+                workload_name: Some(instance_name_1.clone()),
                 message: "some log line".to_string(),
             },
             LogEntry {
-                workload_name: Some(instance_name_2.clone().into()),
+                workload_name: Some(instance_name_2.clone()),
                 message: "another log line".to_string(),
             },
         ];
@@ -1342,14 +1338,14 @@ mod tests {
         sim.will_send_response(
             fixtures::REQUEST_ID,
             ResponseContent::LogsStopResponse(LogsStopResponse {
-                workload_name: Some(instance_name_1.into()),
+                workload_name: Some(instance_name_1),
             }),
         );
 
         sim.will_send_response(
             fixtures::REQUEST_ID,
             ResponseContent::LogsStopResponse(LogsStopResponse {
-                workload_name: Some(instance_name_2.into()),
+                workload_name: Some(instance_name_2),
             }),
         );
 
@@ -1395,7 +1391,7 @@ mod tests {
             output_names: false,
         };
 
-        let instance_names_set = BTreeSet::from([instance_name(fixtures::WORKLOAD_NAMES[0])]);
+        let instance_names_set = BTreeSet::from([instance_name_spec(fixtures::WORKLOAD_NAMES[0])]);
 
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();
         signal_handler_context.expect().never();
@@ -1423,7 +1419,7 @@ mod tests {
     #[test]
     fn utest_output_log_line_without_workload_name_upon_single_workload() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
-        let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
+        let instance_name_1 = instance_name_spec(fixtures::WORKLOAD_NAMES[0]);
         let log_args = LogsArgs {
             workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
@@ -1453,7 +1449,7 @@ mod tests {
     #[test]
     fn utest_output_log_line_with_prefixed_workload_name_upon_provided_force_names_argument() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
-        let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
+        let instance_name_1 = instance_name_spec(fixtures::WORKLOAD_NAMES[0]);
         let log_args = LogsArgs {
             workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string()],
             follow: false,
@@ -1503,24 +1499,20 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
-            instance_names.iter().cloned().collect();
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> = instance_names
+            .iter()
+            .map(|name| name.clone().try_into().unwrap())
+            .collect();
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::LogsRequest(LogsRequestSpec {
-                workload_names: instance_names,
-                follow: log_args.follow,
-                tail: log_args.tail,
-                since: log_args.since.clone(),
-                until: log_args.until.clone(),
-            }),
+            RequestContent::LogsRequest(logs_args_to_request(&log_args, instance_names)),
         );
 
         sim.will_send_response(
             fixtures::REQUEST_ID,
             ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
-                workload_names: vec![instance_name_1.into()],
+                workload_names: vec![instance_name_1],
             }),
         );
 
@@ -1572,24 +1564,20 @@ mod tests {
         let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
-            instance_names.iter().cloned().collect();
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> = instance_names
+            .iter()
+            .map(|name| name.clone().try_into().unwrap())
+            .collect();
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::LogsRequest(LogsRequestSpec {
-                workload_names: instance_names,
-                follow: log_args.follow,
-                tail: log_args.tail,
-                since: log_args.since.clone(),
-                until: log_args.until.clone(),
-            }),
+            RequestContent::LogsRequest(logs_args_to_request(&log_args, instance_names)),
         );
 
         sim.will_send_response(
             fixtures::REQUEST_ID,
             ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
-                workload_names: vec![instance_name_1.clone().into()],
+                workload_names: vec![instance_name_1.clone()],
             }),
         );
 
@@ -1606,7 +1594,7 @@ mod tests {
         sim.will_send_response(
             fixtures::REQUEST_ID,
             ResponseContent::LogsStopResponse(LogsStopResponse {
-                workload_name: Some(instance_name_1.into()),
+                workload_name: Some(instance_name_1),
             }),
         );
 
@@ -1646,30 +1634,26 @@ mod tests {
         let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
-            instance_names.iter().cloned().collect();
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> = instance_names
+            .iter()
+            .map(|name| name.clone().try_into().unwrap())
+            .collect();
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::LogsRequest(LogsRequestSpec {
-                workload_names: instance_names,
-                follow: log_args.follow,
-                tail: log_args.tail,
-                since: log_args.since.clone(),
-                until: log_args.until.clone(),
-            }),
+            RequestContent::LogsRequest(logs_args_to_request(&log_args, instance_names)),
         );
 
         sim.will_send_response(
             fixtures::REQUEST_ID,
             ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
-                workload_names: vec![instance_name_1.into()],
+                workload_names: vec![instance_name_1],
             }),
         );
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
+            RequestContent::LogsCancelRequest(LogsCancelRequest {}),
         );
 
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();
@@ -1706,18 +1690,14 @@ mod tests {
         let instance_name_1 = instance_name(fixtures::WORKLOAD_NAMES[0]);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1];
-        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
-            instance_names.iter().cloned().collect();
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> = instance_names
+            .iter()
+            .map(|name| name.clone().try_into().unwrap())
+            .collect();
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::LogsRequest(LogsRequestSpec {
-                workload_names: instance_names,
-                follow: log_args.follow,
-                tail: log_args.tail,
-                since: log_args.since.clone(),
-                until: log_args.until.clone(),
-            }),
+            RequestContent::LogsRequest(logs_args_to_request(&log_args, instance_names)),
         );
 
         let unexpected_message = ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
@@ -1790,24 +1770,20 @@ mod tests {
         let instance_name_2 = instance_name(fixtures::WORKLOAD_NAMES[1]);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
-            instance_names.iter().cloned().collect();
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> = instance_names
+            .iter()
+            .map(|name| name.clone().try_into().unwrap())
+            .collect();
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::LogsRequest(LogsRequestSpec {
-                workload_names: instance_names,
-                follow: log_args.follow,
-                tail: log_args.tail,
-                since: log_args.since.clone(),
-                until: log_args.until.clone(),
-            }),
+            RequestContent::LogsRequest(logs_args_to_request(&log_args, instance_names)),
         );
 
         sim.will_send_response(
             fixtures::REQUEST_ID,
             ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
-                workload_names: vec![instance_name_2.into()],
+                workload_names: vec![instance_name_2],
             }),
         );
 
@@ -1842,7 +1818,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: request_details.field_masks.clone(),
                 subscribe_for_events: request_details.subscribe_for_events,
             }),

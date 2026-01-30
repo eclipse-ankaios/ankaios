@@ -44,7 +44,7 @@ pub use config_item::{ConfigItemEnum, ConfigItemEnumSpec};
 
 pub(crate) mod complete_state;
 
-pub use request::{RequestContent, RequestContentSpec};
+pub use request::RequestContent;
 pub use response::ResponseContent;
 
 pub(crate) mod requests;

@@ -23,7 +23,7 @@ use crate::{
 use crate::control_interface::authorizer::Authorizer;
 
 use ankaios_api::ank_base::{
-    DeletedWorkload, ExecutionStateSpec, LogsRequestSpec, Response, WorkloadInstanceNameSpec,
+    DeletedWorkload, ExecutionStateSpec, LogsRequest, Response, WorkloadInstanceNameSpec,
     WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use common::{
@@ -621,13 +621,20 @@ impl RuntimeManager {
     // [impl->swdd~agent-runtime-manager-creates-log-fetchers~1]
     pub async fn get_log_fetchers(
         &self,
-        log_request: LogsRequestSpec,
+        log_request: LogsRequest,
     ) -> Vec<(WorkloadInstanceNameSpec, Box<dyn LogFetcher>)> {
         let mut res = Vec::new();
         let log_request_options: LogRequestOptions = log_request.clone().into();
-        for workload in log_request.workload_names {
-            let Some(workload_instance) = self.workloads.get(workload.workload_name()) else {
-                log::info!("Could not find workload '{}'", workload.workload_name());
+        for instance_name in log_request.workload_names {
+            let Ok(instance_name) = WorkloadInstanceNameSpec::try_from(instance_name) else {
+                log::info!("Invalid workload instance name in log request.");
+                continue;
+            };
+            let Some(workload_instance) = self.workloads.get(instance_name.workload_name()) else {
+                log::info!(
+                    "Could not find workload '{}'",
+                    instance_name.workload_name()
+                );
                 continue;
             };
 
@@ -635,10 +642,10 @@ impl RuntimeManager {
                 .start_collecting_logs(log_request_options.clone())
                 .await
             {
-                Ok(log_fetcher) => res.push((workload, log_fetcher)),
+                Ok(log_fetcher) => res.push((instance_name, log_fetcher)),
                 Err(err) => log::info!(
                     "Did not get log fetcher for '{}': '{}'.",
-                    workload.workload_name(),
+                    instance_name.workload_name(),
                     err
                 ),
             };
@@ -677,16 +684,16 @@ mod tests {
     use crate::workload_state::WorkloadStateReceiver;
 
     use ankaios_api::ank_base::{
-        self, CompleteStateResponse, ExecutionStateSpec, LogsRequestSpec, Response,
-        ResponseContent, WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadNamed,
-        WorkloadStateSpec, WorkloadStatesMapSpec,
+        self, CompleteStateResponse, ExecutionStateSpec, LogsRequest, Response, ResponseContent,
+        WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec,
+        WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_agent_tags, generate_test_complete_state,
         generate_test_control_interface_access, generate_test_deleted_workload_with_dependencies,
         generate_test_deleted_workload_with_params, generate_test_proto_complete_state,
-        generate_test_workload_named, generate_test_workload_named_with_params,
-        generate_test_workload_with_params,
+        generate_test_workload_instance_name_with_name, generate_test_workload_named,
+        generate_test_workload_named_with_params, generate_test_workload_with_params,
     };
     use common::to_server_interface::ToServerReceiver;
 
@@ -3008,28 +3015,17 @@ mod tests {
             .insert(fixtures::WORKLOAD_NAMES[1].to_string(), workload_2_mock);
 
         let res = runtime_manager
-            .get_log_fetchers(LogsRequestSpec {
+            .get_log_fetchers(LogsRequest {
                 workload_names: vec![
-                    WorkloadInstanceNameSpec::new(
-                        fixtures::AGENT_NAMES[0],
-                        fixtures::WORKLOAD_NAMES[0],
-                        fixtures::WORKLOAD_IDS[0],
-                    ),
-                    WorkloadInstanceNameSpec::new(
-                        fixtures::AGENT_NAMES[0],
-                        fixtures::WORKLOAD_NAMES[1],
-                        fixtures::WORKLOAD_IDS[0],
-                    ),
-                    WorkloadInstanceNameSpec::new(
-                        fixtures::AGENT_NAMES[0],
-                        fixtures::WORKLOAD_NAMES[2],
-                        fixtures::WORKLOAD_IDS[0],
-                    ),
+                    generate_test_workload_instance_name_with_name(fixtures::WORKLOAD_NAMES[0])
+                        .into(),
+                    generate_test_workload_instance_name_with_name(fixtures::WORKLOAD_NAMES[1])
+                        .into(),
+                    generate_test_workload_instance_name_with_name(fixtures::WORKLOAD_NAMES[2])
+                        .into(),
                 ],
-                follow: true,
-                tail: -1,
-                since: None,
-                until: None,
+                follow: Some(true),
+                ..Default::default()
             })
             .await;
 

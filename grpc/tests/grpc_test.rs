@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod grpc_tests {
     use ankaios_api::ank_base::{
-        CompleteStateRequestSpec, CompleteStateSpec, RequestContentSpec, RequestSpec,
+        CompleteState, CompleteStateRequest, Request, RequestContent
     };
     use common::{
         commands::{self},
@@ -327,7 +327,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                CompleteStateRequestSpec {
+                CompleteStateRequest {
                     field_mask: vec![],
                     subscribe_for_events: false,
                 },
@@ -342,12 +342,12 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         assert!(matches!(
             result,
             Ok(Some(ToServer::Request(
-                RequestSpec{
+                Request{
                     request_id,
-                    request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+                    request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                         field_mask,
                         subscribe_for_events
-                    })
+                    }))
                 }
             ))) if request_id.contains(test_request_id) && field_mask.is_empty() && !subscribe_for_events
         ));
@@ -373,7 +373,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                CompleteStateRequestSpec {
+                CompleteStateRequest {
                     field_mask: vec![],
                     subscribe_for_events: false,
                 },
@@ -388,12 +388,12 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         assert!(matches!(
             result,
             Ok(Some(ToServer::Request(
-                RequestSpec{
+                Request{
                     request_id,
-                    request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+                    request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                         field_mask,
                         subscribe_for_events
-                    })
+                    }))
                 }
             ))) if request_id.contains(test_request_id) && field_mask.is_empty() && !subscribe_for_events
         ));
@@ -416,7 +416,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let update_state_result = to_grpc_client
             .update_state(
                 test_request_id.to_owned(),
-                CompleteStateSpec {
+                CompleteState {
                     ..Default::default()
                 },
                 vec![],
@@ -429,7 +429,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
 
         assert!(matches!(
             result,
-            Ok(Some(ToServer::Request(RequestSpec{request_id, request_content: _}))
+            Ok(Some(ToServer::Request(Request{request_id, request_content: _}))
             ) if request_id.contains(test_request_id)
         ));
     }
