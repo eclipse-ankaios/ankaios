@@ -55,6 +55,8 @@
     },
     "robotcode.robot.args": [
         "--pythonpath",
-        "tests"
+        "tests",
+        "--output-dir",
+        "${workspaceFolder}/target/robot_tests_result"
     ]
 }
