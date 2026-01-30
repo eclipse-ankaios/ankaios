@@ -16,7 +16,7 @@ use super::log_fetcher::LogFetcher;
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
 use ankaios_api::ank_base::{
-    ExecutionStateSpec, LogsRequestSpec, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec,
+    ExecutionStateSpec, LogsRequest, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec
 };
 use common::objects::AgentName;
 
@@ -64,15 +64,11 @@ impl Display for RuntimeError {
     }
 }
 
-impl From<LogsRequestSpec> for LogRequestOptions {
-    fn from(value: LogsRequestSpec) -> Self {
+impl From<LogsRequest> for LogRequestOptions {
+    fn from(value: LogsRequest) -> Self {
         Self {
-            follow: value.follow,
-            tail: if value.tail < 0 {
-                None
-            } else {
-                Some(value.tail)
-            },
+            follow: value.follow.unwrap_or_default(),
+            tail: value.tail,
             since: value.since,
             until: value.until,
         }

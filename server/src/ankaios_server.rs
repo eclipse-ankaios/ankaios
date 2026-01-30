@@ -98,7 +98,6 @@ impl AnkaiosServer {
 
             match self.server_state.update(state.desired_state) {
                 Ok(Some(added_deleted_workloads)) => {
-
                     let added_workloads = added_deleted_workloads.added_workloads;
                     let deleted_workloads = added_deleted_workloads.deleted_workloads;
 
@@ -417,8 +416,6 @@ impl AnkaiosServer {
                                 "Received UpdateState. State '{new_state:?}', update mask '{update_mask:?}'"
                             );
 
-
-
                             // [impl->swdd~update-desired-state-with-update-mask~1]
                             // [impl->swdd~update-desired-state-empty-update-mask~1]
 
@@ -444,7 +441,10 @@ impl AnkaiosServer {
                             // [impl->swdd~update-desired-state-with-missing-version~1]
                             // [impl->swdd~server-desired-state-field-conventions~1]
                             // [impl->swdd~server-validates-desired-state-api-version~1]
-                            if let Err(error_message) = state_generation_result.new_desired_state.validate_pre_rendering() {
+                            if let Err(error_message) = state_generation_result
+                                .new_desired_state
+                                .validate_pre_rendering()
+                            {
                                 log::warn!(
                                     "The CompleteState in the request has wrong format. {error_message} -> ignoring the request"
                                 );
@@ -921,7 +921,7 @@ mod tests {
         AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateRequest,
         CompleteStateResponse, CompleteStateSpec, CpuUsageSpec, DeletedWorkload, Error,
         ExecutionStateEnumSpec, ExecutionStateSpec, FreeMemorySpec, LogEntriesResponse, LogEntry,
-        LogsCancelAccepted, LogsRequest, LogsRequestAccepted, LogsRequestSpec, LogsStopResponse,
+        LogsCancelAccepted, LogsRequest, LogsRequestAccepted, LogsStopResponse,
         Pending as PendingSubstate, Response, ResponseContent, State, StateSpec, TagsSpec,
         UpdateStateSuccess, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap,
         WorkloadMapSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
@@ -1763,14 +1763,14 @@ mod tests {
         assert_eq!(
             FromServer::LogsRequest(
                 fixtures::REQUEST_ID.into(),
-                LogsRequestSpec {
-                    workload_names: vec![WorkloadInstanceNameSpec::new(
-                        fixtures::AGENT_NAMES[0],
-                        fixtures::WORKLOAD_NAMES[0],
-                        fixtures::WORKLOAD_IDS[0],
-                    )],
-                    follow: true,
-                    tail: 10,
+                LogsRequest {
+                    workload_names: vec![WorkloadInstanceName {
+                        agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                        workload_name: fixtures::WORKLOAD_NAMES[0].to_string(),
+                        id: fixtures::WORKLOAD_IDS[0].to_string(),
+                    }],
+                    follow: Some(true),
+                    tail: Some(10),
                     since: None,
                     until: None
                 }
@@ -2524,9 +2524,7 @@ mod tests {
             ..Default::default()
         };
 
-        let update_mask = vec![format!(
-            "desiredState"
-        )];
+        let update_mask = vec![format!("desiredState")];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
 
         let mut mock_server_state = MockServerState::new();
@@ -2534,10 +2532,12 @@ mod tests {
         mock_server_state
             .expect_generate_new_state()
             .once()
-            .return_once(move |_, _| Ok(StateGenerationResult{
-                new_desired_state,
-                ..Default::default()
-            }));
+            .return_once(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state,
+                    ..Default::default()
+                })
+            });
         server.server_state = mock_server_state;
 
         let server_task = tokio::spawn(async move { server.start(None).await });
@@ -2587,9 +2587,7 @@ mod tests {
             ..Default::default()
         };
 
-        let update_mask = vec![format!(
-            "desiredState"
-        )];
+        let update_mask = vec![format!("desiredState")];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
 
         let mut mock_server_state = MockServerState::new();
@@ -2597,10 +2595,12 @@ mod tests {
         mock_server_state
             .expect_generate_new_state()
             .once()
-            .return_once(move |_, _| Ok(StateGenerationResult{
-                new_desired_state,
-                ..Default::default()
-            }));
+            .return_once(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state,
+                    ..Default::default()
+                })
+            });
         server.server_state = mock_server_state;
 
         let server_task = tokio::spawn(async move { server.start(None).await });

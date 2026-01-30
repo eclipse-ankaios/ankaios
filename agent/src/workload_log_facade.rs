@@ -15,7 +15,7 @@
 use crate::agent_manager::SynchronizedSubscriptionStore;
 
 use ankaios_api::ank_base::{
-    LogEntriesResponse, LogEntry, LogsRequestSpec, LogsStopResponse, WorkloadInstanceNameSpec,
+    LogEntriesResponse, LogEntry, LogsRequest, LogsStopResponse, WorkloadInstanceNameSpec,
 };
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerInterface, ToServerSender};
@@ -56,7 +56,7 @@ impl WorkloadLogFacade {
     // [impl->swdd~agent-workload-log-facade-starts-log-collection~1]
     pub async fn spawn_log_collection(
         request_id: String,
-        logs_request: LogsRequestSpec,
+        logs_request: LogsRequest,
         to_server: ToServerSender,
         synchronized_subscription_store: SynchronizedSubscriptionStore,
         runtime_manager: &RuntimeManager,
@@ -186,8 +186,8 @@ mod tests {
     use crate::subscription_store::{MockJoinHandle, MockSubscriptionEntry, SubscriptionEntry};
     use crate::workload_log_facade::WorkloadLogFacade;
 
-    use ankaios_api::ank_base::{LogsRequestSpec, LogsStopResponse};
-    use ankaios_api::test_utils::{generate_test_workload_instance_name_with_name, fixtures};
+    use ankaios_api::ank_base::{LogsRequest, LogsStopResponse};
+    use ankaios_api::test_utils::{fixtures, generate_test_workload_instance_name_with_name};
     use common::to_server_interface::ToServer;
 
     use mockall::{mock, predicate};
@@ -307,15 +307,12 @@ mod tests {
         let workload_instance_name_2 =
             generate_test_workload_instance_name_with_name(fixtures::WORKLOAD_NAMES[1]);
 
-        let logs_request = LogsRequestSpec {
+        let logs_request = LogsRequest {
             workload_names: vec![
-                workload_instance_name_1.clone(),
-                workload_instance_name_2.clone(),
+                workload_instance_name_1.clone().into(),
+                workload_instance_name_2.clone().into(),
             ],
-            follow: false,
-            tail: -1,
-            since: None,
-            until: None,
+            ..Default::default()
         };
 
         let mut mock_runtime_manager = MockRuntimeManager::default();
@@ -341,12 +338,16 @@ mod tests {
         let log_responses = get_log_responses(3, &mut to_server_receiver).await.unwrap();
 
         assert_eq!(log_responses.len(), 2);
-        assert!(
-            log_responses.contains_key(&(fixtures::REQUEST_ID.into(), fixtures::WORKLOAD_NAMES[0].into()))
-        );
+        assert!(log_responses.contains_key(&(
+            fixtures::REQUEST_ID.into(),
+            fixtures::WORKLOAD_NAMES[0].into()
+        )));
         assert_eq!(
             log_responses
-                .get(&(fixtures::REQUEST_ID.into(), fixtures::WORKLOAD_NAMES[0].into()))
+                .get(&(
+                    fixtures::REQUEST_ID.into(),
+                    fixtures::WORKLOAD_NAMES[0].into()
+                ))
                 .unwrap(),
             &vec![
                 "rec1: line1".to_string(),
@@ -354,12 +355,16 @@ mod tests {
                 "rec1: line3".to_string(),
             ]
         );
-        assert!(
-            log_responses.contains_key(&(fixtures::REQUEST_ID.into(), fixtures::WORKLOAD_NAMES[1].into()))
-        );
+        assert!(log_responses.contains_key(&(
+            fixtures::REQUEST_ID.into(),
+            fixtures::WORKLOAD_NAMES[1].into()
+        )));
         assert_eq!(
             log_responses
-                .get(&(fixtures::REQUEST_ID.into(), fixtures::WORKLOAD_NAMES[1].into()))
+                .get(&(
+                    fixtures::REQUEST_ID.into(),
+                    fixtures::WORKLOAD_NAMES[1].into()
+                ))
                 .unwrap(),
             &vec!["rec2: line1".to_string(),]
         );
@@ -421,12 +426,9 @@ mod tests {
         let workload_instance_name_1 =
             generate_test_workload_instance_name_with_name(fixtures::WORKLOAD_NAMES[0]);
 
-        let logs_request = LogsRequestSpec {
-            workload_names: vec![workload_instance_name_1.clone()],
-            follow: false,
-            tail: -1,
-            since: None,
-            until: None,
+        let logs_request = LogsRequest {
+            workload_names: vec![workload_instance_name_1.clone().into()],
+            ..Default::default()
         };
 
         let mut mock_runtime_manager = MockRuntimeManager::default();

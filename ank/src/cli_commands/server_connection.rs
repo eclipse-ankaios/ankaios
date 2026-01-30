@@ -12,15 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cli::LogsArgs;
+use crate::cli::{LogsArgs, logs_args_to_request};
 #[cfg_attr(test, mockall_double::double)]
 use crate::cli_signals::SignalHandler;
 use crate::{output_and_error, output_debug};
 
 use ankaios_api::ank_base::{
     CompleteState, CompleteStateRequest, CompleteStateResponse, LogEntry, LogsRequestAccepted,
-    LogsRequestSpec, Response, ResponseContent, UpdateStateSuccess, WorkloadInstanceName,
-    WorkloadInstanceNameSpec,
+    Response, ResponseContent, UpdateStateSuccess, WorkloadInstanceName, WorkloadInstanceNameSpec,
 };
 use common::{
     commands::UpdateWorkloadState,
@@ -301,16 +300,16 @@ impl ServerConnection {
         workload_instance_names: Vec<WorkloadInstanceNameSpec>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
-        let logs_request = LogsRequestSpec {
-            workload_names: workload_instance_names,
-            follow: args.follow,
-            tail: args.tail,
-            since: args.since,
-            until: args.until,
-        };
+        let logs_request = logs_args_to_request(
+            &args,
+            workload_instance_names
+                .into_iter()
+                .map(|name| name.into())
+                .collect(),
+        );
 
         self.to_server
-            .logs_request(request_id.to_string(), logs_request.into())
+            .logs_request(request_id.to_string(), logs_request)
             .await
             .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))
     }
@@ -637,7 +636,7 @@ lazy_static! {
 mod tests {
     use super::ServerConnection;
     use crate::{
-        cli::LogsArgs,
+        cli::{LogsArgs, logs_args_to_request},
         cli_commands::server_connection::{
             ServerConnectionError, TEST_LOG_OUTPUT_DATA,
             generate_test_complete_state_request_details, select_log_format_function,
@@ -648,11 +647,10 @@ mod tests {
 
     use ankaios_api::ank_base::{
         CompleteState, CompleteStateRequest, CompleteStateResponse, ConfigMappings, Dependencies,
-        Error, ExecutionStateSpec, LogEntriesResponse, LogEntry, LogsCancelRequest, LogsRequest,
+        Error, ExecutionStateSpec, LogEntriesResponse, LogEntry, LogsCancelRequest,
         LogsRequestAccepted, LogsStopResponse, RequestContent, Response, ResponseContent,
         RestartPolicy, State, Tags, UpdateStateRequest, UpdateStateSuccess, Workload,
-        WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap,
-        WorkloadStateSpec,
+        WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap, WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_complete_state_response, generate_test_files,
@@ -1309,22 +1307,13 @@ mod tests {
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContent::LogsRequest(LogsRequest {
-                workload_names: instance_names,
-                follow: Some(log_args.follow),
-                tail: Some(log_args.tail),
-                since: log_args.since.clone(),
-                until: log_args.until.clone(),
-            }),
+            RequestContent::LogsRequest(logs_args_to_request(&log_args, instance_names)),
         );
 
         sim.will_send_response(
             fixtures::REQUEST_ID,
             ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
-                workload_names: vec![
-                    instance_name_1.clone(),
-                    instance_name_2.clone(),
-                ],
+                workload_names: vec![instance_name_1.clone(), instance_name_2.clone()],
             }),
         );
 
@@ -1517,13 +1506,7 @@ mod tests {
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContent::LogsRequest(LogsRequest {
-                workload_names: instance_names,
-                follow: Some(log_args.follow),
-                tail: Some(log_args.tail),
-                since: log_args.since.clone(),
-                until: log_args.until.clone(),
-            }),
+            RequestContent::LogsRequest(logs_args_to_request(&log_args, instance_names)),
         );
 
         sim.will_send_response(
@@ -1588,13 +1571,7 @@ mod tests {
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContent::LogsRequest(LogsRequest {
-                workload_names: instance_names,
-                follow: Some(log_args.follow),
-                tail: Some(log_args.tail),
-                since: log_args.since.clone(),
-                until: log_args.until.clone(),
-            }),
+            RequestContent::LogsRequest(logs_args_to_request(&log_args, instance_names)),
         );
 
         sim.will_send_response(
@@ -1664,13 +1641,7 @@ mod tests {
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContent::LogsRequest(LogsRequest {
-                workload_names: instance_names,
-                follow: Some(log_args.follow),
-                tail: Some(log_args.tail),
-                since: log_args.since.clone(),
-                until: log_args.until.clone(),
-            }),
+            RequestContent::LogsRequest(logs_args_to_request(&log_args, instance_names)),
         );
 
         sim.will_send_response(
@@ -1726,13 +1697,7 @@ mod tests {
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContent::LogsRequest(LogsRequest {
-                workload_names: instance_names,
-                follow: Some(log_args.follow),
-                tail: Some(log_args.tail),
-                since: log_args.since.clone(),
-                until: log_args.until.clone(),
-            }),
+            RequestContent::LogsRequest(logs_args_to_request(&log_args, instance_names)),
         );
 
         let unexpected_message = ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
@@ -1812,13 +1777,7 @@ mod tests {
 
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContent::LogsRequest(LogsRequest {
-                workload_names: instance_names,
-                follow: Some(log_args.follow),
-                tail: Some(log_args.tail),
-                since: log_args.since.clone(),
-                until: log_args.until.clone(),
-            }),
+            RequestContent::LogsRequest(logs_args_to_request(&log_args, instance_names)),
         );
 
         sim.will_send_response(

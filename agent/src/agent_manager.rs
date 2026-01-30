@@ -290,7 +290,7 @@ mod tests {
     use crate::workload_log_facade::MockWorkloadLogFacade;
     use crate::workload_state::WorkloadStateSenderInterface;
 
-    use ankaios_api::ank_base::{self, ExecutionStateSpec, LogsRequestSpec};
+    use ankaios_api::ank_base::{self, ExecutionStateSpec, LogsRequest};
     use ankaios_api::test_utils::{
         fixtures, generate_test_workload_named, generate_test_workload_named_with_params,
         generate_test_workload_state_with_agent,
@@ -580,7 +580,9 @@ mod tests {
             workload_state_receiver,
         );
 
-        agent_manager.workload_state_store.process_new_states(vec![current_workload_state.clone()]);
+        agent_manager
+            .workload_state_store
+            .process_new_states(vec![current_workload_state.clone()]);
 
         let expected_state = current_workload_state.clone();
         let handle = tokio::spawn(async move {
@@ -692,12 +694,9 @@ mod tests {
             .once()
             .return_once(MockResourceMonitor::default);
 
-        let logs_request = LogsRequestSpec {
-            workload_names: vec![workload.instance_name],
-            follow: false,
-            tail: -1,
-            since: None,
-            until: None,
+        let logs_request = LogsRequest {
+            workload_names: vec![workload.instance_name.into()],
+            ..Default::default()
         };
 
         let to_server_clone = to_server.clone();
@@ -726,22 +725,7 @@ mod tests {
 
         assert!(
             to_manager
-                .logs_request(
-                    fixtures::REQUEST_ID.to_string(),
-                    ank_base::LogsRequest {
-                        workload_names: vec![ank_base::WorkloadInstanceName {
-                            workload_name: logs_request.workload_names[0]
-                                .workload_name()
-                                .to_string(),
-                            agent_name: logs_request.workload_names[0].agent_name().to_string(),
-                            id: logs_request.workload_names[0].id().to_string()
-                        }],
-                        follow: Some(logs_request.follow),
-                        tail: Some(logs_request.tail),
-                        since: logs_request.since,
-                        until: logs_request.until,
-                    }
-                )
+                .logs_request(fixtures::REQUEST_ID.to_string(), logs_request.clone())
                 .await
                 .is_ok()
         );
