@@ -42,7 +42,7 @@ Test events no wildcard
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state_different_agent_add_dependencies_and_toplevel_configs.yaml" and update mask desiredState.workloads.simple
     And the controller workload gets event for fields desiredState.workloads.simple
     Then the last result contains exactly the workloads simple
-    And the last result has added fields desiredState.workloads.simple.dependencies.some_other_workload
+    And the last result has added fields desiredState.workloads.simple.dependencies
     And the last result has updated fields desiredState.workloads.simple.agent
     And the last result has no removed fields
 
@@ -124,7 +124,7 @@ Test events on configs
     When the controller workload subscribes to the state of fields desiredState.configs
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state_different_agent_add_dependencies_and_toplevel_configs.yaml" and update mask desiredState.configs
     And the controller workload gets event for fields desiredState.configs
-    And the last result has added fields desiredState.configs.some_config
+    And the last result has added fields desiredState.configs
     And the last result has no updated fields
     And the last result has no removed fields
 
@@ -139,7 +139,7 @@ Test events on configs
     Then The last result contains no workloads
     And the last result has no added fields
     And the last result has no updated fields
-    And the last result has removed fields desiredState.configs.some_config
+    And the last result has removed fields desiredState.configs
 
     When the controller workload cancels events for fields desiredState.configs
     Then the controller workload requests shall all succeed

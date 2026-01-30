@@ -539,8 +539,7 @@ the configs field inside the state shall be empty
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json    timeout=5
     ${result_dict}=    Json To Dict    ${command_result.stdout}
     ${desiredState}=    Get From Dictionary    ${result_dict}    desiredState
-    ${configs}=    Get From Dictionary    ${desiredState}    configs
-    Should Be Empty    ${configs}
+    Dictionary Should Not Contain Key    ${desiredState}    configs
 
 the container of workload "${workload_name}" shall have a different id but same configuration on the runtime "${runtime_name}"
     ${runtime_cli_name}=    Convert Runtime Name To Cli Process Name    ${runtime_name}
