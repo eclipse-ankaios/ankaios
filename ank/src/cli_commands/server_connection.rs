@@ -146,7 +146,7 @@ impl ServerConnection {
         self.to_server
             .request_complete_state(
                 request_details.request_id.to_owned(),
-                CompleteStateRequestSpec {
+                CompleteStateRequest {
                     field_mask: request_details.field_masks,
                     subscribe_for_events: request_details.subscribe_for_events,
                 },
@@ -1859,7 +1859,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             fixtures::REQUEST_ID,
-            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: request_details.field_masks.clone(),
                 subscribe_for_events: request_details.subscribe_for_events,
             }),
