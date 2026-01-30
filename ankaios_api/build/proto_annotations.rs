@@ -105,7 +105,6 @@ fn annotate_workload(builder: Builder) -> Builder {
         )
         .field_attribute(
             "Workload.restartPolicy",
-            // TODO now: why default?
             "#[serde(default, skip_serializing_if = \"Option::is_none\")]",
         )
         .field_attribute(
