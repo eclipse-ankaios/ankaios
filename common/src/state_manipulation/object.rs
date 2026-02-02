@@ -15,7 +15,9 @@
 use super::Path;
 use crate::std_extensions::UnreachableOption;
 
-use ankaios_api::ank_base::{CompleteState, CompleteStateSpec, State, StateSpec, WILDCARD_SYMBOL};
+use ankaios_api::ank_base::{
+    CompleteState, CompleteStateSpec, State, StateSpec, WILDCARD_SYMBOL, validate_field_pattern,
+};
 
 use serde_yaml::{
     Mapping, Value, from_value,
@@ -159,12 +161,16 @@ fn generate_paths_from_yaml_node(
     start_path: &str,
     paths: &mut HashSet<String>,
     includes_mappings_and_sequences: bool,
-) {
+) -> Result<(), String> {
     match node {
         Value::Mapping(mapping) => {
             for (key, value) in mapping {
                 let key_str = match key {
-                    Value::String(key_str) => key_str.to_owned(),
+                    Value::String(key_str) => {
+                        validate_field_pattern(key_str)
+                            .map_err(|e| format!("Invalid mapping key '{key_str}': {e}"))?;
+                        key_str.to_owned()
+                    }
                     Value::Number(key_number) if key_number.is_i64() || key_number.is_u64() => {
                         serde_yaml::to_string(key_number)
                             .unwrap()
@@ -172,7 +178,7 @@ fn generate_paths_from_yaml_node(
                             .unwrap()
                             .to_owned()
                     }
-                    _ => panic!("Unsupported mapping key '{key:?}'"),
+                    _ => return Err(format!("Unsupported mapping key '{key:?}'")),
                 };
                 let new_path = if start_path.is_empty() {
                     key_str
@@ -188,7 +194,7 @@ fn generate_paths_from_yaml_node(
                     &new_path,
                     paths,
                     includes_mappings_and_sequences,
-                );
+                )?;
             }
         }
         Value::Sequence(sequence) => {
@@ -202,7 +208,7 @@ fn generate_paths_from_yaml_node(
                     &new_path,
                     paths,
                     includes_mappings_and_sequences,
-                );
+                )?;
             }
         }
         _ => {
@@ -210,23 +216,30 @@ fn generate_paths_from_yaml_node(
             paths.insert(start_path.to_string());
         }
     }
+    Ok(())
 }
 
-pub fn get_paths_from_yaml_node(node: &Value, includes_mappings_and_sequences: bool) -> Vec<Path> {
+pub fn get_paths_from_yaml_node(
+    node: &Value,
+    includes_mappings_and_sequences: bool,
+) -> Result<Vec<Path>, String> {
     let mut yaml_node_paths: HashSet<String> = HashSet::new();
     generate_paths_from_yaml_node(
         node,
         "",
         &mut yaml_node_paths,
         includes_mappings_and_sequences,
-    );
-    yaml_node_paths
+    )?;
+    Ok(yaml_node_paths
         .into_iter()
         .map(|entry| Path::from(&entry))
-        .collect()
+        .collect())
 }
-impl From<&Object> for Vec<Path> {
-    fn from(value: &Object) -> Self {
+
+impl TryFrom<&Object> for Vec<Path> {
+    type Error = String;
+
+    fn try_from(value: &Object) -> Result<Self, Self::Error> {
         get_paths_from_yaml_node(&value.data, true)
     }
 }
@@ -386,7 +399,7 @@ impl Object {
 
 #[cfg(test)]
 mod tests {
-    use super::Object;
+    use super::{Object, generate_paths_from_yaml_node};
 
     use ankaios_api::ank_base::{CompleteStateSpec, ExecutionStateSpec, StateSpec};
     use ankaios_api::test_utils::{
@@ -912,7 +925,7 @@ mod tests {
         use std::collections::HashSet;
 
         let mut actual_paths: HashSet<String> = HashSet::new();
-        super::generate_paths_from_yaml_node(&data, "", &mut actual_paths, false);
+        generate_paths_from_yaml_node(&data, "", &mut actual_paths, false).unwrap();
 
         let expected_set: HashSet<String> = HashSet::from([
             "A.AA".to_string(),
@@ -932,7 +945,7 @@ mod tests {
         use std::collections::HashSet;
 
         let mut actual_paths: HashSet<String> = HashSet::new();
-        super::generate_paths_from_yaml_node(&data, "", &mut actual_paths, true);
+        generate_paths_from_yaml_node(&data, "", &mut actual_paths, true).unwrap();
 
         let expected_set: HashSet<String> = HashSet::from([
             "A".to_string(),
@@ -953,7 +966,7 @@ mod tests {
         };
 
         use crate::state_manipulation::Path;
-        let actual: Vec<Path> = Vec::<Path>::from(&data);
+        let actual: Vec<Path> = Vec::<Path>::try_from(&data).unwrap();
         let expected: Vec<Path> = vec![
             Path::from("A"),
             Path::from("A.AA"),

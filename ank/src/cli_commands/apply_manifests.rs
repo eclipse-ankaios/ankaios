@@ -71,7 +71,7 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
     let obj: Object = state_obj_parsing_check.into();
 
     let mut workload_paths: HashSet<Path> = HashSet::new();
-    let obj_paths = Vec::<Path>::from(&obj);
+    let obj_paths = Vec::<Path>::try_from(&obj)?;
     let detected_api_version = detect_api_version(&obj, &obj_paths)?;
 
     for path in obj_paths {
