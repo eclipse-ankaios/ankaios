@@ -286,10 +286,10 @@ mod tests {
     };
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
-    use ankaios_api::{ank_base::LogsCancelRequest, test_utils::fixtures};
+    use ankaios_api::test_utils::fixtures;
     use ankaios_api::{
         ank_base::{
-            CompleteStateRequest, Error as AnkError, LogEntriesResponse,
+            CompleteStateRequest, Error as AnkError, LogEntriesResponse, LogsCancelRequest,
             Request, RequestContent, Response, ResponseContent,
         },
         control_api,
