@@ -60,10 +60,35 @@ Test Ankaios CLI get workloads with wildcard
     # Actions
     And user triggers "ank -k get state -o json 'desiredState.workloads.*.agent' 'desiredState.workloads.*.runtime'"
     # Asserts
-    Then the last command shall contain the workload "sleepy"
+    Then the output of the last command shall contain the apiVersion
+    And the last command shall contain the workload "sleepy"
+    And the workload "sleepy" shall only contain fields    ["agent", "runtime"]
     And the last command shall contain the workload "hello1"
+    And the workload "hello1" shall only contain fields    ["agent", "runtime"]
     And the last command shall contain the workload "hello2"
+    And the workload "hello2" shall only contain fields    ["agent", "runtime"]
     And the last command shall contain the workload "hello3"
-    And the last command shall only contain agent and runtime
-    # And the last command shall only return the agent of the workloads
+    And the workload "hello3" shall only contain fields    ["agent", "runtime"]
+    [Teardown]    Clean up Ankaios
+
+#[stest->swdd~server-filters-get-complete-state-result~2]
+Test Ankaios CLI get state with filter
+    [Setup]    Run Keywords    Setup Ankaios
+    ...    AND    Set Global Variable    ${default_state_yaml_file}     ${CONFIGS_DIR}/default.yaml
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started with manifest "${default_state_yaml_file}"
+    And the CLI listens for workload states
+    And Ankaios agent is started with name "agent_A"
+    And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
+    # Actions
+    And user triggers "ank -k get state -o json desiredState.workloads.sleepy.agent"
+    # Asserts
+    Then the output of the last command shall contain the apiVersion
+    And the last command shall contain the workload "sleepy"
+    And the workload "sleepy" shall only contain fields    ["agent"]
+    And Run Keyword And Expect Error    *    the last command shall contain the workload "hello1"
+    And Run Keyword And Expect Error    *    the last command shall contain the workload "hello2"
+    And Run Keyword And Expect Error    *    the last command shall contain the workload "hello3"
     [Teardown]    Clean up Ankaios
