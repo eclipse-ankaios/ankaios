@@ -1,0 +1,99 @@
+#!/bin/bash
+
+# Copyright (c) 2026 Elektrobit Automotive GmbH
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0.
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+set -e
+
+script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+base_dir="$script_dir/.."
+tools_dir="$base_dir/tools"
+target_dir="$base_dir/target/robot_tests_result"
+default_executable_dir="$base_dir/target/x86_64-unknown-linux-musl/debug"
+
+cleanup_system() {
+    echo "Cleanup system..."
+    podman system migrate
+    "$tools_dir"/dev_scripts/ankaios-clean
+}
+
+check_executable() {
+    if [[ -x "$1" ]]
+    then
+        echo Found "$($1 --version)"
+    else
+        echo "'$1' is not executable or found"
+        exit 1
+    fi
+}
+
+pull_container_images() {
+    echo "Pull required container images..."
+    # filter for stest container images starting with ghcr.io in yaml files in tests/resources/configs and make them unique (sorted)
+    stest_container_images=$(find -P "${base_dir}/tests/resources/configs" \( -name "*.yaml" -o -name "*.yml" \) -exec grep -Po "ghcr\.io.*[^\s]" {} \; | sort -u)
+    for image in $stest_container_images; do
+        if podman image exists $image; then
+            echo "Podman: container image '$image' already exists. Skipping pull."
+        else
+            echo "Podman: pull container image '$image'"
+            podman pull $image
+        fi
+
+        # nerdctl has no 'exists' command and when filtering it outputs in any case with exit 0
+        if nerdctl image ls --format='{{.Name}}' | grep -q "$image"; then
+            echo "Nerdctl: container image '$image' already exists in nerdctl. Skipping pull."
+        else
+            echo "Nerdctl: pull container image '$image'"
+            nerdctl pull $image
+        fi
+    done
+    echo "All container images pulled."
+}
+
+if [[ -z "$ANK_BIN_DIR" ]]; then
+    ANK_BIN_DIR="$default_executable_dir"
+    echo Use default executable directory: $ANK_BIN_DIR
+fi
+
+ANK=$ANK_BIN_DIR/ank
+ANK_SERVER=$ANK_BIN_DIR/ank-server
+ANK_AGENT=$ANK_BIN_DIR/ank-agent
+
+echo "=== Robot Tests Setup ==="
+
+cleanup_system
+
+check_executable "$ANK"
+check_executable "$ANK_SERVER"
+check_executable "$ANK_AGENT"
+
+echo Remove old certificates and keys for stests...
+rm -rf /tmp/.certs
+echo done.
+echo Generate certificates and keys for stests...
+"$tools_dir"/certs/create_certs.sh /tmp/.certs
+echo done.
+
+if pgrep -x "containerd" > /dev/null
+then
+    echo "containerd is already running. No need to start again."
+else
+    echo "containerd is not running. Starting it for system tests."
+    "$script_dir"/start-containerd.sh "$target_dir"/containerd.log
+fi
+
+# pre-fetch container images to avoid timeouts during tests
+pull_container_images
+
+echo "=== Setup Complete ==="
