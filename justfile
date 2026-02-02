@@ -60,7 +60,8 @@ utest:
     RUST_LOG=debug cargo nextest --config-file nextest.toml run
 
 # Build debug and run all system tests
-stest: build build-stest-image stest-only
+stest filter="*" tests="tests": build build-stest-image
+    just stest-only "{{ filter }}" "{{ tests }}"
 
 build-stest-image:
     #!/usr/bin/env bash
@@ -71,13 +72,9 @@ build-stest-image:
         echo 'Had to build control_interface_tester image. Consider uploading it with `podman push ghcr.io/eclipse-ankaios/control_interface_tester:'"$SRC_HASH"'`'
     fi
 
-# Build and run only the specified system test(s) (wildcard supported)
-stests-filter filter: build build-stest-image
-    ./tools/run_robot_tests.sh --test "{{ filter }}" tests
-
 # Only execute the stests without building
-stest-only tests="tests":
-    ./tools/run_robot_tests.sh {{ tests }}
+stest-only filter="*" tests="tests":
+    ./tools/run_robot_tests.sh --test "{{ filter }}" "{{ tests }}"
 
 # Run clippy code checks
 clippy:
