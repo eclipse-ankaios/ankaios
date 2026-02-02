@@ -22,7 +22,7 @@ use super::input_pipe::InputPipe;
 #[cfg_attr(test, mockall_double::double)]
 use super::output_pipe::OutputPipe;
 use ankaios_api::{
-    ank_base::{self, RequestSpec},
+    ank_base::{self, Request},
     control_api,
 };
 use common::{
@@ -126,7 +126,7 @@ impl ControlInterfaceTask {
                             log::info!("Could not forward the response with Id: '{}'. Stopping log collection.", response.request_id);
                             match response.response_content {
                                 Some(ank_base::response::ResponseContent::LogEntriesResponse(_))=> {
-                                    let _ =self.to_server_sender.logs_cancel_request(RequestSpec::prefix_id(&self.request_id_prefix, &response.request_id)).await;
+                                    let _ = self.to_server_sender.logs_cancel_request(Request::prefix_id(&self.request_id_prefix, &response.request_id)).await;
                                 }
                                 unexpected => {
                                     log::warn!("Unexpected response content: '{unexpected:?}'");
@@ -289,8 +289,8 @@ mod tests {
     use ankaios_api::test_utils::fixtures;
     use ankaios_api::{
         ank_base::{
-            CompleteStateRequest, Error as AnkError, LogEntriesResponse, LogsCancelRequestSpec,
-            Request, RequestContent, RequestContentSpec, RequestSpec, Response, ResponseContent,
+            CompleteStateRequest, Error as AnkError, LogEntriesResponse, LogsCancelRequest,
+            Request, RequestContent, Response, ResponseContent,
         },
         control_api,
     };
@@ -521,9 +521,9 @@ mod tests {
 
         tokio::spawn(async { control_interface_task.run().await });
 
-        let mut expected_log_cancel_request = RequestSpec {
+        let mut expected_log_cancel_request = Request {
             request_id: response.request_id,
-            request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
+            request_content: Some(RequestContent::LogsCancelRequest(LogsCancelRequest {})),
         };
         expected_log_cancel_request.prefix_request_id(request_id_prefix);
         assert_eq!(
@@ -696,7 +696,7 @@ mod tests {
 
         control_interface_task.run().await;
 
-        let mut expected_request: RequestSpec = ank_request.try_into().unwrap();
+        let mut expected_request = ank_request;
         expected_request.prefix_request_id(request_id_prefix);
         assert_eq!(
             output_pipe_receiver.recv().await,

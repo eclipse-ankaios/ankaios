@@ -12,7 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use ankaios_api::ank_base::{CompleteState, ConfigMap, ExecutionsStatesOfWorkload, WorkloadMap};
+use ankaios_api::ank_base::{
+    CompleteState, ConfigMap, ExecutionsStatesOfWorkload, LogsRequest, WorkloadInstanceName,
+    WorkloadMap,
+};
 use common::helpers::parse_key_val;
 
 use clap::{ArgAction, CommandFactory, Parser, Subcommand, ValueHint, command};
@@ -401,6 +404,23 @@ pub struct LogsArgs {
     pub until: Option<String>,
 }
 
+pub fn logs_args_to_request(
+    log_args: &LogsArgs,
+    instance_names: Vec<WorkloadInstanceName>,
+) -> LogsRequest {
+    LogsRequest {
+        workload_names: instance_names,
+        follow: if log_args.follow { Some(true) } else { None },
+        tail: if log_args.tail >= 0 {
+            Some(log_args.tail)
+        } else {
+            None
+        },
+        since: log_args.since.clone(),
+        until: log_args.until.clone(),
+    }
+}
+
 pub fn parse() -> AnkCli {
     CompleteEnv::with_factory(AnkCli::command).complete();
     AnkCli::parse()
@@ -417,6 +437,7 @@ pub fn parse() -> AnkCli {
 #[cfg(test)]
 mod tests {
     use super::{completions_object_field_mask, completions_workloads};
+    use ankaios_api::test_utils::{fixtures, generate_test_workload_instance_name_with_name};
     use clap_complete::CompletionCandidate;
     use std::ffi::OsStr;
 
@@ -605,5 +626,34 @@ mod tests {
             completions_object_field_mask(state.to_vec(), OsStr::new("workloadStates"));
         completions.sort();
         assert_eq!(completions, vec![], "Completions do not match");
+    }
+
+    #[test]
+    fn utest_logs_args_to_request() {
+        use super::logs_args_to_request;
+        use super::LogsArgs;
+        use ankaios_api::ank_base::WorkloadInstanceName;
+
+        let log_args = LogsArgs {
+            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string(), fixtures::WORKLOAD_NAMES[1].to_string()],
+            follow: false,
+            tail: -1,
+            output_names: false,
+            since: Some("2024-01-01T00:00:00Z".to_string()),
+            until: Some("2024-01-02T00:00:00Z".to_string()),
+        };
+
+        let instance_names: Vec<WorkloadInstanceName> = vec![
+            generate_test_workload_instance_name_with_name(fixtures::WORKLOAD_NAMES[0]).into(),
+            generate_test_workload_instance_name_with_name(fixtures::WORKLOAD_NAMES[1]).into(),
+        ];
+
+        let request = logs_args_to_request(&log_args, instance_names.clone());
+
+        assert_eq!(request.workload_names, instance_names);
+        assert_eq!(request.follow, None);
+        assert_eq!(request.tail, None);
+        assert_eq!(request.since, Some("2024-01-01T00:00:00Z".to_string()));
+        assert_eq!(request.until, Some("2024-01-02T00:00:00Z".to_string()));
     }
 }

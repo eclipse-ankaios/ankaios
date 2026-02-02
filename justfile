@@ -60,7 +60,8 @@ utest:
     RUST_LOG=debug cargo nextest --config-file nextest.toml run
 
 # Build debug and run all system tests
-stest: build build-stest-image stest-only
+stest filter="*" tests="tests": build build-stest-image
+    just stest-only "{{ filter }}" "{{ tests }}"
 
 build-stest-image:
     #!/usr/bin/env bash
@@ -72,8 +73,8 @@ build-stest-image:
     fi
 
 # Only execute the stests without building
-stest-only tests="tests":
-    ./tools/run_robot_tests.sh {{ tests }}
+stest-only filter="*" tests="tests":
+    ./tools/run_robot_tests.sh --test "{{ filter }}" "{{ tests }}"
 
 # Run clippy code checks
 clippy:

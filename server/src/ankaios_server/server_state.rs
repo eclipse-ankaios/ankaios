@@ -17,8 +17,8 @@ use super::rendered_workloads::RenderedWorkloads;
 
 use ankaios_api::ALLOWED_CHAR_SET;
 use ankaios_api::ank_base::{
-    AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec, DeletedWorkload,
-    StateSpec, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
+    AgentMapSpec, CompleteState, CompleteStateRequest, CompleteStateSpec, DeletedWorkload,
+    StateSpec, WorkloadInstanceName, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use common::state_manipulation::{Object, Path};
 use common::std_extensions::IllegalStateResult;
@@ -36,7 +36,8 @@ use mockall::automock;
 #[derive(Debug, Default)]
 pub struct StateGenerationResult {
     pub old_desired_state: StateSpec,
-    pub new_desired_state: (StateSpec, AgentMapSpec),
+    pub new_desired_state: StateSpec,
+    pub new_agent_map: AgentMapSpec,
 }
 
 fn extract_added_and_deleted_workloads(
@@ -170,7 +171,7 @@ impl ServerState {
     // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
-        request_complete_state: CompleteStateRequestSpec,
+        request_complete_state: CompleteStateRequest,
         workload_states_map: &WorkloadStatesMapSpec,
         agent_map: &AgentMapSpec,
     ) -> Result<CompleteState, String> {
@@ -237,11 +238,14 @@ impl ServerState {
     // [impl->swdd~server-handles-logs-request-message~1]
     pub fn desired_state_contains_instance_name(
         &self,
-        instance_name: &WorkloadInstanceNameSpec,
+        instance_name: &WorkloadInstanceName,
     ) -> bool {
         self.rendered_workloads
-            .get(instance_name.workload_name())
-            .is_some_and(|workload| workload.instance_name == *instance_name)
+            .get(&instance_name.workload_name)
+            .is_some_and(|workload| {
+                workload.instance_name.agent_name == instance_name.agent_name
+                    && workload.instance_name.id == instance_name.id
+            })
     }
 
     pub fn update(
@@ -314,24 +318,31 @@ impl ServerState {
 
     pub fn generate_new_state(
         &self,
-        updated_state: CompleteStateSpec,
+        updated_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<StateGenerationResult, UpdateStateError> {
+        // [impl->swdd~update-desired-state-empty-update-mask~1]
+        if update_mask.is_empty() {
+            let new_complete_state: CompleteStateSpec =
+                updated_state.try_into().map_err(|err| {
+                    UpdateStateError::ResultInvalid(format!(
+                        "Could not parse into CompleteState: '{err}'"
+                    ))
+                })?;
+            return Ok(StateGenerationResult {
+                old_desired_state: self.state.desired_state.clone(),
+                new_desired_state: new_complete_state.desired_state,
+                new_agent_map: new_complete_state.agents,
+            });
+        }
+
         // [impl->swdd~update-desired-state-with-update-mask~1]
         let old_state: Object = (&self.state).try_into().map_err(|err| {
             UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{err}'"))
         })?;
-        let state_from_update: Object = (&updated_state).try_into().map_err(|err| {
+        let state_from_update: Object = updated_state.try_into().map_err(|err| {
             UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{err}'"))
         })?;
-
-        // [impl->swdd~update-desired-state-empty-update-mask~1]
-        if update_mask.is_empty() {
-            return Ok(StateGenerationResult {
-                old_desired_state: self.state.desired_state.clone(),
-                new_desired_state: (updated_state.desired_state, updated_state.agents),
-            });
-        }
 
         let mut new_state = old_state.clone();
 
@@ -355,7 +366,8 @@ impl ServerState {
 
         Ok(StateGenerationResult {
             old_desired_state: self.state.desired_state.clone(),
-            new_desired_state: (new_complete_state.desired_state, new_complete_state.agents),
+            new_desired_state: new_complete_state.desired_state,
+            new_agent_map: new_complete_state.agents,
         })
     }
 
@@ -393,9 +405,10 @@ mod tests {
         },
     };
     use ankaios_api::ank_base::{
-        AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec, DeletedWorkload,
-        StateSpec, Workload, WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadNamed,
-        WorkloadStateSpec, WorkloadStatesMapSpec,
+        AgentMapSpec, CompleteState, CompleteStateRequest,
+        CompleteStateSpec, DeletedWorkload, State, StateSpec, Workload, WorkloadInstanceName,
+        WorkloadInstanceNameSpec, WorkloadMap, WorkloadMapSpec, WorkloadNamed, WorkloadStateSpec,
+        WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_complete_state, generate_test_config_map,
@@ -485,7 +498,7 @@ mod tests {
             ..Default::default()
         };
 
-        let request_complete_state = CompleteStateRequestSpec {
+        let request_complete_state = CompleteStateRequest {
             field_mask: vec![format!(
                 "workloadStates.{}.{}.{}.subState",
                 fixtures::AGENT_NAMES[0],
@@ -564,7 +577,7 @@ mod tests {
             ..Default::default()
         };
 
-        let request_complete_state = CompleteStateRequestSpec {
+        let request_complete_state = CompleteStateRequest {
             field_mask: vec![],
             subscribe_for_events: false,
         };
@@ -603,7 +616,7 @@ mod tests {
         server_state.state.workload_states = WorkloadStatesMapSpec::default();
         server_state.state.agents = AgentMapSpec::default();
 
-        let request_complete_state = CompleteStateRequestSpec {
+        let request_complete_state = CompleteStateRequest {
             field_mask: vec![
                 "workloads.invalidMask".to_string(), // invalid not existing workload
                 format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]), // valid existing workload
@@ -658,7 +671,7 @@ mod tests {
             ..Default::default()
         };
 
-        let request_complete_state = CompleteStateRequestSpec {
+        let request_complete_state = CompleteStateRequest {
             field_mask: vec![
                 format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]),
                 format!(
@@ -694,7 +707,7 @@ mod tests {
                     runtime_config: None,
                     control_interface_access: None,
                     configs: None,
-                    files: Some(Default::default()),
+                    files: None,
                 },
             ),
             (
@@ -708,7 +721,7 @@ mod tests {
                     runtime_config: None,
                     control_interface_access: None,
                     configs: None,
-                    files: Some(Default::default()),
+                    files: None,
                 },
             ),
             (
@@ -778,7 +791,8 @@ mod tests {
             fixtures::RUNTIME_NAMES[0],
         );
 
-        let mut other_workload_instance_name = workload.instance_name.clone();
+        let mut other_workload_instance_name: WorkloadInstanceName =
+            workload.instance_name.clone().into();
         other_workload_instance_name.workload_name = fixtures::WORKLOAD_NAMES[1].to_string();
 
         let complete_state = generate_test_complete_state(vec![workload.clone()]);
@@ -791,7 +805,7 @@ mod tests {
             ..Default::default()
         };
 
-        let instance_name = workload.instance_name.clone();
+        let instance_name = workload.instance_name.into();
         assert!(server_state.desired_state_contains_instance_name(&instance_name));
 
         assert!(!server_state.desired_state_contains_instance_name(&other_workload_instance_name));
@@ -811,13 +825,15 @@ mod tests {
         let new_workload_1 = generate_test_workload_with_params(
             fixtures::AGENT_NAMES[0],
             fixtures::RUNTIME_NAMES[0],
-        );
+        )
+        .into();
 
-        let mut new_workload_2 = generate_test_workload_with_params(
+        let mut new_workload_2: Workload = generate_test_workload_with_params(
             fixtures::AGENT_NAMES[0],
             fixtures::RUNTIME_NAMES[0],
-        );
-        new_workload_2.dependencies.dependencies.clear();
+        )
+        .into();
+        new_workload_2.dependencies = None;
 
         let old_state = CompleteStateSpec {
             desired_state: StateSpec {
@@ -829,16 +845,16 @@ mod tests {
             ..Default::default()
         };
 
-        let rejected_new_state = CompleteStateSpec {
-            desired_state: StateSpec {
-                workloads: WorkloadMapSpec {
+        let rejected_new_state = CompleteState {
+            desired_state: Some(State {
+                workloads: Some(WorkloadMap {
                     workloads: HashMap::from([
                         (fixtures::WORKLOAD_NAMES[1].to_string(), new_workload_1),
                         (fixtures::WORKLOAD_NAMES[0].to_string(), new_workload_2),
                     ]),
-                },
+                }),
                 ..Default::default()
-            },
+            }),
             ..Default::default()
         };
 
@@ -849,13 +865,19 @@ mod tests {
             .never();
 
         let mut mock_config_renderer = MockConfigRenderer::new();
-        let cloned_rejected_state = rejected_new_state.desired_state.clone();
+        let desired_state_spec: StateSpec = rejected_new_state
+            .desired_state
+            .clone()
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let clones_desired_state = desired_state_spec.clone();
         mock_config_renderer
             .expect_render_workloads()
             .once()
             .returning(move |_, _| {
                 Ok(generate_rendered_workloads_from_state(
-                    &cloned_rejected_state,
+                    &clones_desired_state,
                 ))
             });
 
@@ -866,7 +888,7 @@ mod tests {
             config_renderer: mock_config_renderer,
         };
 
-        let result = server_state.update(rejected_new_state.desired_state);
+        let result = server_state.update(desired_state_spec);
         assert_eq!(
             result,
             Err(UpdateStateError::CycleInDependencies(
@@ -883,7 +905,7 @@ mod tests {
     fn utest_server_state_generate_new_state_replace_all_if_update_mask_empty() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
-        let update_state = generate_test_update_state();
+        let update_state: CompleteState = generate_test_update_state().into();
         let update_mask = vec![];
 
         let server_state = ServerState {
@@ -894,9 +916,11 @@ mod tests {
             .generate_new_state(update_state.clone(), update_mask)
             .unwrap();
 
+        let expected_desired_state: StateSpec =
+            update_state.desired_state.unwrap().try_into().unwrap();
         assert_eq!(
-            update_state.desired_state,
-            state_generation_result.new_desired_state.0
+            expected_desired_state,
+            state_generation_result.new_desired_state
         );
     }
 
@@ -932,12 +956,12 @@ mod tests {
         };
 
         let state_generation_result = server_state
-            .generate_new_state(update_state, update_mask)
+            .generate_new_state(update_state.into(), update_mask)
             .unwrap();
 
         assert_eq!(
             expected.desired_state,
-            state_generation_result.new_desired_state.0
+            state_generation_result.new_desired_state
         );
     }
 
@@ -973,12 +997,12 @@ mod tests {
         };
 
         let state_generation_result = server_state
-            .generate_new_state(update_state, update_mask)
+            .generate_new_state(update_state.into(), update_mask)
             .unwrap();
 
         assert_eq!(
             expected.desired_state,
-            state_generation_result.new_desired_state.0
+            state_generation_result.new_desired_state
         );
     }
 
@@ -1000,12 +1024,12 @@ mod tests {
         let expected = state_with_updated_config.clone();
 
         let state_generation_result = server_state
-            .generate_new_state(state_with_updated_config, update_mask)
+            .generate_new_state(state_with_updated_config.into(), update_mask)
             .unwrap();
 
         assert_eq!(
             expected.desired_state,
-            state_generation_result.new_desired_state.0
+            state_generation_result.new_desired_state
         );
     }
 
@@ -1034,12 +1058,12 @@ mod tests {
         };
 
         let state_generation_result = server_state
-            .generate_new_state(update_state, update_mask)
+            .generate_new_state(update_state.into(), update_mask)
             .unwrap();
 
         assert_eq!(
             expected.desired_state,
-            state_generation_result.new_desired_state.0
+            state_generation_result.new_desired_state
         );
     }
 
@@ -1059,12 +1083,12 @@ mod tests {
         };
 
         let state_generation_result = server_state
-            .generate_new_state(update_state, update_mask)
+            .generate_new_state(update_state.into(), update_mask)
             .unwrap();
 
         assert_eq!(
             expected.desired_state,
-            state_generation_result.new_desired_state.0
+            state_generation_result.new_desired_state
         );
     }
 
@@ -1080,7 +1104,7 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
-        let result = server_state.generate_new_state(update_state, update_mask);
+        let result = server_state.generate_new_state(update_state.into(), update_mask);
         assert!(result.is_err());
         assert_eq!(
             UpdateStateError::FieldNotFound(field_mask.into()),
@@ -1100,7 +1124,7 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
-        let result = server_state.generate_new_state(update_state, update_mask);
+        let result = server_state.generate_new_state(update_state.into(), update_mask);
         assert!(result.is_err());
         assert_eq!(
             UpdateStateError::FieldNotFound("".into()),
@@ -1115,14 +1139,17 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let server_state = ServerState::default(); // empty old state
 
+        let expected_complete_state = CompleteStateSpec::default();
+        let new_complete_state: CompleteState = expected_complete_state.clone().into();
+
         let state_generation_result = server_state
-            .generate_new_state(CompleteStateSpec::default(), vec![])
+            .generate_new_state(new_complete_state, vec![])
             .unwrap();
         assert_eq!(
-            state_generation_result.new_desired_state.0,
+            state_generation_result.new_desired_state,
             StateSpec::default()
         );
-        assert_eq!(server_state.state, CompleteStateSpec::default());
+        assert_eq!(expected_complete_state, server_state.state);
     }
 
     // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]

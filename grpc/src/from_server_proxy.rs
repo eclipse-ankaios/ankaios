@@ -18,8 +18,8 @@ use crate::grpc_api::{self, from_server::FromServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
 use ankaios_api::ank_base::{
-    DeletedWorkload, LogsRequestSpec, Response, ResponseContent, WorkloadInstanceNameSpec,
-    WorkloadNamed, WorkloadState, WorkloadStateSpec,
+    DeletedWorkload, LogsRequest, Response, ResponseContent, WorkloadInstanceName, WorkloadNamed,
+    WorkloadState, WorkloadStateSpec,
 };
 use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
@@ -356,12 +356,12 @@ async fn distribute_workloads_to_agents(
 async fn distribute_log_requests_to_agent(
     agent_senders: &AgentSendersMap,
     request_id: String,
-    mut logs_request: LogsRequestSpec,
+    mut logs_request: LogsRequest,
 ) {
     for (agent, workloads) in
         group_workload_instance_names_by_agent(take(&mut logs_request.workload_names))
     {
-        let logs_requests_for_agent = LogsRequestSpec {
+        let logs_requests_for_agent = LogsRequest {
             workload_names: workloads,
             ..logs_request.clone()
         };
@@ -371,7 +371,7 @@ async fn distribute_log_requests_to_agent(
                 .send(Ok(grpc_api::FromServer {
                     from_server_enum: Some(FromServerEnum::LogsRequest(grpc_api::LogsRequest {
                         request_id: request_id.clone(),
-                        logs_request: Some(logs_requests_for_agent.into()),
+                        logs_request: Some(logs_requests_for_agent),
                     })),
                 }))
                 .await;
@@ -413,11 +413,11 @@ async fn distribute_log_cancel_requests_to_agent(
 }
 
 fn group_workload_instance_names_by_agent(
-    workloads: Vec<WorkloadInstanceNameSpec>,
-) -> HashMap<String, Vec<WorkloadInstanceNameSpec>> {
-    let mut res: HashMap<String, Vec<WorkloadInstanceNameSpec>> = HashMap::new();
+    workloads: Vec<WorkloadInstanceName>,
+) -> HashMap<String, Vec<WorkloadInstanceName>> {
+    let mut res: HashMap<String, Vec<WorkloadInstanceName>> = HashMap::new();
     for w in workloads {
-        res.entry(w.agent_name().to_owned()).or_default().push(w);
+        res.entry(w.agent_name.to_owned()).or_default().push(w);
     }
     res
 }
@@ -439,9 +439,8 @@ mod tests {
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
 
     use ankaios_api::ank_base::{
-        self, CompleteState, CompleteStateResponse, Dependencies, ExecutionStateSpec,
-        LogsRequestSpec, Response, ResponseContent, State, Workload, WorkloadInstanceName,
-        WorkloadInstanceNameSpec, WorkloadMap,
+        self, CompleteState, CompleteStateResponse, Dependencies, ExecutionStateSpec, LogsRequest,
+        Response, ResponseContent, State, Workload, WorkloadInstanceName, WorkloadMap,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_deleted_workload_with_params, generate_test_workload,
@@ -1175,14 +1174,14 @@ mod tests {
             result,
             from_server_interface::FromServer::LogsRequest(
                 request_id,
-                LogsRequestSpec {
+                LogsRequest {
                     workload_names,
                     follow,
                     tail,
                     since,
                     until
                 }
-            ) if request_id == my_request_id && workload_names == vec![WorkloadInstanceNameSpec::new(agent_name, fixtures::WORKLOAD_NAMES[0], fixtures::WORKLOAD_IDS[0])] && follow && tail == 10 &&since.is_none() && until.is_none()
+            ) if request_id == my_request_id && workload_names == vec![WorkloadInstanceName{agent_name: agent_name.to_string(), workload_name: fixtures::WORKLOAD_NAMES[0].to_string(), id: fixtures::WORKLOAD_IDS[0].to_string()}] && follow == Some(true) && tail == Some(10) &&since.is_none() && until.is_none()
         ));
     }
 

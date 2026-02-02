@@ -42,7 +42,7 @@ mod run_workload;
 mod set_state;
 
 use ankaios_api::ank_base::{
-    CompleteState, CompleteStateSpec, ExecutionStateEnumSpec, Workload, WorkloadInstanceNameSpec,
+    CompleteState, ExecutionStateEnumSpec, Workload, WorkloadInstanceNameSpec,
     WorkloadState, WorkloadStatesMap,
 };
 use common::{
@@ -250,7 +250,7 @@ impl CliCommands {
     // [impl->swdd~cli-requests-update-state-with-watch~2]
     async fn update_state_and_wait_for_complete(
         &mut self,
-        new_state: CompleteStateSpec,
+        new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), CliError> {
         /* to keep track of deleted not initially started workloads in the wait mode

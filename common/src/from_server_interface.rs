@@ -12,12 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{commands, std_extensions::UnreachableResult};
+use crate::commands;
 use ankaios_api::ank_base::{
     AlteredFields, CompleteState, CompleteStateResponse, DeletedWorkload, Error,
     EventsCancelAccepted, LogEntriesResponse, LogsCancelAccepted, LogsRequest, LogsRequestAccepted,
-    LogsRequestSpec, LogsStopResponse, Response, ResponseContent, UpdateStateSuccess,
-    WorkloadNamed, WorkloadStateSpec,
+    LogsStopResponse, Response, ResponseContent, UpdateStateSuccess, WorkloadNamed,
+    WorkloadStateSpec,
 };
 
 use async_trait::async_trait;
@@ -46,7 +46,7 @@ pub enum FromServer {
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Response(Response),
     Stop(commands::Stop),
-    LogsRequest(String, LogsRequestSpec),
+    LogsRequest(String, LogsRequest),
     LogsCancelRequest(String),
     ServerGone,
 }
@@ -209,11 +209,8 @@ impl FromServerInterface for FromServerSender {
         request_id: String,
         logs_request: LogsRequest,
     ) -> Result<(), FromServerInterfaceError> {
-        self.send(FromServer::LogsRequest(
-            request_id,
-            logs_request.try_into().unwrap_or_unreachable(),
-        ))
-        .await?;
+        self.send(FromServer::LogsRequest(request_id, logs_request))
+            .await?;
         Ok(())
     }
 
@@ -327,12 +324,12 @@ mod tests {
 
     use ankaios_api::ank_base::{
         CompleteState, CompleteStateResponse, Error, ExecutionStateSpec, LogEntriesResponse,
-        LogEntry, LogsRequest, LogsRequestSpec, LogsStopResponse, Response, ResponseContent,
-        UpdateStateSuccess, WorkloadInstanceName, WorkloadInstanceNameSpec,
+        LogEntry, LogsRequest, LogsStopResponse, Response, ResponseContent, UpdateStateSuccess,
+        WorkloadInstanceName,
     };
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_deleted_workload_with_params,
-        generate_test_workload_named, generate_test_workload_state, fixtures,
+        fixtures, generate_test_complete_state, generate_test_deleted_workload_with_params,
+        generate_test_workload_named, generate_test_workload_state,
     };
 
     use tokio::sync::mpsc;
@@ -372,8 +369,10 @@ mod tests {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let workload_state =
-            generate_test_workload_state(fixtures::WORKLOAD_NAMES[0], ExecutionStateSpec::running());
+        let workload_state = generate_test_workload_state(
+            fixtures::WORKLOAD_NAMES[0],
+            ExecutionStateSpec::running(),
+        );
         assert!(
             tx.update_workload_state(vec![workload_state.clone()])
                 .await
@@ -397,9 +396,13 @@ mod tests {
         let complete_state: CompleteState =
             generate_test_complete_state(vec![generate_test_workload_named()]).into();
         assert!(
-            tx.complete_state(fixtures::REQUEST_ID.to_string(), complete_state.clone(), None)
-                .await
-                .is_ok()
+            tx.complete_state(
+                fixtures::REQUEST_ID.to_string(),
+                complete_state.clone(),
+                None
+            )
+            .await
+            .is_ok()
         );
 
         assert_eq!(
@@ -505,21 +508,21 @@ mod tests {
             rx.recv().await.unwrap(),
             FromServer::LogsRequest(
                 fixtures::REQUEST_ID.into(),
-                LogsRequestSpec {
+                LogsRequest {
                     workload_names: vec![
-                        WorkloadInstanceNameSpec::new(
-                            fixtures::AGENT_NAMES[0],
-                            fixtures::WORKLOAD_NAMES[0],
-                            fixtures::WORKLOAD_IDS[0]
-                        ),
-                        WorkloadInstanceNameSpec::new(
-                            fixtures::AGENT_NAMES[0],
-                            fixtures::WORKLOAD_NAMES[1],
-                            fixtures::WORKLOAD_IDS[1]
-                        )
+                        WorkloadInstanceName {
+                            agent_name: fixtures::AGENT_NAMES[0].into(),
+                            workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                            id: fixtures::WORKLOAD_IDS[0].into()
+                        },
+                        WorkloadInstanceName {
+                            agent_name: fixtures::AGENT_NAMES[0].into(),
+                            workload_name: fixtures::WORKLOAD_NAMES[1].into(),
+                            id: fixtures::WORKLOAD_IDS[1].into()
+                        }
                     ],
-                    follow: true,
-                    tail: 10,
+                    follow: Some(true),
+                    tail: Some(10),
                     since: None,
                     until: None
                 }
@@ -529,7 +532,8 @@ mod tests {
 
     #[tokio::test]
     async fn utest_logs_request_fail() {
-        let (tx, _): (FromServerSender, FromServerReceiver) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
+        let (tx, _): (FromServerSender, FromServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
             tx.logs_request(
@@ -614,7 +618,8 @@ mod tests {
 
     #[tokio::test]
     async fn utest_logs_response_fail() {
-        let (tx, _): (FromServerSender, FromServerReceiver) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
+        let (tx, _): (FromServerSender, FromServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
             tx.log_entries_response(

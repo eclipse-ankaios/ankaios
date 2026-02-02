@@ -15,13 +15,13 @@
 use super::CliCommands;
 use crate::{cli_commands::DESIRED_STATE_WORKLOADS, cli_error::CliError, output_debug};
 
-use ankaios_api::ank_base::CompleteStateSpec;
+use ankaios_api::ank_base::CompleteState;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-delete-workload~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
-        let complete_state_update = CompleteStateSpec::default();
+        let complete_state_update = CompleteState::default();
 
         let update_mask = workload_names
             .into_iter()
@@ -54,7 +54,7 @@ mod tests {
 
     use ankaios_api::{
         ank_base::{
-            CompleteState, CompleteStateSpec, ExecutionStateSpec, UpdateStateSuccess,
+            CompleteState, ExecutionStateSpec, UpdateStateSuccess,
             WorkloadStateSpec,
         },
         test_utils::fixtures,
@@ -72,13 +72,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state_update = CompleteStateSpec::default();
-
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_update_state()
             .with(
-                eq(complete_state_update.clone()),
+                eq(CompleteState::default()),
                 eq(vec![
                     format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]),
                     format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[1]),
@@ -110,7 +108,7 @@ mod tests {
             .withf(|request_details| {
                 request_details.field_masks.is_empty() && !request_details.subscribe_for_events
             })
-            .returning(move |_| Ok(CompleteState::from(complete_state_update.clone())));
+            .returning(move |_| Ok(CompleteState::default()));
 
         mock_server_connection
             .expect_take_missed_from_server_messages()
@@ -166,8 +164,6 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state_update = CompleteStateSpec::default();
-
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
@@ -176,7 +172,7 @@ mod tests {
         mock_server_connection
             .expect_update_state()
             .with(
-                eq(complete_state_update),
+                eq(CompleteState::default()),
                 eq(vec!["desiredState.workloads.unknown_workload".to_string()]),
             )
             .return_once(|_, _| {
