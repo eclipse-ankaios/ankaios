@@ -160,7 +160,7 @@ mod tests {
         workload_6.workload.dependencies.dependencies.clear();
 
         let mut delete_graph = DeleteGraph::default();
-        delete_graph.insert(&vec![
+        delete_graph.insert(&[
             workload_1.clone(),
             workload_2.clone(),
             workload_3.clone(),

@@ -611,10 +611,10 @@ impl RuntimeManager {
     // [impl->swdd~agent-executes-update-delete-only-workload-operation~1]
     async fn update_delete_only(&mut self, deleted_workload: DeletedWorkload) {
         let workload_name = deleted_workload.instance_name.workload_name().to_owned();
-        if let Some(workload) = self.workloads.get_mut(&workload_name) {
-            if let Err(err) = workload.update(None, None).await {
-                log::error!("Failed to update workload '{workload_name}': '{err}'");
-            }
+        if let Some(workload) = self.workloads.get_mut(&workload_name)
+            && let Err(err) = workload.update(None, None).await
+        {
+            log::error!("Failed to update workload '{workload_name}': '{err}'");
         }
     }
 

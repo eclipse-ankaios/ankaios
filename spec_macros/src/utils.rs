@@ -151,18 +151,16 @@ pub fn get_prost_enum_type(attrs: &[Attribute]) -> Option<TypePath> {
 
         for meta in nested {
             // Look for enumeration = "ReadWriteEnum"
-            if let Meta::NameValue(MetaNameValue { path, value, .. }) = meta {
-                if path.is_ident("enumeration") {
-                    if let Expr::Lit(expr_lit) = value {
-                        if let Lit::Str(lit_str) = expr_lit.lit {
-                            let enum_name = lit_str.value();
-                            // Parse the string as a Rust path
-                            // if it does not work, it's not what we expect
-                            if let Ok(tp) = syn::parse_str::<TypePath>(&enum_name) {
-                                return Some(tp);
-                            }
-                        }
-                    }
+            if let Meta::NameValue(MetaNameValue { path, value, .. }) = meta
+                && path.is_ident("enumeration")
+                && let Expr::Lit(expr_lit) = value
+                && let Lit::Str(lit_str) = expr_lit.lit
+            {
+                let enum_name = lit_str.value();
+                // Parse the string as a Rust path
+                // if it does not work, it's not what we expect
+                if let Ok(tp) = syn::parse_str::<TypePath>(&enum_name) {
+                    return Some(tp);
                 }
             }
         }
@@ -365,20 +363,16 @@ pub fn inner_vec_type_path(tp: &TypePath) -> Option<TypePath> {
 
 /// Returns the inner TypePath T if the given TypePath is a Vec<T>, otherwise None.
 pub fn inner_hashmap_type_path(tp: &TypePath) -> Option<(TypePath, TypePath)> {
-    if is_hashmap_type_path(tp) {
-        if let PathArguments::AngleBracketed(generic) = &tp.path.segments.last().unwrap().arguments
-        {
-            if generic.args.len() == 2 {
-                if let (Some(GenericArgument::Type(key_ty)), Some(GenericArgument::Type(val_ty))) =
-                    (generic.args.first(), generic.args.last())
-                {
-                    if let (Type::Path(key_tp), Type::Path(val_tp)) = (key_ty, val_ty) {
-                        return Some((key_tp.clone(), val_tp.clone()));
-                    }
-                }
-            }
-        }
+    if is_hashmap_type_path(tp)
+        && let PathArguments::AngleBracketed(generic) = &tp.path.segments.last().unwrap().arguments
+        && generic.args.len() == 2
+        && let (Some(GenericArgument::Type(key_ty)), Some(GenericArgument::Type(val_ty))) =
+            (generic.args.first(), generic.args.last())
+        && let (Type::Path(key_tp), Type::Path(val_tp)) = (key_ty, val_ty)
+    {
+        return Some((key_tp.clone(), val_tp.clone()));
     }
+
     None
 }
 

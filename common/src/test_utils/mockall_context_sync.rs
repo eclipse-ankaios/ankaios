@@ -24,11 +24,11 @@ impl MockAllContextSync {
             mutex_std: std::sync::Mutex::new(()),
         }
     }
-    pub async fn get_lock_async(&self) -> tokio::sync::MutexGuard<()> {
+    pub async fn get_lock_async(&'_ self) -> tokio::sync::MutexGuard<'_, ()> {
         self.mutex_tokio.lock().await
     }
 
-    pub fn get_lock(&self) -> std::sync::MutexGuard<()> {
+    pub fn get_lock(&'_ self) -> std::sync::MutexGuard<'_, ()> {
         match self.mutex_std.lock() {
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
