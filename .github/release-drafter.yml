@@ -1,0 +1,44 @@
+template: |
+  ## What's Changed
+  
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+
+change-template: '- $TITLE (#$NUMBER)'
+
+categories:
+  - title: 🛠️ Breaking Changes
+    label: breaking-change
+  - title: ✨ Features
+    label: enhancement
+  - title: 🐛 Bug Fixes
+    label: bug
+  - title: 📚 Documentation
+    label: documentation
+  - title: Other Changes
+    label: chore
+      
+# Version resolution
+version-resolver:
+  major:
+    labels:
+      - 'major'
+      - 'breaking-change'
+  minor:
+    labels:
+      - 'minor'
+      - 'enhancement'
+  patch:
+    labels:
+      - 'patch'
+      - 'bug'
+      - 'fix'
+  default: patch
+
+# Name template includes branch context
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+exclude-labels:
+  - 'ignore-for-release'
