@@ -2208,8 +2208,8 @@ Reports and shared artifacts are placed into the <code>dist</code> folder direct
 <li>Validate if the platform auto-detect mechanism of the installation script is supporting the new platform <code>tools/install.sh</code> and update the script if needed.</li>
 </ol>
 <h2 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h2>
-<p>The release notes are generated automatically if a release is created via the GitHub web frontend by clicking on the <code>Generate release notes</code> button.</p>
-<p>The procedure uses the filters for pull request labels configured inside <code>.github/release.yml</code>.</p>
+<p>The release notes are generated automatically as a draft release by <a href="https://github.com/release-drafter/release-drafter">Release Drafter</a>.
+The procedure uses the filters for pull request labels configured inside <code>.github/release-drafter.yml</code>.</p>
 <h2 id="preparing-a-release">Preparing a release<a class="headerlink" href="#preparing-a-release" title="Permanent link">&para;</a></h2>
 <p>The following steps shall be done before the actual release build is triggered.</p>
 <ol>
@@ -2227,10 +2227,10 @@ Reports and shared artifacts are placed into the <code>dist</code> folder direct
 <p>The release shall be created directly via the GitHub web frontend.</p>
 <p>When creating a release a tag with the following naming convention must be provided: <code>vX.Y.Z</code> (e.g. v0.1.0).</p>
 <ol>
-<li>Go to the release section inside the repository and click on <code>Draft a new release</code>.</li>
-<li>Choose the tag to be created on publish.</li>
+<li>Go to the release section inside the repository and chose the draft release that has been created by <a href="https://github.com/release-drafter/release-drafter">Release Drafter</a>.</li>
+<li>Check the tag to be created on publish and adapt if required.</li>
 <li>As release name enter the same tag.</li>
-<li>Click on the button <code>Generate release notes</code> to generate the release notes automatically based on the filter settings for pull requests inside <code>.github/release.yml</code> configuration. In case of unwanted pull requests are listed, label the pull requests correctly, delete the description field and generate the release notes again (The correction of the labels and the regeneration of the release notes can also be done after the release build.).</li>
+<li>Check the generated draft release notes based on the filter settings for pull requests inside <code>.github/release-drafter.yml</code> configuration. In case of unwanted pull requests are listed, label the pull requests correctly and generate the draft release notes again by executing the Github action <code>Release Drafter</code>.</li>
 <li>Uncheck the box <code>Set as the latest release</code> (will be enabled later).</li>
 <li>Click on <code>Publish release</code>.</li>
 <li>Go to GitHub Actions section and wait until the release workflow has finished.</li>
