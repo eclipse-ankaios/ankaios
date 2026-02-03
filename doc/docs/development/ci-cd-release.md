@@ -118,9 +118,8 @@ If a new platform shall be supported the following steps must be done:
 
 ## Release notes
 
-The release notes are generated automatically if a release is created via the GitHub web frontend by clicking on the `Generate release notes` button.
-
-The procedure uses the filters for pull request labels configured inside `.github/release.yml`.
+The release notes are generated automatically as a draft release by [Release Drafter](https://github.com/release-drafter/release-drafter).
+The procedure uses the filters for pull request labels configured inside `.github/release-drafter.yml`.
 
 ## Preparing a release
 
@@ -141,10 +140,10 @@ The release shall be created directly via the GitHub web frontend.
 
 When creating a release a tag with the following naming convention must be provided: `vX.Y.Z` (e.g. v0.1.0).
 
-1. Go to the release section inside the repository and click on `Draft a new release`.
-2. Choose the tag to be created on publish.
+1. Go to the release section inside the repository and chose the draft release that has been created by [Release Drafter](https://github.com/release-drafter/release-drafter).
+2. Check the tag to be created on publish and adapt if required.
 3. As release name enter the same tag.
-4. Click on the button `Generate release notes` to generate the release notes automatically based on the filter settings for pull requests inside `.github/release.yml` configuration. In case of unwanted pull requests are listed, label the pull requests correctly, delete the description field and generate the release notes again (The correction of the labels and the regeneration of the release notes can also be done after the release build.).
+4. Check the generated draft release notes based on the filter settings for pull requests inside `.github/release-drafter.yml` configuration. In case of unwanted pull requests are listed, label the pull requests correctly and generate the draft release notes again by executing the Github action `Release Drafter`.
 5. Uncheck the box `Set as the latest release` (will be enabled later).
 6. Click on `Publish release`.
 7. Go to GitHub Actions section and wait until the release workflow has finished.
