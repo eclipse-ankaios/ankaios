@@ -96,7 +96,7 @@ RUN mkdir -p -m 2777 $RUSTUP_HOME \
     && mkdir -p -m 2777 $CARGO_HOME \
     && chgrp rustlang $CARGO_HOME \
     && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-       sh -s -- -y --default-toolchain 1.88 --target x86_64-unknown-linux-musl --target aarch64-unknown-linux-musl --no-modify-path \
+       sh -s -- -y --default-toolchain 1.93 --target x86_64-unknown-linux-musl --target aarch64-unknown-linux-musl --no-modify-path \
     && chmod -R ag+w $RUSTUP_HOME $CARGO_HOME
 
 # required for Podman
@@ -153,8 +153,7 @@ USER ${USERNAME}
 # Install cargo cli tools
 RUN cargo install cargo-llvm-cov --locked; \
     cargo install cargo-deb --locked; \
-    # latest nextest version supporting our current rust toolchain version
-    cargo install cargo-nextest@0.9.114 --locked; \
+    cargo install cargo-nextest --locked; \
     cargo install cargo-deny --locked; \
     cargo install cargo-about --locked
 
