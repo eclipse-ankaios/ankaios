@@ -115,7 +115,7 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     else \
         exit 1; \
     fi; \
-    curl -sL https://github.com/casey/just/releases/download/1.42.4/just-1.42.4-${ITEMARCH}-unknown-linux-musl.tar.gz | \
+    curl -sL https://github.com/casey/just/releases/download/1.46.0/just-1.46.0-${ITEMARCH}-unknown-linux-musl.tar.gz | \
     tar xz --directory=/usr/local/bin just \
     && echo 'source <(just --completions bash)' >> /home/${USERNAME}/.bashrc \
     && echo 'source <(just --completions zsh)' >> /home/${USERNAME}/.zshrc
@@ -128,13 +128,14 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     else \
         exit 1; \
     fi; \
-    curl -sL https://github.com/fullstorydev/grpcurl/releases/download/v1.8.7/grpcurl_1.8.7_linux_${ITEMARCH}.tar.gz | \
+    curl -sL https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_${ITEMARCH}.tar.gz | \
     tar xz --directory=/usr/local/bin grpcurl
 
 # OpenFastTrace
-RUN curl -sL https://github.com/itsallcode/openfasttrace/releases/download/4.2.0/openfasttrace-4.2.0.jar -o /usr/local/bin/openfasttrace.jar
+RUN curl -sL https://github.com/itsallcode/openfasttrace/releases/download/4.2.2/openfasttrace-4.2.2.jar -o /usr/local/bin/openfasttrace.jar
 COPY oft /usr/local/bin
 
+# The plantuml version is synchronized with the one of the VS code extension.
 RUN curl -sL https://github.com/plantuml/plantuml/releases/download/v1.2024.0/plantuml.jar -o /usr/local/bin/plantuml.jar
 COPY plantuml /usr/local/bin
 
