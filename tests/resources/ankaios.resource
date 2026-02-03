@@ -673,17 +673,19 @@ the last command shall contain the workload "${workload_name}"
     ${workloads}=    Get From Dictionary    ${desired_state}    workloads
     Should Contain   ${workloads}    ${workload_name}
 
-the last command shall only contain agent and runtime
-    ${expected_keys}=    Create List    agent    runtime
-
+the output of the last command shall contain the apiVersion
     ${list_result}=    Json To Dict    ${CURRENT_RESULT.stdout}
-    dictionary ${list_result} should have exact keys    desiredState
+    ${desired_state}=    Get From Dictionary    ${list_result}    desiredState
+    Dictionary Should Contain Key    ${desired_state}    apiVersion
+
+the workload "${workload_name}" shall only contain fields
+    [Arguments]    ${expected_keys}
+    ${expected_keys_list}=    Evaluate    json.loads('''${expected_keys}''')    json
+    ${list_result}=    Json To Dict    ${CURRENT_RESULT.stdout}
     ${desired_state}=    Get From Dictionary    ${list_result}    desiredState
     ${workloads}=    Get From Dictionary    ${desired_state}    workloads
-    @{workloads}=    Get Dictionary Values   ${workloads}
-    FOR    ${w}    IN   @{workloads}
-        dictionary ${w} should have exact keys   @{expected_keys}
-    END
+    ${workload}=    Get From Dictionary    ${workloads}    ${workload_name}
+    dictionary ${workload} should have exact keys    @{expected_keys_list}
 
 dictionary ${dictionary} should have exact keys
     [Arguments]    @{expected_keys}

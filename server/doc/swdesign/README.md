@@ -587,6 +587,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ##### Server filters GetCompleteState requests for workload state and substate
 `swdd~server-filters-get-complete-state-workload-state-substate~1`
