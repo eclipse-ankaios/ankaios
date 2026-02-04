@@ -24,7 +24,7 @@ tokio = { version = "1.41", features = [
     "process",
     "signal",
 ] }
-nix = { version = "0.30", features = ["fs", "user"] }
+nix = { version = "0.31", features = ["fs", "user"] }
 async-trait = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
@@ -34,10 +34,10 @@ serde_json = "1.0"
 toml = "0.9"
 sha256 = "1.5"
 umask = "2.1.0"
-sysinfo = "0.37.0"
+sysinfo = "0.38.0"
 regex = "1.12"
 rand = "0.9.0"
-bytes = "1.10.1"
+bytes = "1.11.1"
 
 [dev-dependencies]
 ankaios-api = { path = "../ankaios_api", features = ["test_utils"] }
