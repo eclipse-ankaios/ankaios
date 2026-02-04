@@ -1,10 +1,14 @@
 # Installation
 
-Ankaios has been tested with the following Linux distributions. Others might
-work as well but have not been tested.
+## Express installation
 
-* Ubuntu 24.04 LTS
-* Ubuntu 22.04 LTS
+Make sure that at least one of [Podman](#podman) or [containerd](#containerd) has been installed. Then just call
+
+```shell
+curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -
+```
+
+Ankaios works with most Linux distributions and has been tested with Ubuntu 22.04, 24.04 and 26.04.
 
 ## System requirements
 
