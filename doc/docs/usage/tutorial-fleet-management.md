@@ -176,7 +176,7 @@ workloads:
             - "*"
     restartPolicy: NEVER
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/fleet-connector:0.7.0
+      image: ghcr.io/eclipse-ankaios/fleet-connector:1.0.0
       commandOptions: [ "--net=host", "-e", "VIN=1"]
 ```
 
