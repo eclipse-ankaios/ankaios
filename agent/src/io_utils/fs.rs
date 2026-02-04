@@ -228,11 +228,9 @@ mod tests {
     pub fn create_dir_all(path: &Path) -> io::Result<()> {
         if let Some(FakeCall::create_dir_all(fake_path, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
-        {
-            if fake_path == *path {
+            && fake_path == *path {
                 return fake_result;
             }
-        }
 
         panic!(
             "No mock specified for call create_dir_all({})",
@@ -243,11 +241,9 @@ mod tests {
     pub fn metadata(path: &Path) -> io::Result<Metadata> {
         if let Some(FakeCall::metadata(fake_path, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
-        {
-            if fake_path == *path {
+            && fake_path == *path {
                 return fake_result;
             }
-        }
 
         panic!(
             "No mock specified for call metadata({})",
@@ -258,11 +254,9 @@ mod tests {
     pub fn mkfifo(path: &Path, mode: Mode) -> nix::Result<()> {
         if let Some(FakeCall::mkfifo(fake_path, fake_mode, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
-        {
-            if fake_path == *path && fake_mode == mode {
+            && fake_path == *path && fake_mode == mode {
                 return fake_result;
             }
-        }
 
         panic!(
             "No mock specified for call mkfifo({}, {:?})",
@@ -274,11 +268,9 @@ mod tests {
     pub fn remove_dir_all(path: &Path) -> io::Result<()> {
         if let Some(FakeCall::remove_dir_all(fake_path, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
-        {
-            if fake_path == *path {
+            && fake_path == *path {
                 return fake_result;
             }
-        }
 
         panic!(
             "No mock specified for call remove_dir_all({})",
@@ -293,11 +285,9 @@ mod tests {
     pub fn remove_file(path: &Path) -> io::Result<()> {
         if let Some(FakeCall::remove_file(fake_path, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
-        {
-            if fake_path == path.to_path_buf() {
+            && fake_path == path.to_path_buf() {
                 return fake_result;
             }
-        }
 
         panic!(
             "No mock specified for call remove_file({})",
@@ -308,11 +298,9 @@ mod tests {
     pub fn set_permissions(path: &Path, perm: Permissions) -> io::Result<()> {
         if let Some(FakeCall::set_permissions(fake_path, fake_mode, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
-        {
-            if fake_path == path && fake_mode == perm.mode() {
+            && fake_path == path && fake_mode == perm.mode() {
                 return fake_result;
             }
-        }
 
         panic!("No mock specified for call set_permissions({path:?}, {perm:?})");
     }
@@ -323,11 +311,9 @@ mod tests {
     {
         if let Some(FakeCall::write(fake_path, fake_content, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
-        {
-            if fake_path == *path && fake_content == file_content.as_ref() {
+            && fake_path == *path && fake_content == file_content.as_ref() {
                 return fake_result;
             }
-        }
 
         panic!(
             "No mock specified for call write({})",
