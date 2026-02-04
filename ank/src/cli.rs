@@ -18,7 +18,7 @@ use ankaios_api::ank_base::{
 };
 use common::helpers::parse_key_val;
 
-use clap::{ArgAction, CommandFactory, Parser, Subcommand, ValueHint, command};
+use clap::{ArgAction, CommandFactory, Parser, Subcommand, ValueHint};
 use clap_complete::{ArgValueCompleter, CompleteEnv, CompletionCandidate};
 use std::{ffi::OsStr, process::Command};
 
@@ -40,11 +40,11 @@ fn completions_workloads(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandi
         return vec![];
     };
 
-    if let Some(desired_state) = state.desired_state {
-        if let Some(WorkloadMap { workloads }) = desired_state.workloads {
-            for workload_name in workloads.keys() {
-                result.push(workload_name.clone());
-            }
+    if let Some(desired_state) = state.desired_state
+        && let Some(WorkloadMap { workloads }) = desired_state.workloads
+    {
+        for workload_name in workloads.keys() {
+            result.push(workload_name.clone());
         }
     }
 
@@ -63,11 +63,11 @@ fn completions_configs(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandida
         return vec![];
     };
 
-    if let Some(desired_state) = state.desired_state {
-        if let Some(ConfigMap { configs }) = desired_state.configs {
-            for config_name in configs.keys() {
-                result.push(config_name.clone());
-            }
+    if let Some(desired_state) = state.desired_state
+        && let Some(ConfigMap { configs }) = desired_state.configs
+    {
+        for config_name in configs.keys() {
+            result.push(config_name.clone());
         }
     }
 
@@ -630,12 +630,15 @@ mod tests {
 
     #[test]
     fn utest_logs_args_to_request() {
-        use super::logs_args_to_request;
         use super::LogsArgs;
+        use super::logs_args_to_request;
         use ankaios_api::ank_base::WorkloadInstanceName;
 
         let log_args = LogsArgs {
-            workload_name: vec![fixtures::WORKLOAD_NAMES[0].to_string(), fixtures::WORKLOAD_NAMES[1].to_string()],
+            workload_name: vec![
+                fixtures::WORKLOAD_NAMES[0].to_string(),
+                fixtures::WORKLOAD_NAMES[1].to_string(),
+            ],
             follow: false,
             tail: -1,
             output_names: false,

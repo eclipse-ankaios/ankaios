@@ -188,16 +188,16 @@ fn check_workload_filters(
     state: &Option<String>,
     workload_names: &[String],
 ) -> bool {
-    if let Some(agent) = agent_name {
-        if row.agent != *agent {
-            return false;
-        }
+    if let Some(agent) = agent_name
+        && row.agent != *agent
+    {
+        return false;
     }
 
-    if let Some(state) = state {
-        if row.execution_state.to_lowercase() != state.to_lowercase() {
-            return false;
-        }
+    if let Some(state) = state
+        && row.execution_state.to_lowercase() != state.to_lowercase()
+    {
+        return false;
     }
 
     if !workload_names.is_empty() && !workload_names.iter().any(|wn| wn == &row.name) {

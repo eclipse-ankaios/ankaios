@@ -235,7 +235,7 @@ mod tests {
 
     use proc_macro2::TokenStream;
     use quote::quote;
-    use syn::{Ident, Visibility, parse_quote};
+    use syn::{Ident, Visibility};
 
     #[test]
     fn test_derive_spec_struct_with_mandatory() {

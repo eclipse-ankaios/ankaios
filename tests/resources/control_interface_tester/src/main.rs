@@ -439,13 +439,13 @@ impl Connection {
         &mut self,
         target_request_id: String,
     ) -> Result<ResponseContent, CommandError> {
-        if let Some(old_response) = self.response_store.get_mut(&target_request_id) {
-            if let Some(response_content) = old_response.pop_front() {
-                logging::log(&format!(
-                    "Using stored response for request id: {target_request_id}"
-                ));
-                return Ok(response_content);
-            }
+        if let Some(old_response) = self.response_store.get_mut(&target_request_id)
+            && let Some(response_content) = old_response.pop_front()
+        {
+            logging::log(&format!(
+                "Using stored response for request id: {target_request_id}"
+            ));
+            return Ok(response_content);
         }
 
         loop {

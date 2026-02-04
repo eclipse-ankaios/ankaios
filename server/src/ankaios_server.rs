@@ -2146,7 +2146,7 @@ mod tests {
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        let expected_logs_cancel_requests = vec![
+        let expected_logs_cancel_requests = [
             FromServer::LogsCancelRequest(fixtures::REQUEST_ID.to_string()),
             FromServer::LogsCancelRequest(SECOND_REQUEST_ID.to_string()),
         ];
@@ -2220,7 +2220,7 @@ mod tests {
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        let expected_logs_stop_responses = vec![
+        let expected_logs_stop_responses = [
             FromServer::Response(Response {
                 request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::LogsStopResponse(LogsStopResponse {
@@ -3735,7 +3735,7 @@ mod tests {
         ];
         expected_state_difference_tree
             .updated_tree
-            .full_difference_tree = generate_difference_tree_from_paths(&[updated_path.clone()]);
+            .full_difference_tree = generate_difference_tree_from_paths(std::slice::from_ref(&updated_path));
 
         let state_difference_tree = expected_state_difference_tree.clone();
         let state_comparator_context = MockStateComparator::new_context();

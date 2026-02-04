@@ -437,7 +437,8 @@ mod tests {
     #[test]
     fn utest_object_from_complete_state() {
         let wl_named = generate_test_workload_named();
-        let agent_map = generate_test_agent_map_from_workloads(&vec![wl_named.workload.clone()]);
+        let agent_map =
+            generate_test_agent_map_from_workloads(std::slice::from_ref(&wl_named.workload));
         let workloads = vec![wl_named];
         let state = generate_test_state_from_workloads(workloads);
 
@@ -466,7 +467,8 @@ mod tests {
             data: object::generate_test_complete_state_mapping().into(),
         };
         let wl_named = generate_test_workload_named();
-        let agent_map = generate_test_agent_map_from_workloads(&vec![wl_named.workload.clone()]);
+        let agent_map =
+            generate_test_agent_map_from_workloads(std::slice::from_ref(&wl_named.workload));
         let workloads = vec![wl_named];
 
         let expected_state = generate_test_state_from_workloads(workloads);
@@ -543,14 +545,11 @@ mod tests {
         let mut expected = Object {
             data: object::generate_test_state().into(),
         };
-        if let Value::Mapping(state) = &mut expected.data {
-            if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) =
-                    workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
-                {
-                    workload_1.insert("update_strategy".into(), "AT_MOST_ONCE".into());
-                }
-            }
+        if let Value::Mapping(state) = &mut expected.data
+            && let Some(Value::Mapping(workloads)) = state.get_mut("workloads")
+            && let Some(Value::Mapping(workload_1)) = workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
+        {
+            workload_1.insert("update_strategy".into(), "AT_MOST_ONCE".into());
         }
 
         let mut actual = Object {
@@ -578,14 +577,11 @@ mod tests {
         let mut expected = Object {
             data: object::generate_test_state().into(),
         };
-        if let Value::Mapping(state) = &mut expected.data {
-            if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) =
-                    workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
-                {
-                    workload_1.insert("new_key".into(), "new value".into());
-                }
-            }
+        if let Value::Mapping(state) = &mut expected.data
+            && let Some(Value::Mapping(workloads)) = state.get_mut("workloads")
+            && let Some(Value::Mapping(workload_1)) = workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
+        {
+            workload_1.insert("new_key".into(), "new value".into());
         }
 
         let mut actual = Object {
@@ -613,15 +609,12 @@ mod tests {
         let mut expected = Object {
             data: object::generate_test_state().into(),
         };
-        if let Value::Mapping(state) = &mut expected.data {
-            if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) =
-                    workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
-                {
-                    let new_entry = object::Mapping::default().entry("new_key", "new value");
-                    workload_1.insert("new_map".into(), new_entry.into());
-                }
-            }
+        if let Value::Mapping(state) = &mut expected.data
+            && let Some(Value::Mapping(workloads)) = state.get_mut("workloads")
+            && let Some(Value::Mapping(workload_1)) = workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
+        {
+            let new_entry = object::Mapping::default().entry("new_key", "new value");
+            workload_1.insert("new_map".into(), new_entry.into());
         }
 
         let mut actual = Object {
@@ -649,14 +642,11 @@ mod tests {
         let mut expected = Object {
             data: object::generate_test_state().into(),
         };
-        if let Value::Mapping(state) = &mut expected.data {
-            if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) =
-                    workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
-                {
-                    workload_1.remove("access_rights");
-                }
-            }
+        if let Value::Mapping(state) = &mut expected.data
+            && let Some(Value::Mapping(workloads)) = state.get_mut("workloads")
+            && let Some(Value::Mapping(workload_1)) = workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
+        {
+            workload_1.remove("access_rights");
         }
 
         let mut actual = Object {

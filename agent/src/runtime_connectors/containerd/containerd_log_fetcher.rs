@@ -81,10 +81,10 @@ impl ContainerdLogFetcher {
 
 impl Drop for ContainerdLogFetcher {
     fn drop(&mut self) {
-        if let Some(child) = &mut self.child {
-            if let Err(err) = child.start_kill() {
-                log::warn!("Could not stop log collection: '{err}'");
-            }
+        if let Some(child) = &mut self.child
+            && let Err(err) = child.start_kill()
+        {
+            log::warn!("Could not stop log collection: '{err}'");
         }
     }
 }
