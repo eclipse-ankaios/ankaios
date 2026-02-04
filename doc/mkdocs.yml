@@ -116,8 +116,10 @@ nav:
   - Reference:
     - reference/startup-configuration.md
     - reference/interacting-with-ankaios.md
-    - reference/complete-state.md
-    - reference/control-interface.md
+    - Control Interface:
+      - reference/control-interface.md
+      - reference/complete-state.md
+      - reference/events.md
     - reference/inter-workload-dependencies.md
     - reference/restart-policy.md
     - reference/resource-usage.md
