@@ -7,7 +7,7 @@
     },
     "mounts": [],
     "runArgs": ["--privileged"],
-    "postStartCommand": "sudo mount --make-rshared / || true; sudo mount --make-rshared /run || true; nohup /workspaces/ankaios/tools/start-containerd.sh > /dev/null",
+    "postStartCommand": ".devcontainer/post-start.sh",
     "customizations": {
         "vscode": {
             // Set *default* container specific settings.json values on container create.
