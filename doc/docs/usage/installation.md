@@ -10,6 +10,8 @@ curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/in
 
 Ankaios works with most Linux distributions and has been tested with Ubuntu 22.04, 24.04 and 26.04.
 
+Detailed installation steps including instructions on installing runtimes and specific Ankaios versions are provided in the following.
+
 ## System requirements
 
 Ankaios currently requires a Linux OS and is available for x86_64 and arm64
