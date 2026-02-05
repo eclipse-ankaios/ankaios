@@ -10,6 +10,6 @@ COPY ankaios_api/proto/ank_base.proto ankaios_api/proto/control_api.proto /usr/l
 COPY examples/nodejs_control_interface /workspaces/app
 WORKDIR /workspaces/app
 RUN npm install
-ENV ANKAIOS_VERSION=0.8.0-pre
+ENV ANKAIOS_VERSION=1.0.0-rc1
 
 ENTRYPOINT ["node", "/workspaces/app/src/main.js"]
