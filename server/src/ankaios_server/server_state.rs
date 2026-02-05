@@ -130,7 +130,7 @@ pub struct AddedDeletedWorkloads {
 fn include_both_state_and_substate_filters(filters: &mut Vec<String>) {
     let state_suffix = ".state";
     let substate_suffix = ".subState";
-    let state_regex = format!(r"^workloadStates(\.{ALLOWED_CHAR_SET}+){{3}}");
+    let state_regex = format!(r"^workloadStates(\.(?:{ALLOWED_CHAR_SET}+|\*)){{3}}");
 
     let execution_state_regex =
         regex::Regex::new(&format!(r"{state_regex}{}$", regex::escape(state_suffix)))
@@ -469,6 +469,8 @@ mod tests {
             "desiredState.workloads.workload_C".to_string(),
             "workloadStates.agent_A.workload_D.12345678.state".to_string(),
             "workloadStates.agent_A.workload_D.12345678.subState".to_string(),
+            "workloadStates.*.workload_E.1234.subState".to_string(),
+            "workloadStates.*.*.*.subState".to_string(),
         ];
 
         super::include_both_state_and_substate_filters(&mut filters);
@@ -480,9 +482,13 @@ mod tests {
             "desiredState.workloads.workload_C".to_string(),
             "workloadStates.agent_A.workload_D.12345678.state".to_string(),
             "workloadStates.agent_A.workload_D.12345678.subState".to_string(),
+            "workloadStates.*.workload_E.1234.subState".to_string(),
+            "workloadStates.*.*.*.subState".to_string(),
             "workloadStates.agent_A.workload_A.1234.subState".to_string(),
             "workloadStates.agent_A.workload_B.5678.state".to_string(),
             "workloadStates.agent_A.state_workload_A.1234.subState".to_string(),
+            "workloadStates.*.workload_E.1234.state".to_string(),
+            "workloadStates.*.*.*.state".to_string(),
         ];
 
         assert_eq!(filters, expected_filters);
