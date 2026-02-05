@@ -15,6 +15,9 @@ concurrency:
 jobs:
   build:
     uses: ./.github/workflows/build.yml
+    permissions:
+      packages: write
+      contents: read
   documentation:
     permissions: write-all
     uses: ./.github/workflows/documentation.yml
