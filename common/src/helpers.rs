@@ -100,10 +100,7 @@ mod tests {
     fn utest_version_compatibility_patch_minor_error() {
         let mut version = Version::parse(ANKAIOS_VERSION).unwrap();
         version.minor = 199;
-        // Currently we assert that the minor version is also equal as we are at a 0th major version.
-        // When a major version is released, we can update the test here and expect an Ok().
-        assert_eq!(0, version.major);
-        assert!(check_version_compatibility(version.to_string()).is_err())
+        assert!(check_version_compatibility(version.to_string()).is_ok())
     }
 
     // [utest->swdd~common-helper-methods~1]
