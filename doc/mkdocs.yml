@@ -120,6 +120,7 @@ nav:
       - reference/control-interface.md
       - reference/complete-state.md
       - reference/events.md
+      - reference/logs.md
     - reference/inter-workload-dependencies.md
     - reference/restart-policy.md
     - reference/resource-usage.md
