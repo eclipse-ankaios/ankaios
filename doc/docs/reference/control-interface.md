@@ -2,11 +2,6 @@
 
 The [control interface](./control-interface.md) allows the [workload](glossary.md#workload) developers to easily integrate the communication between the Ankaios system and their applications.
 
-!!! note
-
-    The control interface is currently only available for workloads using the
-    `podman` and `containerd` runtime and not for the `podman-kube` runtime.
-
 ## Overview
 
 ```mermaid
@@ -102,6 +97,15 @@ The messages are encoded using the [length-delimited wire type format](https://p
 
 Every protobuf message is prefixed with its byte length telling the reader how much bytes to read to consume the protobuf message.
 The byte length has a dynamic length and is encoded as [VARINT](https://protobuf.dev/programming-guides/encoding/#length-types).
+
+## Exchanged messages
+
+The workload writes messages of type [ToAnkaios](./_ankaios.proto.md#toankaios) to `output`.
+Ankaios only writes messages of type [FromAnkaios](./_ankaios.proto.md#fromankaios) to `input`.
+For each request from the workload, ankaios sends at least one response back.
+
+When the workloads sends a request, it chooses a unique ID for the request.
+Responses to this request will use the same ID to allow the workload to match responses to requests.
 
 ## Control interface examples
 
