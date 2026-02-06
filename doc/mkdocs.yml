@@ -100,6 +100,7 @@ nav:
     - usage/quickstart.md
     - usage/tutorial-vehicle-signals.md
     - usage/tutorial-fleet-management.md
+    - usage/tutorial-events.md
     - usage/awesome-ankaios.md
     - usage/mtls-setup.md
     - usage/shell-completion.md
