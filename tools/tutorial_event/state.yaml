@@ -1,0 +1,14 @@
+apiVersion: v1
+workloads:
+  dashboard:
+    runtime: podman
+    agent: agent_A
+    controlInterfaceAccess:
+      allowRules:
+        - type: StateRule
+          operation: Read
+          filterMasks:
+            - "workloadStates.*.*.*.state"
+    restartPolicy: NEVER
+    runtimeConfig: |
+      image: ank_simple_dashboard:latest
