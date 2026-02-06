@@ -193,7 +193,7 @@ if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
     if ! [ -s "$FILE_STARTUP_STATE" ]; then
         $SVC_SUDO mkdir -p "${CONFIG_DEST}"
         $SVC_SUDO tee "$FILE_STARTUP_STATE" >/dev/null << EOF
-# Per default no workload is started. Adapt the file according to your needs.
+# Per default no workload is started. Adapt the manifest according to your needs.
 apiVersion: v1
 workloads:
 #   nginx:
@@ -208,7 +208,11 @@ workloads:
 EOF
         echo "Created sample startup config in $FILE_STARTUP_STATE."
     else
-        echo "Skipping creation of sample startup file in $FILE_STARTUP_STATE as one already exists."
+        echo "Skipping creation of sample startup manifest in $FILE_STARTUP_STATE as one already exists."
+
+        if grep -Eq "^[[:space:]]*apiVersion:[[:space:]]*['\"]?v0\.1['\"]?([[:space:]]*#.*)?$" "$FILE_STARTUP_STATE"; then
+            echo "Warning: Startup manifest at $FILE_STARTUP_STATE uses deprecated apiVersion v0.1. Consider updating it to apiVersion v1." >&2
+        fi
     fi
 fi
 
