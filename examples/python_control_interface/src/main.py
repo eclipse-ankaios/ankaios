@@ -153,7 +153,7 @@ if __name__ == '__main__':
         write_to_control_interface(output_file, PROTO_WORKLOAD_STATE_REQUEST)
         response = read_from_control_interface(input_file)
         assert response.HasField("response"), "Response should contain a response field"
-        assert response.response.HasField("completeState"), "Response should be of type CompleteState"
+        assert response.response.HasField("completeStateResponse"), "Response should be of type CompleteStateResponse"
         assert response.response.requestId == COMPLETE_STATE_REQUEST_ID, f"Response requestId should be {COMPLETE_STATE_REQUEST_ID}"
         logger.info(f"Receiving response for the CompleteStateRequest with filter 'workloadStates.agent_A.dynamic_nginx':\n{response}")
         time.sleep(WAITING_TIME_IN_SEC)

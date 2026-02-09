@@ -201,7 +201,7 @@ int main() {
         response = ReadFromControlInterface(&buffered_stream);
         assert(response);
         assert(response->has_response());
-        assert(response->response().has_completestate());
+        assert(response->response().has_completestateresponse());
         logging::Log(std::cout,
             "Receiving response for the CompleteStateRequest with filter 'workloadStates.agent_A.dynamic_nginx':\n",
             response->DebugString()

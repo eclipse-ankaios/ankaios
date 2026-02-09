@@ -221,7 +221,7 @@ async function main() {
             writeToControlInterface(api_proto, output_fifo_path, complete_state_request);
             response = await readFromControlInterface(input_fifo_path, api_proto, { timeout_sec: TIMEOUT_IN_SEC });
             assert(response.response, 'Response should contain a response field');
-            assert(response.response.completeState, 'Response should be of type CompleteState');
+            assert(response.response.completeStateResponse, 'Response should be of type CompleteStateResponse');
             assert(response.response.requestId === COMPLETE_STATE_REQUEST_ID, `Response requestId should be ${COMPLETE_STATE_REQUEST_ID}`);
             logInfo(`Receiving response for the CompleteStateRequest with filter 'workloadStates.agent_A.dynamic_nginx':\n` + JSON.stringify(response.toJSON(), null, 2));
         }

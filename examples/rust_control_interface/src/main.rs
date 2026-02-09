@@ -108,6 +108,7 @@ fn create_request_for_workload_state() -> ToAnkaios {
             request_id: COMPLETE_STATE_REQUEST_ID.to_string(),
             request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![String::from("workloadStates.agent_A.dynamic_nginx")],
+                ..Default::default()
             })),
         })),
     }
@@ -249,9 +250,9 @@ fn main() {
         assert!(
             matches!(
                 response.response_content,
-                Some(ResponseContent::CompleteState(_))
+                Some(ResponseContent::CompleteStateResponse(_))
             ),
-            "No CompleteState received"
+            "No CompleteStateResponse received"
         );
         logging::log(&format!(
             "Receiving response for the CompleteStateRequest with filter 'workloadStates.agent_A.dynamic_nginx':\n{:#?}",
@@ -260,3 +261,4 @@ fn main() {
         std::thread::sleep(Duration::from_secs(WAITING_TIME_IN_SEC));
     }
 }
+
