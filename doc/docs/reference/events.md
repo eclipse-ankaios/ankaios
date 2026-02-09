@@ -4,6 +4,8 @@ Workloads can subscribe for changes on the state of the cluster.
 This is done by sending a [CompleteStateRequest](./_ankaios.proto.md#completestaterequest) with the `subscribeForEvents` flag set to true.
 The `fieldMask` in the request can be used to specify for which fields updates should be sent.
 
+To see an example of how to use events, see the [Tutorial: Registering for events](../usage/tutorial-events.md).
+
 ## Authorization
 
 The same rules as for a normal `CompleteStateRequest` apply.
