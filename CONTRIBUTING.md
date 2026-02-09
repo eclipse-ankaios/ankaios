@@ -22,6 +22,8 @@ besides a technical review:
 - **Rust coding guidelines**: Make sure to follow the [Rust coding guidelines for this project](https://eclipse-ankaios.github.io/ankaios/main/development/rust-coding-guidelines/).
 - **Unit verification strategy**: Unit tests have been created according to the [unit verification strategy](https://eclipse-ankaios.github.io/ankaios/main/development/unit-verification/).
 
+For information about development tools, workflows, and project setup, see the [Development Guide](./DEVELOPMENT.md).
+
 ## Communication
 
 Please join our [developer mailing list](https://accounts.eclipse.org/mailing-list/ankaios-dev) for up to date information or use the Ankaios [discussion forum](https://github.com/eclipse-ankaios/ankaios/discussions).

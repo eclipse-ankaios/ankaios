@@ -27,6 +27,7 @@ build:
 build-release:
     cargo build --release
 
+# Cleans the project and system using cargo clean and the ankaios-clean dev command
 clean:
     cargo clean
     ./tools/dev_scripts/ankaios-clean
@@ -63,6 +64,7 @@ utest:
 stest filter="*" tests="tests": build build-stest-image
     just stest-only "{{ filter }}" "{{ tests }}"
 
+# Builds the tester image used within the system tests
 build-stest-image:
     #!/usr/bin/env bash
     SRC_HASH="$(./tools/control_interface_workload_hash.sh)"
@@ -108,12 +110,10 @@ compare-requirements:
     git worktree remove "$maindir"
     rm -rf "$maindir"
 
-_dist:
-    mkdir -p dist
-
 # Vendor all dependencies and create source archive
 vendor: _dist
     #!/bin/sh -e
+    mkdir -p dist
     cargo vendor {{vendor_dir}}
     if ! grep vendored-sources {{config}}; then
       echo '\n[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "{{vendor_dir}}"' >> {{config}};

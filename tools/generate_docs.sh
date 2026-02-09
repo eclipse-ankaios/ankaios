@@ -16,6 +16,34 @@
 
 set -e
 
+# Display help message
+show_help() {
+    cat << EOF
+Usage: $(basename "$0") [COMMAND]
+
+Generate documentation from Protocol Buffer files and manage MkDocs documentation.
+
+Commands:
+    serve                    Start local MkDocs development server
+    build                    Build static HTML documentation
+    deploy                   Deploy documentation to main branch
+    deploy-release <version> Deploy specific version as latest
+    --help, -h               Show this help message
+
+EOF
+}
+
+if [[ "$1" = "--help" || "$1" = "-h" ]]; then
+    show_help
+    exit 0
+fi
+
+if [ -z "$1" ]; then
+    echo "No command provided. Exiting.."
+    show_help
+    exit 1
+fi
+
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 base_dir="$script_dir/.."
 target_dir="$base_dir/build/doc"
