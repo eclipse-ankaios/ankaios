@@ -111,7 +111,7 @@ compare-requirements:
     rm -rf "$maindir"
 
 # Vendor all dependencies and create source archive
-vendor: _dist
+vendor:
     #!/bin/sh -e
     mkdir -p dist
     cargo vendor {{vendor_dir}}
