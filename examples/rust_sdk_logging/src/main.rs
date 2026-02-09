@@ -16,6 +16,10 @@ use ankaios_sdk::{Ankaios, LogResponse, LogsRequest};
 
 #[tokio::main]
 async fn main() {
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Debug)
+        .init();
+
     // Create a new Ankaios object.
     // The connection to the control interface is automatically done at this step.
     let mut ank = Ankaios::new().await.expect("Failed to initialize");
