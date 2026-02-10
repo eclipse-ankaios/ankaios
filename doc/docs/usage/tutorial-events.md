@@ -49,11 +49,12 @@ def workload_from_field(field: str):
         match.group(3),
     )
 
-def clear_screen():
-    print("\033[2J\033[H", end="")
+def print_separator():
+    print()
+    print("----------------------------------------")
+    print()
 
 def print_workloads(workloads: dict[WorkloadInstanceName, str]):
-    clear_screen()
     for workload_instance_name, state in workloads.items():
         print(f"{workload_instance_name[1]} on {workload_instance_name[0]}: {state}")
     sys.stdout.flush()
@@ -90,6 +91,7 @@ with Ankaios() as ankaios:
             workload  = workload_from_field(str(field))
             if workload is not None:
                 del workloads_db[workload]
+        print_separator()
         print_workloads(workloads_db)
 ```
 
