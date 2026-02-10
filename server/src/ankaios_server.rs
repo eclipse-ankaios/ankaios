@@ -3211,6 +3211,12 @@ mod tests {
             .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
             .once()
             .return_const(HashSet::from([cli_request_id.clone()]));
+        server
+            .event_handler
+            .expect_remove_cli_subscriber()
+            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
+            .once()
+            .return_const(());
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
@@ -3223,7 +3229,10 @@ mod tests {
             from_server_command
         );
 
-        server_task.abort();
+        let result = to_server.stop().await;
+        assert!(result.is_ok());
+
+        assert!(server_task.await.is_ok());
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
@@ -3735,7 +3744,8 @@ mod tests {
         ];
         expected_state_difference_tree
             .updated_tree
-            .full_difference_tree = generate_difference_tree_from_paths(std::slice::from_ref(&updated_path));
+            .full_difference_tree =
+            generate_difference_tree_from_paths(std::slice::from_ref(&updated_path));
 
         let state_difference_tree = expected_state_difference_tree.clone();
         let state_comparator_context = MockStateComparator::new_context();
