@@ -28,7 +28,7 @@ See the section on [Authorization in Control Interface](./control-interface.md#a
 As the default `CompleteStateRequest`, the subscription to events supports wildcards in the `fieldMask`.
 Each element of a `fieldMask` (the part between two "." symbols) can be replaced by a `*`.
 This is useful to match fields with a no fixed name, like the IDs of workloads, or names of agents and workloads.
-E.g. to subscribe to all state changes of all workloads use the field mask "workloadStates.*.*.*.state".
+E.g. to subscribe to all state changes of all workloads use the field mask `workloadStates.*.*.*.state`.
 
 ## Custom Events
 
