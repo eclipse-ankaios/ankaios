@@ -181,7 +181,7 @@ workloads:
 To see the currently running workloads, use the Ankaios CLI: `ank logs -f dashboard`.
 You can start a new workload to see the output from the command above updated:
 
-```
+```sh
    ank run workload --runtime podman --agent agent_A \
      --config $'image: alpine\ncommandArgs: ["sh", "-c", "while true;do sleep 60;done"]' \
      sample
