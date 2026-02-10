@@ -102,7 +102,7 @@ The byte length has a dynamic length and is encoded as [VARINT](https://protobuf
 
 The workload writes messages of type [ToAnkaios](./_ankaios.proto.md#toankaios) to `output`.
 Ankaios only writes messages of type [FromAnkaios](./_ankaios.proto.md#fromankaios) to `input`.
-For each request from the workload, ankaios sends at least one response back.
+For each request from the workload, Ankaios sends at least one response back.
 
 When the workloads sends a request, it chooses a unique ID for the request.
 Responses to this request will use the same ID to allow the workload to match responses to requests.
