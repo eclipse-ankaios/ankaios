@@ -154,6 +154,12 @@ COPY main.py ./
 CMD [ "python", "./main.py" ]
 ```
 
+And then call:
+
+```shell
+sudo podman build -t ank_simple_dashboard:latest .
+```
+
 ## Deployment
 
 If you have not yet installed Ankaios, please follow the instructions [here](installation.md).
