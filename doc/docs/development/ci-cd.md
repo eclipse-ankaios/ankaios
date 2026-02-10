@@ -34,7 +34,7 @@ the build works locally within the dev container.
 
    ```yaml
     ...
-     - uses: actions/upload-artifact@v4.3.3
+     - uses: actions/upload-artifact@XXXXXXXXXX # v4.3.3
        with:
          name: ankaios-<os>-<platform>-bin
          path: dist/
@@ -51,9 +51,8 @@ the build works locally within the dev container.
 
 ## Adding a new GitHub action
 
-When introducing a new GitHub action, do not use a generic major version tag (e.g. `vX`).
-Specify a specific release tag (e.g. `vX.Y.Z`) instead. Using the generic tag might lead to an unstable CI/CD environment,
-whenever the authors of the GitHub action update the generic tag to point to a newer version that contains bugs or incompatibilities with the Ankaios project.
+When introducing a new GitHub action, do not use a generic version tag (e.g. `vX` or `v.X.Y.Z`).
+Specify a specific release by using it's hash and add a comment with the version tag instead. Using a generic tag might lead to an unstable Ci/CD environment, whenever the authors of the GitHub action update the generic tag to point to a newer version that contains bugs or incompatibilities with the Ankaios project.
 
 Example:
 
@@ -62,6 +61,7 @@ Bad:
 ```yaml
 ...
   - uses: actions/checkout@v4
+  - uses: actions/checkout@v4.1.1
 ...
 ```
 
@@ -69,7 +69,7 @@ Good:
 
 ```yaml
 ...
-  - uses: actions/checkout@v4.1.1
+  - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 ...
 ```
 
