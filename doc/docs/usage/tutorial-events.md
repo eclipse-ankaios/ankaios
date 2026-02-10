@@ -33,8 +33,6 @@ WORKLOAD_INSTANCE_NAME_FROM_FIELD_RE = r"workloadStates\.([^.]+)\.([^.]+)\.([^.]
 
 # Handle SIGTERM as container workloads run with PID 1
 def signal_handler(sig, frame):
-    global ankaios
-    del ankaios
     sys.exit(0)
 
 signal.signal(signal.SIGTERM, signal_handler)
