@@ -184,6 +184,12 @@ workloads:
       image: ank_simple_dashboard:latest
 ```
 
+Then you can start Ankaios with:
+
+```shell
+sudo systemctl start ank-server ank-agent
+```
+
 To see the currently running workloads, use the Ankaios CLI: `ank logs -f dashboard`.
 You can start a new workload to see the output from the command above updated:
 
