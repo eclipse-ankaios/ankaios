@@ -55,7 +55,7 @@ def clear_screen():
 def print_workloads(workloads: dict[WorkloadInstanceName, str]):
     clear_screen()
     for workload_instance_name, state in workloads.items():
-        print(f"{workload_instance_name[0]} on {workload_instance_name[2]}: {state}")
+        print(f"{workload_instance_name[1]} on {workload_instance_name[0]}: {state}")
     sys.stdout.flush()
 
 with Ankaios() as ankaios:
