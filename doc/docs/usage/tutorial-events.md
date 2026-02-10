@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This tutorial will show you how to manage a workload can register to events.
+In this tutorial, you will learn how a workload can register for events.
 We will create a simple console dashboard, showing the state of all workloads.
 This tutorial assumes that the reader is familiar with the basics of Ankaios showcased in the tutorial [Sending and Receiving Vehicle Signals](tutorial-vehicle-signals.md).
 
