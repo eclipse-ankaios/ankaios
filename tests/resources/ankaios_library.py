@@ -223,30 +223,56 @@ def get_volume_name_by_workload_name_from_podman(workload_name: str) -> str:
 def get_container_id_and_name_by_workload_name_from_runtime(runtime_cli: str, workload_name: str) -> tuple[str, str]:
     command_str = '{} ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}{}{}.*'\
                   .format(runtime_cli, CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX)
-    res = run_command(command_str)
-    if res.returncode != 0:
-        logger.warning(f"Command '{runtime_cli} ps' failed with return code {res.returncode}. Error: '{res.stderr.strip()}' Retrying operation... ")
+
+    # During fast restarts (especially with containerd/nerdctl) the runtime can temporarily
+    # return non-zero exit codes like "container ... not found" due to stale tasks/metadata.
+    # Treat those as transient and let callers (usually polling loops) retry.
+    start_time = time.time()
+    last_err = ""
+    while True:
         res = run_command(command_str)
-    assert res.returncode == 0, f"Command '{runtime_cli} ps' failed with return code {res.returncode}. Error: {res.stderr.strip()}"
-    raw = res.stdout.strip()
-    raw_wln = raw.split('\n')
-    container_ids_and_names = list(map(lambda x: x.split(' '), raw_wln)) # 2-dim [[id,name],[id,name],...]
-    logger.trace(container_ids_and_names)
-    amount_of_rows = len(container_ids_and_names)
-    expected_amount_of_rows = 1
-    assert amount_of_rows == expected_amount_of_rows, \
-        f"Expected {expected_amount_of_rows} row for workload name {workload_name} but found {amount_of_rows} rows"
-    amount_of_columns = len(container_ids_and_names[0])
-    expected_amount_of_columns = 2
-    if amount_of_columns < expected_amount_of_columns:
+        if res is None:
+            return "", ""
+
+        if getattr(res, "returncode", 1) == 0:
+            break
+
+        last_err = (getattr(res, "stderr", "") or "").strip()
+        elapsed = time.time() - start_time
+        if elapsed >= 5:
+            logger.warning(
+                f"Command '{command_str}' did not succeed within 5s. Last error: '{last_err}'"
+            )
+            return "", ""
+
+        logger.warning(
+            f"Command '{command_str}' failed (rc={res.returncode}). Error: '{last_err}'. Retrying..."
+        )
+        time.sleep(0.2)
+
+    raw = (res.stdout or "").strip()
+    if not raw:
         return "", ""
 
-    container_id = container_ids_and_names[0][0]
-    container_name = container_ids_and_names[0][1]
+    raw_wln = raw.split('\n')
+    # 2-dim [[id,name],[id,name],...]
+    container_ids_and_names = [line.split(maxsplit=1) for line in raw_wln if line.strip()]
+    logger.trace(container_ids_and_names)
 
+    expected_amount_of_rows = 1
+    if len(container_ids_and_names) != expected_amount_of_rows:
+        logger.warning(
+            f"Expected {expected_amount_of_rows} row for workload name {workload_name} but found {len(container_ids_and_names)} rows"
+        )
+        return "", ""
+
+    if len(container_ids_and_names[0]) < 2:
+        return "", ""
+
+    container_id, container_name = container_ids_and_names[0][0], container_ids_and_names[0][1]
     logger.trace(f"Container ID: {container_id}, Container Name: {container_name}")
-    assert container_id and container_name, \
-        f"Container ID or name is empty for workload name {workload_name}. "
+    if not container_id or not container_name:
+        return "", ""
 
     return container_id, container_name
 
