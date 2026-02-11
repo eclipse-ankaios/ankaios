@@ -1,10 +1,10 @@
 # Helper Scripts and tools
 
-This directory contains utility scripts and folders with different usage. All of the folders contain a `ReadMe.md` file documenting their specific usage and most of the scripts support the `--help` flag for detailed usage information.
+This directory contains utility scripts and folders with different usage. All of the folders contain a `README.md` file documenting their specific usage and most of the scripts support the `--help` flag for detailed usage information.
 
 ## check_copyright_headers.sh
 
-Searches through all scripts in the project and return what script are missing the copyright header. Recommended usage via `just check-copyright-headers`.
+Searches through all scripts in the project and return what files are missing the copyright header. Recommended usage via `just check-copyright-headers`.
 
 ## compare_req_tracing.py
 
@@ -16,11 +16,11 @@ Computes the hash of the control interface tester. This is used to be able to di
 
 ## create_artifacts.sh
 
-Script for creating the artifact of Ankaios used within the `create_release.sh` script.
+Script for creating the artifacts of Ankaios used within the `create_release.sh` script.
 
 ## create_configs.sh
 
-Script for exporting the configs of Ankaios used withing the `create_release.sh` script.
+Script for exporting the configs of Ankaios used within the `create_release.sh` script.
 
 ## create_release.sh
 
@@ -32,7 +32,7 @@ Generates the documentation using MkDocs. Running the script with the `--help` w
 
 ## generate_test_coverage_report.sh
 
-Generates the coverage report.
+Generates the test coverage report.
 
 ## install.sh
 
@@ -48,7 +48,7 @@ Used to setup the system for an execution of the system tests. It clears the sys
 
 ## stability_manual_test.sh
 
-Checks the stability of Ankaios by starting, running and killing Ankaios repeatedly. I don't know what is meant to achieve but eh, here it is.
+Checks the stability of Ankaios by starting, running and killing Ankaios repeatedly.
 
 ## stability_test.sh
 

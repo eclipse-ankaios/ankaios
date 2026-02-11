@@ -1,6 +1,6 @@
 # Tutorials
 
-These folder represents examples of real scenarios with Ankaios as it's orchestrator.
+This directory contains subfolders with examples of real scenarios using Eclipse Ankaios as a software orchestrator.
 
 ## vehicle_signals
 

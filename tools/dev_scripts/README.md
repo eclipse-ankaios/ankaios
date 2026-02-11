@@ -2,5 +2,5 @@
 
 This directory contains easy to use scripts for:
 
-- starting an ankaios server and agent with / without TLS enabled
-- cleaning after a run (stopping ankaios, cleaning runtimes, deleting certificates)
+- Starting an Ankaios server and agent with / without TLS enabled
+- Cleaning after a run (stopping Ankaios, cleaning up runtimes, deleting certificates)
