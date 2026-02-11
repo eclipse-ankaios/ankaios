@@ -18,7 +18,7 @@ Draft Ankaios release version `<version>`.
 - [ ] Update dependencies
 - [ ] Review, test and update examples
 - [ ] Smoke test all major features
-- [ ] Smoke test compatibility with previous major version
+- [ ] Smoke test compatibility with current major version
 - [ ] Publish a release candidate
 - [ ] Test installation scripts
 - [ ] Review, test and update tutorials
@@ -26,5 +26,4 @@ Draft Ankaios release version `<version>`.
 - [ ] Update to final release version
 - [ ] Release Ankaios
 - [ ] Release SDKs
-- [ ] Create image for fleet-connector tutorial
 - [ ] Close all issues and milestone
