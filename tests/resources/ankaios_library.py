@@ -237,7 +237,7 @@ def get_container_id_and_name_by_workload_name_from_runtime(runtime_cli: str, wo
         if getattr(res, "returncode", 1) == 0:
             break
 
-        last_err = (getattr(res, "stderr", "") or "").strip()
+        last_err = getattr(res, "stderr", "").strip()
         elapsed = time.time() - start_time
         if elapsed >= 5:
             logger.warning(
@@ -250,7 +250,7 @@ def get_container_id_and_name_by_workload_name_from_runtime(runtime_cli: str, wo
         )
         time.sleep(0.2)
 
-    raw = (res.stdout or "").strip()
+    raw = getattr(res, "stdout", "").strip()
     if not raw:
         return "", ""
 
