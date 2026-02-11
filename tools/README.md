@@ -24,7 +24,7 @@ Script for exporting the configs of Ankaios used within the `create_release.sh` 
 
 ## create_release.sh
 
-Creates the required artifacts and packages the necessary files needed for a release of Ankaios. Called automatically from the `release.yml` workflow.
+Creates the artifacts and packages the necessary files required for a release of Ankaios. Called automatically from the `release.yml` workflow.
 
 ## generate_docs.sh
 
