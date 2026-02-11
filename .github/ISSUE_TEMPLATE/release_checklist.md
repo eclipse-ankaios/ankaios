@@ -17,7 +17,7 @@ Draft Ankaios release version `<version>`.
 - [ ] Review the documentation of the SDKs
 - [ ] Update dependencies
 - [ ] Review, test and update examples
-- [ ] Smoke test all major features
+- [ ] Smoke test all major features (in addition to the system tests)
 - [ ] Smoke test compatibility with current major version
 - [ ] Publish a release candidate
 - [ ] Test installation scripts
