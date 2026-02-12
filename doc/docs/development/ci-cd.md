@@ -52,7 +52,7 @@ the build works locally within the dev container.
 ## Adding a new GitHub action
 
 When introducing a new GitHub action, do not use a generic version tag (e.g. `vX` or `v.X.Y.Z`).
-Specify a specific release by using it's hash and add a comment with the version tag instead. Using a generic tag might lead to an unstable Ci/CD environment, whenever the authors of the GitHub action update the generic tag to point to a newer version that contains bugs or incompatibilities with the Ankaios project.
+Specify a specific release by using it's hash and add a comment with the version tag instead. Using a commit hash instead of a specific tag version is a best practice targeted at increased stability and foremost improved security as commit hashes are immutable in contrast to version tags that can be easily updated.
 
 Example:
 
