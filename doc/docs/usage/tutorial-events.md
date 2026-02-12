@@ -24,6 +24,7 @@ from ankaios_sdk import (
     Ankaios,
     AnkaiosException,
     WorkloadInstanceName,
+    AnkaiosLogLevel,
 )
 import sys, signal
 import re
@@ -57,7 +58,7 @@ def print_workloads(workloads: dict[WorkloadInstanceName, str]):
         print(f"{workload_instance_name[1]} on {workload_instance_name[0]}: {state}")
     sys.stdout.flush()
 
-with Ankaios() as ankaios:
+with Ankaios(log_level=AnkaiosLogLevel.ERROR) as ankaios:
     try:
         event_queue = ankaios.register_event(
             field_masks=[SUBSCRIPTION_FIELD_MASKS],
@@ -96,7 +97,7 @@ with Ankaios() as ankaios:
 After connecting to the Ankaios control interface the workload subscribes to changes of workload states.
 
 ```python
-with Ankaios() as ankaios:
+with Ankaios(log_level=AnkaiosLogLevel.ERROR) as ankaios:
     try:
         event_queue = ankaios.register_event(
             field_masks=[SUBSCRIPTION_FIELD_MASKS],
