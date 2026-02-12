@@ -2104,8 +2104,8 @@ the build works locally within the dev container.</p>
 <li>Append a use clause to the build steps to upload the artifacts to GitHub. If a new platform build is added name the artifact according to the naming convention <code>ankaios-&lt;os&gt;-&lt;platform&gt;-bin</code> (e.g. ankaios-linux-amd64-bin) otherwise define a custom name. If the artifact is needed inside a release the artifact is referenced with this name inside the release workflow.</li>
 </ol>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">- uses</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/upload-artifact@v4.3.3</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">with</span><span class="p p-Indicator">:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">- uses</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/upload-artifact@XXXXXXXXXX</span><span class="w"> </span><span class="c1"># v4.3.3</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">with</span><span class="p">:</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ankaios-&lt;os&gt;-&lt;platform&gt;-bin</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">      </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dist/</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
@@ -2119,18 +2119,18 @@ For local testing the <a href="https://github.com/nektos/act">act</a> tool can b
 used.</p>
 </div>
 <h2 id="adding-a-new-github-action">Adding a new GitHub action<a class="headerlink" href="#adding-a-new-github-action" title="Permanent link">&para;</a></h2>
-<p>When introducing a new GitHub action, do not use a generic major version tag (e.g. <code>vX</code>).
-Specify a specific release tag (e.g. <code>vX.Y.Z</code>) instead. Using the generic tag might lead to an unstable CI/CD environment,
-whenever the authors of the GitHub action update the generic tag to point to a newer version that contains bugs or incompatibilities with the Ankaios project.</p>
+<p>When introducing a new GitHub action, do not use a generic version tag (e.g. <code>vX</code> or <code>v.X.Y.Z</code>).
+Specify a specific release by using it's hash and add a comment with the version tag instead. Using a commit hash instead of a specific tag version is a best practice targeted at increased stability and foremost improved security as commit hashes are immutable in contrast to version tags that can be easily updated.</p>
 <p>Example:</p>
 <p>Bad:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nn">...</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v4</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nn">...</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v4.1.1</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nn">...</span>
 </code></pre></div>
 <p>Good:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nn">...</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v4.1.1</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11</span><span class="w"> </span><span class="c1"># v4.1.1</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nn">...</span>
 </code></pre></div>
 <h2 id="adding-github-action-jobs">Adding GitHub action jobs<a class="headerlink" href="#adding-github-action-jobs" title="Permanent link">&para;</a></h2>
