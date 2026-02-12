@@ -4,7 +4,7 @@ runs:
   using: "composite"
   steps:
     - name: Get vendored source
-      uses: actions/download-artifact@v4.1.7
+      uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
       with:
         name: vendored-sources
     - name: Unpack vendored source in current folder (overwrite existing)

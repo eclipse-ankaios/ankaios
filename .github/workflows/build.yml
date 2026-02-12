@@ -23,10 +23,10 @@ jobs:
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:1.0.1
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Vendor all dependencies locally
         run: just vendor
-      - uses: actions/upload-artifact@v4.3.3
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: vendored-sources
           path: dist/ankaios-vendored-source*.tar.gz
@@ -43,7 +43,7 @@ jobs:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:1.0.1
       options: --privileged
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Use vendored source for release builds
         uses: ./.github/actions/use-vendored-source
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
@@ -86,7 +86,7 @@ jobs:
         run: |
           echo "Event name is '${{ github.event_name }}', all system tests are executed."
           su vscode -c "tools/run_robot_tests.sh tests"
-      - uses: actions/upload-artifact@v4.3.3
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: success() || failure()
         with:
           name: robot-tests-result
@@ -101,13 +101,13 @@ jobs:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:1.0.1
       options: --privileged
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Use vendored source for release builds
         uses: ./.github/actions/use-vendored-source
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
       - name: Run unit tests
         run: just utest
-      - uses: actions/upload-artifact@v4.3.3
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: unit-test-results
           path: target/nextest/default/unit-test-report.xml
@@ -127,7 +127,7 @@ jobs:
         run: |
           mkdir -p build
           cargo about generate about.hbs > build/licenses.html
-      - uses: actions/upload-artifact@v4.3.3
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: licenses
           path: build/licenses.html
@@ -146,7 +146,7 @@ jobs:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:1.0.1
       options: --privileged
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Use vendored source for release builds
         uses: ./.github/actions/use-vendored-source
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
@@ -154,7 +154,7 @@ jobs:
         run: |
           rustup component add llvm-tools-preview
           just coverage
-      - uses: actions/upload-artifact@v4.3.3
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: code-coverage
           path: target/llvm-cov/html
@@ -168,7 +168,7 @@ jobs:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:1.0.1
       options: --privileged
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Use vendored source for release builds
         uses: ./.github/actions/use-vendored-source
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
@@ -177,7 +177,7 @@ jobs:
           cargo build --release
           mkdir -p dist/
           cp target/x86_64-unknown-linux-musl/release/ank target/x86_64-unknown-linux-musl/release/ank-server target/x86_64-unknown-linux-musl/release/ank-agent dist/
-      - uses: actions/upload-artifact@v4.3.3
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ankaios-linux-amd64-bin
           path: dist/
@@ -185,7 +185,7 @@ jobs:
       - name: Build linux-amd64 debian package
         run: |
           cargo deb -p ank --target x86_64-unknown-linux-musl
-      - uses: actions/upload-artifact@v4.3.3
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ankaios-linux-amd64-deb
           path: target/x86_64-unknown-linux-musl/debian/ankaios*.deb
@@ -204,7 +204,7 @@ jobs:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:1.0.1
       options: --user root
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Use vendored source for release builds
         uses: ./.github/actions/use-vendored-source
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
@@ -214,7 +214,7 @@ jobs:
           cargo build --target aarch64-unknown-linux-musl --release
           mkdir -p dist/
           cp target/aarch64-unknown-linux-musl/release/ank target/aarch64-unknown-linux-musl/release/ank-server target/aarch64-unknown-linux-musl/release/ank-agent dist/
-      - uses: actions/upload-artifact@v4.3.3
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ankaios-linux-arm64-bin
           path: dist/
@@ -222,7 +222,7 @@ jobs:
       - name: Build linux-arm64 debian package
         run: |
           cargo deb -p ank --target aarch64-unknown-linux-musl
-      - uses: actions/upload-artifact@v4.3.3
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ankaios-linux-arm64-deb
           path: target/aarch64-unknown-linux-musl/debian/ankaios*.deb
@@ -236,13 +236,13 @@ jobs:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:1.0.1
       options: --user root
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Use vendored source for release builds
         uses: ./.github/actions/use-vendored-source
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
       - run: |
           just trace-requirements dist/req_tracing_report.html
-      - uses: actions/upload-artifact@v4.3.3
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: requirement-tracing-report
           path: dist/

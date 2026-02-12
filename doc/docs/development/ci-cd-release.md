@@ -82,7 +82,7 @@ If a new platform shall be supported the following steps must be done:
         steps:
         ...
         - name: Download artifacts for ankaios-<os>-<platform>-bin
-          uses: actions/download-artifact@v4.1.7
+          uses: actions/download-artifact@XXXXXXXXXX # v4.1.7
           with:
             name: ankaios-<os>-<platform>-bin
             path: dist/<os>-<platform>/bin

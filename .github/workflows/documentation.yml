@@ -27,8 +27,8 @@ jobs:
     outputs:
       documentation: ${{ steps.filter.outputs.documentation }}
     steps:
-      - uses: actions/checkout@v4.1.1
-      - uses: dorny/paths-filter@v3.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
         id: filter
         with:
           filters: |
@@ -44,7 +44,7 @@ jobs:
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:1.0.1
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Prepare commit to branch gh-pages
         run: |
           git config --global --add safe.directory $PWD
@@ -75,11 +75,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: git checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           show-progress: ""
       - name: markdownlint-cli2-action
-        uses: DavidAnson/markdownlint-cli2-action@v15.0.0
+        uses: DavidAnson/markdownlint-cli2-action@07035fd053f7be764496c0f8d8f9f41f98305101 # v22.0.0
         with:
           globs: |
             **/*.md

@@ -10,7 +10,7 @@ jobs:
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:1.0.1
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Compare requirement tracing reports
         id: compare
         run: |
@@ -26,7 +26,7 @@ jobs:
           fi
       - name: Comment on PR if diff has been found and no label 'ignore-req-tracing' is present
         if: steps.compare.outputs.diff == 'true' && ! contains( github.event.pull_request.labels.*.name, 'ignore-req-tracing')
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body-path: comment.md
