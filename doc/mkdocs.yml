@@ -100,6 +100,7 @@ nav:
     - usage/quickstart.md
     - usage/tutorial-vehicle-signals.md
     - usage/tutorial-fleet-management.md
+    - usage/tutorial-events.md
     - usage/awesome-ankaios.md
     - usage/mtls-setup.md
     - usage/shell-completion.md
@@ -116,8 +117,11 @@ nav:
   - Reference:
     - reference/startup-configuration.md
     - reference/interacting-with-ankaios.md
-    - reference/complete-state.md
-    - reference/control-interface.md
+    - Control Interface:
+      - reference/control-interface.md
+      - reference/complete-state.md
+      - reference/events.md
+      - reference/logs.md
     - reference/inter-workload-dependencies.md
     - reference/restart-policy.md
     - reference/resource-usage.md
