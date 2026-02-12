@@ -85,6 +85,10 @@
          <lastmod>2026-02-12</lastmod>
     </url>
     <url>
+         <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/events/</loc>
+         <lastmod>2026-02-12</lastmod>
+    </url>
+    <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/</loc>
          <lastmod>2026-02-12</lastmod>
     </url>
@@ -126,6 +130,10 @@
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/usage/shell-completion/</loc>
+         <lastmod>2026-02-12</lastmod>
+    </url>
+    <url>
+         <loc>https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-events/</loc>
          <lastmod>2026-02-12</lastmod>
     </url>
     <url>
