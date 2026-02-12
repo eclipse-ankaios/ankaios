@@ -20,8 +20,8 @@ See the section on [Authorization in Control Interface](./control-interface.md#a
    This response also indicates that the subscription was accepted.
 3. Whenever the requested fields change, ankaios sends a `CompleteStateResponse` using the same ID with the `alteredFields` field set to the changed fields.
    The state in this response only contains the changed fields.
-4. The workload can unsubscribe by sending a `LogsChancelRequest` using the same ID as the initial request.
-5. Ankaios responds with a `LogsCancelResponse` using the same ID confirming the unsubscription.
+4. The workload can unsubscribe by sending a `EventsCancelRequest` using the same ID as the initial request.
+5. Ankaios responds with a `EventsCancelAccepted` using the same ID confirming the unsubscription.
 
 ## Wildcards
 
