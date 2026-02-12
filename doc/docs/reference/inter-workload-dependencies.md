@@ -16,11 +16,11 @@ Ankaios defines [implicit inter-workload dependencies](#implicit-inter-workload-
 
 Ankaios supports the following dependency types:
 
-| Dependency type |  AddCondition         | Description                                       |
-| --------------- | --------------------- | --------------------------------------------- |
-| running         | ADD_COND_RUNNING      | The dependency must be operational.           |
-| succeeded       | ADD_COND_SUCCEEDED    | The dependency must be successfully exited.        |
-| failed          | ADD_COND_FAILED       | The dependency must exit with a non-zero return code.                     |
+| Dependency type |  AddCondition      | Description                                           |
+| --------------- | ------------------ | ----------------------------------------------------- |
+| running         | ADD_COND_RUNNING   | The dependency must be operational.                   |
+| succeeded       | ADD_COND_SUCCEEDED | The dependency must be successfully exited.           |
+| failed          | ADD_COND_FAILED    | The dependency must exit with a non-zero return code. |
 
 The user configures the `AddCondition` for each dependency in the `dependencies` field to define one or multiple dependencies for a workload.
 

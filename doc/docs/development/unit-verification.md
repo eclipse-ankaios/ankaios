@@ -66,9 +66,9 @@ Regression testing is done by the [CI build system](https://github.com/eclipse-a
 
 The following table show how test coverage is currently shown in the coverage report:
 
-| Goal | Metric | Red | Yellow | Green |
-| -----| -------|-------|-------|-------|
-| Code coverage|  |<80%| >80% | 100%|
+| Goal         | Metric | Red   | Yellow | Green |
+|--------------|--------|-------|--------|-------|
+| Code coverage|        | <80%  | >80%   | 100%  |
 
 Currently there is no proper way of explicitly excluding parts of the code from the test coverage report in order to get to an easily observable value of 100%. The explicitly excluded code would have a corresponding comment stating the reason for excluding it.
 As this is not possible, we would initially **target at least 80% line coverage in each file**.
