@@ -82,7 +82,7 @@ workloads:
         - "--net=host"
 ```
 
-The source code for that image is available in the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorial_vehicle_signals).
+The source code for that image is available in the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorials/vehicle_signals).
 
 Start the workload with:
 

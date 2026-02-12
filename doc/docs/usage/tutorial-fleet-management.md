@@ -153,7 +153,7 @@ the script will listen for incoming MQTT messages.
 
     The field mask must be provided in JSON format in the message. We will see an example later in this tutorial.
 
-The full source code for the fleet connector is available in the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorial_fleet_management/fleet-connector). The Ankaios SDK for python provides many more features as shown in its [documentation](https://eclipse-ankaios.github.io/ank-sdk-python/). Be sure to use the correct version of the SDK that matches the version of Ankaios you are using.
+The full source code for the fleet connector is available in the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorials/fleet_management/fleet-connector). The Ankaios SDK for python provides many more features as shown in its [documentation](https://eclipse-ankaios.github.io/ank-sdk-python/). Be sure to use the correct version of the SDK that matches the version of Ankaios you are using.
 
 ## Deploying the fleet connector
 
@@ -197,7 +197,7 @@ ank get workloads
 
 ## Remote installation of a vehicle data sender
 
-Now we want to use the fleet connector to remotely install a new containerized workload on the vehicle. The workload is called `vehicle-data-sender`. It will send a (random) speed value to the MQTT broker in the cloud. The full source code of the vehicle data sender is available in the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorial_fleet_management/vehicle-data-sender).
+Now we want to use the fleet connector to remotely install a new containerized workload on the vehicle. The workload is called `vehicle-data-sender`. It will send a (random) speed value to the MQTT broker in the cloud. The full source code of the vehicle data sender is available in the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorials/fleet_management/vehicle-data-sender).
 
 First, we need to create a manifest and name that file `vehicle-data-sender.yaml`:
 
