@@ -2295,7 +2295,7 @@ It's also assumed that the Ankaios setup has been performed using the default <a
 <p>The field mask must be provided in JSON format in the message. We will see an example later in this tutorial.</p>
 </li>
 </ul>
-<p>The full source code for the fleet connector is available in the <a href="https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorial_fleet_management/fleet-connector">Ankaios repository</a>. The Ankaios SDK for python provides many more features as shown in its <a href="https://eclipse-ankaios.github.io/ank-sdk-python/">documentation</a>. Be sure to use the correct version of the SDK that matches the version of Ankaios you are using.</p>
+<p>The full source code for the fleet connector is available in the <a href="https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorials/fleet_management/fleet-connector">Ankaios repository</a>. The Ankaios SDK for python provides many more features as shown in its <a href="https://eclipse-ankaios.github.io/ank-sdk-python/">documentation</a>. Be sure to use the correct version of the SDK that matches the version of Ankaios you are using.</p>
 <h2 id="deploying-the-fleet-connector">Deploying the fleet connector<a class="headerlink" href="#deploying-the-fleet-connector" title="Permanent link">&para;</a></h2>
 <p>If you have not yet installed Ankaios, please follow the instructions <a href="../installation/">here</a>.
 The following examples assume that the installation script was used with the default options.</p>
@@ -2325,7 +2325,7 @@ See the <a href="../../reference/_ankaios.proto/#controlinterfaceaccess">referen
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>ank<span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <h2 id="remote-installation-of-a-vehicle-data-sender">Remote installation of a vehicle data sender<a class="headerlink" href="#remote-installation-of-a-vehicle-data-sender" title="Permanent link">&para;</a></h2>
-<p>Now we want to use the fleet connector to remotely install a new containerized workload on the vehicle. The workload is called <code>vehicle-data-sender</code>. It will send a (random) speed value to the MQTT broker in the cloud. The full source code of the vehicle data sender is available in the <a href="https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorial_fleet_management/vehicle-data-sender">Ankaios repository</a>.</p>
+<p>Now we want to use the fleet connector to remotely install a new containerized workload on the vehicle. The workload is called <code>vehicle-data-sender</code>. It will send a (random) speed value to the MQTT broker in the cloud. The full source code of the vehicle data sender is available in the <a href="https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorials/fleet_management/vehicle-data-sender">Ankaios repository</a>.</p>
 <p>First, we need to create a manifest and name that file <code>vehicle-data-sender.yaml</code>:</p>
 <div class="highlight"><span class="filename">vehicle-data-sender.yaml</span><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="nt">workloads</span><span class="p">:</span>
