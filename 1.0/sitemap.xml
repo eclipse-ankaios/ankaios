@@ -2,170 +2,178 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/architecture/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/support/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/build/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/changing-the-api/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/ci-cd-release/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/ci-cd/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/documentation-guidelines/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/extending-dev-container/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/requirement-template/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/requirement-tracing/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/run-unit-tests/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/rust-coding-guidelines/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/self-service/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/system-tests/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/test-coverage/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/development/unit-verification/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/reference/_ankaios.proto/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/reference/complete-state/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/reference/config-files/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/reference/control-interface/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
+    </url>
+    <url>
+         <loc>https://eclipse-ankaios.github.io/ankaios/1.0/reference/events/</loc>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/reference/glossary/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/reference/inter-workload-dependencies/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/reference/interacting-with-ankaios/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/reference/resource-usage/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/reference/restart-policy/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/reference/startup-configuration/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/awesome-ankaios/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/installation/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/mtls-setup/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/quickstart/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/shell-completion/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
+    </url>
+    <url>
+         <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/tutorial-events/</loc>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/tutorial-fleet-management/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/tutorial-vehicle-signals/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/manifest/config-objects/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/manifest/workload-files/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/upgrading/v0_2_to_v0_3/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/upgrading/v0_3_to_v0_4/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/upgrading/v0_4_to_v0_5/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/upgrading/v0_5_to_v0_6/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/upgrading/v0_6_to_v0_7/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/1.0/usage/upgrading/v0_7_to_v1_0/</loc>
-         <lastmod>2026-02-05</lastmod>
+         <lastmod>2026-02-16</lastmod>
     </url>
 </urlset>

@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://eclipse-ankaios.github.io/ankaios/1.0/reference/inter-workload-dependencies/">
+        <link rel="canonical" href="https://eclipse-ankaios.github.io/ankaios/1.0/reference/events/">
       
       
-        <link rel="prev" href="../events/">
+        <link rel="prev" href="../complete-state/">
       
       
-        <link rel="next" href="../restart-policy/">
+        <link rel="next" href="../inter-workload-dependencies/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>Inter-workload dependencies - Eclipse Ankaios</title>
+        <title>Events - Eclipse Ankaios</title>
       
     
     
@@ -61,15 +61,15 @@
     
   
 <meta property="og:type" content="website" />
-<meta property="og:title" content="Inter-workload dependencies - Eclipse Ankaios" />
-<meta property="og:image" content="https://eclipse-ankaios.github.io/ankaios/1.0/assets/images/social/reference/inter-workload-dependencies.png" />
+<meta property="og:title" content="Events - Eclipse Ankaios" />
+<meta property="og:image" content="https://eclipse-ankaios.github.io/ankaios/1.0/assets/images/social/reference/events.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:url" content="https://eclipse-ankaios.github.io/ankaios/1.0/reference/inter-workload-dependencies/" />
+<meta property="og:url" content="https://eclipse-ankaios.github.io/ankaios/1.0/reference/events/" />
 <meta property="twitter:card" content="summary_large_image" />
-<meta property="twitter:title" content="Inter-workload dependencies - Eclipse Ankaios" />
-<meta property="twitter:image" content="https://eclipse-ankaios.github.io/ankaios/1.0/assets/images/social/reference/inter-workload-dependencies.png" />
+<meta property="twitter:title" content="Events - Eclipse Ankaios" />
+<meta property="twitter:image" content="https://eclipse-ankaios.github.io/ankaios/1.0/assets/images/social/reference/events.png" />
 </head>
   
   
@@ -89,7 +89,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#inter-workload-dependencies" class="md-skip">
+        <a href="#events" class="md-skip">
           Skip to content
         </a>
       
@@ -138,7 +138,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Inter-workload dependencies
+              Events
             
           </span>
         </div>
@@ -1214,6 +1214,8 @@
                 
   
   
+    
+  
   
   
     
@@ -1229,11 +1231,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" checked>
         
           
           <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
@@ -1254,7 +1256,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1325,10 +1327,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../events/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Events
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1344,6 +1373,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authorization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wildcards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wildcards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Events
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1389,37 +1482,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Inter-workload dependencies
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../inter-workload-dependencies/" class="md-nav__link">
         
   
   
@@ -1435,48 +1501,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#explicit-inter-workload-dependencies" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Explicit inter-workload dependencies
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#implicit-inter-workload-dependencies" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Implicit inter-workload dependencies
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2134,10 +2158,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#explicit-inter-workload-dependencies" class="md-nav__link">
+  <a href="#authorization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Explicit inter-workload dependencies
+        Authorization
       
     </span>
   </a>
@@ -2145,10 +2169,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#implicit-inter-workload-dependencies" class="md-nav__link">
+  <a href="#workflow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Implicit inter-workload dependencies
+        Workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wildcards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wildcards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Events
       
     </span>
   </a>
@@ -2172,7 +2218,7 @@
 
 
   
-    <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/reference/inter-workload-dependencies.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/reference/events.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2180,172 +2226,35 @@
   
 
 
-<h1 id="inter-workload-dependencies">Inter-workload dependencies<a class="headerlink" href="#inter-workload-dependencies" title="Permanent link">&para;</a></h1>
-<p>Ankaios enables users to configure dependencies between workloads.</p>
-<p>There are two types of inter-workload dependencies supported by Ankaios:</p>
-<ul>
-<li>explicit</li>
-<li>implicit</li>
-</ul>
-<p>The user configures <a href="#explicit-inter-workload-dependencies">explicit inter-workload dependencies</a> within a workload's configuration, which Ankaios considers when starting the workload. Ankaios starts workloads with dependencies only when all dependencies are met, allowing the user to define a specific sequence for starting workloads.</p>
-<p>Ankaios defines <a href="#implicit-inter-workload-dependencies">implicit inter-workload dependencies</a> internally and takes them into account when a dependency is deleted.</p>
-<h2 id="explicit-inter-workload-dependencies">Explicit inter-workload dependencies<a class="headerlink" href="#explicit-inter-workload-dependencies" title="Permanent link">&para;</a></h2>
-<p>Ankaios supports the following dependency types:</p>
-<table>
-<thead>
-<tr>
-<th>Dependency type</th>
-<th>AddCondition</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>running</td>
-<td>ADD_COND_RUNNING</td>
-<td>The dependency must be operational.</td>
-</tr>
-<tr>
-<td>succeeded</td>
-<td>ADD_COND_SUCCEEDED</td>
-<td>The dependency must be successfully exited.</td>
-</tr>
-<tr>
-<td>failed</td>
-<td>ADD_COND_FAILED</td>
-<td>The dependency must exit with a non-zero return code.</td>
-</tr>
-</tbody>
-</table>
-<p>The user configures the <code>AddCondition</code> for each dependency in the <code>dependencies</code> field to define one or multiple dependencies for a workload.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">workloads</span><span class="p">:</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">logger</span><span class="p">:</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="nt">dependencies</span><span class="p">:</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">      </span><span class="nt">storage_provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ADD_COND_RUNNING</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span>
-</code></pre></div>
-<p>When the <code>storage_provider</code> is operational, Ankaios starts the <code>logger</code> workload. The ExecutionState of the workload remains <code>Pending(WaitingToStart)</code> until all dependencies are met.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Ankaios rejects manifests and workload configurations with cyclic dependencies. A manifest is valid only when its workloads and dependencies form a directed acyclic graph.</p>
-</div>
-<p>This example demonstrates how to use dependency types to configure inter-workload dependencies:</p>
-<pre class="mermaid"><code>---
-title:
----
-flowchart RL
-    logger(logger)
-    init(init_storage)
-    storage(storage_provider)
-    err_handler(error_handler)
-
-
-    logger-- running --&gt;storage
-    err_handler-- failed --&gt;storage
-    storage-- succeeded --&gt;init</code></pre>
-<p>The logging service requires an operational storage provider to write logs. Therefore, the storage provider must be started first and its initialization (init_storage) must be completed before starting the provider itself. In case of a failure, an error handler is started to manage errors.</p>
-<p>The Ankaios manifest below includes the configuration of each workload and its dependencies:</p>
-<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-1-1"> 1</a></span>
-<span class="normal"><a href="#__codelineno-1-2"> 2</a></span>
-<span class="normal"><a href="#__codelineno-1-3"> 3</a></span>
-<span class="normal"><a href="#__codelineno-1-4"> 4</a></span>
-<span class="normal"><a href="#__codelineno-1-5"> 5</a></span>
-<span class="normal"><a href="#__codelineno-1-6"> 6</a></span>
-<span class="normal"><a href="#__codelineno-1-7"> 7</a></span>
-<span class="normal"><a href="#__codelineno-1-8"> 8</a></span>
-<span class="normal"><a href="#__codelineno-1-9"> 9</a></span>
-<span class="normal"><a href="#__codelineno-1-10">10</a></span>
-<span class="normal"><a href="#__codelineno-1-11">11</a></span>
-<span class="normal"><a href="#__codelineno-1-12">12</a></span>
-<span class="normal"><a href="#__codelineno-1-13">13</a></span>
-<span class="normal"><a href="#__codelineno-1-14">14</a></span>
-<span class="normal"><a href="#__codelineno-1-15">15</a></span>
-<span class="normal"><a href="#__codelineno-1-16">16</a></span>
-<span class="normal"><a href="#__codelineno-1-17">17</a></span>
-<span class="normal"><a href="#__codelineno-1-18">18</a></span>
-<span class="normal"><a href="#__codelineno-1-19">19</a></span>
-<span class="normal"><a href="#__codelineno-1-20">20</a></span>
-<span class="normal"><a href="#__codelineno-1-21">21</a></span>
-<span class="normal"><a href="#__codelineno-1-22">22</a></span>
-<span class="normal"><a href="#__codelineno-1-23">23</a></span>
-<span class="normal"><a href="#__codelineno-1-24">24</a></span>
-<span class="normal"><a href="#__codelineno-1-25">25</a></span>
-<span class="normal"><a href="#__codelineno-1-26">26</a></span>
-<span class="normal"><a href="#__codelineno-1-27">27</a></span>
-<span class="normal"><a href="#__codelineno-1-28">28</a></span>
-<span class="normal"><a href="#__codelineno-1-29">29</a></span>
-<span class="normal"><a href="#__codelineno-1-30">30</a></span>
-<span class="normal"><a href="#__codelineno-1-31">31</a></span>
-<span class="normal"><a href="#__codelineno-1-32">32</a></span>
-<span class="normal"><a href="#__codelineno-1-33">33</a></span>
-<span class="normal"><a href="#__codelineno-1-34">34</a></span>
-<span class="normal"><a href="#__codelineno-1-35">35</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2"></a><span class="nt">workloads</span><span class="p">:</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="w">  </span><span class="nt">logger</span><span class="p">:</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6"></a><span class="hll"><span class="w">    </span><span class="nt">dependencies</span><span class="p">:</span>
-</span><a id="__codelineno-1-7" name="__codelineno-1-7"></a><span class="hll"><span class="w">      </span><span class="nt">storage_provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ADD_COND_RUNNING</span><span class="w"> </span><span class="c1"># (1)!</span>
-</span><a id="__codelineno-1-8" name="__codelineno-1-8"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9"></a><span class="w">      </span><span class="no">image: alpine:latest</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10"></a><span class="w">      </span><span class="no">commandOptions: [ &quot;--entrypoint&quot;, &quot;/bin/sleep&quot; ]</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11"></a><span class="w">      </span><span class="no">commandArgs: [ &quot;3&quot; ]</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12"></a><span class="w">  </span><span class="nt">storage_provider</span><span class="p">:</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_B</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15"></a><span class="hll"><span class="w">    </span><span class="nt">dependencies</span><span class="p">:</span>
-</span><a id="__codelineno-1-16" name="__codelineno-1-16"></a><span class="hll"><span class="w">      </span><span class="nt">init_storage</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ADD_COND_SUCCEEDED</span><span class="w"> </span><span class="c1"># (2)!</span>
-</span><a id="__codelineno-1-17" name="__codelineno-1-17"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-1-18" name="__codelineno-1-18"></a><span class="w">      </span><span class="no">image: alpine:latest</span>
-<a id="__codelineno-1-19" name="__codelineno-1-19"></a><span class="w">      </span><span class="no">commandOptions: [ &quot;--entrypoint&quot;, &quot;/bin/sh&quot; ]</span>
-<a id="__codelineno-1-20" name="__codelineno-1-20"></a><span class="w">      </span><span class="no">commandArgs: [ &quot;-c&quot;, &quot;sleep 5; exit 1&quot; ]</span>
-<a id="__codelineno-1-21" name="__codelineno-1-21"></a><span class="w">  </span><span class="nt">init_storage</span><span class="p">:</span><span class="w"> </span><span class="c1"># (3)!</span>
-<a id="__codelineno-1-22" name="__codelineno-1-22"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
-<a id="__codelineno-1-23" name="__codelineno-1-23"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_B</span>
-<a id="__codelineno-1-24" name="__codelineno-1-24"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-1-25" name="__codelineno-1-25"></a><span class="w">      </span><span class="no">image: alpine:latest</span>
-<a id="__codelineno-1-26" name="__codelineno-1-26"></a><span class="w">      </span><span class="no">commandOptions: [ &quot;--entrypoint&quot;, &quot;/bin/sleep&quot; ]</span>
-<a id="__codelineno-1-27" name="__codelineno-1-27"></a><span class="w">      </span><span class="no">commandArgs: [ &quot;2&quot; ]</span>
-<a id="__codelineno-1-28" name="__codelineno-1-28"></a><span class="w">  </span><span class="nt">error_handler</span><span class="p">:</span>
-<a id="__codelineno-1-29" name="__codelineno-1-29"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
-<a id="__codelineno-1-30" name="__codelineno-1-30"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
-<a id="__codelineno-1-31" name="__codelineno-1-31"></a><span class="hll"><span class="w">    </span><span class="nt">dependencies</span><span class="p">:</span>
-</span><a id="__codelineno-1-32" name="__codelineno-1-32"></a><span class="hll"><span class="w">      </span><span class="nt">storage_provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ADD_COND_FAILED</span><span class="w"> </span><span class="c1"># (4)!</span>
-</span><a id="__codelineno-1-33" name="__codelineno-1-33"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-1-34" name="__codelineno-1-34"></a><span class="w">      </span><span class="no">image: alpine:latest</span>
-<a id="__codelineno-1-35" name="__codelineno-1-35"></a><span class="w">      </span><span class="no">commandArgs: [ &quot;echo&quot;, &quot;report failed storage provider&quot;]</span>
-</code></pre></div></td></tr></table></div>
+<h1 id="events">Events<a class="headerlink" href="#events" title="Permanent link">&para;</a></h1>
+<p>Workloads can subscribe for changes on the state of the cluster.
+This is done by sending a <a href="../_ankaios.proto/#completestaterequest">CompleteStateRequest</a> with the <code>subscribeForEvents</code> flag set to true.
+The <code>fieldMask</code> in the request can be used to specify for which fields updates should be sent.</p>
+<p>To see an example of how to use events, see the <a href="../../usage/tutorial-events/">Tutorial: Registering for events</a>.</p>
+<h2 id="authorization">Authorization<a class="headerlink" href="#authorization" title="Permanent link">&para;</a></h2>
+<p>The same rules as for a normal <code>CompleteStateRequest</code> apply.
+A <code>StateRule</code> with a <code>filterMask</code> matching the requested <code>fieldMask</code> must be present for the workload.
+See the section on <a href="../control-interface/#authorization">Authorization in Control Interface</a> for more details.</p>
+<h2 id="workflow">Workflow<a class="headerlink" href="#workflow" title="Permanent link">&para;</a></h2>
 <ol>
-<li>The logger is started only when the storage provider is operational.</li>
-<li>The storage provider is started only after the successful completion of init_storage.</li>
-<li>init_storage starts immediately since it has no dependencies to wait for.</li>
-<li>The error_handler is only started when the storage_provider has failed.</li>
+<li>The workload chooses a unique ID and subscribes by sending a <code>CompleteStateRequest</code> with <code>subscribeForEvents</code> set to true using this ID.</li>
+<li>Ankaios responds with an initial <code>CompleteStateResponse</code> using the same ID containing the current state.
+   As this is the complete current state, the <code>alteredFields</code> field is not set and the state contains all requested fields.
+   This response also indicates that the subscription was accepted.</li>
+<li>Whenever the requested fields change, ankaios sends a <code>CompleteStateResponse</code> using the same ID with the <code>alteredFields</code> field set to the changed fields.
+   The state in this response only contains the changed fields.</li>
+<li>The workload can unsubscribe by sending a <code>EventsCancelRequest</code> using the same ID as the initial request.</li>
+<li>Ankaios responds with a <code>EventsCancelAccepted</code> using the same ID confirming the unsubscription.</li>
 </ol>
-<p>Workloads may have dependencies that do not currently exist in the Ankaios state.</p>
-<p>Assuming Ankaios is started with a manifest containing all previous workloads except for the <code>error_handler</code>, a user can update the desired state by adding the <code>restart_service</code> workload. This workload restarts certain workloads and should run after the <code>error_handler</code> has completed. The following Ankaios manifest includes the <code>restart_service</code> workload, which depends on the non-existent <code>error_handler</code> in the current desired state:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">workloads</span><span class="p">:</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">restart_service</span><span class="p">:</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_B</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="nt">dependencies</span><span class="p">:</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">      </span><span class="nt">error_handler</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ADD_COND_SUCCEEDED</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">      </span><span class="no">image: alpine:latest</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">      </span><span class="no">commandArgs: [ &quot;echo&quot;, &quot;restart of storage workloads&quot;]</span>
-</code></pre></div>
-<p>Ankaios delays the <code>restart_service</code> until the <code>error_handler</code> reaches the specified state.</p>
-<h2 id="implicit-inter-workload-dependencies">Implicit inter-workload dependencies<a class="headerlink" href="#implicit-inter-workload-dependencies" title="Permanent link">&para;</a></h2>
-<p>Ankaios automatically defines implicit dependencies to prevent a workload from failing or entering an undesired state when a dependency is deleted. These dependencies cannot be configured by the user. Ankaios only defines implicit dependencies for dependencies that other workloads depend on with the <code>running</code> dependency type.</p>
-<p>Ankaios does not explicitly delete a workload when its dependency is deleted. Instead, Ankaios delays the deletion of a dependency until all dependent workloads have been deleted. The dependency will have the ExecutionState <code>Stopping(WaitingToStop)</code> as long as it cannot be deleted.</p>
-<p>In the previous example, the workload <code>logger</code> depends on the <code>storage_provider</code> with a <code>running</code> dependency type. When the user updates or deletes the <code>storage_provider</code> dependency, Ankaios delays the deletion until the dependent workload <code>logger</code> is neither pending nor running.</p>
-<p>If an update meets the delete conditions but not the add conditions, Ankaios will execute the delete operation directly without delaying the entire update.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Ankaios does not define implicit dependencies for workloads that have dependencies with the <code>succeeded</code> and <code>failed</code> types.</p>
-</div>
+<h2 id="wildcards">Wildcards<a class="headerlink" href="#wildcards" title="Permanent link">&para;</a></h2>
+<p>As the default <code>CompleteStateRequest</code>, the subscription to events supports wildcards in the <code>fieldMask</code>.
+Each element of a <code>fieldMask</code> (the part between two "." symbols) can be replaced by a <code>*</code>.
+This is useful for matching dynamic fields, like the IDs of workloads, or names of agents and workloads.
+E.g. to subscribe to all state changes of all workloads use the field mask <code>workloadStates.*.*.*.state</code>.</p>
+<h2 id="custom-events">Custom Events<a class="headerlink" href="#custom-events" title="Permanent link">&para;</a></h2>
+<p>It is also possible to use the <code>configs</code> field of <a href="../_ankaios.proto/#state">State</a> to send and receive custom events.
+The sender sets a special config with the desired event data, and receivers can subscribe to changes of this config.</p>
+<p>The authorization rules allow to exactly determine who is allowed to send and receive these custom events.</p>
 
 
 
@@ -2385,7 +2294,7 @@ flowchart RL
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../events/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Events">
+          <a href="../complete-state/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Working with CompleteState">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2395,20 +2304,20 @@ flowchart RL
                 Previous
               </span>
               <div class="md-ellipsis">
-                Events
+                Working with CompleteState
               </div>
             </div>
           </a>
         
         
           
-          <a href="../restart-policy/" class="md-footer__link md-footer__link--next" aria-label="Next: Restart Policy">
+          <a href="../inter-workload-dependencies/" class="md-footer__link md-footer__link--next" aria-label="Next: Inter-workload dependencies">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Restart Policy
+                Inter-workload dependencies
               </div>
             </div>
             <div class="md-footer__button md-icon">
