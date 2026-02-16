@@ -22,7 +22,7 @@ dependencies = [
 
 [[package]]
 name = "ank"
-version = "1.0.0-rc1"
+version = "1.0.0"
 dependencies = [
  "ankaios-api",
  "chrono",
@@ -46,7 +46,7 @@ dependencies = [
 
 [[package]]
 name = "ank-agent"
-version = "1.0.0-rc1"
+version = "1.0.0"
 dependencies = [
  "ankaios-api",
  "async-trait",
@@ -79,7 +79,7 @@ dependencies = [
 
 [[package]]
 name = "ank-schema"
-version = "1.0.0-rc1"
+version = "1.0.0"
 dependencies = [
  "ankaios-api",
  "env",
@@ -89,7 +89,7 @@ dependencies = [
 
 [[package]]
 name = "ank-server"
-version = "1.0.0-rc1"
+version = "1.0.0"
 dependencies = [
  "ankaios-api",
  "clap",
@@ -110,7 +110,7 @@ dependencies = [
 
 [[package]]
 name = "ankaios-api"
-version = "1.0.0-rc1"
+version = "1.0.0"
 dependencies = [
  "log",
  "prost",
@@ -420,7 +420,7 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "common"
-version = "1.0.0-rc1"
+version = "1.0.0"
 dependencies = [
  "ankaios-api",
  "async-trait",
@@ -851,7 +851,7 @@ dependencies = [
 
 [[package]]
 name = "grpc"
-version = "1.0.0-rc1"
+version = "1.0.0"
 dependencies = [
  "ankaios-api",
  "async-trait",
@@ -2084,7 +2084,7 @@ dependencies = [
 
 [[package]]
 name = "spec_macros"
-version = "1.0.0-rc1"
+version = "1.0.0"
 dependencies = [
  "proc-macro2",
  "quote",
