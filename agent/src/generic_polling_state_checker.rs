@@ -165,7 +165,12 @@ mod tests {
         assert_eq!(state_update_1, expected_running);
         assert_eq!(state_update_2, expected_removed);
 
-        tokio::time::sleep(Duration::from_millis(10)).await; // Needed for making sure the next assert passes
+        tokio::time::timeout(Duration::from_millis(50), async {
+            if !generic_state_state_checker.task_handle.is_finished() {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        }).await.expect("The state checker task did not finish within the expected time.");
+
         assert!(generic_state_state_checker.task_handle.is_finished());
         assert!(
             start_time.elapsed().unwrap().as_millis() >= (STATUS_CHECK_INTERVAL_MS * 2) as u128

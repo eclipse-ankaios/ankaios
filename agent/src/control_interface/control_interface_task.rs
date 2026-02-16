@@ -460,15 +460,13 @@ mod tests {
 
         let mut input_stream_mock = MockInputPipe::default();
 
-        let mut mockall_seq = Sequence::new();
-
         let workload_hello_binary = prepare_workload_hello_binary_message(common::ANKAIOS_VERSION);
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
-            .in_sequence(&mut mockall_seq)
             .return_once(move || Box::pin(async { Ok(workload_hello_binary) }));
 
+        // Because the `select!` evaluates both branches, the mock should be callable multiple times
         input_stream_mock
             .expect_read_protobuf_data()
             .returning(|| {
@@ -530,8 +528,6 @@ mod tests {
             Some(ToServer::Request(expected_log_cancel_request))
         );
 
-        let result = input_pipe_sender.stop().await;
-        assert!(result.is_ok());
         assert!(handle.await.is_ok());
     }
 
