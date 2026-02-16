@@ -1,6 +1,6 @@
 [package]
 name = "ank-schema"
-version = "1.0.0-rc1"
+version = "1.0.0"
 edition = "2024"
 license = "Apache-2.0"
 description = "Eclipse Ankaios schema generating component"

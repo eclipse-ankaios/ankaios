@@ -14,7 +14,7 @@ COPY ankaios_api ${WORKSPACE_DIR}/ankaios_api
 COPY spec_macros ${WORKSPACE_DIR}/spec_macros
 COPY examples/rust_control_interface ${WORKSPACE_DIR}
 WORKDIR ${WORKSPACE_DIR}
-ENV ANKAIOS_VERSION=1.0.0-rc1
+ENV ANKAIOS_VERSION=1.0.0
 RUN --mount=type=cache,target=${WORKSPACE_DIR}/target/release cargo build --release \
     && cp ${WORKSPACE_DIR}/target/release/control_interface_example /usr/local/bin/
 
