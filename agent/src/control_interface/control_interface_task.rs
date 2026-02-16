@@ -460,20 +460,16 @@ mod tests {
 
         let mut input_stream_mock = MockInputPipe::default();
 
-        let mut mockall_seq = Sequence::new();
-
         let workload_hello_binary = prepare_workload_hello_binary_message(common::ANKAIOS_VERSION);
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
-            .in_sequence(&mut mockall_seq)
             .return_once(move || Box::pin(async { Ok(workload_hello_binary) }));
 
+        // Because the `select!` evaluates both branches, the mock should be callable multiple times
         input_stream_mock
             .expect_read_protobuf_data()
-            .once()
-            .in_sequence(&mut mockall_seq)
-            .return_once(|| {
+            .returning(|| {
                 Box::pin(async {
                     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                     Err(IoError::other("error"))
@@ -515,11 +511,12 @@ mod tests {
         );
 
         // send a response to the _input_pipe_sender
-        let _ = input_pipe_sender
+        let result = input_pipe_sender
             .log_entries_response(fixtures::REQUEST_ID.into(), LogEntriesResponse::default())
             .await;
+        assert!(result.is_ok());
 
-        tokio::spawn(async { control_interface_task.run().await });
+        let handle = tokio::spawn(async { control_interface_task.run().await });
 
         let mut expected_log_cancel_request = Request {
             request_id: response.request_id,
@@ -530,6 +527,8 @@ mod tests {
             output_pipe_receiver.recv().await,
             Some(ToServer::Request(expected_log_cancel_request))
         );
+
+        assert!(handle.await.is_ok());
     }
 
     // [utest->swdd~agent-listens-for-requests-from-pipe~1]

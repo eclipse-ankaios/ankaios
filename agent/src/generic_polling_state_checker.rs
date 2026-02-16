@@ -103,6 +103,7 @@ impl Drop for GenericPollingStateChecker {
 
 #[cfg(test)]
 mod tests {
+    use super::STATUS_CHECK_INTERVAL_MS;
     use crate::{
         generic_polling_state_checker::GenericPollingStateChecker,
         runtime_connectors::{MockRuntimeStateGetter, StateChecker},
@@ -110,24 +111,32 @@ mod tests {
 
     use ankaios_api::ank_base::ExecutionStateSpec;
     use ankaios_api::test_utils::{
-        generate_test_workload_named, generate_test_workload_state_with_workload_named, fixtures,
+        fixtures, generate_test_workload_named, generate_test_workload_state_with_workload_named,
     };
-
-    use std::time::Duration;
+    use mockall::Sequence;
+    use std::time::{Duration, SystemTime};
 
     // [utest->swdd~agent-provides-generic-state-checker-implementation~1]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn utest_generic_polling_state_checker_success() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
+        let start_time = SystemTime::now();
         let mut mock_runtime_getter = MockRuntimeStateGetter::default();
+        let mut mock_sequence = Sequence::new();
 
         mock_runtime_getter
             .expect_get_state()
             .times(2)
+            .in_sequence(&mut mock_sequence)
             .returning(|_: &String| Box::pin(async { ExecutionStateSpec::running() }));
+        mock_runtime_getter
+            .expect_get_state()
+            .once()
+            .in_sequence(&mut mock_sequence)
+            .return_once(|_: &String| Box::pin(async { ExecutionStateSpec::removed() }));
 
         let (state_sender, mut state_receiver) = tokio::sync::mpsc::channel(20);
 
@@ -140,20 +149,31 @@ mod tests {
             mock_runtime_getter,
         );
 
-        tokio::time::sleep(Duration::from_millis(1200)).await;
-
-        <GenericPollingStateChecker as StateChecker<String>>::stop_checker::<'_>(
-            generic_state_state_checker,
-        )
-        .await;
-
-        let expected_state = generate_test_workload_state_with_workload_named(
+        let expected_running = generate_test_workload_state_with_workload_named(
             &workload,
             ExecutionStateSpec::running(),
+        );
+        let expected_removed = generate_test_workload_state_with_workload_named(
+            &workload,
+            ExecutionStateSpec::removed(),
         );
 
         // [utest->swdd~generic-state-checker-sends-workload-state~2]
         let state_update_1 = state_receiver.recv().await.unwrap();
-        assert_eq!(state_update_1, expected_state);
+        let state_update_2 = state_receiver.recv().await.unwrap();
+
+        assert_eq!(state_update_1, expected_running);
+        assert_eq!(state_update_2, expected_removed);
+
+        tokio::time::timeout(Duration::from_millis(50), async {
+            if !generic_state_state_checker.task_handle.is_finished() {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        }).await.expect("The state checker task did not finish within the expected time.");
+
+        assert!(generic_state_state_checker.task_handle.is_finished());
+        assert!(
+            start_time.elapsed().unwrap().as_millis() >= (STATUS_CHECK_INTERVAL_MS * 2) as u128
+        );
     }
 }

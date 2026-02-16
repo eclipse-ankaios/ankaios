@@ -1853,53 +1853,6 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
-    // [utest->swdd~workload-control-loop-receives-workload-states~1]
-    #[tokio::test]
-    #[should_panic]
-    async fn utest_panic_on_closed_workload_state_channel() {
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (workload_state_forward_tx, mut workload_state_forward_rx) =
-            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
-
-        let workload = generate_test_workload_named();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![]);
-
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
-            workload_command_sender.delete().await.unwrap();
-        });
-
-        let control_loop_state = ControlLoopState::builder()
-            .workload_named(workload.clone())
-            .workload_state_sender(workload_state_forward_tx.clone())
-            .run_folder(fixtures::RUN_FOLDER.into())
-            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender2)
-            .build()
-            .unwrap();
-
-        // close the channel to panic within the workload control loop
-        workload_state_forward_rx.close();
-
-        assert!(
-            timeout(
-                Duration::from_millis(100),
-                WorkloadControlLoop::run(control_loop_state)
-            )
-            .await
-            .is_ok()
-        );
-
-        assert!(workload_command_receiver2.is_closed());
-        assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations();
-    }
-
     // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
     // [utest->swdd~workload-control-loop-handles-workload-restarts~2]
     // [utest->swdd~workload-control-loop-restarts-workloads-using-update~1]

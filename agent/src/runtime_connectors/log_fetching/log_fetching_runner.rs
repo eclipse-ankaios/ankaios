@@ -73,7 +73,7 @@ mod tests {
         future::Future,
         sync::{Arc, Mutex},
     };
-    use tokio;
+    use tokio::{self, sync::Mutex as AsyncMutex};
 
     lazy_static! {
         static ref SPAWN_JOIN_HANDLE: Mutex<Vec<Box<dyn TypelessJoinHandle>>> =
@@ -150,12 +150,25 @@ mod tests {
             &[FETCHER_2_LINE_2, FETCHER_2_LINE_3, FETCHER_2_LINE_4],
         ]);
 
-        let (runner, mut _receivers) = LogFetchingRunner::start_collecting_logs(vec![
+        let (runner, mut receivers) = LogFetchingRunner::start_collecting_logs(vec![
             Box::new(log_fetcher_1),
             Box::new(log_fetcher_2),
         ]);
 
         assert!(!check_all_aborted());
+
+        // Read all logs from receivers to unblock the fetcher tasks
+        for receiver in &mut receivers {
+            while receiver.read_log_lines().await.is_some() {}
+        }
+
+        for handle in &runner.join_handles {
+            let result = {
+                let mut jh_guard = handle.jh.lock().await;
+                (&mut *jh_guard).await
+            };
+            assert!(result.is_ok());
+        }
         drop(runner);
         assert!(check_all_aborted());
     }
@@ -182,7 +195,7 @@ mod tests {
         F::Output: Send + 'static,
     {
         let jh = tokio::spawn(future);
-        let jh = Arc::new(Mutex::new(jh));
+        let jh = Arc::new(AsyncMutex::new(jh));
         let jh = JoinHandle {
             jh,
             was_aborted: Arc::new(Mutex::new(false)),
@@ -193,7 +206,7 @@ mod tests {
 
     #[derive(Debug)]
     pub struct JoinHandle<T> {
-        jh: Arc<Mutex<tokio::task::JoinHandle<T>>>,
+        jh: Arc<AsyncMutex<tokio::task::JoinHandle<T>>>,
         was_aborted: Arc<Mutex<bool>>,
     }
 
@@ -209,7 +222,9 @@ mod tests {
     impl<T> JoinHandle<T> {
         pub fn abort(&self) {
             *self.was_aborted.lock().unwrap() = true;
-            self.jh.lock().unwrap().abort();
+            if let Ok(jh) = self.jh.try_lock() {
+                jh.abort();
+            }
         }
     }
 
