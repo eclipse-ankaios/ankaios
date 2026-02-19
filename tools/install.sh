@@ -56,6 +56,38 @@ fail() {
     exit 1
 }
 
+write_service() {
+    local description="$1" bin_dir="$2" exec_name="$3" log_level="$4"
+    cat << EOF
+[Unit]
+Description=${description}
+
+[Service]
+Environment="RUST_LOG=${log_level}"
+ExecStart=${bin_dir}/${exec_name}
+
+[Install]
+WantedBy=default.target
+EOF
+}
+
+write_startup_state() {
+    cat << EOF
+# Per default no workload is started. Adapt the manifest according to your needs.
+apiVersion: v1
+workloads:
+#   nginx:
+#     runtime: podman
+#     agent: agent_A
+#     restartPolicy: NEVER
+#     tags:
+#       owner: Ankaios team
+#     runtimeConfig: |
+#       image: docker.io/nginx:latest
+#       commandOptions: ["-p", "8081:80"]
+EOF
+}
+
 download_release() {
     if ! curl -sfLO "$1"; then
         fail "Error: download failed. No resource under '$1'"
@@ -155,33 +187,13 @@ if [ -d "$SERVICE_DEST" ]; then
     fi
 
     if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
-        $SVC_SUDO tee "$FILE_ANK_SERVER_SERVICE" >/dev/null << EOF
-[Unit]
-Description=Ankaios server
-
-[Service]
-Environment="RUST_LOG=${INSTALL_ANK_SERVER_RUST_LOG}"
-ExecStart=${BIN_DESTINATION}/ank-server
-
-[Install]
-WantedBy=default.target
-EOF
-    echo "Start server with 'sudo systemctl start $ANK_SERVER_SERVICE'"
+        write_service "Ankaios server" "${BIN_DESTINATION}" "ank-server" "${INSTALL_ANK_SERVER_RUST_LOG}" | $SVC_SUDO tee "${FILE_ANK_SERVER_SERVICE}" >/dev/null
+        echo "Start server with 'sudo systemctl start $ANK_SERVER_SERVICE'"
     fi
 
     if [[ "$INSTALL_TYPE" == agent || "$INSTALL_TYPE" == both ]]; then
-        $SVC_SUDO tee "$FILE_ANK_AGENT_SERVICE" >/dev/null << EOF
-[Unit]
-Description=Ankaios agent
-
-[Service]
-Environment="RUST_LOG=${INSTALL_ANK_AGENT_RUST_LOG}"
-ExecStart=${BIN_DESTINATION}/ank-agent
-
-[Install]
-WantedBy=default.target
-EOF
-    echo "Start agent with 'sudo systemctl start $ANK_AGENT_SERVICE'"
+        write_service "Ankaios agent" "${BIN_DESTINATION}" "ank-agent" "${INSTALL_ANK_AGENT_RUST_LOG}" | $SVC_SUDO tee "${FILE_ANK_AGENT_SERVICE}" >/dev/null
+        echo "Start agent with 'sudo systemctl start $ANK_AGENT_SERVICE'"
     fi
 
 else
@@ -192,20 +204,7 @@ fi
 if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
     if ! [ -s "$FILE_STARTUP_STATE" ]; then
         $SVC_SUDO mkdir -p "${CONFIG_DEST}"
-        $SVC_SUDO tee "$FILE_STARTUP_STATE" >/dev/null << EOF
-# Per default no workload is started. Adapt the manifest according to your needs.
-apiVersion: v1
-workloads:
-#   nginx:
-#     runtime: podman
-#     agent: agent_A
-#     restartPolicy: NEVER
-#     tags:
-#       owner: Ankaios team
-#     runtimeConfig: |
-#       image: docker.io/nginx:latest
-#       commandOptions: ["-p", "8081:80"]
-EOF
+        write_startup_state | $SVC_SUDO tee "${FILE_STARTUP_STATE}" >/dev/null
         echo "Created sample startup config in $FILE_STARTUP_STATE."
     else
         echo "Skipping creation of sample startup manifest in $FILE_STARTUP_STATE as one already exists."
