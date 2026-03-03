@@ -255,7 +255,6 @@ mod tests {
             })
             .return_once(|_| Ok(CompleteState::from(generate_test_complete_state(vec![]))));
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -288,7 +287,6 @@ mod tests {
             .return_once(|_| Ok(CompleteState::from(test_data)));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -320,7 +318,6 @@ mod tests {
             })
             .return_once(|_| Ok(CompleteState::from(test_data)));
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -352,7 +349,6 @@ mod tests {
             })
             .return_once(|_| Ok(CompleteState::from(test_data)));
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -384,7 +380,6 @@ mod tests {
             })
             .return_once(|_| Ok(CompleteState::from(test_data)));
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -420,7 +415,6 @@ mod tests {
             })
             .return_once(|_| Ok(CompleteState::from(test_data)));
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -451,7 +445,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -526,7 +519,6 @@ mod tests {
             .return_once(|| Err(ServerConnectionError::ExecutionError("Stop".into())));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server,
         };
@@ -596,7 +588,6 @@ mod tests {
 
         let mock_server_connection = MockServerConnection::default();
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -674,7 +665,6 @@ mod tests {
 
         let mock_server_connection = MockServerConnection::default();
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };

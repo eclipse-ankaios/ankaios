@@ -42,8 +42,8 @@ mod run_workload;
 mod set_state;
 
 use ankaios_api::ank_base::{
-    CompleteState, ExecutionStateEnumSpec, Workload, WorkloadInstanceNameSpec,
-    WorkloadState, WorkloadStatesMap,
+    CompleteState, ExecutionStateEnumSpec, Workload, WorkloadInstanceNameSpec, WorkloadState,
+    WorkloadStatesMap,
 };
 use common::{
     communications_error::CommunicationMiddlewareError, from_server_interface::FromServer,
@@ -170,8 +170,6 @@ impl TryFrom<WorkloadStatesMap> for WorkloadInfos {
 
 // The CLI commands are implemented in the modules included above. The rest are the common function.
 pub struct CliCommands {
-    // Left here for the future use.
-    _response_timeout_ms: u64,
     no_wait: bool,
     server_connection: ServerConnection,
 }
@@ -185,12 +183,12 @@ impl CliCommands {
         tls_config: Option<TLSConfig>,
     ) -> Result<Self, CommunicationMiddlewareError> {
         Ok(Self {
-            _response_timeout_ms: response_timeout_ms,
             no_wait,
             server_connection: ServerConnection::new(
                 cli_name.as_str(),
                 server_url.clone(),
                 tls_config,
+                response_timeout_ms,
             )?,
         })
     }

@@ -104,7 +104,6 @@ mod tests {
     use ankaios_api::ank_base::{
         CompleteState, RestartPolicy, State, UpdateStateSuccess, Workload, WorkloadMap,
     };
-    use ankaios_api::test_utils::fixtures;
     use mockall::predicate::eq;
     use serde_yaml::Value;
     use std::{collections::HashMap, io::Cursor};
@@ -200,7 +199,6 @@ mod tests {
             .return_once(|_, _| Ok(UpdateStateSuccess::default()));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: true,
             server_connection: mock_server_connection,
         };
