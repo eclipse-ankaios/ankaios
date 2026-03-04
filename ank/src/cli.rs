@@ -178,7 +178,11 @@ pub struct AnkCli {
     #[arg(short = 's', long = "server-url", required=false, env = ANK_SERVER_URL_ENV_KEY)]
     /// The url to Ankaios server.
     pub server_url: Option<String>,
-    #[arg(long = "response-timeout", required = false, default_value = "3000")]
+    #[arg(
+        long = "response-timeout",
+        required = false,
+        default_missing_value = "3000"
+    )]
     /// The timeout in milliseconds to wait for a response.
     pub response_timeout_ms: Option<u64>,
     #[arg(short = 'v', long = "verbose", action=ArgAction::Set, num_args=0, default_missing_value="true")]
