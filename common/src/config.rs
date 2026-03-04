@@ -49,7 +49,17 @@ impl fmt::Display for ConversionErrors {
     }
 }
 
-pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_path: &str) -> T {
+/// Handles the configuration file loading.
+///
+/// This function attempts to load the configuration from the provided `config_path`.
+/// If no path is provided, it will iterate over the `default_paths` and load the first
+/// existing configuration file. If no configuration file is found, it will return the
+/// default configuration.
+///
+/// ## Returns
+///
+/// The loaded configuration.
+pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_paths: &[&str]) -> T {
     match config_path {
         Some(config_path) => {
             let config_path = PathBuf::from(config_path);
@@ -60,20 +70,23 @@ pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_path: 
             T::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
         }
         None => {
-            let default_path = PathBuf::from(default_path);
-            if !default_path.try_exists().unwrap_or(false) {
-                log::debug!(
-                    "No config file found at default path '{}'. Using cli arguments and environment variables only.",
-                    default_path.display()
-                );
-                T::default()
-            } else {
-                log::info!(
-                    "Loading config from default path '{}'",
-                    default_path.display()
-                );
-                T::from_file(default_path).unwrap_or_exit("Config file could not be parsed")
+            for path in default_paths {
+                let default_path = PathBuf::from(path);
+                if default_path.try_exists().unwrap_or(false) {
+                    log::info!(
+                        "Loading config from default path '{}'",
+                        default_path.display()
+                    );
+                    return T::from_file(default_path)
+                        .unwrap_or_exit("Config file could not be parsed");
+                }
             }
+
+            log::debug!(
+                "No config file found at default paths '{:?}'. Continue with default config.",
+                default_paths,
+            );
+            T::default()
         }
     }
 }
@@ -162,7 +175,7 @@ mod tests {
 
         let test_config: TestConfig = handle_config(
             &Some(tmp_config.into_temp_path().to_str().unwrap().to_string()),
-            "/a/very/invalid/path/to/config/file",
+            &["/a/very/invalid/path/to/config/file"],
         );
 
         assert_eq!(test_config.test_string, "test_value");
@@ -170,19 +183,50 @@ mod tests {
     }
 
     #[test]
-    fn utest_handle_config_default_path() {
+    fn utest_handle_config_default_paths() {
         let mut file = NamedTempFile::new().expect("Failed to create file");
         writeln!(file, "{VALID_TEST_CONFIG_CONTENT}").expect("Failed to write to file");
 
-        let test_config: TestConfig = handle_config(&None, file.path().to_str().unwrap());
+        let test_config: TestConfig = handle_config(&None, &[file.path().to_str().unwrap()]);
 
         assert_eq!(test_config.test_string, "test_value");
         assert!(test_config.test_bool);
     }
 
     #[test]
+    fn utest_handle_config_default_paths_first_path_taking_precedence_over_the_other() {
+        // Config file 1
+        let mut default_file_1 = NamedTempFile::new().expect("Failed to create file");
+        writeln!(default_file_1, "{VALID_TEST_CONFIG_CONTENT}").expect("Failed to write to file");
+
+        // Config file 2 with different content
+        const CHANGED_TEST_VALUE: &str = "different_test_value";
+        let mut default_file_2 = NamedTempFile::new().expect("Failed to create file");
+        let other_config_content =
+            VALID_TEST_CONFIG_CONTENT.replace("test_value", CHANGED_TEST_VALUE);
+        writeln!(default_file_2, "{other_config_content}").expect("Failed to write to file");
+
+        let file_path_1 = default_file_1.path().to_str().unwrap().to_owned();
+        let file_path_2 = default_file_2.path().to_str().unwrap().to_owned();
+
+        let test_config: TestConfig = handle_config(&None, &[&file_path_1, &file_path_2]);
+
+        assert_eq!(test_config.test_string, "test_value");
+        assert!(test_config.test_bool);
+
+        // config file 1 is deleted, so config file 2 should be loaded
+        drop(default_file_1);
+
+        let test_config: TestConfig = handle_config(&None, &[&file_path_1, &file_path_2]);
+
+        assert_eq!(test_config.test_string, CHANGED_TEST_VALUE);
+        assert!(test_config.test_bool);
+    }
+
+    #[test]
     fn utest_handle_config_default() {
-        let test_config: TestConfig = handle_config(&None, "/a/very/invalid/path/to/config/file");
+        let test_config: TestConfig =
+            handle_config(&None, &["/a/very/invalid/path/to/config/file"]);
 
         assert_eq!(test_config, TestConfig::default());
     }

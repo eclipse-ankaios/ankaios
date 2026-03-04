@@ -32,10 +32,17 @@ use std::path::PathBuf;
 
 pub const DEFAULT_CONFIG: &str = "default";
 pub const DEFAULT_RESPONSE_TIMEOUT: u64 = 3000;
-
-pub static DEFAULT_ANK_CONFIG_FILE_PATH: Lazy<String> = Lazy::new(|| {
+pub static DEFAULT_ANK_CONFIG_USER_FILE_PATH: Lazy<String> = Lazy::new(|| {
     let home_dir = env::var("HOME").unwrap_or_exit("HOME environment variable not set");
     format!("{home_dir}/.config/ankaios/ank.conf")
+});
+pub const DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH: &str = "/etc/ankaios/ank.conf";
+
+pub static DEFAULT_ANK_CONFIG_FILE_PATHS: Lazy<Vec<&str>> = Lazy::new(|| {
+    vec![
+        DEFAULT_ANK_CONFIG_USER_FILE_PATH.as_str(),
+        DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH,
+    ]
 });
 
 fn get_default_response_timeout() -> u64 {
@@ -272,7 +279,7 @@ impl AnkConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH};
+    use super::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATHS};
     use crate::{
         ank_config::{get_default_response_timeout, get_default_url},
         cli::{AnkCli, Commands, GetArgs, GetCommands},
@@ -366,7 +373,7 @@ mod tests {
                 }),
             }),
             server_url: Some(TEST_SERVER_URL.to_string()),
-            config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATH.to_string()),
+            config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATHS[0].to_string()),
             response_timeout_ms: Some(5000),
             insecure: Some(false),
             verbose: Some(true),
@@ -418,7 +425,7 @@ mod tests {
                 }),
             }),
             server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
-            config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATH.to_string()),
+            config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATHS[0].to_string()),
             response_timeout_ms: Some(5000),
             insecure: Some(false),
             verbose: Some(true),
@@ -473,7 +480,7 @@ mod tests {
                 }),
             }),
             server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
-            config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATH.to_string()),
+            config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATHS[0].to_string()),
             response_timeout_ms: Some(5000),
             insecure: None,
             verbose: None,
