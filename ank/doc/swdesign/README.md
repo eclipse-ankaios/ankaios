@@ -140,10 +140,10 @@ Implementation of each command is detailed in the next sub-chapters.
 
 Status: approved
 
-The Ankaios CLI shall accept configuration files read at startup using the Common library helper that specify the general startup configuration of the CLI with a lower precedence than environment variables and command line arguments.
+The Ankaios CLI shall accept a configuration file read at startup using the Common library helper that specify the general startup configuration of the CLI with a lower precedence than environment variables and command line arguments.
 
 Rationale:
-Ankaios CLI configuration files allow a reproducible execution of the CLI with lower effort.
+An Ankaios CLI configuration file allows a reproducible execution of the CLI with lower effort.
 
 Comment:
 The Ankaios CLI expects the configuration file per default in the standard locations [`$HOME/.config/ankaios/ank.conf`, `/etc/ankaios/ank.conf`] with first existing file taking precedence over the other.

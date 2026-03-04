@@ -200,13 +200,13 @@ The following diagram shows the startup sequence of the Ankaios Agent:
 
 Status: approved
 
-The Ankaios agent shall accept configuration files read at startup using the Common library that specify the general startup configuration of the agent with a lower precedence than environment variables and command line arguments.
+The Ankaios agent shall accept a configuration file read at startup using the Common library that specify the general startup configuration of the agent with a lower precedence than environment variables and command line arguments.
 
 Rationale:
-Agent configuration files allow a reproducible execution of the agent with lower effort.
+An Agent configuration file allows a reproducible execution of the agent with lower effort.
 
 Comment:
-The Ankaios agent expects the configuration files per default in the standard location `/etc/ankaios/ank-agent.conf`.
+The Ankaios agent expects the configuration file per default in the standard location `/etc/ankaios/ank-agent.conf`.
 
 Needs:
 - impl
