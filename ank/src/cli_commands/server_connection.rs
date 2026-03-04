@@ -97,7 +97,7 @@ async fn run_until_timeout<T>(
         Ok(Ok(result)) => Ok(result),
         Ok(Err(err)) => Err(err),
         Err(_) => Err(ServerConnectionError::ExecutionError(format!(
-            "Operation timed out after '{:?}'",
+            "Command timed out after '{:?}'",
             timeout_duration
         ))),
     }
@@ -1118,7 +1118,13 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_err());
+        assert_eq!(
+            result,
+            Err(ServerConnectionError::ExecutionError(format!(
+                "Command timed out after '{:?}'",
+                server_connection.response_timeout_ms
+            )))
+        );
         checker.check_communication();
     }
 
