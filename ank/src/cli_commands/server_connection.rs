@@ -1111,6 +1111,7 @@ mod tests {
         let (_to_client, from_server) = mpsc::channel(1);
         server_connection.from_server = from_server;
 
+        server_connection.response_timeout_ms = Duration::from_millis(100);
         let result = server_connection
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
