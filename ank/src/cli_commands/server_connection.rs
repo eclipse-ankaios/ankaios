@@ -89,7 +89,7 @@ pub fn generate_test_complete_state_request_details(
 }
 
 // [impl->swdd~cli-throws-connection-timeout-error-on-response-timeout~1]
-async fn run_with_timeout<T>(
+async fn run_until_timeout<T>(
     future: impl std::future::Future<Output = Result<T, ServerConnectionError>>,
     timeout_duration: Duration,
 ) -> Result<T, ServerConnectionError> {
@@ -193,7 +193,7 @@ impl ServerConnection {
             }
         };
 
-        run_with_timeout(poll_complete_state_response, self.response_timeout_ms).await
+        run_until_timeout(poll_complete_state_response, self.response_timeout_ms).await
     }
 
     pub async fn update_state(
@@ -239,7 +239,7 @@ impl ServerConnection {
             }
         };
 
-        run_with_timeout(poll_update_state_success, self.response_timeout_ms).await
+        run_until_timeout(poll_update_state_success, self.response_timeout_ms).await
     }
 
     pub async fn read_next_update_workload_state(
@@ -322,7 +322,7 @@ impl ServerConnection {
         request_id: String,
     ) -> Result<LogsRequestAccepted, ServerConnectionError> {
         let response_timeout_ms = self.response_timeout_ms;
-        run_with_timeout(
+        run_until_timeout(
             self.poll_logs_request_accepted_response(request_id),
             response_timeout_ms,
         )
