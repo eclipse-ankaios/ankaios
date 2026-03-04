@@ -172,7 +172,7 @@ pub struct AnkCli {
     pub command: Commands,
     #[arg(required = false, short = 'x', long = "ank-config", value_hint = ValueHint::FilePath)]
     /// The path to the server config file.
-    /// The default path is $HOME/.config/ankaios/ank.conf
+    /// The default paths are $HOME/.config/ankaios/ank.conf and /etc/ankaios/ank.conf with first existing file taking precedence over the other.
     pub config_path: Option<String>,
     #[arg(short = 's', long = "server-url", required=false, env = ANK_SERVER_URL_ENV_KEY)]
     /// The url to Ankaios server.

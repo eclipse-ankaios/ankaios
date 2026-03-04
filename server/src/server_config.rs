@@ -24,7 +24,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use toml::from_str;
 
-pub const DEFAULT_SERVER_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-server.conf";
+pub const DEFAULT_SERVER_CONFIG_FILE_PATH: [&str; 1] = ["/etc/ankaios/ank-server.conf"];
 
 pub fn get_default_address() -> SocketAddr {
     DEFAULT_SOCKET_ADDRESS.parse().unwrap_or_unreachable()
@@ -236,7 +236,7 @@ mod tests {
         let mut server_config = ServerConfig::default();
         let args = Arguments {
             manifest_path: Some(STARTUP_MANIFEST_PATH.to_string()),
-            config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string()),
+            config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH[0].to_string()),
             addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
             insecure: Some(false),
             ca_pem: Some(fixtures::CA_PEM_PATH.to_string()),
@@ -291,7 +291,7 @@ mod tests {
             ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
         let args = Arguments {
             manifest_path: Some(STARTUP_MANIFEST_PATH.to_string()),
-            config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string()),
+            config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH[0].to_string()),
             addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
             insecure: Some(false),
             ca_pem: None,
