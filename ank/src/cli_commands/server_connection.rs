@@ -40,13 +40,13 @@ use {common::std_extensions::IllegalStateResult, std::io::Write};
 use mockall::automock;
 
 const BUFFER_SIZE: usize = 20;
-const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
 
 pub struct ServerConnection {
     to_server: ToServerSender,
     from_server: FromServerReceiver,
     task: JoinHandle<()>,
     missed_from_server_messages: Vec<FromServer>,
+    response_timeout_ms: Duration,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -88,6 +88,21 @@ pub fn generate_test_complete_state_request_details(
     }
 }
 
+// [impl->swdd~cli-throws-connection-timeout-error-on-response-timeout~1]
+async fn run_until_timeout<T>(
+    future: impl std::future::Future<Output = Result<T, ServerConnectionError>>,
+    timeout_duration: Duration,
+) -> Result<T, ServerConnectionError> {
+    match timeout(timeout_duration, future).await {
+        Ok(Ok(result)) => Ok(result),
+        Ok(Err(err)) => Err(err),
+        Err(_) => Err(ServerConnectionError::ExecutionError(format!(
+            "Command timed out after '{:?}'",
+            timeout_duration
+        ))),
+    }
+}
+
 #[cfg_attr(test, automock)]
 impl ServerConnection {
     // [impl->swdd~server-handle-cli-communication~1]
@@ -98,6 +113,7 @@ impl ServerConnection {
         cli_name: &str,
         server_url: String,
         tls_config: Option<TLSConfig>,
+        response_timeout_ms: u64,
     ) -> Result<Self, CommunicationMiddlewareError> {
         let mut grpc_communications_client = GRPCCommunicationsClient::new_cli_communication(
             cli_name.to_owned(),
@@ -122,6 +138,7 @@ impl ServerConnection {
             from_server: cli_receiver,
             task,
             missed_from_server_messages: Vec::new(),
+            response_timeout_ms: Duration::from_millis(response_timeout_ms),
         })
     }
 
@@ -163,7 +180,11 @@ impl ServerConnection {
                         output_debug!("Received from server: {res:?} ");
                         return Ok(res.complete_state.unwrap_or_default());
                     }
-                    None => return Err("Channel preliminary closed."),
+                    None => {
+                        return Err(ServerConnectionError::ExecutionError(
+                            "Channel preliminary closed.".to_owned(),
+                        ));
+                    }
                     Some(message) => {
                         // [impl->swdd~cli-stores-unexpected-message~1]
                         self.missed_from_server_messages.push(message);
@@ -171,15 +192,8 @@ impl ServerConnection {
                 }
             }
         };
-        match timeout(WAIT_TIME_MS, poll_complete_state_response).await {
-            Ok(Ok(res)) => Ok(res),
-            Ok(Err(err)) => Err(ServerConnectionError::ExecutionError(format!(
-                "Failed to get complete state.\nError: {err}"
-            ))),
-            Err(_) => Err(ServerConnectionError::ExecutionError(format!(
-                "Failed to get complete state in time (timeout={WAIT_TIME_MS:?})."
-            ))),
-        }
+
+        run_until_timeout(poll_complete_state_response, self.response_timeout_ms).await
     }
 
     pub async fn update_state(
@@ -224,19 +238,8 @@ impl ServerConnection {
                 }
             }
         };
-        match timeout(WAIT_TIME_MS, poll_update_state_success).await {
-            Ok(Ok(res)) => {
-                output_debug!("Got update success: {:?}", res);
-                Ok(res)
-            }
-            Ok(Err(err)) => {
-                output_debug!("Update failed: {:?}", err);
-                Err(err)
-            }
-            Err(_) => Err(ServerConnectionError::ExecutionError(format!(
-                "Failed to get complete state in time (timeout={WAIT_TIME_MS:?})."
-            ))),
-        }
+
+        run_until_timeout(poll_update_state_success, self.response_timeout_ms).await
     }
 
     pub async fn read_next_update_workload_state(
@@ -318,16 +321,12 @@ impl ServerConnection {
         &mut self,
         request_id: String,
     ) -> Result<LogsRequestAccepted, ServerConnectionError> {
-        timeout(
-            WAIT_TIME_MS,
+        let response_timeout_ms = self.response_timeout_ms;
+        run_until_timeout(
             self.poll_logs_request_accepted_response(request_id),
+            response_timeout_ms,
         )
         .await
-        .unwrap_or_else(|_| {
-            Err(ServerConnectionError::ExecutionError(format!(
-                "Failed to get LogsRequestAccepted response in time (timeout={WAIT_TIME_MS:?})."
-            )))
-        })
     }
 
     async fn poll_logs_request_accepted_response(
@@ -662,9 +661,12 @@ mod tests {
     };
 
     use std::collections::{BTreeSet, HashMap};
-    use tokio::sync::{
-        mpsc::{self, Receiver},
-        oneshot,
+    use tokio::{
+        sync::{
+            mpsc::{self, Receiver},
+            oneshot,
+        },
+        time::Duration,
     };
 
     const OTHER_REQUEST: &str = "other_request";
@@ -737,6 +739,7 @@ mod tests {
                     from_server: cli_receiver,
                     task: tokio::spawn(async {}),
                     missed_from_server_messages: Vec::new(),
+                    response_timeout_ms: Duration::from_millis(fixtures::RESPONSE_TIMEOUT_MS),
                 },
             )
         }
@@ -1092,6 +1095,7 @@ mod tests {
         checker.check_communication();
     }
 
+    // [utest->swdd~cli-throws-connection-timeout-error-on-response-timeout~1]
     #[tokio::test]
     async fn utest_update_state_fails_response_timeout() {
         let mut sim = CommunicationSimulator::default();
@@ -1107,6 +1111,7 @@ mod tests {
         let (_to_client, from_server) = mpsc::channel(1);
         server_connection.from_server = from_server;
 
+        server_connection.response_timeout_ms = Duration::from_millis(100);
         let result = server_connection
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
@@ -1114,7 +1119,13 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_err());
+        assert_eq!(
+            result,
+            Err(ServerConnectionError::ExecutionError(format!(
+                "Command timed out after '{:?}'",
+                server_connection.response_timeout_ms
+            )))
+        );
         checker.check_communication();
     }
 
@@ -1406,6 +1417,7 @@ mod tests {
             from_server: cli_receiver,
             task: tokio::spawn(async {}),
             missed_from_server_messages: Vec::new(),
+            response_timeout_ms: Duration::from_millis(fixtures::RESPONSE_TIMEOUT_MS),
         };
 
         let result = server_connection

@@ -307,6 +307,45 @@ Tags:
 Needs:
 - impl
 
+#### CLI supports cli argument for response timeout
+`swdd~cli-supports-cli-argument-for-response-timeout~1`
+
+Status: approved
+
+When the user runs the Ankaios CLI, the Ankaios CLI shall support the cli argument `--response-timeout` with a value in milliseconds to specify the timeout for waiting for a response from the Ankaios server.
+
+Comment:
+The default response timeout is 3000 milliseconds.
+
+Rationale:
+The CLI shall not wait indefinitely for a response from the Ankaios server.
+
+Tags:
+- Cli
+- CliCommands
+
+Needs:
+- impl
+
+#### CLI throws a connection timeout error on response timeout
+`swdd~cli-throws-connection-timeout-error-on-response-timeout~1`
+
+Status: approved
+
+While waiting for a response from the Ankaios server and the response timeout is reached, the Ankaios CLI shall:
+* exit with a non zero exit code
+* output an error message containing the timeout reached message
+
+Rationale:
+The CLI shall not wait indefinitely for a response from the Ankaios server.
+
+Tags:
+- ServerConnection
+
+Needs:
+- impl
+- utest
+
 ### `ank get state`
 
 ![Get desired state](plantuml/seq_get_state.svg)

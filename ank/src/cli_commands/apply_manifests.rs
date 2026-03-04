@@ -166,12 +166,12 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
 ) -> Result<Option<(CompleteState, Vec<String>)>, String> {
-    let mut req_obj: Object = State{
+    let mut req_obj: Object = State {
         api_version: CURRENT_API_VERSION.to_string(),
         ..Default::default()
-    }.try_into().map_err(|err| {
-        format!("Could not create initial empty state object from State: {err}")
-    })?;
+    }
+    .try_into()
+    .map_err(|err| format!("Could not create initial empty state object from State: {err}"))?;
     let mut req_paths: Vec<Path> = Vec::new();
     for manifest in manifests.iter_mut() {
         let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
@@ -251,7 +251,8 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{
-        CompleteState, ExecutionStateSpec, Response, ResponseContent, StateSpec, UpdateStateSuccess, WorkloadInstanceNameSpec, WorkloadStateSpec
+        CompleteState, ExecutionStateSpec, Response, ResponseContent, StateSpec,
+        UpdateStateSuccess, WorkloadInstanceNameSpec, WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_state_from_workloads, generate_test_workload_named,
@@ -847,7 +848,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -970,7 +970,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -1008,8 +1007,6 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-
-
         let updated_state = CompleteState {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
@@ -1037,7 +1034,6 @@ mod tests {
             .never();
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: true,
             server_connection: mock_server_connection,
         };
@@ -1084,7 +1080,6 @@ mod tests {
             .never();
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -1193,7 +1188,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
