@@ -58,5 +58,22 @@
         "tests",
         "--output-dir",
         "${workspaceFolder}/target/robot_tests_result"
-    ]
+    ],
+    "chat.tools.terminal.autoApprove": {
+        "ankaios-start": true,
+        "ank-agent": true,
+        "/^ank get state(?: ([\"']?[a-zA-Z0-9_-]+(\\.[a-zA-Z0-9_-]+)*[\"']?)(\\s+[\"']?[a-zA-Z0-9_-]+(\\.[a-zA-Z0-9_-]+)*[\"']?)*)?$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^ank get workloads(?:\\s+[^;&|`$<>]+)?$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^ank delete workload(?: [A-Za-z0-9_-]+)+$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "ankaios-clean": true
+    }
 }
