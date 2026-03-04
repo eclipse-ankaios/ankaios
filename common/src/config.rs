@@ -56,18 +56,9 @@ impl fmt::Display for ConversionErrors {
 /// existing configuration file. If no configuration file is found, it will return the
 /// default configuration.
 ///
-/// # Type Parameters
+/// ## Returns
 ///
-/// * `T`: The type of the configuration file. Must implement `ConfigFile`.
-///
-/// # Arguments
-///
-/// * `config_path`: An optional path to the configuration file.
-/// * `default_paths`: A slice of default paths to search for the configuration file.
-///
-/// # Returns
-///
-/// The loaded configuration of type `T`.
+/// The loaded configuration.
 pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_paths: &[&str]) -> T {
     match config_path {
         Some(config_path) => {
