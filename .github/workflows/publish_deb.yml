@@ -1,0 +1,145 @@
+name: Publish Ankaios to Launchpad PPA
+
+on:
+  # Called by the release workflow. All inputs have defaults so the caller
+  # passes nothing. The version is derived from the release tag ref name.
+  # Secrets are inherited from the repo (caller uses `secrets: inherit`).
+  workflow_call:
+    inputs:
+      ankaios_version:
+        description: "Upstream version (derived from release tag if omitted)"
+        required: false
+        type: string
+        default: ""
+      ubuntu_series:
+        description: "Space-separated Ubuntu series, e.g. 'noble jammy'"
+        required: false
+        type: string
+        default: "noble jammy"
+      ppa_build:
+        description: "PPA build revision (increment when re-uploading same version)"
+        required: false
+        type: string
+        default: "1"
+      launchpad_ppa:
+        description: "Target PPA, e.g. ankaios/ankaios"
+        required: false
+        type: string
+        default: "ankaios/ankaios"
+    secrets:
+      GPG_KEY_ID:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+      GPG_PRIVATE_KEY:
+        required: true
+
+  # Manually triggered. All variables must be set explicitly.
+  # Secrets are picked up automatically from the repository secret store.
+  workflow_dispatch:
+    inputs:
+      ankaios_version:
+        description: "Upstream version, e.g. 1.0.4"
+        required: true
+        type: string
+      ubuntu_series:
+        description: "Space-separated Ubuntu series, e.g. 'noble jammy'"
+        required: false
+        type: string
+        default: "noble jammy"
+      ppa_build:
+        description: "PPA build revision"
+        required: false
+        type: string
+        default: "1"
+      launchpad_ppa:
+        description: "Target PPA (team/ppa-name)"
+        required: false
+        type: string
+        default: "ankaios/ankaios"
+
+jobs:
+  publish:
+    name: Publish to PPA (${{ inputs.ubuntu_series || 'noble jammy' }})
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Resolve version
+        id: vars
+        run: |
+          version="${{ inputs.ankaios_version }}"
+          if [ -z "$version" ]; then
+            # Strip the leading 'v' from the release tag (e.g. v1.0.4 -> 1.0.4)
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Download vendored sources
+        if: github.event_name == 'workflow_call'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: vendored-sources
+          path: dist/
+
+      - name: Extract vendored sources
+        if: github.event_name == 'workflow_call'
+        run: tar --strip-components=1 -xzf dist/ankaios-vendored-source*.tar.gz
+
+      - name: Vendor dependencies
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          sudo apt-get install -y cargo just
+          just vendor
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            devscripts \
+            debhelper \
+            dput \
+            gnupg \
+            dpkg-dev
+
+      - name: Import GPG signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --list-keys --with-colons | awk -F: '/^fpr/{print $10":6:"}' | gpg --import-ownertrust
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpg-connect-agent reloadagent /bye || true
+
+      - name: Configure dput for Launchpad
+        env:
+          LAUNCHPAD_PPA: ${{ inputs.launchpad_ppa || 'ankaios/ankaios' }}
+        run: |
+          TEAM="${LAUNCHPAD_PPA%%/*}"
+          PPA_NAME="${LAUNCHPAD_PPA##*/}"
+          cat > ~/.dput.cf << EOF
+          [ankaios-ppa]
+          fqdn = ppa.launchpad.net
+          method = ftp
+          incoming = ~${TEAM}/ubuntu/${PPA_NAME}/
+          login = anonymous
+          allow_unsigned_uploads = 0
+          EOF
+
+      - name: Build and sign source packages
+        env:
+          ANKAIOS_VERSION: ${{ steps.vars.outputs.version }}
+          UBUNTU_SERIES: ${{ inputs.ubuntu_series || 'noble jammy' }}
+          PPA_BUILD: ${{ inputs.ppa_build || '1' }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: bash tools/debian_utils/create_deb.sh
+
+      - name: Upload to Launchpad PPA
+        run: |
+          for changes_file in dist/ankaios_*.changes; do
+            echo "Uploading $changes_file ..."
+            dput ankaios-ppa "$changes_file"
+          done
