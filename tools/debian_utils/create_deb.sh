@@ -26,7 +26,7 @@ set -e
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BASE_DIR="$SCRIPT_DIR/../.."
 MAINTAINER="Eclipse Ankaios <ankaios-dev@eclipse.org>"
-ANKAIOS_VERSION="1.0.4"
+ANKAIOS_VERSION="${ANKAIOS_VERSION:-1.0.0}"
 RELEASE_URL="https://github.com/eclipse-ankaios/ankaios/releases/tag/v$ANKAIOS_VERSION"
 LOG_LEVEL="info"
 
@@ -194,6 +194,13 @@ PYEOF
 python3 "$_CLEANUP" "$BASE_DIR/vendor"
 rm "$_CLEANUP"
 
+# Write the GPG passphrase to a temp file so debsign can sign non-interactively
+# via --pinentry-mode loopback.
+_PASSFILE=$(mktemp)
+chmod 600 "$_PASSFILE"
+echo "$GPG_PASSPHRASE" > "$_PASSFILE"
+trap 'rm -f "$_PASSFILE"' EXIT
+
 # Build one source package per Ubuntu series.
 # Version format: <upstream>~<series><ppa_build>  e.g. 1.0.3~noble1
 mkdir -p "$BASE_DIR/dist"
@@ -208,5 +215,5 @@ for series in $UBUNTU_SERIES; do
 
     echo "Signing source package for ${series}..."
     changes_file="$BASE_DIR/dist/ankaios_${deb_version}_source.changes"
-    echo "$GPG_PASSPHRASE" | debsign -k "$GPG_KEY_ID" --passphrase-fd 0 "$changes_file"
+    debsign -k "$GPG_KEY_ID" -p"gpg --pinentry-mode loopback --passphrase-file $_PASSFILE" "$changes_file"
 done

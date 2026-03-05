@@ -39,7 +39,7 @@ on:
   workflow_dispatch:
     inputs:
       ankaios_version:
-        description: "Upstream version, e.g. 1.0.4"
+        description: "Upstream version, e.g. 1.0.0"
         required: true
         type: string
       ubuntu_series:
@@ -71,7 +71,6 @@ jobs:
         run: |
           version="${{ inputs.ankaios_version }}"
           if [ -z "$version" ]; then
-            # Strip the leading 'v' from the release tag (e.g. v1.0.4 -> 1.0.4)
             version="${GITHUB_REF_NAME#v}"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -110,8 +109,6 @@ jobs:
         run: |
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
           gpg --list-keys --with-colons | awk -F: '/^fpr/{print $10":6:"}' | gpg --import-ownertrust
-          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
-          gpg-connect-agent reloadagent /bye || true
 
       - name: Configure dput for Launchpad
         env:
