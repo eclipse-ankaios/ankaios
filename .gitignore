@@ -24,3 +24,6 @@ __pycache__
 
 # ignore nohup file for postStartCommand
 nohup.out
+
+# Generated debian source package folder
+/debian

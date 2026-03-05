@@ -1,0 +1,54 @@
+Source: ankaios
+Section: embedded
+Priority: optional
+Maintainer: Eclipse Ankaios <ankaios-dev@eclipse.org>
+Build-Depends: debhelper-compat (= 13),
+ rustc-1.89 (>= 1.89.0) | rustc (>= 1.89.0),
+ cargo-1.89 | cargo (>= 1.89.0),
+ protobuf-compiler,
+ help2man
+Standards-Version: 4.6.2
+Homepage: https://github.com/eclipse-ankaios/ankaios
+
+Package: ank-server
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Server application of Eclipse Ankaios
+ Eclipse Ankaios provides workload and container orchestration for automotive
+ High Performance Computing Platforms (HPCs). It offers a slim yet powerful
+ solution to manage containerized applications across multiple nodes and
+ virtual machines via a single API.
+ .
+ This package contains the Ankaios server, which acts as the central control
+ point for managing workloads running on connected Ankaios agents.
+
+Package: ank-agent
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Agent application of Eclipse Ankaios
+ Eclipse Ankaios provides workload and container orchestration for automotive
+ High Performance Computing Platforms (HPCs). It offers a slim yet powerful
+ solution to manage containerized applications across multiple nodes and
+ virtual machines via a single API.
+ .
+ This package contains the Ankaios agent, which acts as an intermediate
+ between the server and the workloads, being responsible with managing
+ the workloads that are registered under it.
+
+Package: ank
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: CLI application of Eclipse Ankaios
+ Eclipse Ankaios provides workload and container orchestration for automotive
+ High Performance Computing Platforms (HPCs). It offers a slim yet powerful
+ solution to manage containerized applications across multiple nodes and
+ virtual machines via a single API.
+ .
+ This package contains the Ankaios CLI which represents a way for users to
+ access directly the state of the Ankaios cluster through the GRPC interface.
+
+Package: ankaios
+Architecture: all
+Depends: ank-server (= ${binary:Version}), ank-agent (= ${binary:Version}), ank (= ${binary:Version})
+Description: Eclipse Ankaios - full installation
+ Meta-package that installs all Ankaios components: server, agent, and CLI.
