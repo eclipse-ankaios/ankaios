@@ -140,13 +140,13 @@ Implementation of each command is detailed in the next sub-chapters.
 
 Status: approved
 
-The Ankaios CLI shall accept configuration files read at startup using the Common library helper that specify the general startup configuration of the CLI with a lower precedence than environment variables and command line arguments.
+The Ankaios CLI shall accept a configuration file read at startup using the Common library helper that specify the general startup configuration of the CLI with a lower precedence than environment variables and command line arguments.
 
 Rationale:
-Ankaios CLI configuration files allow a reproducible execution of the CLI with lower effort.
+An Ankaios CLI configuration file allows a reproducible execution of the CLI with lower effort.
 
 Comment:
-The Ankaios CLI expects the configuration files per default in the standard location `$HOME/.config/ankaios/ank.conf`.
+The Ankaios CLI expects the configuration file per default in the standard locations [`$HOME/.config/ankaios/ank.conf`, `/etc/ankaios/ank.conf`] with first existing file taking precedence over the other.
 
 Needs:
 - impl
@@ -306,6 +306,45 @@ Tags:
 
 Needs:
 - impl
+
+#### CLI supports cli argument for response timeout
+`swdd~cli-supports-cli-argument-for-response-timeout~1`
+
+Status: approved
+
+When the user runs the Ankaios CLI, the Ankaios CLI shall support the cli argument `--response-timeout` with a value in milliseconds to specify the timeout for waiting for a response from the Ankaios server.
+
+Comment:
+The default response timeout is 3000 milliseconds.
+
+Rationale:
+The CLI shall not wait indefinitely for a response from the Ankaios server.
+
+Tags:
+- Cli
+- CliCommands
+
+Needs:
+- impl
+
+#### CLI throws a connection timeout error on response timeout
+`swdd~cli-throws-connection-timeout-error-on-response-timeout~1`
+
+Status: approved
+
+While waiting for a response from the Ankaios server and the response timeout is reached, the Ankaios CLI shall:
+* exit with a non zero exit code
+* output an error message containing the timeout reached message
+
+Rationale:
+The CLI shall not wait indefinitely for a response from the Ankaios server.
+
+Tags:
+- ServerConnection
+
+Needs:
+- impl
+- utest
 
 ### `ank get state`
 

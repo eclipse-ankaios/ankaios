@@ -26,7 +26,7 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 use toml::from_str;
 
-pub const DEFAULT_AGENT_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-agent.conf";
+pub const DEFAULT_AGENT_CONFIG_FILE_PATH: [&str; 1] = ["/etc/ankaios/ank-agent.conf"];
 
 pub fn get_default_url() -> String {
     DEFAULT_SERVER_ADDRESS.to_string()
