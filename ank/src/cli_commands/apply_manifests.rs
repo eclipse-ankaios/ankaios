@@ -65,9 +65,15 @@ fn detect_api_version(obj: &Object, obj_paths: &[Path]) -> Result<Option<&'stati
 // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
 // [impl->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
 // [impl->swdd~cli-apply-manifest-accepts-v01-api-version~1]
+// [impl->swdd~cli-validates-manifest-against-schema~1]
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
     let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
         .map_err(|err| format!("Invalid manifest data provided: {err}"))?;
+
+    let manifest_json: serde_json::Value = serde_json::to_value(&state_obj_parsing_check)
+        .map_err(|err| format!("Failed to convert manifest for schema validation: {err}"))?;
+    ank_schema::validate_manifest(&manifest_json)?;
+
     let obj: Object = state_obj_parsing_check.into();
 
     let mut workload_paths: HashSet<Path> = HashSet::new();
@@ -251,8 +257,8 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{
-        CompleteState, ExecutionStateSpec, Response, ResponseContent, StateSpec,
-        UpdateStateSuccess, WorkloadInstanceNameSpec, WorkloadStateSpec,
+        CompleteState, ExecutionStateSpec, Response, ResponseContent, UpdateStateSuccess,
+        WorkloadInstanceNameSpec, WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_state_from_workloads, generate_test_workload_named,
@@ -314,14 +320,12 @@ mod tests {
     fn utest_parse_manifest_invalid_manifest_content() {
         let manifest_content = Cursor::new(b"invalid manifest content");
 
-        let (obj, paths) = parse_manifest(&mut (
+        let result = parse_manifest(&mut (
             "invalid_manifest_content".to_string(),
             Box::new(manifest_content),
-        ))
-        .unwrap();
+        ));
 
-        assert!(TryInto::<StateSpec>::try_into(obj).is_err());
-        assert!(paths.is_empty());
+        assert!(result.is_err());
     }
 
     // [utest->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
@@ -394,7 +398,7 @@ mod tests {
         assert!(
             result
                 .unwrap_err()
-                .contains("tags must be specified as a mapping")
+                .contains("Manifest schema validation failed")
         );
     }
 

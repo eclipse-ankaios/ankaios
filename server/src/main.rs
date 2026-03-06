@@ -85,6 +85,10 @@ async fn main() {
             validate_tags_format_in_manifest(&data)
                 .unwrap_or_exit("Invalid tags format in startup manifest");
 
+            // [impl->swdd~server-validates-startup-manifest-against-schema~1]
+            ank_schema::validate_manifest_yaml(&data)
+                .unwrap_or_exit("Startup manifest failed schema validation");
+
             // [impl->swdd~server-state-in-memory~1]
             // [impl->swdd~server-loads-startup-state-file~3]
             let state: StateSpec = serde_yaml::from_str(&data)
