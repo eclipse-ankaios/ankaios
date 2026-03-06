@@ -189,6 +189,23 @@ Needs:
 - utest
 - stest
 
+#### Server validates startup manifest against JSON schema
+`swdd~server-validates-startup-manifest-against-schema~1`
+
+Status: approved
+
+When loading a startup manifest, the Server shall validate the manifest against the Ankaios JSON schema and exit with an error if validation fails.
+
+Rationale:
+Prevents the server from starting with a structurally invalid configuration, ensuring system integrity from startup.
+
+Tags:
+- StartupStateLoader
+
+Needs:
+- impl
+- utest
+
 #### Server starts without startup config
 `swdd~server-starts-without-startup-config~1`
 
