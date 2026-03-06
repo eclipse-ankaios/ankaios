@@ -183,6 +183,10 @@ fn setup_workload_related_annotations(builder: Builder) -> Builder {
             "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute("Tags", "#[spec_type_attr(#[derive(schemars::JsonSchema)])]")
+        .field_attribute(
+            "Tags.tags",
+            "#[spec_field_attr(#[schemars(schema_with = \"tag_map_schema\")])]",
+        )
         .message_attribute(
             "Dependencies",
             "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
