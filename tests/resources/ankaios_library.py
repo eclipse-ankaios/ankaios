@@ -880,6 +880,324 @@ def get_instance_name_from_ankaios_workload_states(workload_states: str, workloa
     logger.warning(f"Workload '{workload_name}' not found in workload states")
     return ""
 
+
+###############################################################################
+## Interactive Control Interface Mode
+###############################################################################
+
+# Global state for interactive mode
+interactive_controller_data_dir = None
+interactive_controller_temp_dir_object = None
+interactive_controller_workload_name = "controller"
+interactive_controller_agent_name = DEFAULT_AGENT_NAME
+
+def create_interactive_controller_config(allow_rules: list = None, deny_rules: list = None) -> TemporaryDirectory:
+    """
+    Create configuration for an interactive controller workload.
+
+    Args:
+        allow_rules: List of access rule dictionaries for allowing operations
+        deny_rules: List of access rule dictionaries for denying operations
+
+    Returns:
+        TemporaryDirectory containing the startup config
+    """
+    global interactive_controller_data_dir, interactive_controller_temp_dir_object
+
+    tmp = TemporaryDirectory(delete=False)  # Don't auto-delete, we'll manage cleanup
+    interactive_controller_data_dir = tmp.name
+    interactive_controller_temp_dir_object = tmp
+
+    assert path.isdir(tmp.name) and path.exists(tmp.name), f"The temporary directory at {tmp.name} has not been created"
+
+    # Create ready marker directory structure
+    logger.trace(f"Creating interactive controller data directory at {tmp.name}")
+
+    configs_dir = BuiltIn().get_variable_value("${CONFIGS_DIR}")
+
+    # Read and format the template
+    with open(path.join(configs_dir, MANIFEST_TEMPLATE)) as template_file, \
+         open(path.join(tmp.name, STARTUP_MANIFEST), "w") as startup_config:
+        template_content = template_file.read()
+
+        # Format template with interactive mode arguments
+        content = template_content.format(
+            temp_data_dir=tmp.name,
+            allow_rules=json.dumps(allow_rules or []),
+            deny_rules=json.dumps(deny_rules or []),
+            control_interface_tester_tag=control_interface_tester_tag
+        )
+
+        # Modify the command to use interactive mode
+        # Replace the default command args with --interactive flag
+        content = content.replace(
+            'commandArgs: ["/data/commands.yaml", "/data/output.yaml"]',
+            f'commandArgs: ["--interactive", "/data"]'
+        )
+
+        logger.trace(f"Interactive startup config content:\n{content}")
+        startup_config.write(content)
+
+    return tmp
+
+
+@err_logging_decorator
+def wait_for_interactive_controller_ready(timeout: float = 20):
+    """
+    Wait for the interactive controller workload to signal readiness.
+
+    Args:
+        timeout: Maximum time to wait in seconds
+    """
+    global interactive_controller_data_dir
+
+    if not interactive_controller_data_dir:
+        raise RuntimeError("Interactive controller not initialized. Call create_interactive_controller_config first.")
+
+    ready_marker_path = path.join(interactive_controller_data_dir, "ready")
+    start_time = time.time()
+
+    logger.info("Waiting for interactive controller to be ready...")
+
+    while time.time() - start_time < timeout:
+        if path.exists(ready_marker_path):
+            logger.info("Interactive controller is ready")
+            return
+        time.sleep(0.1)
+
+    raise TimeoutError(f"Interactive controller did not become ready within {timeout} seconds")
+
+
+@err_logging_decorator
+def send_interactive_controller_command(command: dict, timeout: float = 10) -> dict:
+    """
+    Send a command to the interactive controller and wait for the result.
+
+    Args:
+        command: Command dictionary matching the Command struct format
+        timeout: Maximum time to wait for result in seconds
+
+    Returns:
+        Result dictionary from the controller
+    """
+    global interactive_controller_data_dir
+
+    if not interactive_controller_data_dir:
+        raise RuntimeError("Interactive controller not initialized. Call create_interactive_controller_config first.")
+
+    next_command_path = path.join(interactive_controller_data_dir, "next_command.yaml")
+    last_result_path = path.join(interactive_controller_data_dir, "last_result.json")
+    ready_marker_path = path.join(interactive_controller_data_dir, "ready")
+
+    # Remove ready marker to detect when command is processed
+    if path.exists(ready_marker_path):
+        run_command(f"rm -f {ready_marker_path}")
+
+    # Remove old result file if exists
+    if path.exists(last_result_path):
+        run_command(f"rm -f {last_result_path}")
+
+    # Write command file
+    logger.trace(f"Sending command: {command}")
+    write_yaml(new_yaml=command, path=next_command_path)
+
+    # Wait for ready marker to reappear (signals completion)
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        if path.exists(ready_marker_path):
+            # Command processed, read result
+            if not path.exists(last_result_path):
+                raise RuntimeError("Ready marker exists but no result file found")
+
+            with open(last_result_path, 'r') as result_file:
+                result = json.load(result_file)
+
+            logger.trace(f"Received result: {result}")
+            return result[0] if isinstance(result, list) and len(result) > 0 else result
+
+        time.sleep(0.1)
+
+    raise TimeoutError(f"Controller did not respond within {timeout} seconds")
+
+
+@err_logging_decorator
+def stop_interactive_controller():
+    """
+    Signal the interactive controller to shut down gracefully and cleanup temp directory.
+    """
+    global interactive_controller_data_dir, interactive_controller_temp_dir_object
+
+    if not interactive_controller_data_dir:
+        logger.warning("Interactive controller not initialized, nothing to stop")
+        return
+
+    shutdown_signal_path = path.join(interactive_controller_data_dir, "shutdown")
+
+    logger.info("Sending shutdown signal to interactive controller")
+    run_command(f"touch {shutdown_signal_path}")
+
+    # Give it a moment to shut down gracefully
+    time.sleep(0.5)
+
+    # Clean up temp directory
+    if interactive_controller_temp_dir_object:
+        try:
+            interactive_controller_temp_dir_object.cleanup()
+        except Exception as e:
+            logger.warning(f"Error cleaning up temp directory: {e}")
+
+    interactive_controller_data_dir = None
+    interactive_controller_temp_dir_object = None
+
+
+@err_logging_decorator
+def interactive_send_hello(version: str) -> dict:
+    """
+    Send a hello command to the interactive controller.
+
+    Args:
+        version: Protocol version string
+
+    Returns:
+        Result dictionary
+    """
+    command = {
+        "command": {
+            "type": "SendHello",
+            "version": version
+        }
+    }
+    return send_interactive_controller_command(command)
+
+
+@err_logging_decorator
+def interactive_update_state(manifest_file: str, update_mask: Union[str, list] = None) -> dict:
+    """
+    Send an update state command to the interactive controller.
+
+    Args:
+        manifest_file: Path to the manifest file (will be copied to controller's data directory)
+        update_mask: Field mask for the update (string or list)
+
+    Returns:
+        Result dictionary
+    """
+    global interactive_controller_data_dir
+
+    if isinstance(update_mask, str):
+        update_mask = [update_mask] if update_mask else []
+    elif update_mask is None:
+        update_mask = []
+
+    # Copy the manifest file to the controller's data directory
+    manifest_filename = path.basename(manifest_file)
+    dest_path = path.join(interactive_controller_data_dir, manifest_filename)
+    shutil.copy(manifest_file, dest_path)
+
+    # The controller sees it as /data/<filename> inside the container
+    container_manifest_path = f"/data/{manifest_filename}"
+
+    command = {
+        "command": {
+            "type": "UpdateState",
+            "manifest_file": container_manifest_path,
+            "update_mask": update_mask
+        }
+    }
+    return send_interactive_controller_command(command)
+
+
+@err_logging_decorator
+def interactive_get_state(field_mask: Union[str, list] = None) -> dict:
+    """
+    Send a get state command to the interactive controller.
+
+    Args:
+        field_mask: Field mask for the query (string or list)
+
+    Returns:
+        Result dictionary
+    """
+    if isinstance(field_mask, str):
+        field_mask = [field_mask] if field_mask else []
+    elif field_mask is None:
+        field_mask = []
+
+    command = {
+        "command": {
+            "type": "GetState",
+            "field_mask": field_mask
+        }
+    }
+    return send_interactive_controller_command(command)
+
+
+@err_logging_decorator
+def check_interactive_result_success(result: dict):
+    """
+    Check if an interactive controller result indicates success.
+
+    Args:
+        result: Result dictionary from send_interactive_controller_command
+
+    Raises:
+        AssertionError if the result indicates failure
+    """
+    logger.trace(f"Checking result: {result}")
+
+    result_value = result.get("result", {})
+    result_type = result_value.get("type")
+
+    if result_type == "NoApi":
+        raise AssertionError("Control Interface is not available")
+
+    if result_type == "ConnectionClosed":
+        raise AssertionError("Control Interface connection was closed")
+
+    # Check the actual result value
+    value = result_value.get("value", {})
+    value_type = value.get("type")
+
+    if value_type == "Err":
+        error_msg = value.get("value", "Unknown error")
+        raise AssertionError(f"Command failed: {error_msg}")
+
+    if value_type != "Ok":
+        raise AssertionError(f"Unexpected result type: {value_type}")
+
+    logger.info("Command succeeded")
+
+
+@err_logging_decorator
+def check_interactive_result_failure(result: dict, expected_error: str = None):
+    """
+    Check if an interactive controller result indicates expected failure.
+
+    Args:
+        result: Result dictionary from send_interactive_controller_command
+        expected_error: Optional substring to check in error message
+
+    Raises:
+        AssertionError if the result indicates success or wrong error
+    """
+    logger.trace(f"Checking result for expected failure: {result}")
+
+    result_value = result.get("result", {})
+    value = result_value.get("value", {})
+    value_type = value.get("type")
+
+    if value_type == "Ok":
+        raise AssertionError("Expected command to fail, but it succeeded")
+
+    if value_type == "Err":
+        error_msg = value.get("value", "")
+        if expected_error and expected_error not in error_msg:
+            raise AssertionError(f"Expected error containing '{expected_error}', but got: {error_msg}")
+        logger.info(f"Command failed as expected: {error_msg}")
+        return
+
+    raise AssertionError(f"Unexpected result type: {value_type}")
+
 @err_logging_decorator
 def event_output_shall_be_valid_yaml_format(output_file: str):
     assert path.exists(output_file), f"Event output file {output_file} does not exist"

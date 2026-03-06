@@ -1002,6 +1002,72 @@ the workload state of workload "${workload_name}" shall contain an additional in
         Sleep    0.2s
     END
 
+###############################################################################
+## Interactive Control Interface Mode Keywords
+###############################################################################
+
+Setup Ankaios for Interactive Control Interface test
+    [Documentation]    Setup Ankaios with an interactive controller workload
+    Setup Ankaios
+    find_control_interface_test_tag
+    Retrieve current Ankaios version
+
+Start Interactive Controller with access rules
+    [Arguments]    ${allow_rules}=[]    ${deny_rules}=[]
+    [Documentation]    Start the interactive controller workload with specified access rules
+    ${config}=    create_interactive_controller_config    ${allow_rules}    ${deny_rules}
+    Ankaios server is started with config "${config.name}${/}startup_config.yaml"
+    Ankaios agent is started with name "${AGENT_NAME}"
+    wait_for_interactive_controller_ready    timeout=20
+
+Interactive Controller sends hello
+    [Documentation]    Send hello command to interactive controller
+    ${result}=    interactive_send_hello    ${ANKAIOS_VERSION}
+    RETURN    ${result}
+
+Interactive Controller updates state with manifest "${manifest}" and mask "${update_mask}"
+    [Documentation]    Send update state command to interactive controller
+    ${result}=    interactive_update_state    ${manifest}    ${update_mask}
+    RETURN    ${result}
+
+Interactive Controller updates state with manifest "${manifest}"
+    [Documentation]    Send update state command without mask to interactive controller
+    ${result}=    interactive_update_state    ${manifest}
+    RETURN    ${result}
+
+Interactive Controller gets state
+    [Documentation]    Send get state command to interactive controller
+    ${result}=    interactive_get_state
+    RETURN    ${result}
+
+Interactive Controller gets state of fields ${field_mask}
+    [Documentation]    Send get state command with field mask to interactive controller
+    ${result}=    interactive_get_state    ${field_mask}
+    RETURN    ${result}
+
+Interactive result shall succeed
+    [Arguments]    ${result}
+    [Documentation]    Assert that the interactive controller result indicates success
+    check_interactive_result_success    ${result}
+
+Interactive result shall fail
+    [Arguments]    ${result}    ${expected_error}=${EMPTY}
+    [Documentation]    Assert that the interactive controller result indicates expected failure
+    IF    "${expected_error}" == ""
+        check_interactive_result_failure    ${result}
+    ELSE
+        check_interactive_result_failure    ${result}    ${expected_error}
+    END
+
+Stop Interactive Controller
+    [Documentation]    Stop the interactive controller workload gracefully
+    stop_interactive_controller
+
+Teardown Interactive Controller Test
+    [Documentation]    Complete teardown for interactive controller tests
+    ankaios_library.stop_interactive_controller
+    Clean up Ankaios
+
 # ALIASES
 
 the command "${cli_command}" finished with exit code "${exit_code}"

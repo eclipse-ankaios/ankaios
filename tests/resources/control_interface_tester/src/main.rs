@@ -29,12 +29,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::env::args;
 use std::path::PathBuf;
+use std::time::Duration;
 use std::{
-    fs::File,
+    fs::{self, File},
     io,
     io::{Read, Write},
     path::Path,
     process::exit,
+    thread,
 };
 
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
@@ -170,15 +172,33 @@ impl<T> From<Result<T, String>> for TagSerializedResult<T> {
 fn main() {
     let mut args = args();
     args.next();
-    let Some(input_path) = args.next() else {
-        logging::log("Input file argument is missing");
-        exit(1)
-    };
-    let Some(output_path) = args.next() else {
-        logging::log("Output file argument is missing");
-        exit(1)
-    };
+    // Check for interactive mode flag
+    let mode = args.next();
+    match mode.as_deref() {
+        Some("--interactive") => {
+            let data_dir = args.next().unwrap_or_else(|| {
+                logging::log("Data directory argument is missing for interactive mode");
+                exit(1)
+            });
+            run_interactive_mode(&data_dir);
+        }
+        Some(input_path) => {
+            let Some(output_path) = args.next() else {
+                logging::log("Output file argument is missing");
+                exit(1)
+            };
+            run_batch_mode(input_path, &output_path);
+        }
+        None => {
+            logging::log(
+                "Missing arguments. Usage: control_interface_tester [--interactive <data_dir>] | [<input_file> <output_file>]",
+            );
+            exit(1)
+        }
+    }
+}
 
+fn run_batch_mode(input_path: &str, output_path: &str) {
     let commands_json = File::open(input_path).unwrap_or_else(|err| {
         logging::log(&format!("Could not open input file: '{err}'"));
         exit(1);
@@ -220,7 +240,113 @@ fn main() {
     }
 }
 
-fn write_result(output_path: String, result: Vec<TestResult>) {
+fn run_interactive_mode(data_dir: &str) {
+    logging::log("Starting interactive mode");
+
+    let data_path = Path::new(data_dir);
+    let next_command_path = data_path.join("next_command.yaml");
+    let last_result_path = data_path.join("last_result.json");
+    let ready_marker_path = data_path.join("ready");
+    let shutdown_signal_path = data_path.join("shutdown");
+
+    // Initialize connection
+    let mut connection = match Connection::new() {
+        Ok(conn) => conn,
+        Err(err) => {
+            logging::log(&format!("Failed to create connection: {err}"));
+            // Write NoApi result and mark ready
+            let result = vec![TestResult {
+                result: TestResultEnum::NoApi,
+            }];
+            write_result(last_result_path.to_str().unwrap(), result);
+            fs::write(&ready_marker_path, "").unwrap();
+            return;
+        }
+    };
+
+    // Signal initial readiness
+    fs::write(&ready_marker_path, "").unwrap_or_else(|err| {
+        logging::log(&format!("Could not write ready marker: {err}"));
+        exit(2);
+    });
+    logging::log("Controller ready, waiting for commands...");
+
+    // Main loop: watch for command files
+    loop {
+        // Check for shutdown signal
+        if shutdown_signal_path.exists() {
+            logging::log("Shutdown signal received, exiting");
+            break;
+        }
+
+        // Check if command file exists
+        if next_command_path.exists() {
+            logging::log("New command detected");
+
+            // Read and parse command
+            let command_result = (|| -> Result<Command, String> {
+                let command_file = File::open(&next_command_path)
+                    .map_err(|err| format!("Could not open command file: {err}"))?;
+                serde_yaml::from_reader(command_file)
+                    .map_err(|err| format!("Could not parse command: {err}"))
+            })();
+
+            match command_result {
+                Ok(command) => {
+                    // Execute command
+                    let result = match connection.handle_command(command) {
+                        Ok(result) => vec![result],
+                        Err(CommandError::ConnectionClosed(err)) => {
+                            logging::log(&format!("Connection closed: {err}"));
+                            vec![TestResult {
+                                result: TestResultEnum::ConnectionClosed,
+                            }]
+                        }
+                        Err(CommandError::GenericError(err)) => {
+                            logging::log(&format!("Command execution failed: {err}"));
+                            // For interactive mode, we continue after errors
+                            vec![TestResult {
+                                result: TestResultEnum::UpdateStateResult(
+                                    TagSerializedResult::Err(err),
+                                ),
+                            }]
+                        }
+                    };
+
+                    // Write result
+                    write_result(last_result_path.to_str().unwrap(), result);
+                }
+                Err(err) => {
+                    logging::log(&format!("Failed to read command: {err}"));
+                    // Write error result
+                    let result = vec![TestResult {
+                        result: TestResultEnum::UpdateStateResult(TagSerializedResult::Err(err)),
+                    }];
+                    write_result(last_result_path.to_str().unwrap(), result);
+                }
+            }
+
+            // Delete command file to signal processing complete
+            if let Err(err) = fs::remove_file(&next_command_path) {
+                logging::log(&format!("Could not remove command file: {err}"));
+            }
+
+            // Update ready marker to signal completion
+            if let Err(err) = fs::write(&ready_marker_path, "") {
+                logging::log(&format!("Could not write ready marker: {err}"));
+            }
+
+            logging::log("Command processed, waiting for next command...");
+        }
+
+        // Small sleep to avoid busy-waiting
+        thread::sleep(Duration::from_millis(100));
+    }
+
+    logging::log("Interactive mode exited");
+}
+
+fn write_result(output_path: &str, result: Vec<TestResult>) {
     let output_file = File::create(output_path).unwrap_or_else(|err| {
         logging::log(&format!("Could not open output file: '{err}'"));
         exit(4);
