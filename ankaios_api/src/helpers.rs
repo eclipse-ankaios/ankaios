@@ -96,6 +96,16 @@ pub fn constrained_config_map(_generator: &mut schemars::SchemaGenerator) -> sch
     .expect("Ill formed JSON schema.")
 }
 
+pub fn tag_map_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    serde_json::from_value(json!({
+        "type": "object",
+        "additionalProperties": {
+            "type": ["string", "number", "boolean", "null"]
+        },
+    }))
+    .expect("Ill formed JSON schema.")
+}
+
 pub fn constrained_map_schema<T: schemars::JsonSchema>(
     generator: &mut schemars::SchemaGenerator,
 ) -> schemars::Schema {
