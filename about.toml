@@ -22,7 +22,9 @@ targets = [
 
 ignore-dev-dependencies = true
 
-[unicode-ident]
-accepted = ["Unicode-3.0"]
+[borrow-or-share]
+accepted = ["MIT-0"]
 
+[foldhash]
+accepted = ["Zlib"]
 
