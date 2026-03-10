@@ -16,6 +16,7 @@ use super::{CliCommands, InputSourcePair};
 use crate::cli_error::CliError;
 use crate::{cli::ApplyArgs, output, output_debug};
 
+use ank_schema::validate_manifest;
 use ankaios_api::{
     ALLOWED_CHAR_SET,
     ank_base::{CompleteState, State, validate_tags},
@@ -72,7 +73,7 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
 
     let manifest_json: serde_json::Value = serde_json::to_value(&state_obj_parsing_check)
         .map_err(|err| format!("Failed to convert manifest for schema validation: {err}"))?;
-    ank_schema::validate_manifest(&manifest_json)?;
+    validate_manifest(&manifest_json)?;
 
     let obj: Object = state_obj_parsing_check.into();
 
@@ -292,6 +293,7 @@ mod tests {
     const OTHER_REQUEST_ID: &str = "other_request_id";
 
     // [utest->swdd~cli-apply-supports-ankaios-manifest~1]
+    // [utest->swdd~cli-validates-manifest-against-schema~1]
     #[test]
     fn utest_parse_manifest_ok() {
         let manifest_content = Cursor::new(format!(
@@ -370,6 +372,7 @@ mod tests {
     }
 
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
+    // [utest->swdd~cli-validates-manifest-against-schema~1]
     #[test]
     fn utest_parse_manifest_current_api_version_tags_as_sequence_fails() {
         let manifest_content = Cursor::new(format!(
