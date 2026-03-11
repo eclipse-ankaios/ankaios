@@ -98,9 +98,11 @@ mod tests {
         });
         let result = validate_manifest(&manifest);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .contains("Manifest schema validation failed"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("Manifest schema validation failed")
+        );
     }
 
     #[test]
@@ -131,6 +133,16 @@ mod tests {
                 .unwrap_err()
                 .contains("Manifest schema validation failed")
         );
+    }
+
+    #[test]
+    fn utest_manifest_is_valid_from_tests() {
+        let yaml = include_str!("../../tests/resources/configs/manifest_no_agent_name.yaml");
+        let result = validate_manifest_yaml(yaml);
+        if let Err(e) = &result {
+            println!("Manifest validation failed: {e}");
+        }
+        assert!(validate_manifest_yaml(yaml).is_ok());
     }
 
     #[test]

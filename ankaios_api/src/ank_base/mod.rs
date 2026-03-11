@@ -17,7 +17,7 @@ tonic::include_proto!("ank_base"); // The string specified here must match the p
 
 pub use crate::helpers::validate_field_pattern;
 pub(crate) use crate::helpers::{
-    constrained_config_map, constrained_map_schema, tag_map_schema, serialize_to_ordered_map,
+    constrained_config_map, constrained_map_schema, serialize_to_ordered_map,
     tag_adapter_deserializer, trim_string, should_skip_control_interface_serialization
 };
 
