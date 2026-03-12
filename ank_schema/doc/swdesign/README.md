@@ -6,7 +6,7 @@ This document describes the Software Design for the Ankaios Schema crate.
 
 Ankaios is a workload orchestrator supporting a subset of the Kubernetes configurations and is targeted at the automotive use case.
 
-The Ankaios Schema crate provides the JSON Schema definition for the Ankaios manifest format and a validation method to check manifests against that schema.
+The Ankaios Schema crate provides the JSON Schema definition for the Ankaios manifest format as well as functionality for creating and validating the schema.
 
 ## Context View
 
@@ -33,7 +33,6 @@ This chapter defines the runtime behavior of the Ankaios Schema crate. The follo
 ### Schema generation
 
 #### Ankaios Schema crate provides the Ankaios schema in JSON Schema Draft 7 format
-
 `swdd~ank-schema-provides-schema~1`
 
 Status: approved
@@ -52,12 +51,13 @@ Needs:
 ### Manifest validation
 
 #### Ankaios Schema crate provides a manifest validation method
-
 `swdd~ank-schema-provides-manifest-validation~1`
 
 Status: approved
 
-The Ankaios Schema crate shall provide a public function that validates a given manifest (as a `serde_json::Value`) against the Ankaios JSON Schema and returns a descriptive error listing all violations when validation fails.
+The Ankaios Schema crate shall provide a public function that:
+* validates a given manifest represented as a `serde_json::Value` against the Ankaios JSON Schema
+* returns a descriptive error listing all violations when the validation fails.
 
 Rationale:
 Centralizing the validation logic in a dedicated crate avoids code duplication and ensures all Ankaios components apply the same validation rules.
