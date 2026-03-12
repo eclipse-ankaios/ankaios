@@ -1037,12 +1037,14 @@ Needs:
 - utest
 - stest
 
-#### CLI validates manifest against JSON schema
+#### CLI validates manifest against Ankaios supported schema
 `swdd~cli-validates-manifest-against-schema~1`
 
 Status: approved
 
-When parsing an Ankaios manifest, the Ankaios CLI shall validate the manifest against the Ankaios JSON schema and return an error if validation fails.
+When parsing an Ankaios manifest, the Ankaios CLI shall:
+* validate the manifest against the Ankaios supported schema using the functionality provided by the ank_schema library
+* return an error if the validation fails.
 
 Rationale:
 Provides early feedback to users about structurally invalid manifests before sending them to the server.
