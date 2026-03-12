@@ -21,13 +21,6 @@ fn get_schema_value() -> Result<serde_json::Value, String> {
     serde_json::to_value(&schema).map_err(|e| format!("Failed to serialize schema: {e}"))
 }
 
-// [impl->swdd~server-validates-startup-manifest-against-schema~1]
-pub fn validate_manifest_yaml(yaml_str: &str) -> Result<(), String> {
-    let instance: serde_json::Value = serde_yaml::from_str(yaml_str)
-        .map_err(|e| format!("Failed to parse manifest YAML: {e}"))?;
-    validate_manifest(&instance)
-}
-
 // [impl->swdd~cli-validates-manifest-against-schema~1]
 pub fn validate_manifest(instance: &serde_json::Value) -> Result<(), String> {
     // The deprecated API version uses a different structure (e.g. tags as a sequence)
@@ -133,16 +126,6 @@ mod tests {
                 .unwrap_err()
                 .contains("Manifest schema validation failed")
         );
-    }
-
-    #[test]
-    fn utest_manifest_is_valid_from_tests() {
-        let yaml = include_str!("../../tests/resources/configs/manifest_no_agent_name.yaml");
-        let result = validate_manifest_yaml(yaml);
-        if let Err(e) = &result {
-            println!("Manifest validation failed: {e}");
-        }
-        assert!(validate_manifest_yaml(yaml).is_ok());
     }
 
     #[test]

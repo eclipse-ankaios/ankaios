@@ -16,7 +16,6 @@ mod ankaios_server;
 mod cli;
 mod server_config;
 
-use ank_schema::validate_manifest_yaml;
 use ankaios_api::ank_base::{CompleteStateSpec, StateSpec, validate_tags};
 use ankaios_server::{AnkaiosServer, create_from_server_channel, create_to_server_channel};
 
@@ -85,10 +84,6 @@ async fn main() {
 
             validate_tags_format_in_manifest(&data)
                 .unwrap_or_exit("Invalid tags format in startup manifest");
-
-            // [impl->swdd~server-validates-startup-manifest-against-schema~1]
-            validate_manifest_yaml(&data)
-                .unwrap_or_exit("Startup manifest failed schema validation");
 
             // [impl->swdd~server-state-in-memory~1]
             // [impl->swdd~server-loads-startup-state-file~3]
@@ -159,7 +154,6 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use crate::validate_tags_format_in_manifest;
-    use ank_schema::validate_manifest_yaml;
 
     // [utest->swdd~server-validates-startup-manifest-tags-format~1]
     #[test]
@@ -246,42 +240,6 @@ workloads:
             result
                 .unwrap_err()
                 .contains("tags must be specified as a sequence")
-        );
-    }
-
-    // [utest->swdd~server-validates-startup-manifest-against-schema~1]
-    #[test]
-    fn utest_validate_manifest_yaml_valid_manifest_ok() {
-        let manifest = r#"
-apiVersion: v1
-workloads:
-  nginx:
-    agent: agent_A
-    runtime: podman
-    runtimeConfig: |
-      image: nginx:latest
-"#;
-        assert!(validate_manifest_yaml(manifest).is_ok());
-    }
-
-    // [utest->swdd~server-validates-startup-manifest-against-schema~1]
-    #[test]
-    fn utest_validate_manifest_yaml_invalid_manifest_fails() {
-        let manifest = r#"
-apiVersion: v1
-workloads:
-  invalid.workload.name:
-    agent: agent_A
-    runtime: podman
-    runtimeConfig: |
-      image: nginx:latest
-"#;
-        let result = validate_manifest_yaml(manifest);
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .contains("Manifest schema validation failed")
         );
     }
 }
