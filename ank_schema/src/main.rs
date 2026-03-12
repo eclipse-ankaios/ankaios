@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 fn main() {
+    // [impl->swdd~ank-schema-provides-schema~1]
     let generator = schemars::generate::SchemaSettings::draft07().into_generator();
 
     let schema = generator.into_root_schema_for::<ankaios_api::ank_base::StateSpec>();
