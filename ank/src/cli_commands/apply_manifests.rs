@@ -66,11 +66,12 @@ fn detect_api_version(obj: &Object, obj_paths: &[Path]) -> Result<Option<&'stati
 // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
 // [impl->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
 // [impl->swdd~cli-apply-manifest-accepts-v01-api-version~1]
-// [impl->swdd~cli-validates-manifest-against-schema~1]
+
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
     let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
         .map_err(|err| format!("Invalid manifest data provided: {err}"))?;
 
+    // [impl->swdd~cli-validates-manifest-against-schema~1]
     let manifest_json: serde_json::Value = serde_json::to_value(&state_obj_parsing_check)
         .map_err(|err| format!("Failed to convert manifest for schema validation: {err}"))?;
     validate_manifest(&manifest_json)?;

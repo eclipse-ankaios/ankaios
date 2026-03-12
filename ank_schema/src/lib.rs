@@ -15,13 +15,14 @@
 use ankaios_api::{PREVIOUS_API_VERSION, ank_base::StateSpec};
 use schemars::generate::SchemaSettings;
 
+// [impl->swdd~ank-schema-provides-schema~1]
 fn get_schema_value() -> Result<serde_json::Value, String> {
     let generator = SchemaSettings::draft07().into_generator();
     let schema = generator.into_root_schema_for::<StateSpec>();
     serde_json::to_value(&schema).map_err(|e| format!("Failed to serialize schema: {e}"))
 }
 
-// [impl->swdd~cli-validates-manifest-against-schema~1]
+// [impl->swdd~ank-schema-provides-manifest-validation~1]
 pub fn validate_manifest(instance: &serde_json::Value) -> Result<(), String> {
     // The deprecated API version uses a different structure (e.g. tags as a sequence)
     // that is not described by the current schema, so skip schema validation for it.
@@ -69,6 +70,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    // [utest->swdd~ank-schema-provides-manifest-validation~1]
     #[test]
     fn utest_validate_manifest_skips_deprecated_v01() {
         let manifest = json!({
@@ -84,6 +86,7 @@ mod tests {
         assert!(validate_manifest(&manifest).is_ok());
     }
 
+    // [utest->swdd~ank-schema-provides-manifest-validation~1]
     #[test]
     fn utest_validate_manifest_missing_api_version_fails() {
         let manifest = json!({
@@ -98,6 +101,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~ank-schema-provides-manifest-validation~1]
     #[test]
     fn utest_validate_manifest_valid_v1() {
         let manifest = json!({
@@ -113,6 +117,7 @@ mod tests {
         assert!(validate_manifest(&manifest).is_ok());
     }
 
+    // [utest->swdd~ank-schema-provides-manifest-validation~1]
     #[test]
     fn utest_validate_manifest_invalid_api_version_pattern() {
         let manifest = json!({
@@ -128,6 +133,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~ank-schema-provides-manifest-validation~1]
     #[test]
     fn utest_validate_manifest_invalid_workload_name() {
         let manifest = json!({
