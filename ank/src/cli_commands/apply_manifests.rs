@@ -355,7 +355,7 @@ mod tests {
       agent: {}
       tags:
         owner: Ankaios team
-        version: 1.0
+        version: \"1.0\"
       runtimeConfig: |
         image: docker.io/nginx:latest",
             fixtures::WORKLOAD_NAMES[0],
