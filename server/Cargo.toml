@@ -10,7 +10,6 @@ repository = "https://github.com/eclipse-ankaios/ankaios"
 
 [dependencies]
 ankaios-api = { path = "../ankaios_api" }
-ank-schema = { path = "../ank_schema" }
 common = { path = "../common" }
 grpc = { path = "../grpc" }
 log = "0.4"
