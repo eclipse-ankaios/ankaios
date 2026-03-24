@@ -237,7 +237,7 @@ async fn main() {
         agent_config.server_url,
         agent_config.tags,
         // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-        tls_config.unwrap_or_exit("Missing certificate file"),
+        tls_config.unwrap_or_exit("Missing certificate files"),
     )
     .unwrap_or_exit("Failed to create communications client.");
 

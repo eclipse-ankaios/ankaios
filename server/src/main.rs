@@ -106,7 +106,7 @@ async fn main() {
     let (to_agents, agents_receiver) = create_from_server_channel(common::CHANNEL_CAPACITY);
 
     if let Err(err_message) = TLSConfig::is_config_conflicting(
-        server_config.insecure.unwrap(),
+        server_config.insecure,
         &server_config.ca_pem_content,
         &server_config.crt_pem_content,
         &server_config.key_pem_content,
@@ -118,7 +118,7 @@ async fn main() {
     // [impl->swdd~server-provides-file-paths-to-communication-middleware~1]
     // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
     let tls_config = TLSConfig::new(
-        server_config.insecure.unwrap_or(true),
+        server_config.insecure,
         server_config.ca_pem_content,
         server_config.crt_pem_content,
         server_config.key_pem_content,
@@ -127,7 +127,7 @@ async fn main() {
     let mut communications_server = GRPCCommunicationsServer::new(
         to_server,
         // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-        tls_config.unwrap_or_exit("Missing certificates files"),
+        tls_config.unwrap_or_exit("Missing certificate files"),
     );
     let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
 

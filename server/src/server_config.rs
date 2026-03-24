@@ -48,7 +48,7 @@ pub struct ServerConfig {
     #[serde(default = "get_default_address")]
     pub address: SocketAddr,
     #[serde(default)]
-    pub insecure: Option<bool>,
+    pub insecure: bool,
     ca_pem: Option<String>,
     crt_pem: Option<String>,
     key_pem: Option<String>,
@@ -63,7 +63,7 @@ impl Default for ServerConfig {
             version: CONFIG_VERSION.to_string(),
             startup_manifest: None,
             address: get_default_address(),
-            insecure: Some(bool::default()),
+            insecure: false,
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
@@ -125,7 +125,7 @@ impl ServerConfig {
         }
 
         if let Some(insecure) = args.insecure {
-            self.insecure = Some(insecure);
+            self.insecure = insecure;
         }
 
         if let Some(ca_pem_path) = &args.ca_pem {
@@ -182,7 +182,7 @@ mod tests {
             default_server_config.address,
             DEFAULT_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap()
         );
-        assert_eq!(default_server_config.insecure, Some(false));
+        assert!(!default_server_config.insecure);
         assert_eq!(default_server_config.version, "v1");
     }
 
@@ -254,7 +254,7 @@ mod tests {
             server_config.address,
             TEST_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap()
         );
-        assert_eq!(server_config.insecure, Some(false));
+        assert!(!server_config.insecure);
         assert_eq!(
             server_config.ca_pem,
             Some(fixtures::CA_PEM_PATH.to_string())
@@ -317,6 +317,48 @@ mod tests {
 
     // [utest->swdd~server-loads-config-file~2]
     #[test]
+    fn utest_server_config_defaults_to_secure_mode() {
+        let server_config_content = format!(
+            r"#
+        version = 'v1'
+        ca_pem_content = '''{}'''
+        crt_pem_content = '''{}'''
+        key_pem_content = '''{}'''
+        #",
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT,
+        );
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
+
+        // When insecure field is omitted, it should default to false (secure mode)
+        assert!(!server_config.insecure);
+    }
+
+    // [utest->swdd~server-loads-config-file~2]
+    #[test]
+    fn utest_server_config_insecure_field_invalid_value() {
+        let server_config_content = r"#
+        version = 'v1'
+        insecure = 'not_a_bool'
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let result = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
+
+        // Should fail to deserialize with invalid boolean value
+        assert!(result.is_err());
+        assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
+    }
+
+    // [utest->swdd~server-loads-config-file~2]
+    #[test]
     fn utest_server_config_from_file_successful() {
         let server_config_content = format!(
             r"#
@@ -358,7 +400,7 @@ mod tests {
             server_config.key_pem_content,
             Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
-        assert_eq!(server_config.insecure, Some(true));
+        assert!(server_config.insecure);
         assert_eq!(
             server_config.startup_manifest,
             Some("/workspaces/ankaios/server/resources/startConfig.yaml".to_string())
