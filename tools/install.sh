@@ -7,9 +7,11 @@ set -e
 RELEASE_URL_BASE="https://github.com/eclipse-ankaios/ankaios/releases"
 BIN_DESTINATION="/usr/local/bin"
 CONFIG_DEST="/etc/ankaios"
+HOME_CONFIG_DEST="${HOME}/.config/ankaios/"
 FILE_STARTUP_STATE="${CONFIG_DEST}/state.yaml"
 INSTALL_TYPE="both"
 SERVICE_DEST=/etc/systemd/system
+
 ANK_SERVER_SERVICE="ank-server"
 FILE_ANK_SERVER_SERVICE="${SERVICE_DEST}/${ANK_SERVER_SERVICE}.service"
 ANK_AGENT_SERVICE="ank-agent"
@@ -220,18 +222,23 @@ echo "Downloading the configs: '${ANKAIOS_CONFIGS_URL}'"
 download_release "${ANKAIOS_CONFIGS_URL}"
 
 # Extract the config files
-ANK_CONFIG_FILE_PATH="${HOME}/.config/ankaios/"
 CONFIGS_FILE_NAME="ankaios_configs.tar.gz"
 
 echo "Extracting the config files"
-mkdir -p "${ANK_CONFIG_FILE_PATH}"
 ${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-server.conf
 ${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-agent.conf
-tar -xvzf "${CONFIGS_FILE_NAME}" -C "${ANK_CONFIG_FILE_PATH}" ank.conf
+${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank.conf
 
+if [ "${EUID}" -ne 0 ]; then
+    mkdir -p "${HOME_CONFIG_DEST}"
+    tar -xvzf "${CONFIGS_FILE_NAME}" -C "${HOME_CONFIG_DEST}" ank.conf
+fi
 
 echo "Customization of your Ankaios system (agent name, server address, etc.) can be done by modifying the following files:"
-echo "  - ${ANK_CONFIG_FILE_PATH}/ank.conf for the Ankaios CLI"
+echo "  - ${CONFIG_DEST}/ank.conf for the Ankaios CLI"
+if [ "${EUID}" -ne 0 ]; then
+    echo "  - ${HOME_CONFIG_DEST}/ank.conf for the Ankaios CLI (user-specific, takes priority)"
+fi
 echo "  - ${CONFIG_DEST}/ank-server.conf for the Ankaios server"
 echo "  - ${CONFIG_DEST}/ank-agent.conf for the Ankaios agent"
 
