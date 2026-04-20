@@ -667,10 +667,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#setup-with-script" class="md-nav__link">
+  <a href="#install-script" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Setup with script
+        Install script
       
     </span>
   </a>
@@ -678,10 +678,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#set-the-log-level-for-ank-server-and-ank-agent-services" class="md-nav__link">
+  <a href="#apt-debian-ubuntu" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Set the log level for ank-server and ank-agent services
+        APT (Debian / Ubuntu)
       
     </span>
   </a>
@@ -689,21 +689,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#uninstall-ankaios" class="md-nav__link">
+  <a href="#manual-download" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Uninstall Ankaios
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#manual-download-of-binaries" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Manual download of binaries
+        Manual download
       
     </span>
   </a>
@@ -2321,10 +2310,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#setup-with-script" class="md-nav__link">
+  <a href="#install-script" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Setup with script
+        Install script
       
     </span>
   </a>
@@ -2332,10 +2321,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#set-the-log-level-for-ank-server-and-ank-agent-services" class="md-nav__link">
+  <a href="#apt-debian-ubuntu" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Set the log level for ank-server and ank-agent services
+        APT (Debian / Ubuntu)
       
     </span>
   </a>
@@ -2343,21 +2332,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#uninstall-ankaios" class="md-nav__link">
+  <a href="#manual-download" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Uninstall Ankaios
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#manual-download-of-binaries" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Manual download of binaries
+        Manual download
       
     </span>
   </a>
@@ -2405,13 +2383,15 @@
   
 
 
+<!-- markdownlint-disable MD024 -->
+
 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
 <h2 id="express-installation">Express installation<a class="headerlink" href="#express-installation" title="Permanent link">&para;</a></h2>
 <p>Make sure that at least one of <a href="#podman">Podman</a> or <a href="#containerd">containerd</a> has been installed. Then just call</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash<span class="w"> </span>-
 </code></pre></div>
 <p>Ankaios works with most Linux distributions and has been tested with Ubuntu 22.04, 24.04 and 26.04.</p>
-<p>Detailed installation steps including instructions on installing runtimes and specific Ankaios versions are provided in the following.</p>
+<p>Detailed installation steps, including instructions on setting up container runtimes, choosing an installation method, and installing specific Ankaios versions, are provided below.</p>
 <h2 id="system-requirements">System requirements<a class="headerlink" href="#system-requirements" title="Permanent link">&para;</a></h2>
 <p>Ankaios currently requires a Linux OS and is available for x86_64 and arm64
 targets.</p>
@@ -2447,8 +2427,8 @@ For using the <code>podman</code> runtime, Podman version 3.4.2 is sufficient bu
 <p>For using the Ankaios <code>containerd</code> runtime, follow the <a href="https://github.com/containerd/containerd/blob/main/docs/getting-started.md#installing-containerd">containerd installation instructions</a> to install the containerd daemon.</p>
 <p>Ankaios uses the <code>nerdctl</code> command-line interface (CLI) to manage containers with the containerd runtime. Install a compatible version of the <code>nerdctl</code> CLI for the containerd runtime, or install the full <code>nerdctl</code> package, including dependencies such as containerd, runc, and CNI. Note that if you are not using the version distributed by your package manager, you must check the platform compatibility of containerd. Download and install the <code>nerdctl</code> package from the <a href="https://github.com/containerd/nerdctl/releases">official nerdctl releases</a>.</p>
 <h2 id="installation-methods">Installation methods<a class="headerlink" href="#installation-methods" title="Permanent link">&para;</a></h2>
-<p>There are two ways to install Ankaios, depending on your specific needs and focus. If you are new to Ankaios or TLS is not a top priority, we recommend following the setup instructions in <a href="#setup-with-script">Setup with script</a> without enabling mutual transport layer security (mTLS) for communication. On the other hand, if you want to setup Ankaios in a production environment, follow the setup instructions in <a href="../mtls-setup/">Setting up Ankaios with mTLS</a>.</p>
-<h3 id="setup-with-script">Setup with script<a class="headerlink" href="#setup-with-script" title="Permanent link">&para;</a></h3>
+<p>For setting up Ankaios in a production environment with mutual transport layer security (mTLS), follow the <a href="../mtls-setup/">mTLS setup instructions</a> after installing Ankaios.</p>
+<h3 id="install-script">Install script<a class="headerlink" href="#install-script" title="Permanent link">&para;</a></h3>
 <p>The recommended way to install Ankaios is using the installation script.
 To install the latest release version of Ankaios, please run the following command:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash<span class="w"> </span>-
@@ -2492,7 +2472,7 @@ file generation if required.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/download/&lt;version&gt;/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash<span class="w"> </span>-s<span class="w"> </span>--<span class="w"> </span>-v<span class="w"> </span>&lt;version&gt;
 </code></pre></div>
 <p>For available versions see the <a href="https://github.com/eclipse-ankaios/ankaios/tags">list of releases</a>.</p>
-<h3 id="set-the-log-level-for-ank-server-and-ank-agent-services">Set the log level for <code>ank-server</code> and <code>ank-agent</code> services<a class="headerlink" href="#set-the-log-level-for-ank-server-and-ank-agent-services" title="Permanent link">&para;</a></h3>
+<h4 id="set-the-log-level-for-ank-server-and-ank-agent-services">Set the log level for <code>ank-server</code> and <code>ank-agent</code> services<a class="headerlink" href="#set-the-log-level-for-ank-server-and-ank-agent-services" title="Permanent link">&para;</a></h4>
 <p>To configure the log levels for <code>ank-server</code> and <code>ank-agent</code> during the installation process using the provided environment variables, follow these steps:</p>
 <ol>
 <li>
@@ -2509,14 +2489,62 @@ file generation if required.</p>
 </li>
 </ol>
 <p>Now, both services will output logs according to the specified log levels. If no explicit value was provided during installation, both services will default to <code>info</code> log level. You can always change the log level by updating the environment variables and reinstalling the services.</p>
-<h3 id="uninstall-ankaios">Uninstall Ankaios<a class="headerlink" href="#uninstall-ankaios" title="Permanent link">&para;</a></h3>
+<h4 id="uninstall">Uninstall<a class="headerlink" href="#uninstall" title="Permanent link">&para;</a></h4>
 <p>If Ankaios has been installed with the installation script, it can be uninstalled with:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ank-uninstall.sh
 </code></pre></div>
 <p>The folder <code>/etc/ankaios</code> will remain.</p>
-<h3 id="manual-download-of-binaries">Manual download of binaries<a class="headerlink" href="#manual-download-of-binaries" title="Permanent link">&para;</a></h3>
+<hr />
+<h3 id="apt-debian-ubuntu">APT (Debian / Ubuntu)<a class="headerlink" href="#apt-debian-ubuntu" title="Permanent link">&para;</a></h3>
+<p>Add the Ankaios signing key and repository:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>curl<span class="w"> </span>-L<span class="w"> </span><span class="s2">&quot;https://keyserver.ubuntu.com/pks/lookup?op=get&amp;search=ankaios-dev@eclipse.org&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>gpg<span class="w"> </span>--dearmor<span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/usr/share/keyrings/ankaios.gpg<span class="w"> </span>&gt;<span class="w"> </span>/dev/null
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;deb [signed-by=/usr/share/keyrings/ankaios.gpg] https://repo.eclipse.org/repository/ankaios-apt/ stable main&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/etc/apt/sources.list.d/ankaios.list
+</code></pre></div>
+<p>Then install the desired package:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>ankaios
+</code></pre></div>
+<p>The <code>ankaios</code> meta-package installs all components. Individual packages can be installed separately:</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ankaios</code></td>
+<td>Meta-package containing <code>ank-server</code>, <code>ank-agent</code> and <code>ank</code></td>
+</tr>
+<tr>
+<td><code>ank-server</code></td>
+<td>Ankaios server</td>
+</tr>
+<tr>
+<td><code>ank-agent</code></td>
+<td>Ankaios agent</td>
+</tr>
+<tr>
+<td><code>ank</code></td>
+<td>Ankaios CLI</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The <code>ank-server</code> and <code>ank-agent</code> systemd services are started automatically after installation.</p>
+</div>
+<p>The packages are compatible with Ubuntu 22.04+, Debian 12+ and other distributions based on glibc 2.35 or later.</p>
+<h4 id="uninstall_1">Uninstall<a class="headerlink" href="#uninstall_1" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>remove<span class="w"> </span>ankaios
+</code></pre></div>
+<p>To remove individual components, replace <code>ankaios</code> with the specific package name.</p>
+<hr />
+<h3 id="manual-download">Manual download<a class="headerlink" href="#manual-download" title="Permanent link">&para;</a></h3>
 <p>As an alternative to the installation script, the pre-built binaries can be downloaded manually from the Ankaios repository <a href="https://github.com/eclipse-ankaios/ankaios/releases">here</a>.
 This is useful if the automatic detection of the platform is failing in case of <code>uname</code> system command is not allowed or supported on the target.</p>
+<hr />
 <h3 id="build-from-source">Build from source<a class="headerlink" href="#build-from-source" title="Permanent link">&para;</a></h3>
 <p>For building Ankaios from source see <a href="../../development/build/">Build</a>.</p>
 
