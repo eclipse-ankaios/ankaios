@@ -141,7 +141,7 @@ export RUSTC = /usr/bin/rustc-1.89
 export CARGO = /usr/bin/cargo-1.89
 export CARGO_HOME = $(CURDIR)/debian/.cargo
 
-RUST_HOST := $(shell $(RUSTC) --print host)
+RUST_HOST := $(shell $(RUSTC) --print host-tuple)
 
 %:
 	dh $@
