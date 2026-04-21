@@ -160,6 +160,8 @@ if [ -d "$SERVICE_DEST" ]; then
         $SVC_SUDO tee "$FILE_ANK_SERVER_SERVICE" >/dev/null << EOF
 [Unit]
 Description=Ankaios server
+After=network.target
+Wants=network.target
 
 [Service]
 Environment="RUST_LOG=${INSTALL_ANK_SERVER_RUST_LOG}"
@@ -175,6 +177,8 @@ EOF
         $SVC_SUDO tee "$FILE_ANK_AGENT_SERVICE" >/dev/null << EOF
 [Unit]
 Description=Ankaios agent
+After=network.target
+Wants=network.target
 
 [Service]
 Environment="RUST_LOG=${INSTALL_ANK_AGENT_RUST_LOG}"

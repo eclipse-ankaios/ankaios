@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD024 -->
+
 # Installation
 
 ## Express installation
@@ -10,7 +12,7 @@ curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/in
 
 Ankaios works with most Linux distributions and has been tested with Ubuntu 22.04, 24.04 and 26.04.
 
-Detailed installation steps including instructions on installing runtimes and specific Ankaios versions are provided in the following.
+Detailed installation steps, including instructions on setting up container runtimes, choosing an installation method, and installing specific Ankaios versions, are provided below.
 
 ## System requirements
 
@@ -45,9 +47,9 @@ Ankaios uses the `nerdctl` command-line interface (CLI) to manage containers wit
 
 ## Installation methods
 
-There are two ways to install Ankaios, depending on your specific needs and focus. If you are new to Ankaios or TLS is not a top priority, we recommend following the setup instructions in [Setup with script](#setup-with-script) without enabling mutual transport layer security (mTLS) for communication. On the other hand, if you want to setup Ankaios in a production environment, follow the setup instructions in [Setting up Ankaios with mTLS](mtls-setup.md).
+For setting up Ankaios in a production environment with mutual transport layer security (mTLS), follow the [mTLS setup instructions](mtls-setup.md) after installing Ankaios.
 
-### Setup with script
+### Install script
 
 The recommended way to install Ankaios is using the installation script.
 To install the latest release version of Ankaios, please run the following command:
@@ -89,7 +91,7 @@ curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/<version>
 
 For available versions see the [list of releases](https://github.com/eclipse-ankaios/ankaios/tags).
 
-### Set the log level for `ank-server` and `ank-agent` services
+#### Set the log level for `ank-server` and `ank-agent` services
 
 To configure the log levels for `ank-server` and `ank-agent` during the installation process using the provided environment variables, follow these steps:
 
@@ -111,7 +113,7 @@ To configure the log levels for `ank-server` and `ank-agent` during the installa
 
 Now, both services will output logs according to the specified log levels. If no explicit value was provided during installation, both services will default to `info` log level. You can always change the log level by updating the environment variables and reinstalling the services.
 
-### Uninstall Ankaios
+#### Uninstall
 
 If Ankaios has been installed with the installation script, it can be uninstalled with:
 
@@ -121,10 +123,55 @@ ank-uninstall.sh
 
 The folder `/etc/ankaios` will remain.
 
-### Manual download of binaries
+---
+
+### APT (Debian / Ubuntu)
+
+Add the Ankaios signing key and repository:
+
+```shell
+curl -L "https://keyserver.ubuntu.com/pks/lookup?op=get&search=ankaios-dev@eclipse.org" | gpg --dearmor | sudo tee /usr/share/keyrings/ankaios.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/ankaios.gpg] https://repo.eclipse.org/repository/ankaios-apt/ stable main" | sudo tee /etc/apt/sources.list.d/ankaios.list
+```
+
+Then install the desired package:
+
+```shell
+sudo apt-get update
+sudo apt-get install ankaios
+```
+
+The `ankaios` meta-package installs all components. Individual packages can be installed separately:
+
+| Package | Description |
+| --- | --- |
+| `ankaios` | Meta-package containing `ank-server`, `ank-agent` and `ank` |
+| `ank-server` | Ankaios server |
+| `ank-agent` | Ankaios agent |
+| `ank` | Ankaios CLI |
+
+!!! note
+
+    The `ank-server` and `ank-agent` systemd services are started automatically after installation.
+
+The packages are compatible with Ubuntu 22.04+, Debian 12+ and other distributions based on glibc 2.35 or later.
+
+#### Uninstall
+
+```shell
+sudo apt-get remove ankaios
+```
+
+To remove individual components, replace `ankaios` with the specific package name.
+
+---
+
+### Manual download
 
 As an alternative to the installation script, the pre-built binaries can be downloaded manually from the Ankaios repository [here](https://github.com/eclipse-ankaios/ankaios/releases).
 This is useful if the automatic detection of the platform is failing in case of `uname` system command is not allowed or supported on the target.
+
+---
 
 ### Build from source
 

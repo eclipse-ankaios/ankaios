@@ -159,8 +159,8 @@ jobs:
           name: code-coverage
           path: target/llvm-cov/html
 
-  build_linux_amd64_debian_package:
-    name: Build Linux amd64 debian package
+  build_linux_amd64:
+    name: Build Linux amd64
     if: ${{ always() }}
     needs: vendor
     runs-on: ubuntu-latest
@@ -182,21 +182,11 @@ jobs:
           name: ankaios-linux-amd64-bin
           path: dist/
 
-      - name: Build linux-amd64 debian package
-        run: |
-          cargo deb -p ank --target x86_64-unknown-linux-musl
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: ankaios-linux-amd64-deb
-          path: target/x86_64-unknown-linux-musl/debian/ankaios*.deb
-
   build_linux_arm64:
-    # currently there is no arm64 github built-in runner available
-    # however, there is an issue in progress on the github runner repo
-    # requesting the support for arm64: https://github.com/actions/runner-images/issues/5631
-    # if arm64 variants will be released we can switch to an arm64 image and save the longer built time for cross platform build
-    # and in addition, tests for arm64 can be enabled in this job, too
-    name: Build Linux arm64 debian package
+    # currently there are arm64 github built-in runners available. switching to an arm64 image
+    # should save on the cross platform build time, but currently the build is similar to the build on amd64,
+    # so there is no urgency in switching. Once we switch to an arm64 image, we can also enable tests for arm64 in this job.
+    name: Build Linux arm64
     if: ${{ always() }}
     needs: vendor
     runs-on: ubuntu-latest
@@ -218,14 +208,6 @@ jobs:
         with:
           name: ankaios-linux-arm64-bin
           path: dist/
-
-      - name: Build linux-arm64 debian package
-        run: |
-          cargo deb -p ank --target aarch64-unknown-linux-musl
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: ankaios-linux-arm64-deb
-          path: target/aarch64-unknown-linux-musl/debian/ankaios*.deb
 
   requirements:
     name: Build requirements tracing

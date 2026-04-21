@@ -1,0 +1,103 @@
+name: Build and publish debian packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      ankaios_version:
+        description: "Upstream version, e.g. 1.0.0"
+        required: true
+        type: string
+      revision:
+        description: "Build revision; if set, version becomes <version>-<revision>"
+        required: false
+        type: string
+        default: ""
+  workflow_call:
+
+jobs:
+  source-package:
+    name: Build source package
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.vars.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Resolve version
+        id: vars
+        run: |
+          version="${{ inputs.ankaios_version }}"
+          if [ -z "$version" ]; then
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            debhelper \
+            dpkg-dev
+
+      - name: Download vendored source from release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "v${{ steps.vars.outputs.version }}" \
+            --pattern "ankaios-vendored-source*.tar.gz"
+          tar --strip-components=1 -xzf ankaios-vendored-source*.tar.gz
+
+      - name: Build source package
+        env:
+          ANKAIOS_VERSION: ${{ steps.vars.outputs.version }}
+          REVISION: ${{ inputs.revision }}
+        run: bash tools/debian/build_src_pkg.sh
+
+      - name: Upload source package
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: debian-source-package
+          path: dist/src/
+
+  binary-packages:
+    name: Build and publish (${{ matrix.arch }})
+    needs: source-package
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            arch: amd64
+          - runner: ubuntu-22.04-arm
+            arch: arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Download source package
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: debian-source-package
+          path: dist/src/
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          deps=$(sed -n 's/^Build-Depends: //p' ./dist/src/ankaios_*.dsc)
+          sudo apt-get satisfy -y "$deps"
+
+      - name: Build binary packages
+        env:
+          ANKAIOS_VERSION: ${{ needs.source-package.outputs.version }}
+          REVISION: ${{ inputs.revision }}
+        run: bash tools/debian/build_bin_pkgs.sh
+
+      - name: Publish binary packages to Nexus
+        env:
+          ARCH: ${{ matrix.arch }}
+          REPO_TOKEN_USERNAME: ${{ secrets.REPO_TOKEN_USERNAME }}
+          REPO_TOKEN_PASSWORD: ${{ secrets.REPO_TOKEN_PASSWORD }}
+        run: bash tools/debian/publish_bin_pkgs.sh

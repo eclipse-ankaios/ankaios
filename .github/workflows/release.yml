@@ -103,3 +103,10 @@ jobs:
       - name: Upload quality manifest
         run: |
           gh release upload ${{ github.ref_name }} ${{ steps.collect_quality_artifacts.outputs.manifest_file }}
+  debian-packages:
+    name: Build and publish Debian packages
+    needs: release
+    permissions:
+      contents: read
+    uses: ./.github/workflows/debian_build.yml
+    secrets: inherit
