@@ -231,7 +231,6 @@ jobs:
 
   man_pages:
     name: Build man pages
-    needs: build_linux_amd64
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:1.0.1
