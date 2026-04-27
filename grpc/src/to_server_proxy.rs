@@ -303,6 +303,7 @@ pub async fn forward_from_ankaios_to_proto(
 mod tests {
     use super::{GRPCStreaming, forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use crate::grpc_api::{self, to_server::ToServerEnum};
+    use crate::grpc_middleware_error::GrpcMiddlewareError;
 
     use ankaios_api::ank_base::{
         CompleteState, CompleteStateRequest, ExecutionStateSpec, LogEntriesResponse, LogEntry,
@@ -501,10 +502,10 @@ mod tests {
         )
         .await;
         assert!(forward_result.is_err());
-        assert_eq!(
-            forward_result.unwrap_err().to_string(),
-            String::from("Connection interrupted: 'status: 'Unknown error', self: \"test\"'")
-        );
+        assert!(matches!(
+            forward_result.unwrap_err(),
+            GrpcMiddlewareError::ConnectionInterrupted(_)
+        ));
 
         // pick received from server message
         let result = server_rx.recv().await;
