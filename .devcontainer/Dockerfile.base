@@ -54,6 +54,8 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     fuse3 \
     fuse-overlayfs \
     slirp4netns \
+    help2man \
+    ripgrep \
     # container engines
     podman \
     containerd \
