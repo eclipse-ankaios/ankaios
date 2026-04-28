@@ -158,6 +158,6 @@ RUN cargo install cargo-llvm-cov --locked; \
     cargo install cargo-deb --locked; \
     cargo install cargo-nextest --locked; \
     cargo install cargo-deny --locked; \
-    cargo install cargo-about --locked
+    cargo install cargo-about --features=cli --locked
 
 USER root
