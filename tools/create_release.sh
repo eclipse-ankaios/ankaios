@@ -14,6 +14,9 @@ echo "ROOT_DIR: $ROOT_DIR"
 echo "Exporting config files"
 "${SCRIPT_DIR}"/create_configs.sh
 
+echo "Exporting man pages"
+tar -cvzf "${DIST_DIR}/"man-pages.tar.gz --directory="${DIST_DIR}" $(cd "${DIST_DIR}"; echo man?)
+
 echo "Exporting coverage report"
 tar -cvzf "${DIST_DIR}/"coverage-report.tar.gz --directory="${DIST_DIR}/coverage" $(ls "${DIST_DIR}/coverage")
 (cd "${DIST_DIR}/coverage" && zip -r "${DIST_DIR}/"coverage-report.zip .)
