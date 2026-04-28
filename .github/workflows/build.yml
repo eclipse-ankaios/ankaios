@@ -242,5 +242,5 @@ jobs:
           tools/generate_man_pages.sh ./target/x86_64-unknown-linux-musl/debug dist
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: requirement-tracing-report
+          name: man-pages
           path: dist/
