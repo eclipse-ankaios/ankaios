@@ -166,6 +166,67 @@ To remove individual components, replace `ankaios` with the specific package nam
 
 ---
 
+### AUR (Arch Linux)
+
+Ankaios packages are also available via AUR.
+
+Using an AUR helper (for example `yay`):
+
+```shell
+yay -S ankaios
+```
+
+!!! note
+
+    The source-based AUR packages `ankaios` and `ankaios-git` require `cargo` to build.
+    On Arch Linux, `cargo` is typically provided by one of the following packages:
+
+    - `rust` - system Rust toolchain
+    - `rustup` - Rust toolchain manager
+
+    When installing with `yay`, you may be prompted multiple times during dependency resolution and installation.
+    This is expected because the `ankaios` meta-package builds and installs multiple packages: `ankaios-server`, `ankaios-agent`, and `ankaios-cli`.
+
+Manual installation (without AUR helper):
+
+```shell
+git clone https://aur.archlinux.org/ankaios.git
+cd ankaios
+makepkg -si
+```
+
+The `ankaios` meta-package installs all components. Individual packages can be installed separately:
+
+| Package | Description |
+| --- | --- |
+| `ankaios` | Meta-package containing `ank-server`, `ank-agent` and `ank` |
+| `ankaios-server` | Ankaios server |
+| `ankaios-agent` | Ankaios agent |
+| `ankaios-cli` | Ankaios CLI |
+
+You can also install:
+
+| Package | Description |
+| --- | --- |
+| `ankaios-bin` | Pre-built binaries from releases |
+| `ankaios-git` | Build from the latest git revision |
+
+!!! note
+
+    If `ankaios-server` and `ankaios-agent` are installed, you can enable and start the services with:
+
+    `sudo systemctl enable --now ank-server ank-agent`
+
+#### Uninstall
+
+```shell
+sudo pacman -Rns ankaios
+```
+
+To remove individual components, replace `ankaios` with the specific package name.
+
+---
+
 ### Manual download
 
 As an alternative to the installation script, the pre-built binaries can be downloaded manually from the Ankaios repository [here](https://github.com/eclipse-ankaios/ankaios/releases).
