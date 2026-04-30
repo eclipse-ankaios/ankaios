@@ -46,6 +46,7 @@ package_ankaios-server-git() {
     install -Dm644 -t "$pkgdir"/usr/lib/systemd/system/ ank-server.service
     install -Dm644 -t "$pkgdir"/etc/ankaios/ "$pkgbase"/server/config/ank-server.conf
     install -Dm644 -t "$pkgdir"/etc/ankaios/ "$pkgbase"/server/config/state.yaml
+    install -Dm644 -t "$pkgdir"/usr/share/man/man8 "$pkgbase"/build/man/man8/ank-server.8
 }
 
 package_ankaios-agent-git() {
