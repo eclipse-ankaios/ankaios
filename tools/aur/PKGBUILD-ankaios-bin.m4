@@ -10,8 +10,8 @@ url="https://eclipse-ankaios.github.io/ankaios"
 license=('Apache-2.0')
 depends=('libgcc' 'glibc')
 makedepends=('help2man')
-source=("$pkgbase-$pkgver.tar.gz::https://github.com/eclipse-ankaios/ankaios/archive/refs/tags/v$pkgver.tar.gz"
-        "$pkgbase-$pkgver_configs.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/ankaios_configs.tar.gz"
+source=("$pkgbase-$pkgver_configs.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/ankaios_configs.tar.gz"
+        "$pkgbase-$pkgver_man-pages.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/man-pages.tar.gz"
 	'ank-server.service'
 	'ank-agent.service')
 source_x86_64=("$pkgbase-$pkgver-x86_64.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/ankaios-linux-amd64.tar.gz")
@@ -23,12 +23,6 @@ b2sums=('xxxxx'
 b2sums_x86_64=('xxxxx')
 b2sums_aarch64=('xxxxx')
 
-build() {
-    cd "$pkgbase-$pkgver"
-    ./tools/generate_man_pages.sh "target/$(rustc --print host-tuple)/release/" build/man/
-}
-
-
 package_ankaios-server-bin() {
     pkgdesc="The server application of Eclipse Ankaios"
     provides=(ankaios-server)
@@ -38,7 +32,7 @@ package_ankaios-server-bin() {
     install -Dm644 -t "$pkgdir"/usr/lib/systemd/system/ ank-server.service
     install -Dm644 -t "$pkgdir"/etc/ankaios/ ank-server.conf
     install -Dm644 -t "$pkgdir"/etc/ankaios/ state.yaml
-    install -Dm644 -t "$pkgdir"/usr/share/man/man8 "$pkgbase-$pkgver"/build/man/man8/ank-server.8
+    install -Dm644 -t "$pkgdir"/usr/share/man/man8 man8/ank-server.8
 }
 
 package_ankaios-agent-bin() {
@@ -53,6 +47,7 @@ package_ankaios-agent-bin() {
     install -Dm755 -t "$pkgdir"/usr/bin/ ank-agent
     install -Dm644 -t "$pkgdir"/usr/lib/systemd/system/ ank-agent.service
     install -Dm644 -t "$pkgdir"/etc/ankaios/ ank-agent.conf
+    install -Dm644 -t "$pkgdir"/usr/share/man/man8 man8/ank-agent.8
 }
 
 package_ankaios-cli-bin() {
@@ -63,6 +58,7 @@ package_ankaios-cli-bin() {
     install=ankaios-cli.install
     install -Dm755 -t "$pkgdir"/usr/bin/ ank
     install -Dm644 -t "$pkgdir"/etc/ankaios ank.conf
+    install -Dm644 -t "$pkgdir"/usr/share/man/man1 man1/*
 }
 
 package_ankaios-bin() {
