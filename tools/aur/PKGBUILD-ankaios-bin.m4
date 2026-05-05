@@ -9,9 +9,8 @@ arch=('x86_64' 'aarch64')
 url="https://eclipse-ankaios.github.io/ankaios"
 license=('Apache-2.0')
 depends=('libgcc' 'glibc')
-makedepends=('help2man')
-source=("$pkgbase-$pkgver_configs.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/ankaios_configs.tar.gz"
-        "$pkgbase-$pkgver_man-pages.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/man-pages.tar.gz"
+source=("$pkgbase-${pkgver}_configs.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/ankaios_configs.tar.gz"
+        "$pkgbase-${pkgver}_man-pages.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/man-pages.tar.gz"
 	'ank-server.service'
 	'ank-agent.service')
 source_x86_64=("$pkgbase-$pkgver-x86_64.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/ankaios-linux-amd64.tar.gz")

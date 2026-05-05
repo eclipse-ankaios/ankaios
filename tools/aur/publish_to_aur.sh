@@ -12,11 +12,12 @@ fi
 
 tmp_dir="$(mktemp -d)"
 echo $tmp_dir
-#trap 'rm -rf "$tmp_folder"' EXIT
+trap 'rm -rf "$tmp_folder"' EXIT
 
 cd "$SCRIPT_DIR"
 for package in ankaios ankaios-bin ankaios-git; do
     git clone "$AUR_REPO_BASE/$package.git" "$tmp_dir/$package"
+    git checkout -b master || true # AUR only accepts the master branch
 
     cd "$tmp_dir/$package"
     rm -rf -- *
