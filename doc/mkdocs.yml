@@ -98,6 +98,7 @@ nav:
   - Usage:
     - usage/installation.md
     - usage/quickstart.md
+    - usage/persistence.md
     - usage/tutorial-vehicle-signals.md
     - usage/tutorial-fleet-management.md
     - usage/tutorial-events.md

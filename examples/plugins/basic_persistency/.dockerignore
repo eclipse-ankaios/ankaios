@@ -1,0 +1,40 @@
+# Build artifacts
+target/
+**/target/
+
+# Git
+.git/
+.github/
+
+# RPM build artifacts
+*.tar.gz
+*.rpm
+*.spec
+x86_64/
+tmp/
+z
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Test data
+tests/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude
+.claude/
+
+# CI/CD
+.gitlab-ci.yml
+Jenkinsfile
+
+# Temporary files
+*~
+.DS_Store
