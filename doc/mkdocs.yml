@@ -87,7 +87,7 @@ plugins:
         404: ['https://crates.io/crates/symphony']
   - llmstxt:
       full_output: llms-full.txt
-      base_url: !ENV [DOCS_VERSION_URL, 'https://eclipse-ankaios.github.io/ankaios/1.0.0']
+      base_url: !ENV [DOCS_VERSION_URL, 'https://eclipse-ankaios.github.io/ankaios/latest']
       markdown_description: |
         Eclipse Ankaios is a lightweight workload orchestrator for embedded and automotive edge devices.
         It manages containerized workloads across one server and multiple agents running on resource-constrained hardware.
