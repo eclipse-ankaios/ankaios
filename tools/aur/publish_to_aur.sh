@@ -11,8 +11,8 @@ if [ -z "${ANKAIOS_VERSION}" ]; then
 fi
 
 tmp_dir="$(mktemp -d)"
-echo $tmp_dir
-trap 'rm -rf "$tmp_folder"' EXIT
+echo "$tmp_dir"
+trap 'rm -rf "$tmp_dir"' EXIT
 
 cd "$SCRIPT_DIR"
 for package in ankaios ankaios-bin ankaios-git; do
