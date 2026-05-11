@@ -21,7 +21,7 @@ They are intended to be run manually by the package maintainer.
 
 ## Required environment
 
-- `ANKAIOS_VERSION` must be set (for example `v1.0.0`)
+- `ANKAIOS_VERSION` must be set (for example `1.0.0`)
 - SSH access to AUR (`aur@aur.archlinux.org`) must be configured, including the correct SSH key for the AUR maintainer account being available and loaded
 - Required tools must be available: `m4`, `updpkgsums`, `makepkg`, `git`
 
