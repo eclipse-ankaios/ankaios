@@ -17,9 +17,9 @@ trap 'rm -rf "$tmp_dir"' EXIT
 cd "$SCRIPT_DIR"
 for package in ankaios ankaios-bin ankaios-git; do
     git clone "$AUR_REPO_BASE/$package.git" "$tmp_dir/$package"
-    git checkout -b master || true # AUR only accepts the master branch
 
     cd "$tmp_dir/$package"
+    git checkout -b master || true # AUR only accepts the master branch
     rm -rf -- *
 
     m4 -D ANKAIOS_VERSION="$ANKAIOS_VERSION" "$SCRIPT_DIR/PKGBUILD-$package.m4" > PKGBUILD
