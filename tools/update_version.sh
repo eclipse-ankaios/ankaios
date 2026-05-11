@@ -65,6 +65,10 @@ for pkg in $packages; do
    sed -i "/\[package\]/,/\[/{s/version = \"[^\"]*\"/version = \"$version\"/}" "$package_config"
 done
 
+mkdocs_config="$base_dir/doc/mkdocs.yml"
+log_update "$mkdocs_config"
+sed -i "s|DOCS_VERSION_URL, 'https://eclipse-ankaios.github.io/ankaios/[^']*'|DOCS_VERSION_URL, 'https://eclipse-ankaios.github.io/ankaios/$version'|" "$mkdocs_config"
+
 # Update the version of the examples
 examples=$(find "$base_dir/examples" -type d \( -name \*_control_interface -o -name python_sdk_\* -o -name rust_sdk_\* \) -printf "%f\n")
 for example in $examples; do
