@@ -61,6 +61,6 @@ package_ankaios-cli-bin() {
 }
 
 package_ankaios-bin() {
-    pkgdesc="Meta-package to installs all components of Eclipse Ankaios"
+    pkgdesc="Meta-package to install all components of Eclipse Ankaios"
     depends=('ankaios-server-bin' 'ankaios-agent-bin' 'ankaios-cli-bin')
 }

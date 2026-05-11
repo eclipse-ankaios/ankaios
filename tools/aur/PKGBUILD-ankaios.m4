@@ -64,6 +64,6 @@ package_ankaios-cli() {
 }
 
 package_ankaios() {
-    pkgdesc="Meta-package to installs all components of Eclipse Ankaios"
+    pkgdesc="Meta-package to install all components of Eclipse Ankaios"
     depends=('ankaios-server' 'ankaios-agent' 'ankaios-cli')
 }
