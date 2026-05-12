@@ -40,10 +40,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # this should be added to the base image at some point, but for now we need to install it in the workflow
-      - name: Install llvm-tools for coverage
-        run: rustup component add llvm-tools-preview
-
       - name: Run unit tests with coverage (LCOV)
         run: |
           mkdir -p target/sonar
@@ -99,10 +95,6 @@ jobs:
 
           lcov_to_sonar(sys.argv[1], sys.argv[2])
           PYEOF
-
-      - name: Install scanner dependencies
-        # this should be added to the base image at some point, but for now we need to install it in the workflow
-        run: apt-get update && apt-get install -y --no-install-recommends unzip
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
