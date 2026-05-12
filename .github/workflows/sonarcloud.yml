@@ -1,0 +1,106 @@
+# Copyright (c) 2026 Elektrobit Automotive GmbH
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0.
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: SonarCloud Analysis
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - release-**
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: "sonarcloud-${{ github.head_ref || github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Scan
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:1.1.0
+      options: --privileged
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      # this should be added to the base image at some point, but for now we need to install it in the workflow
+      - name: Install llvm-tools for coverage
+        run: rustup component add llvm-tools-preview
+
+      - name: Run unit tests with coverage (LCOV)
+        run: |
+          mkdir -p target/sonar
+          RUST_LOG=debug cargo llvm-cov nextest \
+            --ignore-filename-regex '/main\.rs|/test_utils\.rs|server/src/cli\.rs|/objects/agent_map\.rs' \
+            --lcov --output-path target/sonar/lcov.info
+
+      - name: Convert LCOV to SonarCloud generic coverage XML
+        run: |
+          python3 - target/sonar/lcov.info target/sonar/coverage.xml << 'PYEOF'
+          import sys, os, html
+
+          def lcov_to_sonar(lcov_path, output_path):
+              lines_out = ['<coverage version="1">']
+              current_file = None
+              file_lines = []
+
+              with open(lcov_path) as f:
+                  for raw in f:
+                      line = raw.strip()
+                      if line.startswith('SF:'):
+                          if current_file and file_lines:
+                              lines_out.append(f'  <file path="{html.escape(current_file)}">')
+                              lines_out.extend(file_lines)
+                              lines_out.append('  </file>')
+                          filepath = line[3:]
+                          if os.path.isabs(filepath):
+                              cwd = os.getcwd()
+                              if filepath.startswith(cwd):
+                                  filepath = os.path.relpath(filepath, cwd)
+                          current_file = filepath
+                          file_lines = []
+                      elif line.startswith('DA:'):
+                          parts = line[3:].split(',')
+                          if len(parts) >= 2:
+                              line_num = parts[0]
+                              hits = int(parts[1])
+                              covered = 'true' if hits > 0 else 'false'
+                              file_lines.append(
+                                  f'    <lineToCover lineNumber="{line_num}" covered="{covered}"/>'
+                              )
+                      elif line == 'end_of_record':
+                          if current_file and file_lines:
+                              lines_out.append(f'  <file path="{html.escape(current_file)}">')
+                              lines_out.extend(file_lines)
+                              lines_out.append('  </file>')
+                          current_file = None
+                          file_lines = []
+
+              lines_out.append('</coverage>')
+              with open(output_path, 'w') as f:
+                  f.write('\n'.join(lines_out))
+
+          lcov_to_sonar(sys.argv[1], sys.argv[2])
+          PYEOF
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@aa3cfea23119e3378346e7b13f6b03e1e40e9e23 # v5.0.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
