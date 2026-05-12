@@ -26,6 +26,8 @@ package_ankaios-server-bin() {
     pkgdesc="The server application of Eclipse Ankaios"
     provides=(ankaios-server)
     conflicts=(ankaios-server)
+    backup=("etc/ankaios/ank-server.conf"
+            "etc/ankaios/state.yaml")
 
     install -Dm755 -t "$pkgdir"/usr/bin/ "ank-server"
     install -Dm644 -t "$pkgdir"/usr/lib/systemd/system/ ank-server.service
@@ -38,6 +40,7 @@ package_ankaios-agent-bin() {
     pkgdesc="An agent running on each node of an Eclipse Ankaios cluster"
     provides=(ankaios-agent)
     conflicts=(ankaios-agent)
+    backup=("etc/ankaios/ank-agent.conf")
     optdepends=(
       'podman: for running podman workloads'
       'nerdctl: for running containerd workloads'
@@ -53,8 +56,9 @@ package_ankaios-cli-bin() {
     pkgdesc="A command line tool for communicating with the API of the Eclipse Ankaios server"
     provides=(ankaios-cli)
     conflicts=(ankaios-cli)
-
     install=ankaios-cli.install
+    backup=("etc/ankaios/ank.conf")
+
     install -Dm755 -t "$pkgdir"/usr/bin/ ank
     install -Dm644 -t "$pkgdir"/etc/ankaios ank.conf
     install -Dm644 -t "$pkgdir"/usr/share/man/man1 man1/*

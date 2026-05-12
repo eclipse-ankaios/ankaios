@@ -34,6 +34,8 @@ build() {
 
 package_ankaios-server() {
     pkgdesc="The server application of Eclipse Ankaios"
+    backup=("etc/ankaios/ank-server.conf"
+            "etc/ankaios/state.yaml")
 
     install -Dm755 -t "$pkgdir"/usr/bin/ "ankaios-$pkgver/target/$(rustc --print host-tuple)/release/ank-server"
     install -Dm644 -t "$pkgdir"/usr/lib/systemd/system/ ank-server.service
@@ -44,6 +46,7 @@ package_ankaios-server() {
 
 package_ankaios-agent() {
     pkgdesc="An agent running on each node of an Eclipse Ankaios cluster"
+    backup=("etc/ankaios/ank-agent.conf")
     optdepends=(
       'podman: for running podman workloads'
       'nerdctl: for running containerd workloads'
@@ -58,6 +61,8 @@ package_ankaios-agent() {
 package_ankaios-cli() {
     pkgdesc="A command line tool for communicating with the API of the Eclipse Ankaios server"
     install=ankaios-cli.install
+    backup=("etc/ankaios/ank.conf")
+
     install -Dm755 -t "$pkgdir"/usr/bin/ "ankaios-$pkgver/target/$(rustc --print host-tuple)/release/ank"
     install -Dm644 -t "$pkgdir"/etc/ankaios/ "ankaios-$pkgver"/ank/config/ank.conf
     install -Dm644 -t "$pkgdir"/usr/share/man/man1 "ankaios-$pkgver"/build/man/man1/*
