@@ -30,6 +30,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     git \
     zsh \
     curl \
+    unzip \
     iputils-ping \
     sudo \
     # java for plantuml
@@ -154,7 +155,8 @@ RUN curl -sL https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5
 USER ${USERNAME}
 
 # Install cargo cli tools
-RUN cargo install cargo-llvm-cov --locked; \
+RUN rustup component add llvm-tools-preview \
+    && cargo install cargo-llvm-cov --locked; \
     cargo install cargo-deb --locked; \
     cargo install cargo-nextest --locked; \
     cargo install cargo-deny --locked; \
