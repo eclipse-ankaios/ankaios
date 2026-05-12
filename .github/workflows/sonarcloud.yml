@@ -101,6 +101,6 @@ jobs:
           PYEOF
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@aa3cfea23119e3378346e7b13f6b03e1e40e9e23 # v5.0.0
+        uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
