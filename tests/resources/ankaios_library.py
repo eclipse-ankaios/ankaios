@@ -1096,9 +1096,9 @@ def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bi
 
 
         if insecure:
-            cmd = [ank_path, '--insecure', 'get', 'events', '-o', 'json']
+            cmd = [ank_path, '--insecure', 'get', 'events', '--include-current-state', '-o', 'json']
         else:
-            cmd = [ank_path, 'get', 'events', '-o', 'json']
+            cmd = [ank_path, 'get', 'events', '--include-current-state', '-o', 'json']
         if field_mask:
             cmd.append(field_mask)
 
@@ -1134,22 +1134,22 @@ def listen_for_events_with_timeout(field_mask: str, log_output_file: str, ank_bi
                         pass
                 else:
                     stderr = process.stderr.read()
-                    if "could not connect to ankaios server" in stderr.lower():
-                        # when the server is not yet available, restart the process until the timeout is reached
-                        process.terminate()
+                    log_file_handle.write(f"Event listener process exited (stderr: {stderr!r}). Restarting within timeout.\n")
+                    # Reap the dead process, then restart regardless of exit reason.
+                    # On reconnect, --include-current-state ensures any state change that
+                    # occurred during the downtime window is immediately emitted.
+                    try:
                         process.wait(timeout=2)
-
-                        process = subprocess.Popen(
-                            cmd,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            text=True,
-                            bufsize=1
-                        )
-                        log_file_handle.write("Restarted event listener process. This might happen and does not indicate a test failure.\n")
-                    else:
-                        log_file_handle.write(f"Event listener process terminated: {stderr}\n")
-                        break
+                    except Exception:
+                        pass
+                    time.sleep(0.5)
+                    process = subprocess.Popen(
+                        cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        bufsize=1
+                    )
 
 
             log_file_handle.write(f"Event waiting timed out after {timeout}s, first_event_received={first_event_received}\n")
@@ -1200,7 +1200,7 @@ def workload_has_execution_state(workload_name: str, agent_name: str, expected_s
     timeout_float = float(timeout)
     start_time = get_time_secs()
 
-    while (get_time_secs() - start_time) < float(timeout_float):
+    while True:
         for event in EVENT_BUFFER:
             complete_state: dict = event.get('completeState', {})
             workload_states: dict = complete_state.get('workloadStates', {})
@@ -1228,8 +1228,8 @@ def workload_has_execution_state(workload_name: str, agent_name: str, expected_s
                     return True
 
         remaining_time = timeout_float - (get_time_secs() - start_time)
-        if remaining_time > 0:
-            EVENTS_RECEIVED.wait(timeout=remaining_time)
-        else: break
+        if remaining_time <= 0:
+            break
+        EVENTS_RECEIVED.wait(timeout=remaining_time)
 
     return False
