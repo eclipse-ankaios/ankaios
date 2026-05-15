@@ -31,9 +31,14 @@ use std::path::PathBuf;
 use toml::from_str;
 
 pub const DEFAULT_SERVER_CONFIG_FILE_PATH: [&str; 1] = ["/etc/ankaios/ank-server.conf"];
+pub const DEFAULT_ADMISSION_HOOKS_DIR: &str = "/usr/libexec/ankaios/hooks";
 
 pub fn get_default_address() -> SocketAddr {
     DEFAULT_SOCKET_ADDRESS.parse().unwrap_or_unreachable()
+}
+
+fn get_default_admission_hooks_path() -> PathBuf {
+    PathBuf::from(DEFAULT_ADMISSION_HOOKS_DIR)
 }
 
 fn convert_to_socket_address<'de, D>(deserializer: D) -> Result<SocketAddr, D::Error>
@@ -43,6 +48,16 @@ where
     let s: String = Deserialize::deserialize(deserializer)?;
 
     s.parse::<SocketAddr>().map_err(serde::de::Error::custom)
+}
+
+// [impl->swdd~server-config-supports-admission-hooks~1]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct AdmissionHook {
+    pub name: String,
+    #[serde(default)]
+    pub prio: u8,
+    #[serde(default = "get_default_admission_hooks_path")]
+    pub path: PathBuf,
 }
 
 // [impl->swdd~server-loads-config-file~2]
@@ -61,6 +76,8 @@ pub struct ServerConfig {
     pub ca_pem_content: Option<String>,
     pub crt_pem_content: Option<String>,
     pub key_pem_content: Option<String>,
+    #[serde(default)]
+    pub admission_hooks: Vec<AdmissionHook>,
 }
 
 impl Default for ServerConfig {
@@ -76,6 +93,7 @@ impl Default for ServerConfig {
             ca_pem_content: None,
             crt_pem_content: None,
             key_pem_content: None,
+            admission_hooks: Vec::new(),
         }
     }
 }
@@ -451,5 +469,82 @@ mod tests {
             server_config.startup_manifest,
             Some("/workspaces/ankaios/server/resources/startConfig.yaml".to_string())
         );
+    }
+
+    // [utest->swdd~server-config-supports-admission-hooks~1]
+    #[test]
+    fn utest_server_config_with_admission_hooks() {
+        // default prio should be 0 if not specified
+        let server_config_content = r#"
+        version = 'v1'
+        insecure = true
+
+        [[admission_hooks]]
+        name = 'validate-resources'
+        prio = 10
+        path = '/custom/hooks'
+
+        [[admission_hooks]]
+        name = 'inject-defaults'
+        prio = 20
+
+        [[admission_hooks]]
+        name = 'auto-schedule'
+        "#;
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
+
+        assert_eq!(server_config.admission_hooks.len(), 3);
+
+        assert_eq!(server_config.admission_hooks[0].name, "validate-resources");
+        assert_eq!(server_config.admission_hooks[0].prio, 10);
+        assert_eq!(
+            server_config.admission_hooks[0].path,
+            PathBuf::from("/custom/hooks")
+        );
+
+        assert_eq!(server_config.admission_hooks[1].name, "inject-defaults");
+        assert_eq!(server_config.admission_hooks[1].prio, 20);
+
+        assert_eq!(server_config.admission_hooks[2].name, "auto-schedule");
+        assert_eq!(server_config.admission_hooks[2].prio, 0); // default prio
+    }
+
+    // [utest->swdd~server-config-supports-admission-hooks~1]
+    #[test]
+    fn utest_server_config_admission_hook_prio_out_of_bounds_rejected() {
+        let server_config_content = r#"
+        version = 'v1'
+        insecure = true
+
+        [[admission_hooks]]
+        name = 'validate-resources'
+        prio = 256
+        "#;
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let result = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        assert!(result.is_err());
+    }
+
+    // [utest->swdd~server-config-supports-admission-hooks~1]
+    #[test]
+    fn utest_server_config_no_admission_hooks_defaults_to_empty() {
+        let server_config_content = r"#
+        version = 'v1'
+        insecure = true
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
+
+        assert!(server_config.admission_hooks.is_empty());
     }
 }
