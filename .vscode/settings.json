@@ -74,6 +74,7 @@
             "approve": true,
             "matchCommandLine": true
         },
-        "ankaios-clean": true
+        "ankaios-clean": true,
+        "oft": true
     }
 }
