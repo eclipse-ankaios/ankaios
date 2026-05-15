@@ -32,6 +32,10 @@ impl RenderedWorkloads {
         self.0.get(key)
     }
 
+    pub fn remove(&mut self, key: &str) -> Option<WorkloadNamed> {
+        self.0.remove(key)
+    }
+
     // [impl->swdd~server-state-triggers-validation-of-workload-fields~1]
     pub fn validate(&self) -> Result<(), String> {
         for workload in self.0.values() {
