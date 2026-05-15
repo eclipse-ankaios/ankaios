@@ -123,6 +123,7 @@ dependencies = [
  "log",
  "mockall",
  "mockall_double",
+ "prost",
  "regex",
  "serde",
  "serde_yaml",

@@ -37,6 +37,7 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadNamed>) -> CompleteSt
         desired_state: generate_test_state_from_workloads(workloads.clone()),
         workload_states: generate_test_workload_states_map_from_workloads(workloads),
         agents,
+        effective_state: StateSpec::default(),
     }
 }
 
