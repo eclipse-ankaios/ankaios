@@ -85,6 +85,7 @@ Needs:
   - `name` — description (required)
   - `prio` — description (optional, default `0`)
   ```
+
 - Comment and Rationale sections are optional; omit them only when the reason is obvious and the rationale would not add new information. In all other cases, include a Rationale.
 - Avoid term shadowing: do not reuse a term in a different requirement with a different meaning. For example, if "veto" means rejecting an entire state update, do not use "vetoed workloads" to describe individual workloads dropped from a list.
 
