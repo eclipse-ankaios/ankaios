@@ -59,8 +59,8 @@ if [[ "$1" = serve ]]; then
 elif [[ "$1" = build ]]; then
     mkdocs build --config-file "$target_dir/mkdocs.yml" -d html
 elif [[ "$1" = deploy ]]; then
-    mike deploy --push --config-file "$target_dir/mkdocs.yml" main
+    DOCS_VERSION_URL="https://eclipse-ankaios.github.io/ankaios/main" mike deploy --push --config-file "$target_dir/mkdocs.yml" main
 elif [[ "$1" = deploy-release && ! (-z "$2") ]]; then
     echo "Deploying documentation version $2"
-    mike deploy --update-aliases --push --config-file "$target_dir/mkdocs.yml" "$2" latest
+    DOCS_VERSION_URL="https://eclipse-ankaios.github.io/ankaios/$2" mike deploy --update-aliases --push --config-file "$target_dir/mkdocs.yml" "$2" latest
 fi
