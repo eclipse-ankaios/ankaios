@@ -1,0 +1,133 @@
+# Upgrading v0.3 to v0.4
+
+When upgrading from v0.3 to v0.4, the installation script simply needs to be ran again. However, due to some breaking changes, some manual adjustments are required for existing workloads using the control interface and applications directly using the gRPC API of the Ankaios server.
+
+## Optional attributes of the Complete State
+
+Ankaios allows filtering the Complete State at request level and setting only certain fields of the Complete State while updating the desired state of the cluster. To make this process more transparent and remove the need of returning or requiring default values for fields not targeted by the filter masks, Ankaios now explicitly handles all fields (beside versions) of the Complete State as optional. This allows returning only portions of the Complete State, e.g., when filtering with `desiredState.workloads.nginx.tags` the response from the server will be:
+
+```
+desiredState:
+  apiVersion: v0.1
+  workloads:
+    nginx:
+      tags:
+      - key: owner
+        value: Ankaios team
+```
+
+The changes requires also some additional handling when pushing data over the Control Interface, as some fields must now be enclosed into wrapper objects, e.g., the Rust code for creating a workload object now looks as follows:
+
+```
+Workload {
+    runtime: Some("podman".to_string()),
+    agent: Some("agent_A".to_string()),
+    restart_policy: Some(RestartPolicy::Never.into()),
+    tags: Some(Tags {
+        tags: vec![Tag {
+            key: "owner".to_string(),
+            value: "Ankaios team".to_string(),
+        }],
+    }),
+    runtime_config: Some(
+        "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
+            .to_string(),
+    ),
+    dependencies: Some(Dependencies {
+        dependencies: HashMap::new(),
+    }),
+    control_interface_access: None,
+}
+```
+
+Please review the examples from [the Ankaios repository](https://github.com/eclipse-ankaios/ankaios) for more information on the topic.
+
+## Removed top level attribute `startupState`
+
+The top-level attribute `startupState` was removed from the Ankaios configuration. Initially, we targeted at allowing a modification of the startup state of the cluster via Ankaios' control interface. As the requirements towards persistent storage in embedded environments could be quite different, e.g., due to flash wear-out protection, it is best to allow a dedicated application to perform the updates of the startup state. The startup state update app could be running as an Ankaios workload, but would be written specifically for the distinct use-case obeying the particular requirements.
+
+## New control interface messages
+
+The control interface has been decoupled from the API for server-agent communication, now exclusively handling essential messages with newly named identifiers for clarity.
+
+To upgrade to the new version v0.4, use the new `control_api.proto` file and the two new messages:
+
+- `ToAnkaios`
+- `FromAnkaios`
+
+The new messages currently support requests and responses to and from Ankaios and will later support other functionality. The `Request` and `Response` messages and their content remain the same, but are now located in the `ank_base.proto` file.
+
+A sample how the new definition of the Control Interface is used can be found in the examples from [the Ankaios repository](https://github.com/eclipse-ankaios/ankaios).
+
+The reason for splitting some messages into the dedicated file `ank_base.proto`, is that they are also used for the gRPC API of the Ankaios server. This API is mainly used by the Ankaios agents and the `ank` CLI, but could also be used by third party applications to directly communicate with the Ankaios server. The following chapter details the changes needed to upgrade to v0.4 in case you are using this API.
+
+## Control interface authorization
+
+The usage of the control interface now requires an explicit authorization at the workload configuration. The authorization is done via the new `controlInterfaceAccess` attribute.
+
+The following configuration shows an example where the workload `composer` can update all other workloads beside the workload `watchdog` for which an explicit deny rule is added:
+
+```
+desiredState:
+  workloads:
+    composer:
+      runtime: podman
+      ...
+      controlInterfaceAccess:
+        allowRules:
+          - type: StateRule
+            operation: ReadWrite
+            filterMask:
+              - "desiredState.workloads.*"
+        denyRules:
+          - type: StateRule
+            operation: Write
+            filterMask:
+              - "desiredState.workloads.watchdog"
+```
+
+More information on the control interface authorization can be found in the [reference documentation](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/#authorization).
+
+## gRPC API of the Ankaios server
+
+Ankaios facilitates server-agent-CLI communication through an interchangeable middleware, currently implemented using gRPC. By segregating the gRPC API into a distinct `grpc_api.proto` file, we clearly show the target and purpose of this interface.
+
+If you are using the gRPC API of the Ankaios server directly (and not the CLI), you would need to cope with the splitting of the messages into `grpc_api.proto` and `ank_base.proto`. Apart from that, the API itself is exactly the same.
+
+## Workload execution states in the Complete State
+
+The structure of the workload execution states field in the Complete State was changed both for the proto and the textual (yaml/json) representations. The change was needed to make the filtering and authorization of getting workload states more intuitive. The old flat vector was supplemented with a new hierarchical structure. Here is an example how the workload states look now in YAML format:
+
+```
+workloadStates:
+  agent_A:
+    nginx:
+      7d6ea2b79cea1e401beee1553a9d3d7b5bcbb37f1cfdb60db1fbbcaa140eb17d:
+        state: Pending
+        subState: Initial
+        additionalInfo: ''
+  agent_B:
+    hello1:
+      9f4dce2c90669cdcbd2ef8eddb4e38d6238abf721bbebffd820121ce1633f705:
+        state: Failed
+        subState: Lost
+        additionalInfo: ''
+```
+
+## Authentication and encryption
+
+Starting from v0.4.0 Ankaios supports mutual TLS (mTLS) for communication between server, agent and `ank` CLI. The default installation script will install Ankaios without mTLS. When using the `ank` CLI with such an installation, the arguments `--insecure` or `-k` have to be passed.
+
+So
+
+```
+ank get workloads
+```
+
+will have to be changed to
+
+```
+ank -k get workloads
+```
+
+Alternatively, set the environment variable `ANK_INSECURE=true` to avoid passing the `-k` argument to each `ank` CLI command.

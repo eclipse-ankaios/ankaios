@@ -1,0 +1,114 @@
+# Upgrading v0.7 to v1.0
+
+We are proud to present the first stable API version of Eclipse Ankaios. This documents describes the necessary changes required to update to the new stable API version of Ankaios.
+
+For a complete list of changes including all new features, please consult the [official release notes](https://github.com/eclipse-ankaios/ankaios/releases/tag/v1.0.0).
+
+## Manifest API version changes
+
+The manifest `apiVersion` was updated from v0.1 to v1 marking our way towards stabilizing all Ankaios APIs.
+
+We took great effort to ease the transition as much as possible by maintaining backwards compatibility for the input to Ankaios.
+
+The output is now following the syntax of the new version `v1` which provides more possibilities and improvements. If you are processing the output of the `ank` CLI, you would need to update your code to account for the new changes.
+
+### Tags are now a map
+
+To add better support for filtering and especially event subscription capabilities for tags, we changed how tags are read and provided.
+
+Previously tags were simple lists of objects containing a key and a value:
+
+```
+...
+  tags:
+    - key: tag_key
+      value: tag_value
+    - key: owner
+      value: Ankaios
+```
+
+For improved access, tags are now mappings with implicit keys:
+
+```
+...
+  tags:
+    tag_key: tag_value
+    owner: Ankaios
+```
+
+This improves the accessibility by allowing to filter the complete state for workloads having a distinct tag:
+
+```
+ank get state desiredState.workloads.*.tags.owner
+```
+
+Backwards compatibility to the old specification is still provided by `ank-server` and `ank` CLI when reading manifests, but the CLI now outputs in the new format.
+
+### ControlInterfaceAccess filterMasks typo correction
+
+A typo was corrected in the Ankaios manifest format that suggested that Control Interface access rules support a single path only as the field was named `filterMask` in singular:
+
+```
+...
+    controlInterfaceAccess:
+      allowRules:
+        - type: StateRule
+          operation: Read
+          filterMask:
+            - "*"
+```
+
+As the field actually accepts an array, the new formant is:
+
+```
+...
+    controlInterfaceAccess:
+      allowRules:
+        - type: StateRule
+          operation: Read
+          filterMasks:
+            - "*"
+```
+
+Also here backwards compatibility is maintained and the old manifests are still accepted as input.
+
+### Agents attributes split
+
+Agent resource usage attributes are now nested in the `status` field:
+
+```
+...
+agents:
+  agent_A:
+    status:
+      cpuUsage: 4
+      freeMemory: 5002276864
+```
+
+This change is required in order to add agent tags which will be discussed in the following.
+
+### Agent tags
+
+Ankaios agents now support tags which can be set either at agent startup or dynamically during runtime via the CLI or the Control Interface. The tags can specify agent attributes which can be read, for example, by a scheduling plugin.
+
+```
+agents:
+  agent_A:
+    ...
+    tags:
+      gpu_ram: 128GB
+      role: LLM-enabler
+```
+
+## Protobuf changes
+
+If you are directly using the Ankaios Control Interface and build protobuf objects, you would need to update according to the latest [protobuf definitions](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/index.md).
+
+## SDK changes
+
+Our SDKs now support Ankaios v1.0.0 too and also provide a stable release:
+
+- [Python SDK](https://github.com/eclipse-ankaios/ank-sdk-python/releases/tag/v1.0.0)
+- [Rust SDK](https://github.com/eclipse-ankaios/ank-sdk-rust/releases/tag/v1.0.0)
+
+Consult the documentation of the SDKs for further information on the upgrade strategy.
