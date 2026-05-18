@@ -1,10 +1,10 @@
-# Comparing Container Orchestrators
+# Comparing container orchestrators
 
-This page presents a comparison between Eclipse Ankaios and the Lightweight Kubernetes distribution K3s. All benchmarks were run on identical virtual machines in a controlled environment.
+This page presents a comparison between Eclipse Ankaios and the lightweight Kubernetes distribution K3s. All benchmarks were run on identical virtual machines in a controlled environment.
 
-## Test Environment
+## Test environment
 
-### Host Machine
+### Host machine
 
 | Property     | Value                                                  |
 |--------------|--------------------------------------------------------|
@@ -14,7 +14,7 @@ This page presents a comparison between Eclipse Ankaios and the Lightweight Kube
 
 Virtual machines are managed with [Incus](https://linuxcontainers.org/incus/) on the host.
 
-### Virtual Machine Configuration
+### Virtual machine configuration
 
 | Property     | Value                |
 |--------------|----------------------|
@@ -35,7 +35,7 @@ One VM was used per orchestrator, reset to a clean snapshot before each measurem
 
 ---
 
-## Feature Comparison
+## Feature comparison
 
 | Dimension                     | Ankaios                            | K3s            |
 |-------------------------------|------------------------------------|----------------|
@@ -51,13 +51,13 @@ One VM was used per orchestrator, reset to a clean snapshot before each measurem
 
 ---
 
-## Benchmark Results
+## Benchmark results
 
 Each benchmark was run 100 times per orchestrator; results below are averages. Memory figures use PSS (Proportional Set Size) from `/proc/<pid>/smaps_rollup` rather than RSS to avoid double-counting shared pages.
 
 ---
 
-### Startup Time
+### Startup time
 
 Startup time measures how long each orchestrator takes from process launch until its management API is responsive.
 
@@ -73,7 +73,7 @@ Resource usage in idle mode is measured after each orchestrator has started and 
 
 ---
 
-### Workload Deployment Time
+### Workload deployment time
 
 This scenario submits an nginx manifest and measures the time until the first HTTP 200 response, the true end-to-end deployment time. The sampling time is set to 100 ms.
 
@@ -81,7 +81,7 @@ This scenario submits an nginx manifest and measures the time until the first HT
 
 ---
 
-### Rolling Update Time
+### Rolling update time
 
 Rolling update time measures from manifest re-submission until the updated workload is serving traffic.
 
