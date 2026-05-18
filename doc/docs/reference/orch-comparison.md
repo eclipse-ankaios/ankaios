@@ -53,7 +53,7 @@ One VM was used per orchestrator, reset to a clean snapshot before each measurem
 
 ## Benchmark results
 
-Each benchmark was run 100 times per orchestrator; results below are averages. Memory figures use PSS (Proportional Set Size) from `/proc/<pid>/smaps_rollup` rather than RSS to avoid double-counting shared pages.
+Each benchmark was run 100 times per orchestrator; results below are averages. Memory figures use PSS (Proportional Set Size) from `/proc/<pid>/smaps_rollup` rather than RSS to avoid double-counting shared pages. Scenarios using polling do so with a sampling time of 100 ms.
 
 ---
 
@@ -75,7 +75,7 @@ Resource usage in idle mode is measured after each orchestrator has started and 
 
 ### Workload deployment time
 
-This scenario submits an nginx manifest and measures the time until the first HTTP 200 response, the true end-to-end deployment time. The sampling time is set to 100 ms.
+This scenario submits an nginx manifest and measures the time until the first HTTP 200 response, the true end-to-end deployment time.
 
 <img src="../../assets/comp-deploy-nginx.png" width="700" alt="Deploy nginx to HTTP 200" />
 
