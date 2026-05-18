@@ -75,7 +75,7 @@ Resource usage in idle mode is measured after each orchestrator has started and 
 
 ### Workload Deployment Time
 
-This scenario submits an nginx manifest and measures the time until the first HTTP 200 response, the true end-to-end deployment time.
+This scenario submits an nginx manifest and measures the time until the first HTTP 200 response, the true end-to-end deployment time. The sampling time is set to 100 ms.
 
 <img src="../../assets/comp-deploy-nginx.png" width="700" alt="Deploy nginx to HTTP 200" />
 
