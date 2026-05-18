@@ -1,6 +1,6 @@
 [package]
 name = "ank"
-version = "1.0.1-pre"
+version = "1.0.1"
 edition = "2024"
 license = "Apache-2.0"
 description = "The CLI of Eclipse Ankaios"
