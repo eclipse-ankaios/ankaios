@@ -1,0 +1,70 @@
+# Eclipse Ankaios
+
+Eclipse Ankaios is a lightweight workload orchestrator for embedded and automotive edge devices.
+It manages containerized workloads across one server and multiple agents running on resource-constrained hardware.
+Use this documentation to understand the architecture, configure manifests, interact with the Control Interface, and contribute to the project.
+
+
+## Overview
+
+- [Welcome](https://eclipse-ankaios.github.io/ankaios/1.0/index.md)
+- [Architecture](https://eclipse-ankaios.github.io/ankaios/1.0/architecture/index.md)
+
+## Usage
+
+- [Installation](https://eclipse-ankaios.github.io/ankaios/1.0/usage/installation/index.md)
+- [Quickstart](https://eclipse-ankaios.github.io/ankaios/1.0/usage/quickstart/index.md)
+- [Tutorial: Registering for events](https://eclipse-ankaios.github.io/ankaios/1.0/usage/tutorial-events/index.md)
+- [Tutorial: Manage a fleet of vehicles from the cloud](https://eclipse-ankaios.github.io/ankaios/1.0/usage/tutorial-fleet-management/index.md)
+- [Tutorial: Sending and receiving vehicle signals](https://eclipse-ankaios.github.io/ankaios/1.0/usage/tutorial-vehicle-signals/index.md)
+- [Awesome Ankaios](https://eclipse-ankaios.github.io/ankaios/1.0/usage/awesome-ankaios/index.md)
+- [Setting up Ankaios with mTLS](https://eclipse-ankaios.github.io/ankaios/1.0/usage/mtls-setup/index.md)
+- [Shell completion](https://eclipse-ankaios.github.io/ankaios/1.0/usage/shell-completion/index.md)
+- [Config objects](https://eclipse-ankaios.github.io/ankaios/1.0/usage/manifest/config-objects/index.md)
+- [Workload files](https://eclipse-ankaios.github.io/ankaios/1.0/usage/manifest/workload-files/index.md)
+
+## Reference
+
+- [Protobuf data structures](https://eclipse-ankaios.github.io/ankaios/1.0/reference/_ankaios.proto/index.md)
+- [Working with CompleteState](https://eclipse-ankaios.github.io/ankaios/1.0/reference/complete-state/index.md)
+- [Configuration files](https://eclipse-ankaios.github.io/ankaios/1.0/reference/config-files/index.md)
+- [Control interface](https://eclipse-ankaios.github.io/ankaios/1.0/reference/control-interface/index.md)
+- [Events](https://eclipse-ankaios.github.io/ankaios/1.0/reference/events/index.md)
+- [Glossary](https://eclipse-ankaios.github.io/ankaios/1.0/reference/glossary/index.md)
+- [Inter-workload dependencies](https://eclipse-ankaios.github.io/ankaios/1.0/reference/inter-workload-dependencies/index.md)
+- [Interacting with Ankaios](https://eclipse-ankaios.github.io/ankaios/1.0/reference/interacting-with-ankaios/index.md)
+- [Comparing container orchestrators](https://eclipse-ankaios.github.io/ankaios/1.0/reference/orch-comparison/index.md)
+- [Resource usage](https://eclipse-ankaios.github.io/ankaios/1.0/reference/resource-usage/index.md)
+- [Restart Policy](https://eclipse-ankaios.github.io/ankaios/1.0/reference/restart-policy/index.md)
+- [Startup manifest](https://eclipse-ankaios.github.io/ankaios/1.0/reference/startup-configuration/index.md)
+
+## Upgrading
+
+- [Upgrading v0.2 to v0.3](https://eclipse-ankaios.github.io/ankaios/1.0/usage/upgrading/v0_2_to_v0_3/index.md)
+- [Upgrading v0.3 to v0.4](https://eclipse-ankaios.github.io/ankaios/1.0/usage/upgrading/v0_3_to_v0_4/index.md)
+- [Upgrading v0.4 to v0.5](https://eclipse-ankaios.github.io/ankaios/1.0/usage/upgrading/v0_4_to_v0_5/index.md)
+- [Upgrading v0.5 to v0.6](https://eclipse-ankaios.github.io/ankaios/1.0/usage/upgrading/v0_5_to_v0_6/index.md)
+- [Upgrading v0.6 to v0.7](https://eclipse-ankaios.github.io/ankaios/1.0/usage/upgrading/v0_6_to_v0_7/index.md)
+- [Upgrading v0.7 to v1.0](https://eclipse-ankaios.github.io/ankaios/1.0/usage/upgrading/v0_7_to_v1_0/index.md)
+
+## Contributing
+
+- [Build](https://eclipse-ankaios.github.io/ankaios/1.0/development/build/index.md)
+- [Changing the API](https://eclipse-ankaios.github.io/ankaios/1.0/development/changing-the-api/index.md)
+- [CI/CD - Release](https://eclipse-ankaios.github.io/ankaios/1.0/development/ci-cd-release/index.md)
+- [CI/CD](https://eclipse-ankaios.github.io/ankaios/1.0/development/ci-cd/index.md)
+- [Documentation guidelines](https://eclipse-ankaios.github.io/ankaios/1.0/development/documentation-guidelines/index.md)
+- [Extending the dev container](https://eclipse-ankaios.github.io/ankaios/1.0/development/extending-dev-container/index.md)
+- [Requirement description template](https://eclipse-ankaios.github.io/ankaios/1.0/development/requirement-template/index.md)
+- [Requirement tracing](https://eclipse-ankaios.github.io/ankaios/1.0/development/requirement-tracing/index.md)
+- [Unit tests with cargo-nextest](https://eclipse-ankaios.github.io/ankaios/1.0/development/run-unit-tests/index.md)
+- [Rust coding guidelines](https://eclipse-ankaios.github.io/ankaios/1.0/development/rust-coding-guidelines/index.md)
+- [Eclipse self-service](https://eclipse-ankaios.github.io/ankaios/1.0/development/self-service/index.md)
+- [System tests](https://eclipse-ankaios.github.io/ankaios/1.0/development/system-tests/index.md)
+- [Test coverage](https://eclipse-ankaios.github.io/ankaios/1.0/development/test-coverage/index.md)
+- [Unit verification](https://eclipse-ankaios.github.io/ankaios/1.0/development/unit-verification/index.md)
+
+## Support
+
+- [Support](https://eclipse-ankaios.github.io/ankaios/1.0/support/index.md)
+
