@@ -1,6 +1,6 @@
 # Comparing Container Orchestrators
 
-This page presents a practical, measured comparison between Eclipse Ankaios and Lightweight Kubernetes (K3s). All benchmarks were run on identical virtual machines in a controlled environment.
+This page presents a comparison between Eclipse Ankaios and the Lightweight Kubernetes distribution K3s. All benchmarks were run on identical virtual machines in a controlled environment.
 
 ## Test Environment
 
@@ -23,7 +23,7 @@ Virtual machines are managed with [Incus](https://linuxcontainers.org/incus/) on
 | **RAM**      | 4 GiB                |
 | **Disk**     | 20 GiB               |
 
-One VM was used per orchestrator, reset to a clean snapshot before each measurement. No workloads were running during idle measurements. Benchmark images were pre-pulled into the snapshot so that no registry pulls occur during runs.
+One VM was used per orchestrator, reset to a clean snapshot before each measurement. No workloads were running during idle measurements. Benchmark images were pre-pulled into the snapshot so that no registry pulls occur during runs and the measurements are not influenced by network latency or bandwidth fluctuations.
 
 ### Orchestrators used
 
