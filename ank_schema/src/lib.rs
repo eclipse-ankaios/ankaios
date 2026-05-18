@@ -42,9 +42,11 @@ pub fn validate_manifest(instance: &serde_json::Value) -> Result<(), String> {
         .build(&schema_value)
         .map_err(|e| format!("Failed to build schema validator: {e}"))?;
 
-    let errors: Vec<String> = validator
-        .iter_errors(instance)
-        .map(|e| format!("{e} at '{}'", e.instance_path()))
+    let evaluation = validator.evaluate(instance);
+
+    let errors: Vec<String> = evaluation
+        .iter_errors()
+        .map(|e| format!("'{}': {}", e.instance_location, e.error))
         .collect();
 
     if errors.is_empty() {
