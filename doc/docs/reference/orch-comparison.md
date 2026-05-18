@@ -27,11 +27,11 @@ One VM was used per orchestrator, reset to a clean snapshot before each measurem
 
 ### Orchestrators used
 
-| Property      | Eclipse Ankaios    | K3s                  |
-|---------------|--------------------|----------------------|
-| **Version**   | v1.0.0             | v1.35.4+k3s1         |
-| **Developer** | Eclipse Foundation | Rancher (SUSE)       |
-| **Runtime**   | Podman             | containerd (bundled) |
+| Property    | Eclipse Ankaios | K3s                  |
+|-------------|-----------------|----------------------|
+| **Version** | v1.0.0          | v1.35.4+k3s1         |
+| **License** | Apache-2.0      | Apache-2.0           |
+| **Runtime** | Podman          | containerd (bundled) |
 
 ---
 
