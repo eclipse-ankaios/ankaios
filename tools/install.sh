@@ -177,7 +177,7 @@ EOF
         $SVC_SUDO tee "$FILE_ANK_AGENT_SERVICE" >/dev/null << EOF
 [Unit]
 Description=Ankaios agent
-After=network.target
+After=network.target ${ANK_SERVER_SERVICE}.service
 Wants=network.target
 
 [Service]

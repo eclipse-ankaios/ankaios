@@ -101,21 +101,35 @@ Description: Eclipse Ankaios - full installation
 EOF
 }
 
-write_service() {
-    local description="$1" bin_dir="$2" exec_name="$3" log_level="$4"
-    cat > "$BASE_DIR/debian/$exec_name.service" << EOF
+write_services() {
+    cat > "$BASE_DIR/debian/ank-server.service" << EOF
 [Unit]
-Description=${description}
+Description=Ankaios server
 After=network.target
 Wants=network.target
 
 [Service]
-Environment="RUST_LOG=${log_level}"
-ExecStart=${bin_dir}/${exec_name}
+Environment="RUST_LOG=${LOG_LEVEL}"
+ExecStart=/usr/bin/ank-server
 
 [Install]
 WantedBy=default.target
 EOF
+
+    cat > "$BASE_DIR/debian/ank-agent.service" << EOF
+[Unit]
+Description=Ankaios agent
+After=network.target ank-server.service
+Wants=network.target
+
+[Service]
+Environment="RUST_LOG=${LOG_LEVEL}"
+ExecStart=/usr/bin/ank-agent
+
+[Install]
+WantedBy=default.target
+EOF
+
 }
 
 write_copyright() {
@@ -252,8 +266,7 @@ mkdir -p "$BASE_DIR/debian"
 write_control
 write_format_and_options
 write_copyright
-write_service "Ankaios server" "/usr/bin" "ank-server" "${LOG_LEVEL}"
-write_service "Ankaios agent"  "/usr/bin" "ank-agent"  "${LOG_LEVEL}"
+write_services
 write_rules
 write_changelog
 
