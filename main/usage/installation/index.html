@@ -689,6 +689,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#aur-arch-linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AUR (Arch Linux)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#manual-download" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2332,6 +2343,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#aur-arch-linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AUR (Arch Linux)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#manual-download" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2538,6 +2560,83 @@ file generation if required.</p>
 <p>The packages are compatible with Ubuntu 22.04+, Debian 12+ and other distributions based on glibc 2.35 or later.</p>
 <h4 id="uninstall_1">Uninstall<a class="headerlink" href="#uninstall_1" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>remove<span class="w"> </span>ankaios
+</code></pre></div>
+<p>To remove individual components, replace <code>ankaios</code> with the specific package name.</p>
+<hr />
+<h3 id="aur-arch-linux">AUR (Arch Linux)<a class="headerlink" href="#aur-arch-linux" title="Permanent link">&para;</a></h3>
+<p>Ankaios packages are also available via AUR.</p>
+<p>Using an AUR helper (for example <code>yay</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>yay<span class="w"> </span>-S<span class="w"> </span>ankaios
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The source-based AUR packages <code>ankaios</code> and <code>ankaios-git</code> require <code>cargo</code> to build.
+On Arch Linux, <code>cargo</code> is typically provided by one of the following packages:</p>
+<ul>
+<li><code>rust</code> - system Rust toolchain</li>
+<li><code>rustup</code> - Rust toolchain manager</li>
+</ul>
+<p>When installing with <code>yay</code>, you may be prompted multiple times during dependency resolution and installation.
+This is expected because the <code>ankaios</code> meta-package builds and installs multiple packages: <code>ankaios-server</code>, <code>ankaios-agent</code>, and <code>ankaios-cli</code>.</p>
+</div>
+<p>Manual installation (without AUR helper):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://aur.archlinux.org/ankaios.git
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">cd</span><span class="w"> </span>ankaios
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>makepkg<span class="w"> </span>-si
+</code></pre></div>
+<p>The <code>ankaios</code> meta-package installs all components. Individual packages can be installed separately:</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ankaios</code></td>
+<td>Meta-package containing <code>ank-server</code>, <code>ank-agent</code> and <code>ank</code></td>
+</tr>
+<tr>
+<td><code>ankaios-server</code></td>
+<td>Ankaios server</td>
+</tr>
+<tr>
+<td><code>ankaios-agent</code></td>
+<td>Ankaios agent</td>
+</tr>
+<tr>
+<td><code>ankaios-cli</code></td>
+<td>Ankaios CLI</td>
+</tr>
+</tbody>
+</table>
+<p>You can also install:</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ankaios-bin</code></td>
+<td>Pre-built binaries from releases</td>
+</tr>
+<tr>
+<td><code>ankaios-git</code></td>
+<td>Build from the latest git revision</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If <code>ankaios-server</code> and <code>ankaios-agent</code> are installed, you can enable and start the services with:</p>
+<p><code>sudo systemctl enable --now ank-server ank-agent</code></p>
+</div>
+<h4 id="uninstall_2">Uninstall<a class="headerlink" href="#uninstall_2" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>sudo<span class="w"> </span>pacman<span class="w"> </span>-Rns<span class="w"> </span>ankaios
 </code></pre></div>
 <p>To remove individual components, replace <code>ankaios</code> with the specific package name.</p>
 <hr />
