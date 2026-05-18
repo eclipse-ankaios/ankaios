@@ -45,6 +45,10 @@ fn annotate_complete_state(builder: Builder) -> Builder {
             "#[serde(skip_serializing_if = \"Option::is_none\")]",
         )
         .field_attribute(
+            "CompleteState.effectiveState",
+            "#[serde(skip_serializing_if = \"Option::is_none\")]",
+        )
+        .field_attribute(
             "CompleteState.workloadStates",
             "#[serde(skip_serializing_if = \"Option::is_none\")]",
         )
