@@ -10,7 +10,7 @@ RUN apk update && apk add --update-cache \
 
 COPY ankaios_api/proto/ank_base.proto ankaios_api/proto/control_api.proto .
 COPY examples/tools/setup_python_sdk.sh .
-RUN if [[ -z "$PYTHON_SDK_BRANCH" ]] ; then ./setup_python_sdk.sh ; else ./setup_python_sdk.sh --sdk-source github --sdk-branch "$PYTHON_SDK_BRANCH" --proto-source local --proto-path . ; fi
+RUN if [ -z "$PYTHON_SDK_BRANCH" ] ; then ./setup_python_sdk.sh ; else ./setup_python_sdk.sh --sdk-source github --sdk-branch "$PYTHON_SDK_BRANCH" --proto-source local --proto-path . ; fi
 
 COPY examples/python_sdk_hello /ankaios
 ENV ANKAIOS_VERSION=1.0.1-pre
