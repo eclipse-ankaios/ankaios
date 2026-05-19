@@ -26,5 +26,6 @@ Draft Ankaios release version `<version>`.
 - [ ] Update to final release version
 - [ ] Release Ankaios
 - [ ] Release SDKs
+- [ ] Publish a new AUR package
 - [ ] Release a new app devcontainer (`tools/app_dev_container_base`)
 - [ ] Close all issues and milestone
