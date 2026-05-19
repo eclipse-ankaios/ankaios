@@ -445,16 +445,16 @@ Needs:
 - utest
 
 #### Check given PEM file for proper unix file permission
-`swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~1`
+`swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2`
 
 Status: approved
 
 When a PEM file is provided, the gRPC middleware shall check the given PEM file to have one of the following unix file permission:
-* 400
-* 600
+* private keys - user readable and/or writable
+* certificates - user readable and/or writable and/or group/other readable
 
 Rationale:
-Due to security reasons certificates and keys shall not be read- and writable by groups and others.
+This is the state of the art for handling keys and certificates as for security reasons certificates and keys shall not be read- and writable by groups and others.
 
 Needs:
 - impl

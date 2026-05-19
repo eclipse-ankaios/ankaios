@@ -1,0 +1,44 @@
+name: Remove published deb packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package name (e.g. ank-server). Use * for all."
+        required: false
+        type: string
+        default: "*"
+      version:
+        description: "Version (e.g. 1.0.0). Use * for all."
+        required: false
+        type: string
+        default: "*"
+      architecture:
+        description: "Architecture (amd64, arm64). Use * for all."
+        required: false
+        type: string
+        default: "*"
+      revision:
+        description: "Build revision (e.g. 1). Leave empty to match the version alone."
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  delete:
+    name: Delete packages from Nexus
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Delete packages
+        env:
+          PACKAGE: ${{ inputs.package }}
+          VERSION: ${{ inputs.version }}
+          ARCHITECTURE: ${{ inputs.architecture }}
+          REVISION: ${{ inputs.revision }}
+          REPO_TOKEN_USERNAME: ${{ secrets.REPO_TOKEN_USERNAME }}
+          REPO_TOKEN_PASSWORD: ${{ secrets.REPO_TOKEN_PASSWORD }}
+        run: python3 tools/debian/delete_pkg.py

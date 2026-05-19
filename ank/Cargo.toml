@@ -1,6 +1,6 @@
 [package]
 name = "ank"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
 license = "Apache-2.0"
 description = "The CLI of Eclipse Ankaios"
@@ -36,6 +36,7 @@ assets = [
 
 [dependencies]
 ankaios-api = { path = "../ankaios_api" }
+ank-schema = { path = "../ank_schema" }
 common = { path = "../common" }
 grpc = { path = "../grpc" }
 chrono = "0.4"

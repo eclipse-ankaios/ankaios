@@ -5,6 +5,7 @@ req_in
 dist
 logs
 vendor
+/debian
 
 #ignore plantuml out folder
 /out

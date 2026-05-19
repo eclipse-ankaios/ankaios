@@ -162,6 +162,7 @@ fn object_field_mask_completer(current: &OsStr) -> Vec<CompletionCandidate> {
 // [impl->swdd~cli-supports-server-url-cli-argument~1]
 // [impl->swdd~cli-supports-pem-file-paths-as-cli-arguments~1]
 // [impl->swdd~cli-supports-cli-argument-for-insecure-communication~1]
+// [impl->swdd~cli-supports-cli-argument-for-response-timeout~1]
 #[derive(Parser, Debug)] // requires `derive` feature
 #[command(name = "ank")]
 #[command(bin_name = "ank")]
@@ -172,12 +173,16 @@ pub struct AnkCli {
     pub command: Commands,
     #[arg(required = false, short = 'x', long = "ank-config", value_hint = ValueHint::FilePath)]
     /// The path to the server config file.
-    /// The default path is $HOME/.config/ankaios/ank.conf
+    /// The default paths are $HOME/.config/ankaios/ank.conf and /etc/ankaios/ank.conf with first existing file taking precedence over the other.
     pub config_path: Option<String>,
     #[arg(short = 's', long = "server-url", required=false, env = ANK_SERVER_URL_ENV_KEY)]
     /// The url to Ankaios server.
     pub server_url: Option<String>,
-    #[arg(long = "response-timeout", required = false)]
+    #[arg(
+        long = "response-timeout",
+        required = false,
+        default_missing_value = "3000"
+    )]
     /// The timeout in milliseconds to wait for a response.
     pub response_timeout_ms: Option<u64>,
     #[arg(short = 'v', long = "verbose", action=ArgAction::Set, num_args=0, default_missing_value="true")]

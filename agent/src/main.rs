@@ -135,9 +135,10 @@ async fn main() {
 
     // [impl->swdd~agent-loads-config-file~2]
     let mut agent_config: AgentConfig =
-        handle_config(&args.config_path, DEFAULT_AGENT_CONFIG_FILE_PATH);
+        handle_config(&args.config_path, &DEFAULT_AGENT_CONFIG_FILE_PATH);
 
-    agent_config.update_with_args(&args);
+    agent_config.update_with_args(&args)
+        .unwrap_or_exit("Failed to load certificate files!");
 
     validate_agent_name(&agent_config.name)
         .unwrap_or_exit("Error encountered while checking agent name!");
@@ -237,7 +238,7 @@ async fn main() {
         agent_config.server_url,
         agent_config.tags,
         // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-        tls_config.unwrap_or_exit("Missing certificate file"),
+        tls_config.unwrap_or_exit("Missing certificate files"),
     )
     .unwrap_or_exit("Failed to create communications client.");
 

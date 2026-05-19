@@ -4,14 +4,18 @@
 # If you add a license in the following section also consider changing about.toml
 [licenses]
 allow = [
-    "MIT",
     "Apache-2.0",
+    "MIT",
     "BSD-3-Clause",
-    "ISC"
+    "ISC",
+    # "OpenSSL",
+    "Unicode-3.0",
 ]
 private = { ignore = true }
 exceptions = [
     { name = "unicode-ident", allow = ["Unicode-3.0"] },
+    { name = "foldhash", allow = ["Zlib"] },
+    { name = "borrow-or-share", allow = ["MIT-0"] },
 ]
 
 [[licenses.clarify]]

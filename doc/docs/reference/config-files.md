@@ -14,7 +14,7 @@ The Ankaios configuration files are per default loaded from the following locati
 
 - **Server Configuration**: `/etc/ankaios/ank-server.conf`
 - **Agent Configuration**: `/etc/ankaios/ank-agent.conf`
-- **CLI Configuration**: `$HOME/.config/ankaios/ank.conf`
+- **CLI Configuration**: `$HOME/.config/ankaios/ank.conf`, `/etc/ankaios/ank.conf` (first path has higher priority)
 
 ## Configuration File Structure
 

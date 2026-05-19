@@ -16,6 +16,7 @@ use super::{CliCommands, InputSourcePair};
 use crate::cli_error::CliError;
 use crate::{cli::ApplyArgs, output, output_debug};
 
+use ank_schema::validate_manifest;
 use ankaios_api::{
     ALLOWED_CHAR_SET,
     ank_base::{CompleteState, State, validate_tags},
@@ -68,6 +69,12 @@ fn detect_api_version(obj: &Object, obj_paths: &[Path]) -> Result<Option<&'stati
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
     let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
         .map_err(|err| format!("Invalid manifest data provided: {err}"))?;
+
+    // [impl->swdd~cli-validates-manifest-against-schema~1]
+    let manifest_json: serde_json::Value = serde_json::to_value(&state_obj_parsing_check)
+        .map_err(|err| format!("Failed to convert manifest for schema validation: {err}"))?;
+    validate_manifest(&manifest_json)?;
+
     let obj: Object = state_obj_parsing_check.into();
 
     let mut workload_paths: HashSet<Path> = HashSet::new();
@@ -166,12 +173,12 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
 ) -> Result<Option<(CompleteState, Vec<String>)>, String> {
-    let mut req_obj: Object = State{
+    let mut req_obj: Object = State {
         api_version: CURRENT_API_VERSION.to_string(),
         ..Default::default()
-    }.try_into().map_err(|err| {
-        format!("Could not create initial empty state object from State: {err}")
-    })?;
+    }
+    .try_into()
+    .map_err(|err| format!("Could not create initial empty state object from State: {err}"))?;
     let mut req_paths: Vec<Path> = Vec::new();
     for manifest in manifests.iter_mut() {
         let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
@@ -251,7 +258,8 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{
-        CompleteState, ExecutionStateSpec, Response, ResponseContent, StateSpec, UpdateStateSuccess, WorkloadInstanceNameSpec, WorkloadStateSpec
+        CompleteState, ExecutionStateSpec, Response, ResponseContent, UpdateStateSuccess,
+        WorkloadInstanceNameSpec, WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_state_from_workloads, generate_test_workload_named,
@@ -285,6 +293,7 @@ mod tests {
     const OTHER_REQUEST_ID: &str = "other_request_id";
 
     // [utest->swdd~cli-apply-supports-ankaios-manifest~1]
+    // [utest->swdd~cli-validates-manifest-against-schema~1]
     #[test]
     fn utest_parse_manifest_ok() {
         let manifest_content = Cursor::new(format!(
@@ -313,14 +322,12 @@ mod tests {
     fn utest_parse_manifest_invalid_manifest_content() {
         let manifest_content = Cursor::new(b"invalid manifest content");
 
-        let (obj, paths) = parse_manifest(&mut (
+        let result = parse_manifest(&mut (
             "invalid_manifest_content".to_string(),
             Box::new(manifest_content),
-        ))
-        .unwrap();
+        ));
 
-        assert!(TryInto::<StateSpec>::try_into(obj).is_err());
-        assert!(paths.is_empty());
+        assert!(result.is_err());
     }
 
     // [utest->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
@@ -347,7 +354,7 @@ mod tests {
       agent: {}
       tags:
         owner: Ankaios team
-        version: 1.0
+        version: \"1.0\"
       runtimeConfig: |
         image: docker.io/nginx:latest",
             fixtures::WORKLOAD_NAMES[0],
@@ -365,6 +372,7 @@ mod tests {
     }
 
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
+    // [utest->swdd~cli-validates-manifest-against-schema~1]
     #[test]
     fn utest_parse_manifest_current_api_version_tags_as_sequence_fails() {
         let manifest_content = Cursor::new(format!(
@@ -393,7 +401,7 @@ mod tests {
         assert!(
             result
                 .unwrap_err()
-                .contains("tags must be specified as a mapping")
+                .contains("Manifest schema validation failed")
         );
     }
 
@@ -847,7 +855,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -970,7 +977,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -1008,8 +1014,6 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-
-
         let updated_state = CompleteState {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
@@ -1037,7 +1041,6 @@ mod tests {
             .never();
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: true,
             server_connection: mock_server_connection,
         };
@@ -1084,7 +1087,6 @@ mod tests {
             .never();
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -1193,7 +1195,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };

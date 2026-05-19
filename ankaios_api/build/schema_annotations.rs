@@ -33,12 +33,20 @@ fn setup_constraint_annotations(builder: Builder) -> Builder {
             format!(r#"#[spec_field_attr(#[schemars(regex(pattern = r"^{API_VERSION_1_0}$"))])]"#),
         )
         .field_attribute(
+            "State.workloads",
+            "#[spec_field_attr(#[schemars(with = \"Option<WorkloadMapSpec>\")])]",
+        )
+        .field_attribute(
+            "State.configs",
+            "#[spec_field_attr(#[schemars(with = \"Option<ConfigMapSpec>\")])]",
+        )
+        .field_attribute(
             "WorkloadMap.workloads",
             "#[spec_field_attr(#[schemars(schema_with = \"constrained_map_schema::<WorkloadSpec>\")])]",
         )
         .field_attribute(
             "Workload.agent",
-            format!(r#"#[spec_field_attr(#[schemars(regex(pattern = r"^(?:{ALLOWED_CHAR_SET}*\{{\{{{ALLOWED_CHAR_SET}+(?:\.{ALLOWED_CHAR_SET}+)*\}}\}})*{ALLOWED_CHAR_SET}*$"),length(min = 0))])]"#)
+            format!(r#"#[spec_field_attr(#[schemars(default, regex(pattern = r"^(?:{ALLOWED_CHAR_SET}*\{{\{{{ALLOWED_CHAR_SET}+(?:\.{ALLOWED_CHAR_SET}+)*\}}\}})*{ALLOWED_CHAR_SET}*$"),length(min = 0))])]"#)
         )
         .field_attribute(
             "ConfigMappings.configs",

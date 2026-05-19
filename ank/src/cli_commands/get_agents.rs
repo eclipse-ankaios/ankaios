@@ -159,7 +159,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -198,7 +197,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -227,7 +225,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -259,7 +256,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -298,7 +294,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -337,7 +332,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };

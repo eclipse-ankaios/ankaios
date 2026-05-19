@@ -76,10 +76,17 @@ pub mod security {
         }
     }
 
+    /// Type of PEM file being read, used to determine appropriate permission requirements
+    #[derive(Debug, Clone, Copy)]
+    pub enum PemFileType {
+        PrivateKey,
+        Certificate,
+    }
+
     // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
     pub fn read_pem_file<S: AsRef<OsStr>>(
         pem_file_path: S,
-        check_permissions: bool,
+        file_type: PemFileType,
     ) -> Result<String, GrpcMiddlewareError> {
         let path_of_pem_file = Path::new(&pem_file_path);
 
@@ -89,39 +96,45 @@ pub mod security {
             ))
         })?;
 
-        let mut owner_readable = true;
-        let mut group_not_readable = true;
-        let mut others_not_readable = true;
+        let metadata = file.metadata().map_err(|err| {
+            GrpcMiddlewareError::CertificateError(format!(
+                "Error during getting permissions of the given file {path_of_pem_file:?}: {err}"
+            ))
+        })?;
 
-        if check_permissions {
-            let permissions = file
-                .metadata()
-                .map_err(|err| {
-                    GrpcMiddlewareError::CertificateError(format!(
-                        "Error during getting permissions of the given file {path_of_pem_file:?}: {err}"
-                    ))
-                })?
-                .permissions();
+        let permissions = metadata.permissions();
+        let mode = permissions.mode() & 0o777;
 
-            // [impl->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~1]
-            owner_readable = (permissions.mode() & 0o400) == 0o400; // read for the owner
-            group_not_readable = (permissions.mode() & 0o040) != 0o040; // not read for the group
-            others_not_readable = (permissions.mode() & 0o004) != 0o004; // not read for others
+        // [impl->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+        // Early exit if permissions are incorrect
+        match file_type {
+            PemFileType::PrivateKey => {
+                // Private keys must be exactly 0600 or 0400
+                if mode != 0o600 && mode != 0o400 {
+                    return Err(GrpcMiddlewareError::CertificateError(format!(
+                        "Private key file {path_of_pem_file:?} has insecure permissions {mode:o}. \
+                         Private keys must have permissions 0600 or 0400. Use 'chmod 0600 <file>' to fix this."
+                    )));
+                }
+            }
+            PemFileType::Certificate => {
+                // Certificates must be owner-readable, not writable by group or others, and not executable
+                if (mode & 0o400) == 0 || (mode & 0o022) != 0 || (mode & 0o111) != 0 {
+                    return Err(GrpcMiddlewareError::CertificateError(format!(
+                        "Certificate file {path_of_pem_file:?} has insecure permissions {mode:o}. \
+                         Certificates must have permissions 0600 or 0400. Use 'chmod 0600 <file>' to fix this."
+                    )));
+                }
+            }
         }
 
-        if owner_readable && group_not_readable && others_not_readable {
-            let mut buffer = String::new();
-            file.read_to_string(&mut buffer).map_err(|err| {
-                GrpcMiddlewareError::CertificateError(format!(
-                    "Error during reading the given file {path_of_pem_file:?}: {err:?}"
-                ))
-            })?;
-            Ok(buffer)
-        } else {
-            Err(GrpcMiddlewareError::CertificateError(format!(
-                "The given certificate file {path_of_pem_file:?} has incorrect permissions!"
-            )))
-        }
+        let mut buffer = String::new();
+        file.read_to_string(&mut buffer).map_err(|err| {
+            GrpcMiddlewareError::CertificateError(format!(
+                "Error during reading the given file {path_of_pem_file:?}: {err:?}"
+            ))
+        })?;
+        Ok(buffer)
     }
 }
 
@@ -158,29 +171,288 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         let mut temp_file = NamedTempFile::new().unwrap();
         temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
 
-        // Test with check_permissions set to false (no permission checks)
-        let result = read_pem_file(temp_file.path(), false).unwrap();
+        // Test reading certificate file with correct permissions (0644)
+        let mut permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        permissions.set_mode(0o644);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let result = read_pem_file(temp_file.path(), PemFileType::Certificate).unwrap();
         assert_eq!(result, TEST_PEM_CONTENT);
     }
 
-    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~1]
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
     #[test]
     fn test_read_pem_file_and_check_permissions() {
         let mut temp_file = NamedTempFile::new().unwrap();
         temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
 
         let mut permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
-        // Test with check_permissions set to true and correct permissions (rw for owner, no rw for group and others)
+        // Test private key with correct permissions (rw for owner only)
         permissions.set_mode(0o600);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
-        let result = read_pem_file(temp_file.path(), true).unwrap();
+        let result = read_pem_file(temp_file.path(), PemFileType::PrivateKey).unwrap();
         assert_eq!(result, TEST_PEM_CONTENT);
 
-        // Test with check_permissions set to true and incorrect permissions (readable by groups and others)
+        // Test private key with incorrect permissions (readable by others)
         permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
         permissions.set_mode(0o644);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
-        let error = read_pem_file(temp_file.path(), true).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_private_key_fails_with_0777() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o777);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_private_key_fails_with_0722() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o722);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_private_key_fails_with_0610() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o610);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_private_key_fails_with_0660() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o660);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_private_key_fails_with_0602() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o602);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_private_key_succeeds_with_0400() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o400);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let result = read_pem_file(temp_file.path(), PemFileType::PrivateKey).unwrap();
+        assert_eq!(result, TEST_PEM_CONTENT);
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_certificate_succeeds_with_0644() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o644);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let result = read_pem_file(temp_file.path(), PemFileType::Certificate).unwrap();
+        assert_eq!(result, TEST_PEM_CONTENT);
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_certificate_succeeds_with_0600() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o600);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let result = read_pem_file(temp_file.path(), PemFileType::Certificate).unwrap();
+        assert_eq!(result, TEST_PEM_CONTENT);
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_certificate_succeeds_with_0400() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o400);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let result = read_pem_file(temp_file.path(), PemFileType::Certificate).unwrap();
+        assert_eq!(result, TEST_PEM_CONTENT);
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_certificate_succeeds_with_0444() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o444);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let result = read_pem_file(temp_file.path(), PemFileType::Certificate).unwrap();
+        assert_eq!(result, TEST_PEM_CONTENT);
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_certificate_fails_with_0666() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o666);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_certificate_fails_with_0620() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o620);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_certificate_fails_with_0602() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o602);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_certificate_fails_with_0755() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o755);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_certificate_fails_with_0744() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o744);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_certificate_fails_with_0645() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o645);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~2]
+    #[test]
+    fn test_certificate_fails_with_0654() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
+
+        let permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        let mut permissions = permissions;
+        permissions.set_mode(0o654);
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 }

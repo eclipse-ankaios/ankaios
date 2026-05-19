@@ -18,7 +18,13 @@ use crate::io_utils::default_run_folder_string;
 use common::DEFAULT_SERVER_ADDRESS;
 use common::config::{CONFIG_VERSION, ConfigFile, ConversionErrors};
 use common::std_extensions::UnreachableOption;
+
+use grpc::security::PemFileType;
+
+#[cfg(not(test))]
 use grpc::security::read_pem_file;
+#[cfg(test)]
+use tests::read_pem_file;
 
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -26,7 +32,7 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 use toml::from_str;
 
-pub const DEFAULT_AGENT_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-agent.conf";
+pub const DEFAULT_AGENT_CONFIG_FILE_PATH: [&str; 1] = ["/etc/ankaios/ank-agent.conf"];
 
 pub fn get_default_url() -> String {
     DEFAULT_SERVER_ADDRESS.to_string()
@@ -98,17 +104,17 @@ impl ConfigFile for AgentConfig {
         }
 
         if let Some(ca_pem_path) = &agent_config.ca_pem {
-            let ca_pem_content = read_pem_file(ca_pem_path, false)
+            let ca_pem_content = read_pem_file(ca_pem_path, PemFileType::Certificate)
                 .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
             agent_config.ca_pem_content = Some(ca_pem_content);
         }
         if let Some(crt_pem_path) = &agent_config.crt_pem {
-            let crt_pem_content = read_pem_file(crt_pem_path, false)
+            let crt_pem_content = read_pem_file(crt_pem_path, PemFileType::Certificate)
                 .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
             agent_config.crt_pem_content = Some(crt_pem_content);
         }
         if let Some(key_pem_path) = &agent_config.key_pem {
-            let key_pem_content = read_pem_file(key_pem_path, false)
+            let key_pem_content = read_pem_file(key_pem_path, PemFileType::PrivateKey)
                 .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
             agent_config.key_pem_content = Some(key_pem_content);
         }
@@ -118,7 +124,7 @@ impl ConfigFile for AgentConfig {
 }
 
 impl AgentConfig {
-    pub fn update_with_args(&mut self, args: &Arguments) {
+    pub fn update_with_args(&mut self, args: &Arguments) -> Result<(), String> {
         if let Some(name) = &args.agent_name {
             self.name = name.to_string();
         }
@@ -137,23 +143,27 @@ impl AgentConfig {
 
         if let Some(ca_pem_path) = &args.ca_pem {
             self.ca_pem = Some(ca_pem_path.to_owned());
-            let ca_pem_content = read_pem_file(ca_pem_path, false).unwrap_or_default();
+            let ca_pem_content = read_pem_file(ca_pem_path, PemFileType::Certificate)
+                .map_err(|err| err.to_string())?;
             self.ca_pem_content = Some(ca_pem_content);
         }
         if let Some(crt_pem_path) = &args.crt_pem {
             self.crt_pem = Some(crt_pem_path.to_owned());
-            let crt_pem_content = read_pem_file(crt_pem_path, false).unwrap_or_default();
+            let crt_pem_content = read_pem_file(crt_pem_path, PemFileType::Certificate)
+                .map_err(|err| err.to_string())?;
             self.crt_pem_content = Some(crt_pem_content);
         }
         if let Some(key_pem_path) = &args.key_pem {
             self.key_pem = Some(key_pem_path.to_owned());
-            let key_pem_content = read_pem_file(key_pem_path, true).unwrap_or_default();
+            let key_pem_content = read_pem_file(key_pem_path, PemFileType::PrivateKey)
+                .map_err(|err| err.to_string())?;
             self.key_pem_content = Some(key_pem_content);
         }
 
         if let Some(tags) = &args.tags {
             self.tags = tags.iter().cloned().collect();
         }
+        Ok(())
     }
 }
 
@@ -178,6 +188,30 @@ mod tests {
     use std::io::Write;
     use std::path::PathBuf;
     use tempfile::NamedTempFile;
+
+    use grpc::grpc_middleware_error::GrpcMiddlewareError;
+    use grpc::security::PemFileType;
+
+    // Stub read_pem_file for testing - returns fixture content based on path
+    pub fn read_pem_file<S: AsRef<std::ffi::OsStr>>(
+        pem_file_path: S,
+        _file_type: PemFileType,
+    ) -> Result<String, GrpcMiddlewareError> {
+        let path_str = pem_file_path.as_ref().to_string_lossy();
+
+        if path_str.contains("ca.pem") {
+            Ok(fixtures::CA_PEM_CONTENT.to_string())
+        } else if path_str.contains("crt.pem") {
+            Ok(fixtures::CRT_PEM_CONTENT.to_string())
+        } else if path_str.contains("key.pem") {
+            Ok(fixtures::KEY_PEM_CONTENT.to_string())
+        } else {
+            Err(GrpcMiddlewareError::CertificateError(format!(
+                "Unknown test fixture path: {}",
+                path_str
+            )))
+        }
+    }
 
     // [utest->swdd~agent-loads-config-file~2]
     #[test]
@@ -253,13 +287,16 @@ mod tests {
             key_pem: Some(fixtures::KEY_PEM_PATH.to_string()),
         };
 
-        agent_config.update_with_args(&args);
+        agent_config.update_with_args(&args).unwrap();
 
         assert_eq!(agent_config.name, fixtures::AGENT_NAMES[0].to_string());
         assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
         assert_eq!(agent_config.run_folder, default_run_folder);
         assert!(!agent_config.insecure);
-        assert_eq!(agent_config.ca_pem, Some(fixtures::CA_PEM_PATH.to_string()));
+        assert_eq!(
+            agent_config.ca_pem,
+            Some(fixtures::CA_PEM_PATH.to_string())
+        );
         assert_eq!(
             agent_config.crt_pem,
             Some(fixtures::CRT_PEM_PATH.to_string())
@@ -267,6 +304,18 @@ mod tests {
         assert_eq!(
             agent_config.key_pem,
             Some(fixtures::KEY_PEM_PATH.to_string())
+        );
+        assert_eq!(
+            agent_config.ca_pem_content,
+            Some(fixtures::CA_PEM_CONTENT.to_string())
+        );
+        assert_eq!(
+            agent_config.crt_pem_content,
+            Some(fixtures::CRT_PEM_CONTENT.to_string())
+        );
+        assert_eq!(
+            agent_config.key_pem_content,
+            Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
     }
 
@@ -303,7 +352,7 @@ mod tests {
             key_pem: None,
         };
 
-        agent_config.update_with_args(&args);
+        agent_config.update_with_args(&args).unwrap();
 
         assert_eq!(
             agent_config.ca_pem_content,
@@ -388,7 +437,7 @@ mod tests {
             tags: Some(vec![("cli_tag".to_string(), "cli_value".to_string())]),
         };
 
-        agent_config.update_with_args(&args);
+        agent_config.update_with_args(&args).unwrap();
 
         assert_eq!(agent_config.tags.len(), 1);
         assert_eq!(

@@ -18,7 +18,7 @@ workloads:
       allowRules:
       - type: StateRule
         operation: Read
-        filterMask:
+        filterMasks:
         - desiredState
     runtimeConfig: |
       image: alpine:latest

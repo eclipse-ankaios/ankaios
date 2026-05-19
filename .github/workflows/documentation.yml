@@ -42,7 +42,7 @@ jobs:
     if: ${{ needs.documentation_changes.outputs.documentation == 'true' || github.ref_name == 'main' || github.ref_type == 'tag' }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:1.0.1
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:1.2.0
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Prepare commit to branch gh-pages

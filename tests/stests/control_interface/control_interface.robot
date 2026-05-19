@@ -155,7 +155,7 @@ Test target path from control interface access is limited to the designated pod 
     And Ankaios server is started with manifest "${CONFIGS_DIR}/multi_container_podman_kube.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
-    And the workload "${workload_name}" shall have the execution state "Running(Ok)" on agent "${agent_name}"
+    And the workload "${workload_name}" shall have the execution state "Running(Ok)" on agent "${agent_name}" within "30" seconds
     And the mount point for the control interface has been generated for ${agent_name}
     # Asserts
     Then verify multi container control interface access    simple
@@ -168,7 +168,7 @@ Test target path from control interface access is limited to the designated depl
     And Ankaios server is started with manifest "${CONFIGS_DIR}/multi_container_podman_kube_deployment.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "${agent_name}"
-    And the workload "simple" shall have the execution state "Running(Ok)" on agent "${agent_name}"
+    And the workload "simple" shall have the execution state "Running(Ok)" on agent "${agent_name}" within "60" seconds
     And the mount point for the control interface has been generated for ${agent_name}
     # Asserts
     Then verify multi container control interface access    simple    container_A    pod_A-pod

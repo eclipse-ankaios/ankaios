@@ -1,15 +1,21 @@
 #!/bin/bash
 set -e
 
+DEFAULT_BIN_DIR="/workspaces/ankaios/target/x86_64-unknown-linux-musl/debug"
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 LOG_DIR="$(readlink -f "$SCRIPT_DIR/../../logs")"
 
 "$SCRIPT_DIR/ankaios-clean"
 
+if [ ! -d "$DEFAULT_BIN_DIR" ]; then
+  echo -e "Error: no build artifacts in '$DEFAULT_BIN_DIR'.\nPlease build the project with \`cargo build\`."
+  exit 1
+fi
+
 mkdir -p "$LOG_DIR"
 
 echo "Staring up Ankaios server with TLS disabled"
-RUST_LOG=debug /workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank-server --insecure 2> "$LOG_DIR/ank-server" &
+RUST_LOG=debug "$DEFAULT_BIN_DIR/ank-server" --insecure 2> "$LOG_DIR/ank-server" &
 
 echo "Staring up Ankaios agent with TLS disabled"
-RUST_LOG=debug /workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank-agent --insecure --name agent_A 2> "$LOG_DIR/ank-agent" &
+RUST_LOG=debug "$DEFAULT_BIN_DIR/ank-agent" --insecure --name agent_A 2> "$LOG_DIR/ank-agent" &

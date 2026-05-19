@@ -63,6 +63,11 @@ jobs:
         with:
           name: robot-tests-result
           path: dist/test-results/robot
+      - name: Download man pages
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: man-pages
+          path: dist/
       - name: Download vendored source
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -84,6 +89,7 @@ jobs:
           ank_base.proto \
           control_api.proto \
           ankaios_configs.tar.gz \
+          man-pages.tar.gz \
           linux-amd64/ankaios-linux-amd64.tar.gz \
           linux-amd64/ankaios-linux-amd64.tar.gz.sha512sum.txt \
           linux-arm64/ankaios-linux-arm64.tar.gz \
@@ -103,3 +109,30 @@ jobs:
       - name: Upload quality manifest
         run: |
           gh release upload ${{ github.ref_name }} ${{ steps.collect_quality_artifacts.outputs.manifest_file }}
+  debian-packages:
+    name: Build and publish Debian packages
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/debian_build.yml
+    secrets: inherit
+  upload-debian-source:
+    name: Upload Debian source package to release
+    needs: debian-packages
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Download Debian source package
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: debian-source-package
+          path: dist/src/
+      - name: Upload Debian source package to release
+        run: |
+          tar -czf ankaios-debian-source-${{ github.ref_name }}.tar.gz -C dist/src .
+          gh release upload ${{ github.ref_name }} ankaios-debian-source-${{ github.ref_name }}.tar.gz
+        env:
+          GH_TOKEN: ${{ github.token }}

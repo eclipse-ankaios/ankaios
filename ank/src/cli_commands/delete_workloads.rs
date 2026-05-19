@@ -53,10 +53,7 @@ mod tests {
     use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
 
     use ankaios_api::{
-        ank_base::{
-            CompleteState, ExecutionStateSpec, UpdateStateSuccess,
-            WorkloadStateSpec,
-        },
+        ank_base::{CompleteState, ExecutionStateSpec, UpdateStateSuccess, WorkloadStateSpec},
         test_utils::fixtures,
     };
     use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
@@ -142,7 +139,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -183,7 +179,6 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };

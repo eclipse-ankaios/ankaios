@@ -27,7 +27,7 @@ mod grpc_tests {
     };
     use grpc::{
         client::GRPCCommunicationsClient,
-        security::{self, TLSConfig, read_pem_file},
+        security::{self, TLSConfig, read_pem_file, PemFileType},
         server::GRPCCommunicationsServer,
     };
 
@@ -177,23 +177,23 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
 
         pub fn get_server_tls_config(&self) -> TLSConfig {
             TLSConfig {
-                ca_pem: read_pem_file(&self.ca_pem_file_path, false).unwrap(),
-                crt_pem: read_pem_file(&self.server_pem_file_path, false).unwrap(),
-                key_pem: read_pem_file(&self.server_key_pem_file_path, false).unwrap(),
+                ca_pem: read_pem_file(&self.ca_pem_file_path, PemFileType::Certificate).unwrap(),
+                crt_pem: read_pem_file(&self.server_pem_file_path, PemFileType::Certificate).unwrap(),
+                key_pem: read_pem_file(&self.server_key_pem_file_path, PemFileType::PrivateKey).unwrap(),
             }
         }
         pub fn get_agent_tls_config(&self) -> TLSConfig {
             TLSConfig {
-                ca_pem: read_pem_file(&self.ca_pem_file_path, false).unwrap(),
-                crt_pem: read_pem_file(&self.agent_pem_file_path, false).unwrap(),
-                key_pem: read_pem_file(&self.agent_key_pem_file_path, true).unwrap(),
+                ca_pem: read_pem_file(&self.ca_pem_file_path, PemFileType::Certificate).unwrap(),
+                crt_pem: read_pem_file(&self.agent_pem_file_path, PemFileType::Certificate).unwrap(),
+                key_pem: read_pem_file(&self.agent_key_pem_file_path, PemFileType::PrivateKey).unwrap(),
             }
         }
         pub fn get_cli_tls_config(&self) -> TLSConfig {
             TLSConfig {
-                ca_pem: read_pem_file(&self.ca_pem_file_path, false).unwrap(),
-                crt_pem: read_pem_file(&self.cli_pem_file_path, false).unwrap(),
-                key_pem: read_pem_file(&self.cli_key_pem_file_path, false).unwrap(),
+                ca_pem: read_pem_file(&self.ca_pem_file_path, PemFileType::Certificate).unwrap(),
+                crt_pem: read_pem_file(&self.cli_pem_file_path, PemFileType::Certificate).unwrap(),
+                key_pem: read_pem_file(&self.cli_key_pem_file_path, PemFileType::PrivateKey).unwrap(),
             }
         }
     }

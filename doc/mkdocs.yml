@@ -64,6 +64,7 @@ markdown_extensions:
       alternate_style: true
   - toc:
       permalink: true
+      toc_depth: 3
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -84,6 +85,35 @@ plugins:
         - reference/_ankaios.proto.md
       raise_error_excludes:
         404: ['https://crates.io/crates/symphony']
+  - llmstxt:
+      full_output: llms-full.txt
+      base_url: !ENV [DOCS_VERSION_URL, 'https://eclipse-ankaios.github.io/ankaios/latest']
+      markdown_description: |
+        Eclipse Ankaios is a lightweight workload orchestrator for embedded and automotive edge devices.
+        It manages containerized workloads across one server and multiple agents running on resource-constrained hardware.
+        Use this documentation to understand the architecture, configure manifests, interact with the Control Interface, and contribute to the project.
+      sections:
+        Overview:
+          - index.md
+          - architecture.md
+        Usage:
+          - usage/installation.md
+          - usage/quickstart.md
+          - "usage/tutorial-*.md"
+          - usage/awesome-ankaios.md
+          - usage/mtls-setup.md
+          - usage/shell-completion.md
+          - "usage/manifest/*.md"
+        Reference:
+          - "reference/*.md"
+          - "reference/**/*.md"
+        Upgrading:
+          - "usage/upgrading/*.md"
+        Contributing:
+          - "development/*.md"
+          - "development/**/*.md"
+        Support:
+          - support.md
 
 extra:
   version:
@@ -121,10 +151,10 @@ nav:
       - reference/control-interface.md
       - reference/complete-state.md
       - reference/events.md
-      - reference/logs.md
     - reference/inter-workload-dependencies.md
     - reference/restart-policy.md
     - reference/resource-usage.md
+    - reference/orch-comparison.md
     - reference/glossary.md
     - reference/config-files.md
     - Protobuf data structures: reference/_ankaios.proto.md

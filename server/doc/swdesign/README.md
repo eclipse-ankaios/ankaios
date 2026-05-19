@@ -108,13 +108,13 @@ The following diagram shows the startup sequence of the Ankaios Server:
 
 Status: approved
 
-The Ankaios server shall accept configuration files read at startup using the Common library that specify the general startup configuration of the server with a lower precedence than environment variables and command line arguments.
+The Ankaios server shall accept a configuration file read at startup using the Common library that specify the general startup configuration of the server with a lower precedence than environment variables and command line arguments.
 
 Rationale:
-Server configuration files allow a reproducible execution of the server with lower effort.
+A Server configuration file allows a reproducible execution of the server with lower effort.
 
 Comment:
-The Ankaios server expects the configuration files per default in the standard location `/etc/ankaios/ank-server.conf`.
+The Ankaios server expects the configuration file per default in the standard location `/etc/ankaios/ank-server.conf`.
 
 Tags:
 - ServerState
