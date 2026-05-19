@@ -162,3 +162,12 @@ configs: # optional; usable in runtimeConfig and agent, but must be mapped first
     central: hpc1
     auxiliary: hpc2
 ```
+
+## 10) Validate examples
+
+Use the `examples-checker` skill (`.github/skills/examples-checker/SKILL.md`) to build and run each example under `examples/` and verify it works correctly.
+
+- Trigger with: "check examples", "test examples", or "verify examples"
+- Supports checking all examples, only control-interface examples, or only SDK examples
+- Each example is built as a container image, deployed via its manifest, and validated against expected behavior
+- See the skill file for per-example validation criteria and the full execution process
