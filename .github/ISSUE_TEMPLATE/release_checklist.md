@@ -27,5 +27,8 @@ Draft Ankaios release version `<version>`.
 - [ ] Release Ankaios
 - [ ] Release SDKs
 - [ ] Publish a new AUR package
+- [ ] Check the Debian package
+- [ ] Check the AUR package
+- [ ] Check the installation script
 - [ ] Release a new app devcontainer (`tools/app_dev_container_base`)
 - [ ] Close all issues and milestone
