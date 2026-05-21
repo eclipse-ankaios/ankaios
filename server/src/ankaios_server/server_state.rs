@@ -43,6 +43,16 @@ pub struct StateGenerationResult {
     pub new_agent_map: AgentMapSpec,
 }
 
+fn is_transient_restart_workload(workload: &WorkloadNamed) -> bool {
+    if workload.workload.runtime != "systemd" {
+        return false;
+    }
+    serde_yaml::from_str::<serde_yaml::Value>(&workload.workload.runtime_config)
+        .ok()
+        .and_then(|v| v.get("desiredState").and_then(|s| s.as_str()).map(|s| s == "restarted"))
+        .unwrap_or(false)
+}
+
 fn extract_added_and_deleted_workloads(
     current_workloads: &RenderedWorkloads,
     new_workloads: &RenderedWorkloads,
@@ -54,7 +64,8 @@ fn extract_added_and_deleted_workloads(
     current_workloads.iter().for_each(|(wl_name, wls)| {
         if let Some(new_wls) = new_workloads.get(wl_name) {
             // The new workload is identical with existing or updated. Lets check if it is an update.
-            if wls != new_wls {
+            // Restart workloads are ALWAYS treated as updates, even if identical
+            if wls != new_wls || is_transient_restart_workload(new_wls) {
                 // [impl->swdd~server-detects-changed-workload~1]
                 added_workloads.push(new_wls.clone());
                 deleted_workloads.push(DeletedWorkload {
@@ -370,6 +381,19 @@ impl ServerState {
 
             self.set_desired_state(new_desired_state);
             self.pre_hook_rendered_workloads = pre_hook_rendered_workloads;
+
+            // Filter out transient restart workloads — they are one-time actions, not persistent state
+            new_rendered_workloads.retain(|_, workload| {
+                let transient = is_transient_restart_workload(workload);
+                if transient {
+                    log::debug!(
+                        "Removing transient restart workload '{}' from rendered_workloads",
+                        workload.instance_name.workload_name()
+                    );
+                }
+                !transient
+            });
+
             self.rendered_workloads = new_rendered_workloads;
             Ok(Some(added_deleted_workloads))
         } else {
@@ -1971,5 +1995,118 @@ mod tests {
         w4.workload.dependencies.dependencies.clear();
 
         generate_test_complete_state(vec![w1, w3, w4])
+    }
+
+    #[test]
+    fn utest_extract_forces_update_for_restart_workload() {
+        let mut workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            "systemd",
+        );
+        workload.workload.runtime_config =
+            "serviceName: test.service\ndesiredState: restarted\n".to_string();
+
+        let rendered = RenderedWorkloads::from([(
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+            workload.clone(),
+        )]);
+
+        let result = extract_added_and_deleted_workloads(&rendered, &rendered);
+        assert!(result.is_some());
+
+        let AddedDeletedWorkloads {
+            added_workloads,
+            deleted_workloads,
+        } = result.unwrap();
+        assert_eq!(added_workloads.len(), 1);
+        assert_eq!(deleted_workloads.len(), 1);
+        assert_eq!(
+            added_workloads[0].instance_name.workload_name(),
+            fixtures::WORKLOAD_NAMES[0]
+        );
+    }
+
+    #[test]
+    fn utest_extract_no_update_for_identical_non_restart_workload() {
+        let mut workload = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            "systemd",
+        );
+        workload.workload.runtime_config =
+            "serviceName: test.service\ndesiredState: running\n".to_string();
+
+        let rendered = RenderedWorkloads::from([(
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+            workload.clone(),
+        )]);
+
+        let result = extract_added_and_deleted_workloads(&rendered, &rendered);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn utest_update_filters_transient_restart_workload() {
+        let mut restart_workload = generate_test_workload_named_with_params(
+            "restart_wl",
+            fixtures::AGENT_NAMES[0],
+            "systemd",
+        );
+        restart_workload.workload.runtime_config =
+            "serviceName: test.service\ndesiredState: restarted\n".to_string();
+        restart_workload.workload.dependencies.dependencies.clear();
+
+        let mut normal_workload = generate_test_workload_named_with_params(
+            "normal_wl",
+            fixtures::AGENT_NAMES[0],
+            "systemd",
+        );
+        normal_workload.workload.runtime_config =
+            "serviceName: other.service\ndesiredState: running\n".to_string();
+        normal_workload.workload.dependencies.dependencies.clear();
+
+        let new_rendered = RenderedWorkloads::from([
+            ("restart_wl".to_string(), restart_workload.clone()),
+            ("normal_wl".to_string(), normal_workload.clone()),
+        ]);
+
+        let new_state = generate_test_state_from_workloads(vec![
+            restart_workload.clone(),
+            normal_workload.clone(),
+        ]);
+
+        let mut mock_config_renderer = MockConfigRenderer::default();
+        mock_config_renderer
+            .expect_render_workloads()
+            .once()
+            .return_once(move |_, _| Ok(new_rendered));
+
+        let mut mock_delete_graph = MockDeleteGraph::default();
+        mock_delete_graph.expect_insert().return_const(());
+        mock_delete_graph
+            .expect_apply_delete_conditions_to()
+            .return_const(());
+
+        let mut server_state = ServerState {
+            state: CompleteStateSpec::default(),
+            rendered_workloads: RenderedWorkloads::default(),
+            pre_hook_rendered_workloads: RenderedWorkloads::default(),
+            delete_graph: mock_delete_graph,
+            config_renderer: mock_config_renderer,
+        };
+
+        let hooks_registry = HooksRegistry::default();
+        let result = server_state.update(new_state, &hooks_registry);
+        assert!(result.is_ok());
+
+        assert!(
+            !server_state.rendered_workloads.contains_key("restart_wl"),
+            "Transient restart workload should be filtered from rendered_workloads"
+        );
+        assert!(
+            server_state.rendered_workloads.contains_key("normal_wl"),
+            "Non-restart workload should be kept in rendered_workloads"
+        );
     }
 }

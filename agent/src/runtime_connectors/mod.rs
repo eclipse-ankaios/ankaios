@@ -22,6 +22,8 @@ pub(crate) mod podman_kube;
 
 pub(crate) mod containerd;
 
+pub(crate) mod systemd;
+
 pub(crate) mod unsupported;
 
 mod runtime_connector;
@@ -50,4 +52,9 @@ pub use state_checker::MockRuntimeStateGetter;
 mod log_fetching;
 pub use log_fetching::{generic_log_fetcher, log_channel, log_fetcher, log_fetching_runner};
 
-pub const SUPPORTED_RUNTIMES: &[&str] = &[podman::NAME, containerd::NAME, podman_kube::NAME];
+pub const SUPPORTED_RUNTIMES: &[&str] = &[
+    podman::NAME,
+    containerd::NAME,
+    podman_kube::NAME,
+    systemd::NAME,
+];
