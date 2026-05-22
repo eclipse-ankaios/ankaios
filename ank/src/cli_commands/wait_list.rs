@@ -100,12 +100,8 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
                 ExecutionStateEnumSpec::Running(_)
                 | ExecutionStateEnumSpec::Succeeded(_)
                 | ExecutionStateEnumSpec::Failed(_)
-                | ExecutionStateEnumSpec::NotScheduled(_) => {
-                    if self.added_workloads.remove(&workload_state.instance_name) {
-                        self.display.set_complete(&workload_state.instance_name)
-                    }
-                }
-                ExecutionStateEnumSpec::Pending(Pending::StartingFailed) => {
+                | ExecutionStateEnumSpec::NotScheduled(_)
+                | ExecutionStateEnumSpec::Pending(Pending::StartingFailed) => {
                     if self.added_workloads.remove(&workload_state.instance_name) {
                         self.display.set_complete(&workload_state.instance_name)
                     }
@@ -125,7 +121,7 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
                     }
                 }
                 _ => {}
-            };
+            }
         }
 
         // prevent infinite waiting for added workloads with disconnected agent
@@ -199,7 +195,7 @@ mod tests {
     use crate::cli_commands::wait_list::generate_test_wait_list;
 
     use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
-    use ankaios_api::test_utils::{generate_test_workload_instance_name_with_params, fixtures};
+    use ankaios_api::test_utils::{fixtures, generate_test_workload_instance_name_with_params};
 
     use mockall::predicate::eq;
     use std::collections::HashSet;

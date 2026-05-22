@@ -79,31 +79,23 @@ pub const DESIRED_STATE_CONFIGS: &str = "desiredState.configs";
 pub const DESIRED_STATE_WORKLOADS: &str = "desiredState.workloads";
 
 pub fn get_input_sources(manifest_files: &[String]) -> Result<Vec<InputSourcePair>, String> {
-    if let Some(first_arg) = manifest_files.first() {
-        match first_arg.as_str() {
-            // [impl->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
-            "-" => Ok(vec![("stdin".to_owned(), Box::new(std::io::stdin()))]),
-            // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
-            _ => {
-                let mut res: Vec<InputSourcePair> = vec![];
-                for file_path in manifest_files.iter() {
-                    match open_manifest(file_path) {
-                        Ok(open_file) => res.push(open_file),
-                        Err(err) => {
-                            return Err(match err.kind() {
-                                std::io::ErrorKind::NotFound => {
-                                    format!("File '{file_path}' not found!")
-                                }
-                                _ => err.to_string(),
-                            });
-                        }
+    match manifest_files.first().map(String::as_str) {
+        None => Ok(vec![]),
+        // [impl->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
+        Some("-") => Ok(vec![("stdin".to_owned(), Box::new(std::io::stdin()))]),
+        // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
+        Some(_) => manifest_files
+            .iter()
+            .map(|file_path| {
+                open_manifest(file_path).map_err(|err| {
+                    if err.kind() == std::io::ErrorKind::NotFound {
+                        format!("File '{file_path}' not found!")
+                    } else {
+                        err.to_string()
                     }
-                }
-                Ok(res)
-            }
-        }
-    } else {
-        Ok(vec![])
+                })
+            })
+            .collect(),
     }
 }
 

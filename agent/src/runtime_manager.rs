@@ -206,16 +206,10 @@ impl RuntimeManager {
         // create a list per runtime
         let mut added_workloads_per_runtime: HashMap<String, Vec<WorkloadNamed>> = HashMap::new();
         for workload_named in added_workloads {
-            if let Some(workload_vec) =
-                added_workloads_per_runtime.get_mut(&workload_named.workload.runtime)
-            {
-                workload_vec.push(workload_named);
-            } else {
-                added_workloads_per_runtime.insert(
-                    workload_named.workload.runtime.clone(),
-                    vec![workload_named],
-                );
-            }
+            added_workloads_per_runtime
+                .entry(workload_named.workload.runtime.clone())
+                .or_default()
+                .push(workload_named);
         }
 
         let mut new_added_workloads = Vec::new();
@@ -648,7 +642,7 @@ impl RuntimeManager {
                     instance_name.workload_name(),
                     err
                 ),
-            };
+            }
         }
 
         res

@@ -258,7 +258,7 @@ impl ServerConnection {
             } else {
                 // [impl->swdd~cli-stores-unexpected-message~1]
                 self.missed_from_server_messages.push(server_message);
-            };
+            }
         }
     }
 

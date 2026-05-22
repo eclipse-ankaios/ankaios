@@ -408,7 +408,7 @@ async fn distribute_log_cancel_requests_to_agent(
         } else {
             log::debug!("Sender for agent '{agent}' gone while iterating all agents");
             continue;
-        };
+        }
     }
 }
 
