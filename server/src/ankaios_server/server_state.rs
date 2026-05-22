@@ -215,7 +215,7 @@ impl ServerState {
                         field
                     );
                     continue;
-                };
+                }
             }
 
             return_state.try_into().map_err(|err: serde_yaml::Error| {

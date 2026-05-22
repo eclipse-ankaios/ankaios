@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ankaios_api::ank_base::{
-    CompleteState, ConfigMap, ExecutionsStatesOfWorkload, LogsRequest, WorkloadInstanceName,
-    WorkloadMap,
+    AgentMap, CompleteState, ConfigMap, ExecutionsStatesOfWorkload, LogsRequest,
+    State, WorkloadInstanceName, WorkloadMap, WorkloadStatesMap,
 };
 use common::helpers::parse_key_val;
 
@@ -89,69 +89,85 @@ fn config_completer(current: &OsStr) -> Vec<CompletionCandidate> {
 }
 
 fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
-    const DESIRED_STATE: &str = "desiredState";
-    const WORKLOADS: &str = "workloads";
-    const CONFIGS: &str = "configs";
-    const WORKLOAD_STATES: &str = "workloadStates";
-    const AGENTS: &str = "agents";
-    const AGENT_STATUS_FIELD: &str = "status";
-    const AGENT_TAGS_FIELD: &str = "tags";
-
     let mut result = Vec::new();
 
     let Ok(state) = serde_json::from_slice::<CompleteState>(&state) else {
         return vec![];
     };
 
-    if let Some(desired_state) = state.desired_state {
-        result.push(DESIRED_STATE.to_string());
-        if let Some(WorkloadMap { workloads }) = desired_state.workloads {
-            result.push(format!("{DESIRED_STATE}.{WORKLOADS}"));
-            for workload_name in workloads.keys() {
-                result.push(format!("{DESIRED_STATE}.{WORKLOADS}.{workload_name}"));
-            }
-        }
-
-        if let Some(ConfigMap { configs }) = desired_state.configs {
-            result.push(format!("{DESIRED_STATE}.{CONFIGS}"));
-            for config_name in configs.keys() {
-                result.push(format!("{DESIRED_STATE}.{CONFIGS}.{config_name}"));
-            }
-        }
-    }
-
-    if let Some(workload_states) = state.workload_states {
-        result.push(WORKLOAD_STATES.to_string());
-        for (agent, ExecutionsStatesOfWorkload { wl_name_state_map }) in
-            workload_states.agent_state_map.into_iter()
-        {
-            result.push(format!("{WORKLOAD_STATES}.{agent}"));
-            for workload_name in wl_name_state_map.keys() {
-                result.push(format!("{WORKLOAD_STATES}.{agent}.{workload_name}"));
-            }
-        }
-    }
-
-    if let Some(agents) = state.agents {
-        result.push(AGENTS.to_owned());
-        for (agent_name, agent_data) in agents.agents {
-            result.push(format!("{AGENTS}.{agent_name}"));
-            if let Some(_status) = agent_data.status {
-                result.push(format!("{AGENTS}.{agent_name}.{AGENT_STATUS_FIELD}"));
-            }
-
-            if let Some(_tags) = agent_data.tags {
-                result.push(format!("{AGENTS}.{agent_name}.{AGENT_TAGS_FIELD}"));
-            }
-        }
-    }
+    collect_desired_state_field_masks(&mut result, state.desired_state);
+    collect_workload_state_field_masks(&mut result, state.workload_states);
+    collect_agent_field_masks(&mut result, state.agents);
 
     let cur = current.to_str().unwrap_or("");
     result
         .into_iter()
-        .filter(|s| s.to_string().starts_with(cur))
+        .filter(|s| s.starts_with(cur))
         .map(CompletionCandidate::new)
         .collect()
+}
+
+fn collect_desired_state_field_masks(result: &mut Vec<String>, desired_state: Option<State>) {
+    const DESIRED_STATE: &str = "desiredState";
+    const WORKLOADS: &str = "workloads";
+    const CONFIGS: &str = "configs";
+
+    let Some(desired_state) = desired_state else {
+        return;
+    };
+    result.push(DESIRED_STATE.to_string());
+    if let Some(WorkloadMap { workloads }) = desired_state.workloads {
+        result.push(format!("{DESIRED_STATE}.{WORKLOADS}"));
+        for workload_name in workloads.keys() {
+            result.push(format!("{DESIRED_STATE}.{WORKLOADS}.{workload_name}"));
+        }
+    }
+    if let Some(ConfigMap { configs }) = desired_state.configs {
+        result.push(format!("{DESIRED_STATE}.{CONFIGS}"));
+        for config_name in configs.keys() {
+            result.push(format!("{DESIRED_STATE}.{CONFIGS}.{config_name}"));
+        }
+    }
+}
+
+fn collect_workload_state_field_masks(
+    result: &mut Vec<String>,
+    workload_states: Option<WorkloadStatesMap>,
+) {
+    const WORKLOAD_STATES: &str = "workloadStates";
+
+    let Some(workload_states) = workload_states else {
+        return;
+    };
+    result.push(WORKLOAD_STATES.to_string());
+    for (agent, ExecutionsStatesOfWorkload { wl_name_state_map }) in
+        workload_states.agent_state_map.into_iter()
+    {
+        result.push(format!("{WORKLOAD_STATES}.{agent}"));
+        for workload_name in wl_name_state_map.keys() {
+            result.push(format!("{WORKLOAD_STATES}.{agent}.{workload_name}"));
+        }
+    }
+}
+
+fn collect_agent_field_masks(result: &mut Vec<String>, agents: Option<AgentMap>) {
+    const AGENTS: &str = "agents";
+    const AGENT_STATUS_FIELD: &str = "status";
+    const AGENT_TAGS_FIELD: &str = "tags";
+
+    let Some(agents) = agents else {
+        return;
+    };
+    result.push(AGENTS.to_owned());
+    for (agent_name, agent_data) in agents.agents {
+        result.push(format!("{AGENTS}.{agent_name}"));
+        if agent_data.status.is_some() {
+            result.push(format!("{AGENTS}.{agent_name}.{AGENT_STATUS_FIELD}"));
+        }
+        if agent_data.tags.is_some() {
+            result.push(format!("{AGENTS}.{agent_name}.{AGENT_TAGS_FIELD}"));
+        }
+    }
 }
 
 // [impl->swdd~cli-shell-completion~2]

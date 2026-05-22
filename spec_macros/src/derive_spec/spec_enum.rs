@@ -196,7 +196,7 @@ pub fn derive_spec_enum(
                     from_variants.push(quote! {
                                 #spec_name::#variant_ident( #(#bindings),* ) => #orig_name::#variant_ident( #(#from_fields),* )
                             });
-                };
+                }
             }
 
             Fields::Unit => {
@@ -213,7 +213,7 @@ pub fn derive_spec_enum(
                     #spec_name::#variant_ident => #orig_name::#variant_ident
                 });
             }
-        };
+        }
     }
 
     let spec_enum = quote! {

@@ -107,7 +107,7 @@ mod event_output {
                         .map_err(|err| CliError::ExecutionError(err.to_string()))?;
                     output!("{json_output}");
                 }
-            };
+            }
 
             Ok(())
         }
