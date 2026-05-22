@@ -89,7 +89,7 @@ impl InputPipe {
                     .open_receiver(&self.path)
                     .map(BufReader::new)?,
             );
-        };
+        }
 
         if let Some(file) = &mut self.file {
             Ok(file)

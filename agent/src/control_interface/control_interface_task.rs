@@ -160,7 +160,7 @@ impl ControlInterfaceTask {
                                         })),
                                     };
                                     let _ = self.forward_from_server(error).await;
-                                };
+                                }
                             },
                             Ok(ToAnkaios::Hello(Hello{protocol_version})) => {
                                 log::warn!("Received yet another Hello with protocol version '{protocol_version}'");

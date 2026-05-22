@@ -108,7 +108,7 @@ impl WorkloadScheduler {
                 WorkloadOperation::UpdateDeleteOnly(_) => {
                     log::warn!("Skip UpdateDeleteOnly. This shall never be enqueued.")
                 }
-            };
+            }
         }
 
         // extend with existing pending update entries of the queue if their dependencies are fulfilled now

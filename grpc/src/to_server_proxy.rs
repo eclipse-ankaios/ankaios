@@ -85,7 +85,7 @@ pub async fn forward_from_proto_to_ankaios(
                                     "No CompleteState for forwarding.".to_string(),
                                 ));
                             }
-                        };
+                        }
                     }
                     RequestContent::CompleteStateRequest(complete_state_request) => {
                         log::trace!("Received RequestCompleteState from '{agent_name}'");
