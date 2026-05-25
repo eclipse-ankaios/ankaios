@@ -346,6 +346,48 @@ Needs:
 - impl
 - utest
 
+### Cryptographic Operations
+
+The following commands provide cryptographic functionality for signing and verifying workload manifests.
+
+#### ank sign
+
+##### CLI signs workload manifests
+`swdd~cli-sign-workload-manifests~1`
+
+Status: approved
+
+The ank CLI shall provide a `sign` command that signs workload manifests using Ed25519 private keys.
+
+Comment:
+Signing produces UpdateStateRequest protobuf messages with signature_metadata populated.
+
+Rationale:
+Users need a convenient tool to cryptographically sign workloads before deployment.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### ank keygen
+
+##### CLI generates Ed25519 keypairs
+`swdd~cli-generate-keypairs~1`
+
+Status: approved
+
+The ank CLI shall provide a `keygen` command that generates Ed25519 keypair in PEM format.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
 ### `ank get state`
 
 ![Get desired state](plantuml/seq_get_state.svg)

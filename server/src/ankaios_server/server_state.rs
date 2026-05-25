@@ -18,11 +18,13 @@ use super::rendered_workloads::RenderedWorkloads;
 use ankaios_api::ALLOWED_CHAR_SET;
 use ankaios_api::ank_base::{
     AgentMapSpec, CompleteState, CompleteStateRequest, CompleteStateSpec, DeletedWorkload,
-    StateSpec, WorkloadInstanceName, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
+    StateSpec, WorkloadInstanceName, WorkloadNamed, WorkloadStateSpec,
+    WorkloadStatesMapSpec,
 };
 use common::state_manipulation::{Object, Path};
 use common::std_extensions::IllegalStateResult;
 
+use std::collections::HashMap;
 use std::fmt::Display;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -38,6 +40,8 @@ pub struct StateGenerationResult {
     pub old_desired_state: StateSpec,
     pub new_desired_state: StateSpec,
     pub new_agent_map: AgentMapSpec,
+    #[allow(dead_code)]
+    pub update_mask: Vec<String>,  // Update mask from the request (for signature-only updates)
 }
 
 fn extract_added_and_deleted_workloads(
@@ -118,6 +122,7 @@ pub struct ServerState {
     rendered_workloads: RenderedWorkloads,
     delete_graph: DeleteGraph,
     config_renderer: ConfigRenderer,
+    signed_workload_requests: std::collections::HashMap<String, ankaios_api::ank_base::UpdateStateRequest>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -166,6 +171,12 @@ fn include_both_state_and_substate_filters(filters: &mut Vec<String>) {
 impl ServerState {
     const API_VERSION_FILTER_MASK: &'static str = "desiredState.apiVersion";
     const DESIRED_STATE_FIELD_MASK_PART: &'static str = "desiredState";
+
+    // Used in ankaios_server.rs but not detected by dead code analysis
+    #[allow(dead_code)]
+    pub fn get_desired_state(&self) -> &StateSpec {
+        &self.state.desired_state
+    }
 
     // [impl->swdd~server-provides-interface-get-complete-state~2]
     // [impl->swdd~server-filters-get-complete-state-result~2]
@@ -251,7 +262,18 @@ impl ServerState {
     pub fn update(
         &mut self,
         new_desired_state: StateSpec,
+        signed_request: Option<ankaios_api::ank_base::UpdateStateRequest>,
     ) -> Result<Option<AddedDeletedWorkloads>, UpdateStateError> {
+        // Store original signed request if provided
+        if let Some(request) = signed_request {
+            // Extract workload name from the signed request
+            // For signed requests, we enforce exactly ONE workload per request
+            if let Some(workload_name) = extract_single_workload_from_request(&request) {
+                log::debug!("Storing signed request for workload '{}'", workload_name);
+                self.signed_workload_requests.insert(workload_name, request);
+            }
+        }
+
         // [impl->swdd~update-desired-state-with-update-mask~1]
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
@@ -317,7 +339,7 @@ impl ServerState {
     }
 
     pub fn generate_new_state(
-        &self,
+        &mut self,
         updated_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<StateGenerationResult, UpdateStateError> {
@@ -329,10 +351,12 @@ impl ServerState {
                         "Could not parse into CompleteState: '{err}'"
                     ))
                 })?;
+
             return Ok(StateGenerationResult {
                 old_desired_state: self.state.desired_state.clone(),
                 new_desired_state: new_complete_state.desired_state,
                 new_agent_map: new_complete_state.agents,
+                update_mask: vec![],  // Empty update mask
             });
         }
 
@@ -346,14 +370,33 @@ impl ServerState {
 
         let mut new_state = old_state.clone();
 
-        for field in update_mask {
+        for field in &update_mask {
             let field: Path = field.into();
             if let Some(field_from_update) = state_from_update.get(&field) {
                 if new_state.set(&field, field_from_update.to_owned()).is_err() {
                     return Err(UpdateStateError::FieldNotFound(field.into()));
                 }
-            } else if new_state.remove(&field).is_err() {
-                return Err(UpdateStateError::FieldNotFound(field.into()));
+            } else {
+                // Field not in update - this is a deletion request
+                log::info!("🗑️  Deleting field from state: {}", field);
+                match new_state.remove(&field) {
+                    Ok(removed_value) => {
+                        log::info!("✅ Successfully removed field: {}", field);
+                        if let Some(value) = removed_value {
+                            log::debug!("Removed value type: {:?}", value);
+                        }
+                        // Extra verification for workload deletions
+                        let field_str = field.to_string();
+                        if field_str.starts_with("desiredState.workloads.") {
+                            let workload_name = field_str.strip_prefix("desiredState.workloads.").unwrap_or("");
+                            log::info!("🗑️  Workload '{}' has been removed from new_state", workload_name);
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("❌ Failed to remove field '{}': {}", field, e);
+                        return Err(UpdateStateError::FieldNotFound(field.into()));
+                    }
+                }
             }
         }
 
@@ -368,6 +411,7 @@ impl ServerState {
             old_desired_state: self.state.desired_state.clone(),
             new_desired_state: new_complete_state.desired_state,
             new_agent_map: new_complete_state.agents,
+            update_mask: update_mask.clone(),
         })
     }
 
@@ -378,8 +422,53 @@ impl ServerState {
             .remove_deleted_workloads_from_delete_graph(new_workload_states);
     }
 
+    /// Get original signed requests for specified workloads
+    // Used in event_handler.rs but not detected by dead code analysis
+    #[allow(dead_code)]
+    pub fn get_signed_requests_for_workloads(
+        &self,
+        workload_names: &[String],
+    ) -> HashMap<String, ankaios_api::ank_base::UpdateStateRequest> {
+        workload_names
+            .iter()
+            .filter_map(|name| {
+                self.signed_workload_requests
+                    .get(name)
+                    .map(|req| (name.clone(), req.clone()))
+            })
+            .collect()
+    }
+
     fn set_desired_state(&mut self, new_desired_state: StateSpec) {
         self.state.desired_state = new_desired_state;
+    }
+}
+
+/// Extract workload name from update_mask path like "desiredState.workloads.nginx"
+fn extract_workload_name_from_path(path: &str) -> Option<String> {
+    let parts: Vec<&str> = path.split('.').collect();
+    if parts.len() >= 3 && parts[0] == "desiredState" && parts[1] == "workloads" {
+        Some(parts[2].to_string())
+    } else {
+        None
+    }
+}
+
+/// Extract single workload name from UpdateStateRequest (for signed requests only)
+fn extract_single_workload_from_request(
+    request: &ankaios_api::ank_base::UpdateStateRequest,
+) -> Option<String> {
+    // Check update_mask contains exactly one workload path
+    let workload_names: Vec<String> = request
+        .update_mask
+        .iter()
+        .filter_map(|path| extract_workload_name_from_path(path))
+        .collect();
+
+    if workload_names.len() == 1 {
+        Some(workload_names[0].clone())
+    } else {
+        None
     }
 }
 
@@ -892,9 +981,10 @@ mod tests {
             rendered_workloads: generate_rendered_workloads_from_state(&old_state.desired_state),
             delete_graph: delete_graph_mock,
             config_renderer: mock_config_renderer,
-        };
+            signed_workload_requests: std::collections::HashMap::new(),
+                    };
 
-        let result = server_state.update(desired_state_spec);
+        let result = server_state.update(desired_state_spec, None);
         assert_eq!(
             result,
             Err(UpdateStateError::CycleInDependencies(
@@ -914,7 +1004,7 @@ mod tests {
         let update_state: CompleteState = generate_test_update_state().into();
         let update_mask = vec![];
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -956,7 +1046,7 @@ mod tests {
             .workloads
             .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), new_workload.clone());
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -997,7 +1087,7 @@ mod tests {
             .workloads
             .insert(fixtures::WORKLOAD_NAMES[3].into(), new_workload.clone());
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1022,7 +1112,7 @@ mod tests {
 
         let update_mask = vec!["desiredState".to_string()];
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1058,7 +1148,7 @@ mod tests {
             .remove(fixtures::WORKLOAD_NAMES[1])
             .unwrap();
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1083,7 +1173,7 @@ mod tests {
 
         let expected = &old_state;
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1106,7 +1196,7 @@ mod tests {
         let field_mask = "desiredState.workloads.non.existing";
         let update_mask = vec![field_mask.into()];
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1126,7 +1216,7 @@ mod tests {
         let update_state = generate_test_update_state();
         let update_mask = vec!["".into()];
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1143,7 +1233,7 @@ mod tests {
     #[test]
     fn utest_server_state_generate_new_state_no_changes_on_equal_states() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
-        let server_state = ServerState::default(); // empty old state
+        let mut server_state = ServerState::default(); // empty old state
 
         let expected_complete_state = CompleteStateSpec::default();
         let new_complete_state: CompleteState = expected_complete_state.clone().into();
@@ -1180,7 +1270,7 @@ mod tests {
             ..Default::default()
         };
 
-        let added_deleted_workloads = server_state.update(StateSpec::default()).unwrap();
+        let added_deleted_workloads = server_state.update(StateSpec::default(), None).unwrap();
         assert!(added_deleted_workloads.is_none());
         assert_eq!(server_state.state, CompleteStateSpec::default());
     }
@@ -1211,7 +1301,7 @@ mod tests {
         };
 
         let added_deleted_workloads = server_state
-            .update(new_state_with_configs.desired_state.clone())
+            .update(new_state_with_configs.desired_state.clone(), None)
             .unwrap();
         assert!(added_deleted_workloads.is_none());
         assert_eq!(server_state.state, new_state_with_configs);
@@ -1249,9 +1339,10 @@ mod tests {
             rendered_workloads: generate_rendered_workloads_from_state(&old_state.desired_state),
             delete_graph: delete_graph_mock,
             config_renderer: mock_config_renderer,
-        };
+            signed_workload_requests: std::collections::HashMap::new(),
+                    };
 
-        let result = server_state.update(updated_state.desired_state);
+        let result = server_state.update(updated_state.desired_state, None);
         assert!(result.is_err());
         assert!(
             result
@@ -1337,7 +1428,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let added_deleted_workloads = server_state.update(new_state.desired_state).unwrap();
+        let added_deleted_workloads = server_state.update(new_state.desired_state, None).unwrap();
 
         assert_eq!(
             Some(AddedDeletedWorkloads {
@@ -1474,15 +1565,18 @@ mod tests {
             .expect_apply_delete_conditions_to()
             .never();
 
-        let result = server_state.update(StateSpec {
-            workloads: WorkloadMapSpec {
-                workloads: HashMap::from([(
-                    fixtures::WORKLOAD_NAMES[0].to_string(),
-                    invalid_workload.workload,
-                )]),
+        let result = server_state.update(
+            StateSpec {
+                workloads: WorkloadMapSpec {
+                    workloads: HashMap::from([(
+                        fixtures::WORKLOAD_NAMES[0].to_string(),
+                        invalid_workload.workload,
+                    )]),
+                },
+                ..Default::default()
             },
-            ..Default::default()
-        });
+            None,
+        );
 
         assert!(matches!(result, Err(UpdateStateError::ResultInvalid(_))));
     }
@@ -1563,10 +1657,11 @@ mod tests {
             state: current_complete_state,
             delete_graph: delete_graph_mock,
             config_renderer: mock_config_renderer,
-        };
+            signed_workload_requests: std::collections::HashMap::new(),
+                    };
 
         let added_deleted_workloads = server_state
-            .update(new_complete_state.desired_state)
+            .update(new_complete_state.desired_state, None)
             .unwrap();
         assert!(added_deleted_workloads.is_some());
     }

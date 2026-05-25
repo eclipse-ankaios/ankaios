@@ -247,6 +247,28 @@ Needs:
 - impl
 - utest
 
+#### State canonicalization
+
+##### State canonicalization is deterministic
+`swdd~common-state-canonicalization~1`
+
+Status: approved
+
+The common crate shall provide deterministic canonical serialization of State and Workload protobuf messages.
+
+Comment:
+Canonicalization ensures identical logical states produce identical byte sequences regardless of map ordering or formatting.
+
+Rationale:
+Signature verification requires byte-for-byte reproducibility of signed data.
+
+Tags:
+- CommonStateManipulation
+
+Needs:
+- impl
+- utest
+
 ## Data view
 
 ## Error management view

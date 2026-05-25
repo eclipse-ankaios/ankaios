@@ -15,6 +15,7 @@
 mod ankaios_server;
 mod cli;
 mod server_config;
+mod signature_validator;
 
 use ankaios_api::ank_base::{CompleteStateSpec, StateSpec, validate_tags};
 use ankaios_server::{AnkaiosServer, create_from_server_channel, create_to_server_channel};
@@ -25,7 +26,9 @@ use common::std_extensions::GracefulExitResult;
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 use server_config::{DEFAULT_SERVER_CONFIG_FILE_PATH, ServerConfig};
+use signature_validator::{SignaturePolicy, SignatureValidator};
 
+use prost::Message;
 use std::fs;
 
 #[cfg(test)]
@@ -79,17 +82,163 @@ async fn main() {
             .unwrap_or("[no manifest file provided]".to_string()),
     );
 
+    // Override signature verification settings from environment variables
+    if server_config.signature_verification.enabled {
+        // Override restoration window from environment if set
+        if let Ok(val) = std::env::var("ANKAIOS_RESTORATION_WINDOW_SECONDS") {
+            if let Ok(seconds) = val.parse::<i64>() {
+                log::info!(
+                    "Overriding restoration_window_seconds from env var: {} (config file value: {})",
+                    seconds,
+                    server_config.signature_verification.restoration_window_seconds
+                );
+                server_config.signature_verification.restoration_window_seconds = seconds;
+            } else {
+                log::warn!(
+                    "Invalid ANKAIOS_RESTORATION_WINDOW_SECONDS value '{}', using config file value: {}",
+                    val,
+                    server_config.signature_verification.restoration_window_seconds
+                );
+            }
+        }
+
+        // Override strict security mode from environment if set
+        if let Ok(val) = std::env::var("ANKAIOS_STRICT_SECURITY") {
+            let strict = val == "1" || val.to_lowercase() == "true";
+            if strict != server_config.signature_verification.strict_security {
+                log::info!(
+                    "Overriding strict_security from env var: {} (config file value: {})",
+                    strict,
+                    server_config.signature_verification.strict_security
+                );
+                server_config.signature_verification.strict_security = strict;
+            }
+        }
+    }
+
+    // Initialize signature validator early if enabled (needed for startup manifest verification)
+    let mut signature_validator = if server_config.signature_verification.enabled {
+        let policy = SignaturePolicy {
+            require_signature: server_config.signature_verification.require_signature,
+            require_counter: server_config.signature_verification.require_counter,
+            allowed_key_ids: server_config.signature_verification.allowed_key_ids.clone(),
+            min_counter: server_config.signature_verification.min_counter,
+            allowed_restoration_plugins: server_config
+                .signature_verification
+                .allowed_restoration_plugins
+                .clone(),
+            restoration_window_seconds: server_config.signature_verification.restoration_window_seconds,
+        };
+
+        match SignatureValidator::from_keys_directory(
+            &server_config.signature_verification.keys_directory,
+            policy,
+            server_config.signature_verification.strict_security,
+        ) {
+            Ok(validator) => {
+                log::info!("✅ Signature verification enabled");
+                Some(validator)
+            }
+            Err(e) => {
+                log::error!("Failed to initialize signature validator: {}", e);
+                std::process::exit(1);
+            }
+        }
+    } else {
+        log::info!("Signature verification disabled");
+        None
+    };
+
     let startup_state = match &server_config.startup_manifest {
         Some(config_path) => {
-            let data =
-                fs::read_to_string(config_path).unwrap_or_exit("Could not read the startup config");
+            // Check if file is binary protobuf (.pb) or text YAML
+            let is_binary = config_path.ends_with(".pb");
 
-            validate_tags_format_in_manifest(&data)
+            let state_yaml = if is_binary {
+                // Binary protobuf format (.pb file created by ank sign)
+                let data = fs::read(config_path)
+                    .unwrap_or_exit("Could not read the startup config");
+
+                match ankaios_api::ank_base::UpdateStateRequest::decode(&data[..]) {
+                    Ok(update_request) => {
+                        log::debug!("Successfully decoded binary protobuf startup manifest ({} bytes)", data.len());
+
+                        if let Some(ref metadata) = update_request.signature_metadata {
+                            log::debug!("Signature metadata present: key_id={}, counter={}, timestamp={}, sig_len={}",
+                                metadata.key_id, metadata.counter, metadata.timestamp, metadata.signature.len());
+                        } else {
+                            log::debug!("No signature metadata in startup manifest");
+                        }
+
+                        // Verify signature if validator is enabled
+                        if let Some(ref mut validator) = signature_validator {
+                            log::debug!("Verifying signature for startup manifest...");
+                            match validator.verify_update_request(&update_request, "startup-manifest") {
+                                Ok(()) => {
+                                    if let Some(ref metadata) = update_request.signature_metadata {
+                                        log::info!(
+                                            "✅ Startup manifest signature verified: key_id={}, counter={}",
+                                            metadata.key_id,
+                                            metadata.counter
+                                        );
+                                    }
+                                }
+                                Err(e) => {
+                                    log::error!("❌ Startup manifest signature verification failed: {:?}", e);
+                                    if server_config.signature_verification.require_signature {
+                                        std::process::exit(1);
+                                    } else {
+                                        log::warn!("⚠️  Accepting unsigned manifest (policy allows)");
+                                    }
+                                }
+                            }
+                        }
+
+                        // Extract State from UpdateStateRequest
+                        if let Some(complete_state) = update_request.new_state {
+                            if let Some(desired_state) = complete_state.desired_state {
+                                serde_yaml::to_string(&desired_state)
+                                    .unwrap_or_exit("Failed to serialize state from UpdateStateRequest")
+                            } else {
+                                log::error!("Startup manifest UpdateStateRequest missing desiredState");
+                                std::process::exit(1);
+                            }
+                        } else {
+                            log::error!("Startup manifest UpdateStateRequest missing newState");
+                            std::process::exit(1);
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to decode binary protobuf startup manifest: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                // Text YAML format - must be unsigned
+                // Signed manifests MUST use binary .pb format to avoid YAML parsing ambiguity
+                let data = fs::read_to_string(config_path)
+                    .unwrap_or_exit("Could not read the startup config");
+
+                if signature_validator.is_some() && server_config.signature_verification.require_signature {
+                    log::error!("❌ Startup manifest is YAML but require_signature is enabled");
+                    log::error!("💡 Signed manifests must be binary .pb format (use 'ank sign')");
+                    log::error!("💡 YAML format is only supported for unsigned manifests");
+                    std::process::exit(1);
+                }
+
+                if signature_validator.is_some() {
+                    log::warn!("⚠️  Accepting unsigned YAML manifest (require_signature is false)");
+                }
+
+                data
+            };
+
+            validate_tags_format_in_manifest(&state_yaml)
                 .unwrap_or_exit("Invalid tags format in startup manifest");
 
             // [impl->swdd~server-state-in-memory~1]
             // [impl->swdd~server-loads-startup-state-file~3]
-            let state: StateSpec = serde_yaml::from_str(&data)
+            let state: StateSpec = serde_yaml::from_str(&state_yaml)
                 .unwrap_or_exit("Parsing start config failed with error");
             log::trace!(
                 "The state is initialized with the following workloads: {:?}",
@@ -131,7 +280,12 @@ async fn main() {
         // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
         tls_config.unwrap_or_exit("Missing certificate files"),
     );
-    let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
+
+    let mut server = AnkaiosServer::new_with_validator(
+        server_receiver,
+        to_agents.clone(),
+        signature_validator,
+    );
 
     tokio::select! {
         // [impl->swdd~server-default-communication-grpc~1]

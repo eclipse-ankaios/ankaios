@@ -36,6 +36,79 @@ pub fn get_default_address() -> SocketAddr {
     DEFAULT_SOCKET_ADDRESS.parse().unwrap_or_unreachable()
 }
 
+fn default_keys_directory() -> PathBuf {
+    PathBuf::from("/usr/share/ankaios/keys")
+}
+
+fn default_allowed_restoration_plugins() -> Vec<String> {
+    vec!["basic_persistency".to_string()]
+}
+
+fn default_restoration_window_seconds() -> i64 {
+    3600  // 1 hour default
+}
+
+/// Configuration for Ed25519 signature verification
+#[derive(Debug, Deserialize, PartialEq, Clone)]
+pub struct SignatureVerificationConfig {
+    /// Enable signature verification module
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Directory containing public key PEM files (*.pub)
+    #[serde(default = "default_keys_directory")]
+    pub keys_directory: PathBuf,
+
+    /// Reject unsigned manifests when true
+    #[serde(default)]
+    pub require_signature: bool,
+
+    /// Require counter field in signatures (if false, counter is optional)
+    #[serde(default)]
+    pub require_counter: bool,
+
+    /// List of allowed key IDs (empty = accept any key_id)
+    #[serde(default)]
+    pub allowed_key_ids: Vec<String>,
+
+    /// Minimum counter value for rollback protection
+    #[serde(default)]
+    pub min_counter: u64,
+
+    /// List of plugin names allowed to trigger restoration exemption
+    /// (allows workload restoration with same counter during startup)
+    #[serde(default = "default_allowed_restoration_plugins")]
+    pub allowed_restoration_plugins: Vec<String>,
+
+    /// Time window (seconds) after boot for relaxed counter validation during restoration
+    /// -1 = disabled (infinite window), 0 = immediate strict validation, >0 = grace period
+    /// Environment variable ANKAIOS_RESTORATION_WINDOW_SECONDS overrides this value
+    #[serde(default = "default_restoration_window_seconds")]
+    pub restoration_window_seconds: i64,
+
+    /// Enable strict security mode for path validation
+    /// Rejects insecure paths (/tmp, /dev, relative paths) with errors instead of warnings
+    /// Environment variable ANKAIOS_STRICT_SECURITY overrides this value
+    #[serde(default)]
+    pub strict_security: bool,
+}
+
+impl Default for SignatureVerificationConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,              // Disabled by default (backward compatible)
+            keys_directory: default_keys_directory(),
+            require_signature: false,    // Allow unsigned when enabled
+            require_counter: false,      // Counter is optional by default
+            allowed_key_ids: Vec::new(), // Empty = accept any key_id
+            min_counter: 0,              // Start from 0
+            allowed_restoration_plugins: default_allowed_restoration_plugins(), // basic_persistency by default
+            restoration_window_seconds: default_restoration_window_seconds(), // 1 hour by default
+            strict_security: false,      // Disabled by default (warnings only)
+        }
+    }
+}
+
 fn convert_to_socket_address<'de, D>(deserializer: D) -> Result<SocketAddr, D::Error>
 where
     D: Deserializer<'de>,
@@ -61,6 +134,8 @@ pub struct ServerConfig {
     pub ca_pem_content: Option<String>,
     pub crt_pem_content: Option<String>,
     pub key_pem_content: Option<String>,
+    #[serde(default)]
+    pub signature_verification: SignatureVerificationConfig,
 }
 
 impl Default for ServerConfig {
@@ -76,6 +151,7 @@ impl Default for ServerConfig {
             ca_pem_content: None,
             crt_pem_content: None,
             key_pem_content: None,
+            signature_verification: SignatureVerificationConfig::default(),
         }
     }
 }

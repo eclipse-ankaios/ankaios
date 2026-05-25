@@ -370,6 +370,7 @@ mod test {
                 UpdateStateRequest {
                     new_state: Default::default(),
                     update_mask: vec![],
+                    signature_metadata: None,
                 },
             ))),
         };
@@ -441,6 +442,7 @@ mod test {
                 UpdateStateRequest {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into()],
+                    signature_metadata: None,
                 },
             ))),
         };
@@ -493,6 +495,7 @@ mod test {
                 UpdateStateRequest {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
+                    signature_metadata: None,
                 },
             ))),
         };
@@ -520,6 +523,7 @@ mod test {
                 UpdateStateRequest {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
+                    signature_metadata: None,
                 },
             ))),
         };
