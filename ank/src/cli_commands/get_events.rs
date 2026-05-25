@@ -218,6 +218,7 @@ mod tests {
                         updated_fields: vec![],
                         removed_fields: vec![],
                     }),
+                    signed_workload_requests: std::collections::HashMap::new(),
                 }))
             });
 
@@ -406,6 +407,7 @@ mod tests {
                         updated_fields: vec![],
                         removed_fields: vec![],
                     }),
+                    signed_workload_requests: std::collections::HashMap::new(),
                 }))
             });
 
@@ -433,6 +435,7 @@ mod tests {
                         updated_fields: vec![],
                         removed_fields: vec![],
                     }),
+                    signed_workload_requests: std::collections::HashMap::new(),
                 }))
             });
 
@@ -451,6 +454,7 @@ mod tests {
                             fixtures::WORKLOAD_NAMES[0]
                         )],
                     }),
+                    signed_workload_requests: std::collections::HashMap::new(),
                 }))
             });
 
@@ -490,6 +494,7 @@ mod tests {
                 updated_fields: vec![],
                 removed_fields: vec![],
             }),
+            signed_workload_requests: std::collections::HashMap::new(),
         };
 
         let result = EventSerializer::serialize(event.into(), &OutputFormat::Yaml);
@@ -512,6 +517,7 @@ mod tests {
                 )],
                 removed_fields: vec![],
             }),
+            signed_workload_requests: std::collections::HashMap::new(),
         };
 
         let result = EventSerializer::serialize(event.into(), &OutputFormat::Json);
@@ -526,6 +532,7 @@ mod tests {
                 generate_test_complete_state(vec![generate_test_workload_named()]).into(),
             ),
             altered_fields: None,
+            signed_workload_requests: std::collections::HashMap::new(),
         };
 
         let result = EventSerializer::serialize(event.into(), &OutputFormat::Yaml);
@@ -542,6 +549,7 @@ mod tests {
                 updated_fields: vec![],
                 removed_fields: vec!["desiredState.workloads.removed_workload".to_string()],
             }),
+            signed_workload_requests: std::collections::HashMap::new(),
         };
 
         let result = EventSerializer::serialize(event.into(), &OutputFormat::Yaml);
@@ -563,6 +571,7 @@ mod tests {
                 )],
                 removed_fields: vec!["desiredState.workloads.old_workload".to_string()],
             }),
+            signed_workload_requests: std::collections::HashMap::new(),
         };
 
         let result = EventSerializer::serialize(event.into(), &OutputFormat::Json);

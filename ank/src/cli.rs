@@ -223,6 +223,14 @@ pub enum Commands {
     Apply(ApplyArgs),
     #[command(arg_required_else_help = true)]
     Logs(LogsArgs),
+    #[command(arg_required_else_help = true)]
+    Keygen(KeygenArgs),
+    #[command(arg_required_else_help = true)]
+    Sign(SignArgs),
+    #[command(arg_required_else_help = true)]
+    Verify(VerifyArgs),
+    #[command(arg_required_else_help = true)]
+    Inspect(InspectArgs),
 }
 
 /// Retrieve information about the current Ankaios system
@@ -407,6 +415,54 @@ pub struct LogsArgs {
     /// Show logs before a specific TIMESTAMP in RFC3339 format
     #[arg(short = 'u', long = "until")]
     pub until: Option<String>,
+}
+
+/// Generate Ed25519 keypair for signing workload manifests
+#[derive(clap::Args, Debug)]
+pub struct KeygenArgs {
+    /// Output path for the private key (public key will be written to <output>.pub)
+    #[arg(long = "output", required = true, value_hint = ValueHint::FilePath)]
+    pub output: String,
+
+    /// Force overwrite if key files already exist
+    #[arg(long = "force", short = 'f')]
+    pub force: bool,
+}
+
+/// Sign a workload manifest with Ed25519 signature
+#[derive(clap::Args, Debug)]
+pub struct SignArgs {
+    /// Input YAML manifest file to sign
+    #[arg(long = "input", required = true, value_hint = ValueHint::FilePath)]
+    pub input: String,
+    /// Path to private key file
+    #[arg(long = "key", required = true, value_hint = ValueHint::FilePath)]
+    pub key: String,
+    /// Key identifier to include in signature
+    #[arg(long = "key-id", required = true)]
+    pub key_id: String,
+    /// Counter value for replay protection (auto-increments if not provided)
+    #[arg(long = "counter", required = false)]
+    pub counter: Option<u64>,
+}
+
+/// Verify a signed manifest's signature
+#[derive(clap::Args, Debug)]
+pub struct VerifyArgs {
+    /// Path to signed binary protobuf manifest file (.pb)
+    #[arg(long = "input", required = true, value_hint = ValueHint::FilePath)]
+    pub input: String,
+    /// Path to public key file
+    #[arg(long = "key", required = true, value_hint = ValueHint::FilePath)]
+    pub key: String,
+}
+
+/// Inspect a signed binary protobuf manifest
+#[derive(Debug, clap::Args, Clone)]
+pub struct InspectArgs {
+    /// Path to binary protobuf manifest file (.pb)
+    #[arg(long = "input", required = true, value_hint = ValueHint::FilePath)]
+    pub input: String,
 }
 
 pub fn logs_args_to_request(

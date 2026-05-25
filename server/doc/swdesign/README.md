@@ -95,6 +95,216 @@ The EventHandler holds metadata about the event subscribers and their subscribed
 
 The StateComparator compares the current with the new state to determine state differences for events.
 
+### SignatureValidator
+
+The SignatureValidator provides cryptographic verification of workload manifests using Ed25519 signatures. It validates signatures on UpdateStateRequest messages, prevents replay attacks using monotonic counters, and ensures manifest integrity through constant-time verification operations.
+
+#### Server validates signed workload manifests
+`swdd~server-signature-validation~1`
+
+Status: approved
+
+The server shall verify Ed25519 signatures on UpdateStateRequest messages when signature_metadata is present.
+
+Comment:
+Signature verification ensures workload manifests are cryptographically authenticated and have not been tampered with during transmission.
+
+Rationale:
+Cryptographic verification prevents unauthorized workload deployment and ensures manifest integrity in multi-tenant or security-critical environments.
+
+Tags:
+- SignatureValidator
+- Security
+
+Needs:
+- impl
+- utest
+- itest
+
+#### Server verifies canonicalized protobuf
+`swdd~server-signature-canonical-protobuf~1`
+
+Status: approved
+
+The server shall compute signatures on canonicalized protobuf representations of State messages, not raw YAML text.
+
+Comment:
+Protobuf is the single source of truth. Signing canonical protobuf prevents attacks where valid YAML signatures are paired with malicious protobuf data.
+
+Rationale:
+Eliminates YAML/protobuf mismatch attack vector identified in security review.
+
+Tags:
+- SignatureValidator
+- Canonicalization
+
+Needs:
+- impl
+- utest
+
+#### Server includes counter and timestamp in signed payload
+`swdd~server-signature-includes-counter-timestamp~1`
+
+Status: approved
+
+The server shall verify that counter and timestamp values are cryptographically included in the Ed25519 signature payload.
+
+Comment:
+The SignedPayload structure containing {counter, timestamp, canonical_bytes} is what gets signed and verified.
+
+Rationale:
+Including counter/timestamp in the signature prevents attackers from modifying replay protection metadata.
+
+Tags:
+- SignatureValidator
+- ReplayProtection
+
+Needs:
+- impl
+- utest
+
+#### Server prevents replay attacks using monotonic counters
+`swdd~server-signature-replay-protection~1`
+
+Status: approved
+
+The server shall maintain per-key and per-source monotonic counters and reject manifests with counter values less than or equal to previously seen values.
+
+Comment:
+Counter state is persisted to disk and survives server restarts.
+
+Rationale:
+Prevents replay attacks where old valid signed manifests are resubmitted.
+
+Tags:
+- SignatureValidator
+- ReplayProtection
+
+Needs:
+- impl
+- utest
+- itest
+
+#### Server uses constant-time signature verification
+`swdd~server-signature-constant-time~1`
+
+Status: approved
+
+The server shall use constant-time operations for key lookup and signature verification to prevent timing attacks.
+
+Comment:
+Prevents key enumeration via timing side-channels.
+
+Rationale:
+Timing attacks could allow attackers to determine which keys are configured without having valid signatures.
+
+Tags:
+- SignatureValidator
+- Security
+
+Needs:
+- impl
+
+#### Security Model for Signature Validation
+`swdd~server-signature-security-model~1`
+
+Status: approved
+
+The signature validation system implements defense-in-depth security with the following properties:
+
+**Threat Model:**
+- Attackers can intercept and replay old signed manifests (network-level replay)
+- Attackers can tamper with counter state files on disk (filesystem access)
+- Attackers can attempt timing attacks to enumerate valid key IDs
+- Attackers can submit manifests signed with compromised or unauthorized keys
+- Attackers can craft malicious request_ids to bypass restoration exemption checks (request_id injection)
+
+**Trust Assumptions:**
+- Ed25519 private keys are kept secure by authorized signers
+- Server filesystem is protected but may be compromised (defense-in-depth)
+- Network connections to server may be untrusted
+- Server restarts do not compromise security (counter state persists)
+
+**Attack Mitigations:**
+- **Replay protection**: Monotonic counters per key_id and per source
+- **Counter tampering**: Fail-closed on corrupted counter files, backup for forensics
+- **Timing attacks**: Constant-time key lookup and signature verification
+- **Unauthorized keys**: Allowlist-based key_id filtering via policy
+- **TOCTOU races**: Atomic counter state writes via temp file + rename
+- **Restoration exemption**: Startup workload restoration allowed with same counter, validated via authenticated identity chain parsing (not substring matching) to prevent request_id injection attacks
+- **Request_id injection**: Source format "request:{agent}@{workload}@{client_request_id}" parsed to validate workload name against allowed_restoration_plugins allowlist
+
+**Fail-Closed Behavior:**
+- Corrupted counter file → Refuse to start server
+- Invalid signature → Reject manifest
+- Counter rollback detected → Reject manifest
+- Unknown key_id (when allowlist configured) → Reject manifest
+
+Tags:
+- SignatureValidator
+- Security
+- ThreatModel
+
+Needs:
+- doc
+
+#### CLI signs workload manifests
+`swdd~cli-sign-workload-manifests~1`
+
+Status: approved
+
+The ank CLI shall provide a `sign` command that signs workload manifests using Ed25519 private keys.
+
+Comment:
+Signing produces UpdateStateRequest protobuf messages with signature_metadata populated.
+
+Rationale:
+Users need a convenient tool to cryptographically sign workloads before deployment.
+
+Tags:
+- Ank
+- SigningTool
+
+Needs:
+- impl
+- utest
+
+#### CLI generates Ed25519 keypairs
+`swdd~cli-generate-keypairs~1`
+
+Status: approved
+
+The ank CLI shall provide a `keygen` command that generates Ed25519 keypair in PEM format.
+
+Tags:
+- Ank
+- KeyManagement
+
+Needs:
+- impl
+- utest
+
+#### State canonicalization is deterministic
+`swdd~common-state-canonicalization~1`
+
+Status: approved
+
+The common crate shall provide deterministic canonical serialization of State and Workload protobuf messages.
+
+Comment:
+Canonicalization ensures identical logical states produce identical byte sequences regardless of map ordering or formatting.
+
+Rationale:
+Signature verification requires byte-for-byte reproducibility of signed data.
+
+Tags:
+- Canonicalization
+- Common
+
+Needs:
+- impl
+- utest
+
 ## Behavioral view
 
 ### Startup sequence

@@ -51,6 +51,67 @@ async fn main() {
         ank_config
     );
 
+    // Handle commands that don't need server connection first
+    match &args.command {
+        // [impl->swdd~cli-generate-keypairs~1]
+        cli::Commands::Keygen(keygen_args) => {
+            output_debug!("Received keygen with output='{}', force={}", keygen_args.output, keygen_args.force);
+            let keygen_cmd = cli_commands::keygen::KeygenCommand::new(keygen_args.output.clone(), keygen_args.force);
+            if let Err(err) = keygen_cmd.execute().await {
+                output_and_error!("Failed to generate keypair: '{}'", err);
+            }
+            return; // Exit early, no server connection needed
+        }
+        // [impl->swdd~cli-sign-workload-manifests~1]
+        cli::Commands::Sign(sign_args) => {
+            output_debug!(
+                "Received sign with input='{}', key='{}', key_id='{}', counter='{:?}'",
+                sign_args.input,
+                sign_args.key,
+                sign_args.key_id,
+                sign_args.counter
+            );
+            let sign_cmd = cli_commands::sign::SignCommand::new(
+                sign_args.input.clone(),
+                sign_args.key_id.clone(),
+                sign_args.key.clone(),
+                sign_args.counter,
+            );
+            if let Err(err) = sign_cmd.execute().await {
+                output_and_error!("Failed to sign manifest: '{}'", err);
+            }
+            return; // Exit early, no server connection needed
+        }
+        // [impl->swdd~cli-verify-signed-manifests~1]
+        cli::Commands::Verify(verify_args) => {
+            output_debug!(
+                "Received verify with input='{}', key='{}'",
+                verify_args.input,
+                verify_args.key
+            );
+            let verify_cmd = cli_commands::verify::VerifyCommand::new(
+                verify_args.input.clone(),
+                verify_args.key.clone(),
+            );
+            if let Err(err) = verify_cmd.execute().await {
+                output_and_error!("Failed to verify manifest: '{}'", err);
+                // output_and_error! macro calls std::process::exit(1) internally
+            }
+            return; // Exit early, no server connection needed
+        }
+        cli::Commands::Inspect(inspect_args) => {
+            output_debug!("Received inspect with input='{}'", inspect_args.input);
+            let inspect_cmd = cli_commands::inspect::InspectCommand::new(inspect_args.input.clone());
+            if let Err(err) = inspect_cmd.execute().await {
+                output_and_error!("Failed to inspect manifest: '{}'", err);
+            }
+            return; // Exit early, no server connection needed
+        }
+        _ => {
+            // All other commands need server connection, continue below
+        }
+    }
+
     if let Err(err_message) = TLSConfig::is_config_conflicting(
         ank_config.insecure,
         &ank_config.ca_pem_content,
@@ -258,6 +319,10 @@ async fn main() {
                 .unwrap_or_else(|err| {
                     output_and_error!("Failed to output logs: '{}'", err);
                 });
+        }
+        // These commands are already handled above before server connection
+        cli::Commands::Keygen(_) | cli::Commands::Sign(_) | cli::Commands::Verify(_) | cli::Commands::Inspect(_) => {
+            unreachable!("Keygen, Sign, Verify, and Inspect commands should have been handled earlier")
         }
     }
     cmd.shut_down().await;

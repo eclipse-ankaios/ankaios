@@ -35,7 +35,7 @@ impl CliCommands {
             update_mask
         );
 
-        self.update_state_and_wait_for_complete(complete_state_update, update_mask)
+        self.update_state_and_wait_for_complete(complete_state_update, update_mask, None)
             .await
     }
 }
@@ -78,8 +78,9 @@ mod tests {
                     format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]),
                     format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[1]),
                 ]),
+                eq(None),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec![
@@ -170,8 +171,9 @@ mod tests {
             .with(
                 eq(CompleteState::default()),
                 eq(vec!["desiredState.workloads.unknown_workload".to_string()]),
+                eq(None),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec![],
