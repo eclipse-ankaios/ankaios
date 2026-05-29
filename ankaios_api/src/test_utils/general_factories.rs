@@ -62,6 +62,7 @@ pub fn generate_test_proto_complete_state(workloads: &[(&str, Workload)]) -> Com
         }),
         workload_states: None,
         agents: None,
+        effective_state: None,
     }
 }
 
