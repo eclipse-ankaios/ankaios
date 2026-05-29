@@ -40,6 +40,10 @@ mod get_state;
 mod get_workloads;
 mod run_workload;
 mod set_state;
+pub mod sign;
+pub mod keygen;
+pub mod verify;
+pub mod inspect;
 
 use ankaios_api::ank_base::{
     CompleteState, ExecutionStateEnumSpec, Workload, WorkloadInstanceNameSpec, WorkloadState,
@@ -250,6 +254,7 @@ impl CliCommands {
         &mut self,
         new_state: CompleteState,
         update_mask: Vec<String>,
+        signature_metadata: Option<ankaios_api::ank_base::SignatureMetadata>,
     ) -> Result<(), CliError> {
         /* to keep track of deleted not initially started workloads in the wait mode
         the current workloads before the update must be stored in an ordered map. Affects only user output.
@@ -259,7 +264,7 @@ impl CliCommands {
 
         let update_state_success = self
             .server_connection
-            .update_state(new_state, update_mask)
+            .update_state(new_state, update_mask, signature_metadata)
             .await?;
 
         output_debug!("Got update success: {:?}", update_state_success);

@@ -420,6 +420,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
                     ..Default::default()
                 },
                 vec![],
+                None,
             )
             .await;
         assert!(update_state_result.is_ok());

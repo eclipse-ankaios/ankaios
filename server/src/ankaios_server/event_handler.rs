@@ -115,32 +115,41 @@ impl EventHandler {
         field_difference_tree: StateDifferenceTree,
         from_server_channel: &FromServerSender,
     ) {
-        let added_first_difference_tree = field_difference_tree
+        let added_first_difference_tree: serde_yaml::Mapping = field_difference_tree
             .added_tree
             .first_difference_tree
             .try_into()
             .unwrap_or_illegal_state();
-        let added_full_difference_tree = field_difference_tree
+        let added_full_difference_tree: serde_yaml::Mapping = field_difference_tree
             .added_tree
             .full_difference_tree
             .try_into()
             .unwrap_or_illegal_state();
-        let removed_first_difference_tree = field_difference_tree
+        let removed_first_difference_tree: serde_yaml::Mapping = field_difference_tree
             .removed_tree
             .first_difference_tree
             .try_into()
             .unwrap_or_illegal_state();
-        let removed_full_difference_tree = field_difference_tree
+        let removed_full_difference_tree: serde_yaml::Mapping = field_difference_tree
             .removed_tree
             .full_difference_tree
             .try_into()
             .unwrap_or_illegal_state();
 
-        let updated_full_difference_tree = field_difference_tree
+        let updated_full_difference_tree: serde_yaml::Mapping = field_difference_tree
             .updated_tree
             .full_difference_tree
             .try_into()
             .unwrap_or_illegal_state();
+
+        // Debug: Log what difference trees we have
+        log::debug!("🔍 Difference trees - added: {} items, removed: {} items, updated: {} items",
+            added_full_difference_tree.len(),
+            removed_full_difference_tree.len(),
+            updated_full_difference_tree.len());
+        if !removed_full_difference_tree.is_empty() {
+            log::debug!("🗑️  REMOVAL TREE: {:?}", removed_full_difference_tree);
+        }
 
         for (request_id, subscribed_field_masks) in &self.subscriber_store {
             // [impl->swdd~event-handler-creates-altered-fields-using-first-difference-tree~1]
@@ -172,11 +181,36 @@ impl EventHandler {
                 updated_fields: updated_altered_fields,
             };
 
+            log::debug!("🔔 Event for subscriber '{}': added={}, removed={}, updated={}",
+                request_id, altered_fields.added_fields.len(),
+                altered_fields.removed_fields.len(), altered_fields.updated_fields.len());
+            if !altered_fields.removed_fields.is_empty() {
+                log::debug!("🗑️  SERVER SENDING REMOVAL EVENT: removed_fields={:?}", altered_fields.removed_fields);
+            }
+
             let mut filter_masks = altered_fields.added_fields.clone();
             filter_masks.extend(altered_fields.removed_fields.clone());
             filter_masks.extend(altered_fields.updated_fields.clone());
 
             if !altered_fields.all_empty() {
+                // Extract workload names from filter_masks and get their signatures
+                let workload_names: Vec<String> = filter_masks
+                    .iter()
+                    .filter_map(|path| {
+                        let parts: Vec<&str> = path.split('.').collect();
+                        if parts.len() >= 3
+                            && parts[0] == "desiredState"
+                            && parts[1] == "workloads"
+                        {
+                            Some(parts[2].to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                let signed_workload_requests = server_state.get_signed_requests_for_workloads(&workload_names);
+
                 let complete_state_differences = server_state
                     .get_complete_state_by_field_mask(
                         CompleteStateRequest {
@@ -203,6 +237,7 @@ impl EventHandler {
                         request_id,
                         complete_state_differences,
                         Some(altered_fields.into()),
+                        signed_workload_requests,
                     )
                     .await
                     .unwrap_or_illegal_state();
@@ -670,6 +705,9 @@ mod tests {
                 ..Default::default()
             }
             .into()));
+        mock_server_state
+            .expect_get_signed_requests_for_workloads()
+            .returning(|_| std::collections::HashMap::new());
         let workload_states_map = WorkloadStatesMapSpec::default();
         let agent_map = AgentMapSpec::default();
 
