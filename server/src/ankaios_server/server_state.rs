@@ -202,8 +202,7 @@ impl ServerState {
         StateSpec {
             api_version: self.state.desired_state.api_version.clone(),
             workloads: WorkloadMapSpec { workloads },
-            // Don't fill the configs as they are not touched.
-            // Nevertheless use the state to allow adding other fields in the future
+            // [impl->swdd~server-effective-state-omits-configs~1]
             ..Default::default()
         }
     }
@@ -1761,6 +1760,28 @@ mod tests {
 
         // Desired state should remain unchanged — effectiveState writes are ignored
         assert_eq!(result.new_desired_state, old_state.desired_state);
+    }
+
+    // [utest->swdd~server-effective-state-omits-configs~1]
+    #[test]
+    fn utest_effective_state_omits_configs_map() {
+        let mut complete_state = generate_test_old_state();
+        complete_state.desired_state.configs = generate_test_config_map();
+
+        let server_state = ServerState {
+            state: complete_state.clone(),
+            rendered_workloads: generate_rendered_workloads_from_state(
+                &complete_state.desired_state,
+            ),
+            ..Default::default()
+        };
+
+        let effective_state = server_state.build_effective_state();
+
+        assert!(
+            effective_state.configs.configs.is_empty(),
+            "effectiveState.configs shall be empty"
+        );
     }
 
     // [utest->swdd~server-applies-mutated-workloads-to-effective-state~1]

@@ -58,7 +58,7 @@ When an admission hook returns its response, the server compares the raw protobu
 
 Rationale:
 
-Protobuf encoding is deterministic for the same message, so identical bytes guarantees an identical message. A byte-level comparison (`memcmp`) is extremely cheap and avoids unnecessary protobuf decoding, object allocation, and type conversion when a hook approves the workloads without modifying them. This is the expected common case, as most hooks will only validate or reject, not mutate.
+Even though protobuf does not guarantee canonical deterministic encoding in all contexts, identical serialized bytes represent the same message. A byte-level comparison (`memcmp`) is extremely cheap and avoids unnecessary protobuf decoding, object allocation, and type conversion when a hook approves the workloads without modifying them. This is the expected common case, as most hooks will only validate or reject, not mutate.
 
 Needs:
 - impl
@@ -930,6 +930,26 @@ The effective state supports field mask filtering and automatic inclusion of the
 
 Rationale:
 Users and workloads need visibility into the actual workload configurations sent to agents, which may differ from the desired state due to admission hook mutations.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### Effective state omits configs map
+`swdd~server-effective-state-omits-configs~1`
+
+Status: approved
+
+When building the effective state, the Ankaios server shall leave the `effectiveState.configs` map empty.
+
+Comment:
+The effective state is based on the state object, but contains rendered workload configurations, where config references are already resolved into workload fields.
+
+Rationale:
+Duplicating the original config map in the effective state would add redundant data and can imply that unresolved config references are still part of the effective workload representation. Adding a new object for the effective state would increase the complexity especially if other attributes are added to the state later.
 
 Tags:
 - ServerState
