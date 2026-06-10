@@ -96,6 +96,12 @@ impl AdmissionHookMutator for AdmissionHookRegistry {
             // [impl->swdd~server-admission-hook-veto~1]
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
+                // [impl->swdd~server-traces-admission-hook-stderr~1]
+                log::debug!(
+                    "Admission hook '{}' failed with stderr: {}",
+                    hook.name,
+                    stderr.trim()
+                );
                 return Err(UpdateStateError::AdmissionHookVeto {
                     hook: hook.name.clone(),
                     reason: format!(
@@ -105,6 +111,13 @@ impl AdmissionHookMutator for AdmissionHookRegistry {
                     ),
                 });
             }
+
+            // [impl->swdd~server-traces-admission-hook-stderr~1]
+            log::debug!(
+                "Admission hook '{}' completed successfully: {}",
+                hook.name,
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
 
             // [impl->swdd~server-admission-hook-skip-unchanged-response~1]
             if output.stdout != input_bytes {
