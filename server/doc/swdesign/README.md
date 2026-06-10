@@ -866,6 +866,22 @@ Needs:
 - impl
 - utest
 
+#### Server traces admission hook stderr
+`swdd~server-traces-admission-hook-stderr~1`
+
+Status: approved
+
+When an admission hook finishes, the Ankaios server shall trace the hook's stderr output for debugging reasons.
+
+Rationale:
+Admission hooks are external executables and their diagnostics are written to stderr. Tracing stderr output supports debugging hook behavior in both successful and rejected update paths.
+
+Tags:
+- AdmissionHookRegistry
+
+Needs:
+- impl
+
 #### Server applies mutated workloads to effective state
 `swdd~server-applies-mutated-workloads-to-effective-state~1`
 
