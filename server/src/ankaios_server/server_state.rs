@@ -39,7 +39,6 @@ use mockall::automock;
 
 #[derive(Debug, Default)]
 pub struct StateGenerationResult {
-    pub old_desired_state: StateSpec,
     pub new_desired_state: StateSpec,
     pub new_agent_map: AgentMapSpec,
 }
@@ -190,10 +189,14 @@ impl ServerState {
     const DESIRED_STATE_FIELD_MASK_PART: &'static str = "desiredState";
     const EFFECTIVE_STATE_FIELD_MASK_PART: &'static str = "effectiveState";
 
+    pub fn desired_state(&self) -> StateSpec {
+        self.state.desired_state.clone()
+    }
+
     // [impl->swdd~server-provides-effective-state~1]
     /// Builds the effective state from the current rendered workloads.
     /// The effective state reflects workloads after config rendering and admission hook mutations.
-    fn build_effective_state(&self) -> StateSpec {
+    pub fn build_effective_state(&self) -> StateSpec {
         let workloads = self
             .rendered_workloads
             .iter()
@@ -396,7 +399,6 @@ impl ServerState {
                     ))
                 })?;
             return Ok(StateGenerationResult {
-                old_desired_state: self.state.desired_state.clone(),
                 new_desired_state: new_complete_state.desired_state,
                 new_agent_map: new_complete_state.agents,
             });
@@ -431,7 +433,6 @@ impl ServerState {
             })?;
 
         Ok(StateGenerationResult {
-            old_desired_state: self.state.desired_state.clone(),
             new_desired_state: new_complete_state.desired_state,
             new_agent_map: new_complete_state.agents,
         })
@@ -875,6 +876,18 @@ mod tests {
 
         let workloads = server_state.get_workloads_for_agent("unknown_agent");
         assert_eq!(workloads.len(), 0);
+    }
+
+    #[test]
+    fn utest_server_state_desired_state_returns_stored_state() {
+        let complete_state = generate_test_old_state();
+
+        let server_state = ServerState {
+            state: complete_state.clone(),
+            ..Default::default()
+        };
+
+        assert_eq!(server_state.desired_state(), complete_state.desired_state);
     }
 
     // [utest->swdd~server-handles-logs-request-message~1]
