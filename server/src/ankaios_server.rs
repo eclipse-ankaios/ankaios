@@ -525,34 +525,27 @@ impl AnkaiosServer {
                                         }
                                     }
                                 }
-                                // TODO: this new branch is only here to make sure we don't log a error for the admission hook veto.
-                                // Maybe we can do this better.
-                                // [impl->swdd~server-admission-hook-veto~1]
-                                Err(UpdateStateError::AdmissionHookVeto { hook, reason }) => {
-                                    log::info!(
-                                        "Update rejected by admission hook '{}': '{}'",
-                                        hook,
-                                        reason
-                                    );
-                                    self.to_agents
-                                        .error(
-                                            request_id,
-                                            format!(
+                                Err(error_msg) => {
+                                    let rejection_message = match &error_msg {
+                                        // [impl->swdd~server-admission-hook-veto~1]
+                                        UpdateStateError::AdmissionHookVeto { hook, reason } => {
+                                            let admission_hooks_msg = format!(
                                                 "Update rejected by admission hook '{}': '{}'",
                                                 hook, reason
-                                            ),
-                                        )
-                                        .await
-                                        .unwrap_or_illegal_state();
-                                }
-                                Err(error_msg) => {
-                                    // [impl->swdd~server-continues-on-invalid-updated-state~1]
-                                    log::error!("Update rejected: '{error_msg}'",);
+                                            );
+                                            log::info!("{admission_hooks_msg}");
+                                            admission_hooks_msg
+                                        }
+                                        _ => {
+                                            // [impl->swdd~server-continues-on-invalid-updated-state~1]
+                                            let update_rejected_err_msg = format!("Update rejected: '{error_msg}'");
+                                            log::error!("{update_rejected_err_msg}");
+                                            update_rejected_err_msg
+                                        }
+                                    };
+
                                     self.to_agents
-                                        .error(
-                                            request_id,
-                                            format!("Update rejected: '{error_msg}'"),
-                                        )
+                                        .error(request_id, rejection_message)
                                         .await
                                         .unwrap_or_illegal_state();
                                 }
