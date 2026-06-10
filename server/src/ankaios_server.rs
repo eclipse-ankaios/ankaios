@@ -25,7 +25,7 @@ mod state_comparator;
 
 use ankaios_api::ank_base::{
     AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateSpec,
-    DeletedWorkload, ExecutionStateSpec, LogsStopResponse, Request, RequestContent,
+    DeletedWorkload, ExecutionStateSpec, LogsStopResponse, Request, RequestContent, StateSpec,
     WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use common::state_manipulation::Path;
@@ -66,7 +66,7 @@ use log_campaign_store::LogCollectorRequestId;
 use std::collections::HashSet;
 
 use crate::ankaios_server::admission_hook_registry::AdmissionHookRegistry;
-use crate::ankaios_server::server_state::{StateGenerationResult, UpdateStateError};
+use crate::ankaios_server::server_state::UpdateStateError;
 use crate::server_config::AdmissionHook;
 
 pub struct AnkaiosServer {
@@ -428,9 +428,11 @@ impl AnkaiosServer {
                                 "Received UpdateState. State '{new_state:?}', update mask '{update_mask:?}'"
                             );
 
+                            let old_desired_state = self.server_state.desired_state();
+                            let old_effective_state = self.server_state.build_effective_state();
+
                             // [impl->swdd~update-desired-state-with-update-mask~1]
                             // [impl->swdd~update-desired-state-empty-update-mask~1]
-
                             let state_generation_result = match self
                                 .server_state
                                 .generate_new_state(new_state, update_mask)
@@ -477,7 +479,8 @@ impl AnkaiosServer {
                                     self.handle_post_update_steps(
                                         request_id,
                                         added_deleted_workloads,
-                                        state_generation_result,
+                                        old_desired_state,
+                                        old_effective_state,
                                     )
                                     .await;
                                 }
@@ -495,8 +498,7 @@ impl AnkaiosServer {
                                         // [impl->swdd~server-sends-state-differences-as-events~1]
                                         // state changes must be calculated after every update since only config item can be changed as well
                                         let old_state = CompleteStateSpec {
-                                            desired_state: state_generation_result
-                                                .old_desired_state,
+                                            desired_state: old_desired_state,
                                             ..Default::default()
                                         };
 
@@ -538,7 +540,8 @@ impl AnkaiosServer {
                                         }
                                         _ => {
                                             // [impl->swdd~server-continues-on-invalid-updated-state~1]
-                                            let update_rejected_err_msg = format!("Update rejected: '{error_msg}'");
+                                            let update_rejected_err_msg =
+                                                format!("Update rejected: '{error_msg}'");
                                             log::error!("{update_rejected_err_msg}");
                                             update_rejected_err_msg
                                         }
@@ -732,7 +735,8 @@ impl AnkaiosServer {
         &mut self,
         request_id: String,
         added_deleted_workloads: AddedDeletedWorkloads,
-        state_generation_result: StateGenerationResult,
+        old_desired_state: StateSpec,
+        old_effective_state: StateSpec,
     ) {
         let added_workloads = added_deleted_workloads.added_workloads;
         let deleted_workloads = added_deleted_workloads.deleted_workloads;
@@ -744,8 +748,9 @@ impl AnkaiosServer {
 
         let old_state = if self.event_handler.has_subscribers() {
             CompleteStateSpec {
-                desired_state: state_generation_result.old_desired_state,
+                desired_state: old_desired_state,
                 workload_states: self.workload_states_map.clone(),
+                effective_state: old_effective_state,
                 ..Default::default()
             }
         } else {
@@ -776,8 +781,9 @@ impl AnkaiosServer {
         if self.event_handler.has_subscribers() {
             // [impl->swdd~server-sends-state-differences-as-events~1]
             let new_state = CompleteStateSpec {
-                desired_state: state_generation_result.new_desired_state,
+                desired_state: self.server_state.desired_state(),
                 workload_states: self.workload_states_map.clone(),
+                effective_state: self.server_state.build_effective_state(),
                 ..Default::default()
             };
 
@@ -1087,6 +1093,14 @@ mod tests {
         let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
         let mut mock_server_state = MockServerState::new();
         let mut seq = mockall::Sequence::new();
+        mock_server_state
+            .expect_desired_state()
+            .times(2)
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .times(2)
+            .return_const(StateSpec::default());
         let new_desired_state = new_state.desired_state.clone();
         mock_server_state
             .expect_generate_new_state()
@@ -1487,6 +1501,14 @@ mod tests {
         )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
         let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
         let updated_desired_state = update_state.desired_state.clone();
         mock_server_state
             .expect_generate_new_state()
@@ -1595,6 +1617,14 @@ mod tests {
         )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
         let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
         let updated_desired_state = update_state.desired_state.clone();
         mock_server_state
             .expect_generate_new_state()
@@ -1690,6 +1720,14 @@ mod tests {
         )];
         let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
         let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
         let updated_desired_state = update_state.desired_state.clone();
         mock_server_state
             .expect_generate_new_state()
@@ -2349,6 +2387,14 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
         let mut seq = mockall::Sequence::new();
         mock_server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
             .expect_get_workloads_for_agent()
             .with(mockall::predicate::eq(fixtures::AGENT_NAMES[0].to_string()))
             .once()
@@ -2577,6 +2623,14 @@ mod tests {
         let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
 
         let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
         let new_desired_state = update_state.desired_state.clone();
         mock_server_state
             .expect_generate_new_state()
@@ -2640,6 +2694,14 @@ mod tests {
         let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
 
         let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
         let new_desired_state = update_state_ankaios_no_version.desired_state.clone();
         mock_server_state
             .expect_generate_new_state()
@@ -2754,6 +2816,14 @@ mod tests {
         let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
             .expect_generate_new_state()
             .once()
             .returning(move |_, _| Ok(StateGenerationResult::default()));
@@ -2849,6 +2919,14 @@ mod tests {
 
         let mut server: AnkaiosServer = AnkaiosServer::new(server_receiver, to_agents, vec![]);
         let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
         mock_server_state
             .expect_generate_new_state()
             .once()
@@ -3090,6 +3168,14 @@ mod tests {
         let deleted_workloads = vec![deleted_workload_with_not_connected_agent];
 
         let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
         let updated_desired_state = update_state.desired_state.clone();
         mock_server_state
             .expect_generate_new_state()
@@ -3631,7 +3717,6 @@ mod tests {
         let updated_desired_state = update_state.desired_state.clone();
 
         let state_generation_result = StateGenerationResult {
-            old_desired_state: old_state.desired_state,
             new_desired_state: updated_desired_state.clone(),
             ..Default::default()
         };
@@ -3695,6 +3780,16 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _| state_comparator);
+        server
+            .server_state
+            .expect_desired_state()
+            .times(2)
+            .return_const(old_state.desired_state.clone());
+        server
+            .server_state
+            .expect_build_effective_state()
+            .times(2)
+            .return_const(StateSpec::default());
         server
             .server_state
             .expect_generate_new_state()
@@ -3807,6 +3902,16 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _| state_comparator);
+        server
+            .server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        server
+            .server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
         server
             .server_state
             .expect_generate_new_state()
@@ -4184,6 +4289,14 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
         let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
 
         let agents_clone = update_state.agents.clone();
         let update_state_clone: CompleteState = update_state.clone().into();
@@ -4197,7 +4310,6 @@ mod tests {
                 Ok(StateGenerationResult {
                     new_desired_state: Default::default(),
                     new_agent_map: agents_clone.clone(),
-                    ..Default::default()
                 })
             });
         mock_server_state
