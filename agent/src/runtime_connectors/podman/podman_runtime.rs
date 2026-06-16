@@ -19,8 +19,8 @@ use crate::runtime_connectors::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
-        generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher,
+        ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter,
+        StateCheckerHandle, generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher,
         podman_cli::PodmanStartConfig, runtime_connector::LogRequestOptions,
     },
     workload_state::WorkloadStateSender,
@@ -125,7 +125,7 @@ impl PodmanRuntime {
 
 #[async_trait]
 // [impl->swdd~podman-implements-runtime-connector~1]
-impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
+impl RuntimeConnector<PodmanWorkloadId> for PodmanRuntime {
     // [impl->swdd~podman-name-returns-podman~1]
     fn name(&self) -> String {
         PODMAN_RUNTIME_NAME.to_string()
@@ -159,7 +159,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
         workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
-    ) -> Result<(PodmanWorkloadId, GenericPollingStateChecker), RuntimeError> {
+    ) -> Result<(PodmanWorkloadId, StateCheckerHandle), RuntimeError> {
         let workload_cfg = PodmanRuntimeConfig::try_from(&workload_named.workload)
             .map_err(RuntimeError::Unsupported)?;
 
@@ -247,7 +247,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         workload_id: &PodmanWorkloadId,
         workload_named: WorkloadNamed,
         update_state_tx: WorkloadStateSender,
-    ) -> Result<GenericPollingStateChecker, RuntimeError> {
+    ) -> Result<StateCheckerHandle, RuntimeError> {
         // [impl->swdd~podman-state-getter-reset-cache~1]
         PodmanCli::reset_ps_cache().await;
 
@@ -262,7 +262,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
             update_state_tx,
             PodmanStateGetter {},
         );
-        Ok(checker)
+        Ok(Box::new(checker))
     }
 
     fn get_log_fetcher(

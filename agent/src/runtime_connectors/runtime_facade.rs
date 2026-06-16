@@ -14,7 +14,7 @@
 
 use crate::{
     io_utils::FileSystemError,
-    runtime_connectors::{OwnableRuntime, ReusableWorkloadState, RuntimeError, StateChecker},
+    runtime_connectors::{OwnableRuntime, ReusableWorkloadState, RuntimeError},
     workload::WorkloadCommandSender,
     workload::control_loop_state::ControlLoopState,
     workload_operation::ReusableWorkload,
@@ -35,8 +35,6 @@ use crate::control_interface::ControlInterface;
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 #[cfg_attr(test, mockall_double::double)]
 use crate::io_utils::filesystem_async;
-#[cfg(test)]
-use crate::runtime_connectors::dummy_state_checker::DummyStateChecker;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
 #[cfg_attr(test, mockall_double::double)]
@@ -75,21 +73,16 @@ pub trait RuntimeFacade: Send + Sync + 'static {
 
 pub struct GenericRuntimeFacade<
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync,
 > {
-    runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
+    runtime: Box<dyn OwnableRuntime<WorkloadId>>,
     run_folder: PathBuf,
 }
 
-impl<WorkloadId, StChecker> GenericRuntimeFacade<WorkloadId, StChecker>
+impl<WorkloadId> GenericRuntimeFacade<WorkloadId>
 where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    pub fn new(
-        runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
-        run_folder: PathBuf,
-    ) -> Self {
+    pub fn new(runtime: Box<dyn OwnableRuntime<WorkloadId>>, run_folder: PathBuf) -> Self {
         GenericRuntimeFacade {
             runtime,
             run_folder,
@@ -100,8 +93,7 @@ where
 #[async_trait]
 impl<
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-> RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
+> RuntimeFacade for GenericRuntimeFacade<WorkloadId>
 {
     // [impl->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
     async fn get_reusable_workloads(
@@ -160,8 +152,7 @@ impl<
 
 impl<
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-> GenericRuntimeFacade<WorkloadId, StChecker>
+> GenericRuntimeFacade<WorkloadId>
 {
     // [impl->swdd~agent-create-workload~2]
     fn create_workload_non_blocking(
@@ -399,7 +390,7 @@ impl<
 #[cfg(test)]
 mockall::mock! {
     pub GenericRuntimeFacade {
-        pub fn new(runtime: Box<dyn OwnableRuntime<String, DummyStateChecker<String>>>,
+        pub fn new(runtime: Box<dyn OwnableRuntime<String>>,
             run_folder: PathBuf) -> Self;
     }
 
@@ -450,7 +441,7 @@ mod tests {
         io_utils::mock_filesystem_async,
         runtime_connectors::{
             GenericRuntimeFacade, OwnableRuntime, ReusableWorkloadState, RuntimeFacade,
-            runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
+            runtime_connector::test::{MockRuntimeConnector, RuntimeCall},
         },
         workload::{ControlLoopState, MockWorkload, MockWorkloadControlLoop},
         workload_operation::ReusableWorkload,
@@ -480,9 +471,9 @@ mod tests {
             Ok(vec![workload_state]),
         )]);
 
-        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String>> =
             Box::new(runtime_mock.clone());
-        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String>::new(
             ownable_runtime_mock,
             fixtures::RUN_FOLDER.into(),
         ));
@@ -556,9 +547,9 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![]);
 
-        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String>> =
             Box::new(runtime_mock.clone());
-        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String>::new(
             ownable_runtime_mock,
             fixtures::RUN_FOLDER.into(),
         ));
@@ -567,7 +558,7 @@ mod tests {
         mock_control_loop
             .expect()
             .once()
-            .return_once(|_: ControlLoopState<String, StubStateChecker>| ());
+            .return_once(|_: ControlLoopState<String>| ());
 
         let (task_handle, _workload) = test_runtime_facade.create_workload_non_blocking(
             reusable_workload.clone(),
@@ -626,7 +617,7 @@ mod tests {
         mock_control_loop
             .expect()
             .once()
-            .return_once(|_: ControlLoopState<String, StubStateChecker>| ());
+            .return_once(|_: ControlLoopState<String>| ());
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -637,9 +628,9 @@ mod tests {
 
         let runtime_mock = MockRuntimeConnector::new();
 
-        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String>> =
             Box::new(runtime_mock.clone());
-        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String>::new(
             ownable_runtime_mock,
             fixtures::RUN_FOLDER.into(),
         ));
@@ -674,7 +665,7 @@ mod tests {
         mock_control_loop
             .expect()
             .once()
-            .return_once(|_: ControlLoopState<String, StubStateChecker>| ());
+            .return_once(|_: ControlLoopState<String>| ());
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -685,9 +676,9 @@ mod tests {
 
         let runtime_mock = MockRuntimeConnector::new();
 
-        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String>> =
             Box::new(runtime_mock.clone());
-        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String>::new(
             ownable_runtime_mock,
             fixtures::RUN_FOLDER.into(),
         ));
@@ -720,9 +711,9 @@ mod tests {
             RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
         ]);
 
-        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String>> =
             Box::new(runtime_mock.clone());
-        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String>::new(
             ownable_runtime_mock,
             fixtures::RUN_FOLDER.into(),
         ));
@@ -771,9 +762,9 @@ mod tests {
             ),
         ]);
 
-        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String>> =
             Box::new(runtime_mock.clone());
-        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String>::new(
             ownable_runtime_mock,
             fixtures::RUN_FOLDER.into(),
         ));

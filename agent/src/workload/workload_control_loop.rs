@@ -15,7 +15,7 @@
 use crate::control_interface::ControlInterfacePath;
 use crate::io_utils::FileSystemError;
 use crate::runtime_connectors::log_fetcher::LogFetcher;
-use crate::runtime_connectors::{LogRequestOptions, RuntimeError, StateChecker};
+use crate::runtime_connectors::{LogRequestOptions, RuntimeError};
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_files::WorkloadFilesBasePath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
@@ -42,11 +42,9 @@ use super::retry_manager::RetryToken;
 pub struct WorkloadControlLoop;
 
 impl WorkloadControlLoop {
-    pub async fn run<WorkloadId, StChecker>(
-        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-    ) where
+    pub async fn run<WorkloadId>(mut control_loop_state: ControlLoopState<WorkloadId>)
+    where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         loop {
             tokio::select! {
@@ -180,13 +178,12 @@ impl WorkloadControlLoop {
             .await;
     }
 
-    async fn restart_workload_on_runtime<WorkloadId, StChecker>(
-        control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+    async fn restart_workload_on_runtime<WorkloadId>(
+        control_loop_state: ControlLoopState<WorkloadId>,
         execution_state: &ExecutionStateSpec,
-    ) -> ControlLoopState<WorkloadId, StChecker>
+    ) -> ControlLoopState<WorkloadId>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         log::debug!(
             "Restart workload '{}' with restart policy '{:?}'",
@@ -238,15 +235,14 @@ impl WorkloadControlLoop {
         }
     }
 
-    async fn send_retry_for_workload<WorkloadId, StChecker>(
-        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+    async fn send_retry_for_workload<WorkloadId>(
+        mut control_loop_state: ControlLoopState<WorkloadId>,
         instance_name: WorkloadInstanceNameSpec,
         retry_token: RetryToken,
         error_msg: String,
-    ) -> ControlLoopState<WorkloadId, StChecker>
+    ) -> ControlLoopState<WorkloadId>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         log::info!(
             "Retrying workload creation for: '{}'. Error: '{}'",
@@ -273,17 +269,16 @@ impl WorkloadControlLoop {
     }
 
     // [impl->swdd~agent-workload-control-loop-executes-create~4]
-    async fn create_workload_on_runtime<WorkloadId, StChecker, ErrorFunc, Fut>(
-        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+    async fn create_workload_on_runtime<WorkloadId, ErrorFunc, Fut>(
+        mut control_loop_state: ControlLoopState<WorkloadId>,
         retry_token: RetryToken,
         func_on_recoverable_error: ErrorFunc,
-    ) -> ControlLoopState<WorkloadId, StChecker>
+    ) -> ControlLoopState<WorkloadId>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-        Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>> + 'static,
+        Fut: Future<Output = ControlLoopState<WorkloadId>> + 'static,
         ErrorFunc: FnOnce(
-                ControlLoopState<WorkloadId, StChecker>,
+                ControlLoopState<WorkloadId>,
                 WorkloadInstanceNameSpec,
                 RetryToken,
                 String,
@@ -368,12 +363,11 @@ impl WorkloadControlLoop {
         }
     }
 
-    async fn handle_mount_point_creation<WorkloadId, StChecker>(
-        control_loop_state: &ControlLoopState<WorkloadId, StChecker>,
+    async fn handle_mount_point_creation<WorkloadId>(
+        control_loop_state: &ControlLoopState<WorkloadId>,
     ) -> Result<HashMap<PathBuf, PathBuf>, String>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         if !control_loop_state
             .workload_named
@@ -422,12 +416,11 @@ impl WorkloadControlLoop {
     }
 
     // [impl->swdd~agent-workload-control-loop-executes-delete~3]
-    async fn delete_workload_on_runtime<WorkloadId, StChecker>(
-        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-    ) -> Option<ControlLoopState<WorkloadId, StChecker>>
+    async fn delete_workload_on_runtime<WorkloadId>(
+        mut control_loop_state: ControlLoopState<WorkloadId>,
+    ) -> Option<ControlLoopState<WorkloadId>>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
@@ -484,14 +477,13 @@ impl WorkloadControlLoop {
     }
 
     // [impl->swdd~agent-workload-control-loop-executes-update~3]
-    async fn update_workload_on_runtime<WorkloadId, StChecker>(
-        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+    async fn update_workload_on_runtime<WorkloadId>(
+        mut control_loop_state: ControlLoopState<WorkloadId>,
         new_workload_named: Option<Box<WorkloadNamed>>,
         control_interface_path: Option<ControlInterfacePath>,
-    ) -> ControlLoopState<WorkloadId, StChecker>
+    ) -> ControlLoopState<WorkloadId>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
@@ -586,14 +578,13 @@ impl WorkloadControlLoop {
     }
 
     // [impl->swdd~workload-control-loop-reuses-bundle-on-successful-restart~1]
-    async fn restart_workload_with_bundle_reuse<WorkloadId, StChecker>(
-        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+    async fn restart_workload_with_bundle_reuse<WorkloadId>(
+        mut control_loop_state: ControlLoopState<WorkloadId>,
         new_workload_named: Option<Box<WorkloadNamed>>,
         control_interface_path: Option<ControlInterfacePath>,
-    ) -> ControlLoopState<WorkloadId, StChecker>
+    ) -> ControlLoopState<WorkloadId>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         log::debug!(
             "Reusing bundle and workload files for workload '{}' due to restart policy",
@@ -641,13 +632,12 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    async fn retry_create_workload_on_runtime<WorkloadId, StChecker>(
-        control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+    async fn retry_create_workload_on_runtime<WorkloadId>(
+        control_loop_state: ControlLoopState<WorkloadId>,
         retry_token: RetryToken,
-    ) -> ControlLoopState<WorkloadId, StChecker>
+    ) -> ControlLoopState<WorkloadId>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         if retry_token.is_valid() {
             Self::create_workload_on_runtime(
@@ -663,12 +653,11 @@ impl WorkloadControlLoop {
     }
 
     // [impl->swdd~agent-workload-control-loop-executes-resume~1]
-    async fn resume_workload_on_runtime<WorkloadId, StChecker>(
-        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-    ) -> ControlLoopState<WorkloadId, StChecker>
+    async fn resume_workload_on_runtime<WorkloadId>(
+        mut control_loop_state: ControlLoopState<WorkloadId>,
+    ) -> ControlLoopState<WorkloadId>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         let workload_name = control_loop_state.instance_name().workload_name();
         let workload_id = control_loop_state
@@ -676,7 +665,7 @@ impl WorkloadControlLoop {
             .get_workload_id(&control_loop_state.workload_named.instance_name)
             .await;
 
-        let state_checker: Option<StChecker> = match workload_id.as_ref() {
+        let state_checker = match workload_id.as_ref() {
             Ok(wl_id) => control_loop_state
                 .runtime
                 .start_checker(
@@ -718,13 +707,12 @@ impl WorkloadControlLoop {
     }
 
     // [impl->swdd~agent-workload-control-loop-creates-log-fetcher~1]
-    fn create_log_fetcher<WorkloadId, StChecker>(
-        control_loop_state: &ControlLoopState<WorkloadId, StChecker>,
+    fn create_log_fetcher<WorkloadId>(
+        control_loop_state: &ControlLoopState<WorkloadId>,
         log_request_options: &LogRequestOptions,
     ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         let Some(workload_id) = &control_loop_state.workload_id else {
             return Err(RuntimeError::CollectLog(
@@ -749,12 +737,11 @@ impl WorkloadControlLoop {
 #[cfg(test)]
 mockall::mock! {
     pub WorkloadControlLoop {
-        pub async fn run<WorkloadId, StChecker>(
-            control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+        pub async fn run<WorkloadId>(
+            control_loop_state: ControlLoopState<WorkloadId>,
         )
         where
-            WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-            StChecker: StateChecker<WorkloadId> + Send + Sync + 'static;
+            WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static;
     }
 }
 
@@ -839,7 +826,7 @@ mod tests {
                 HashMap::default(),
                 Ok((
                     fixtures::WORKLOAD_IDS[0].to_string(),
-                    new_mock_state_checker,
+                    Box::new(new_mock_state_checker),
                 )),
             ),
             // Since we also send a delete command to exit the control loop properly, the new workload
@@ -888,7 +875,7 @@ mod tests {
             .return_once(|| mock_retry_token);
 
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
-        control_loop_state.state_checker = Some(old_mock_state_checker);
+        control_loop_state.state_checker = Some(Box::new(old_mock_state_checker));
 
         assert!(
             timeout(
@@ -979,7 +966,7 @@ mod tests {
             .return_once(|| mock_retry_token);
 
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
-        control_loop_state.state_checker = Some(old_mock_state_checker);
+        control_loop_state.state_checker = Some(Box::new(old_mock_state_checker));
 
         assert!(
             timeout(
@@ -1044,7 +1031,7 @@ mod tests {
                 HashMap::default(),
                 Ok((
                     fixtures::WORKLOAD_IDS[0].to_string(),
-                    new_mock_state_checker,
+                    Box::new(new_mock_state_checker),
                 )),
             ),
             // Delete the new updated workload to exit the infinite loop
@@ -1098,7 +1085,7 @@ mod tests {
             .return_once(|| mock_retry_token);
 
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
-        control_loop_state.state_checker = Some(old_mock_state_checker);
+        control_loop_state.state_checker = Some(Box::new(old_mock_state_checker));
 
         assert!(
             timeout(
@@ -1160,7 +1147,7 @@ mod tests {
                 HashMap::default(),
                 Ok((
                     fixtures::WORKLOAD_IDS[0].to_string(),
-                    new_mock_state_checker,
+                    Box::new(new_mock_state_checker),
                 )),
             ),
             // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1373,7 +1360,7 @@ mod tests {
             .return_const(());
 
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
-        control_loop_state.state_checker = Some(mock_state_checker);
+        control_loop_state.state_checker = Some(Box::new(mock_state_checker));
 
         assert!(
             timeout(
@@ -1477,7 +1464,7 @@ mod tests {
                 HashMap::default(),
                 Ok((
                     fixtures::WORKLOAD_IDS[0].to_string(),
-                    new_mock_state_checker,
+                    Box::new(new_mock_state_checker),
                 )),
             ),
             // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1563,7 +1550,7 @@ mod tests {
                 fixtures::WORKLOAD_IDS[0].to_string(),
                 workload.clone(),
                 state_checker_workload_state_sender.clone(),
-                Ok(new_mock_state_checker),
+                Ok(Box::new(new_mock_state_checker)),
             ),
             RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
         ]);
@@ -1633,7 +1620,7 @@ mod tests {
                 fixtures::WORKLOAD_IDS[0].to_string(),
                 workload.clone(),
                 state_checker_workload_state_sender.clone(),
-                Ok(StubStateChecker::new()),
+                Ok(Box::new(StubStateChecker::new())),
             ),
         ]);
 
@@ -1887,7 +1874,7 @@ mod tests {
                 HashMap::default(),
                 Ok((
                     fixtures::WORKLOAD_IDS[1].to_string(), // new workload id after restart
-                    new_mock_state_checker,
+                    Box::new(new_mock_state_checker),
                 )),
             ),
             RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[1].to_string(), Ok(())),
@@ -1913,7 +1900,7 @@ mod tests {
             .unwrap();
 
         control_loop_state.workload_id = Some(fixtures::WORKLOAD_IDS[0].into());
-        control_loop_state.state_checker = Some(old_mock_state_checker);
+        control_loop_state.state_checker = Some(Box::new(old_mock_state_checker));
 
         control_loop_state
             .retry_manager
@@ -1994,7 +1981,7 @@ mod tests {
                 HashMap::default(),
                 Ok((
                     fixtures::WORKLOAD_IDS[0].to_string(),
-                    new_mock_state_checker,
+                    Box::new(new_mock_state_checker),
                 )),
             ),
             RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
@@ -2020,7 +2007,7 @@ mod tests {
             .unwrap();
 
         control_loop_state.workload_id = Some(fixtures::WORKLOAD_IDS[0].into());
-        control_loop_state.state_checker = Some(old_mock_state_checker);
+        control_loop_state.state_checker = Some(Box::new(old_mock_state_checker));
 
         control_loop_state
             .retry_manager
@@ -2205,7 +2192,7 @@ mod tests {
             expected_mount_point_mappings.clone(),
             Ok((
                 fixtures::WORKLOAD_IDS[0].to_string(),
-                StubStateChecker::new(),
+                Box::new(StubStateChecker::new()),
             )),
         )]);
 
@@ -2557,7 +2544,7 @@ mod tests {
             .return_const(());
 
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
-        control_loop_state.state_checker = Some(old_mock_state_checker);
+        control_loop_state.state_checker = Some(Box::new(old_mock_state_checker));
 
         control_loop_state
             .retry_manager
@@ -2611,7 +2598,7 @@ mod tests {
                 HashMap::default(),
                 Ok((
                     fixtures::WORKLOAD_IDS[0].to_string(),
-                    StubStateChecker::new(),
+                    Box::new(StubStateChecker::new()),
                 )),
             ),
             RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
