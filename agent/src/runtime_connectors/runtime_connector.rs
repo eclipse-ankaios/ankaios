@@ -13,10 +13,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::log_fetcher::LogFetcher;
-use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
+use crate::{runtime_connectors::StateCheckerHandle, workload_state::WorkloadStateSender};
 
 use ankaios_api::ank_base::{
-    ExecutionStateSpec, LogsRequest, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec
+    ExecutionStateSpec, LogsRequest, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec,
 };
 use common::objects::AgentName;
 
@@ -99,9 +99,8 @@ impl ReusableWorkloadState {
 
 // [impl->swdd~agent-functions-required-by-runtime-connector~1]
 #[async_trait]
-pub trait RuntimeConnector<WorkloadId, StChecker>: Sync + Send
+pub trait RuntimeConnector<WorkloadId>: Sync + Send
 where
-    StChecker: StateChecker<WorkloadId> + Send + Sync,
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn name(&self) -> String;
@@ -118,7 +117,7 @@ where
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
         workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
-    ) -> Result<(WorkloadId, StChecker), RuntimeError>;
+    ) -> Result<(WorkloadId, StateCheckerHandle), RuntimeError>;
 
     async fn get_workload_id(
         &self,
@@ -130,7 +129,7 @@ where
         workload_id: &WorkloadId,
         runtime_workload_config: WorkloadNamed,
         update_state_tx: WorkloadStateSender,
-    ) -> Result<StChecker, RuntimeError>;
+    ) -> Result<StateCheckerHandle, RuntimeError>;
 
     fn get_log_fetcher(
         &self,
@@ -141,21 +140,19 @@ where
     async fn delete_workload(&self, workload_id: &WorkloadId) -> Result<(), RuntimeError>;
 }
 
-pub trait OwnableRuntime<WorkloadId, StChecker>: RuntimeConnector<WorkloadId, StChecker>
+pub trait OwnableRuntime<WorkloadId>: RuntimeConnector<WorkloadId>
 where
-    StChecker: StateChecker<WorkloadId> + Send + Sync,
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
-    fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>>;
+    fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId>>;
 }
 
-impl<R, WorkloadId, StChecker> OwnableRuntime<WorkloadId, StChecker> for R
+impl<R, WorkloadId> OwnableRuntime<WorkloadId> for R
 where
-    R: RuntimeConnector<WorkloadId, StChecker> + Clone + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync,
+    R: RuntimeConnector<WorkloadId> + Clone + 'static,
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
-    fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>> {
+    fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId>> {
         Box::new(self.clone())
     }
 }
@@ -173,12 +170,12 @@ pub mod test {
     use super::{LogRequestOptions, RuntimeConnector, RuntimeError};
     use crate::{
         runtime_connectors::{
-            ReusableWorkloadState, RuntimeStateGetter, StateChecker, log_fetcher::LogFetcher,
+            ReusableWorkloadState, StateChecker, StateCheckerHandle, log_fetcher::LogFetcher,
         },
         workload_state::WorkloadStateSender,
     };
 
-    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
+    use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed};
     use common::objects::AgentName;
 
     use async_trait::async_trait;
@@ -187,13 +184,6 @@ pub mod test {
         path::PathBuf,
         sync::{Arc, Mutex},
     };
-
-    #[async_trait]
-    impl RuntimeStateGetter<String> for StubStateChecker {
-        async fn get_state(&self, _workload_id: &String) -> ExecutionStateSpec {
-            ExecutionStateSpec::running()
-        }
-    }
 
     #[derive(Debug)]
     pub struct StubStateChecker {
@@ -213,18 +203,8 @@ pub mod test {
     }
 
     #[async_trait]
-    impl StateChecker<String> for StubStateChecker {
-        fn start_checker(
-            _workload: &WorkloadNamed,
-            _workload_id: String,
-            _manager_interface: WorkloadStateSender,
-            _state_getter: impl RuntimeStateGetter<String>,
-        ) -> Self {
-            log::info!("Starting the checker ;)");
-            StubStateChecker::new()
-        }
-
-        async fn stop_checker(mut self) {
+    impl StateChecker for StubStateChecker {
+        async fn stop_checker(mut self: Box<Self>) {
             log::info!("Stopping the checker ;)");
             self.panic_if_not_stopped = false;
         }
@@ -238,7 +218,6 @@ pub mod test {
         }
     }
 
-    #[derive(Debug)]
     pub enum RuntimeCall {
         GetReusableWorkloads(AgentName, Result<Vec<ReusableWorkloadState>, RuntimeError>),
         CreateWorkload(
@@ -246,20 +225,35 @@ pub mod test {
             Option<String>,
             Option<PathBuf>,
             HashMap<PathBuf, PathBuf>,
-            Result<(String, StubStateChecker), RuntimeError>,
+            Result<(String, StateCheckerHandle), RuntimeError>,
         ),
         GetWorkloadId(WorkloadInstanceNameSpec, Result<String, RuntimeError>),
         StartChecker(
             String,
             WorkloadNamed,
             WorkloadStateSender,
-            Result<StubStateChecker, RuntimeError>,
+            Result<StateCheckerHandle, RuntimeError>,
         ),
         DeleteWorkload(String, Result<(), RuntimeError>),
         StartLogFetcher(
             LogRequestOptions,
             Result<Box<dyn LogFetcher + Send>, RuntimeError>,
         ),
+    }
+
+    impl std::fmt::Debug for RuntimeCall {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let variant_name = match self {
+                RuntimeCall::GetReusableWorkloads(_, _) => "GetReusableWorkloads",
+                RuntimeCall::CreateWorkload(_, _, _, _, _) => "CreateWorkload",
+                RuntimeCall::GetWorkloadId(_, _) => "GetWorkloadId",
+                RuntimeCall::StartChecker(_, _, _, _) => "StartChecker",
+                RuntimeCall::DeleteWorkload(_, _) => "DeleteWorkload",
+                RuntimeCall::StartLogFetcher(_, _) => "StartLogFetcher",
+            };
+
+            write!(f, "{variant_name}")
+        }
     }
 
     #[derive(Debug)]
@@ -355,7 +349,7 @@ pub mod test {
     pub type MockRuntimeConnector = MockBase<RuntimeCall>;
 
     #[async_trait]
-    impl RuntimeConnector<String, StubStateChecker> for MockBase<RuntimeCall> {
+    impl RuntimeConnector<String> for MockBase<RuntimeCall> {
         fn name(&self) -> String {
             "mock-runtime".to_string()
         }
@@ -386,7 +380,7 @@ pub mod test {
             control_interface_path: Option<PathBuf>,
             _update_state_tx: WorkloadStateSender,
             host_workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
-        ) -> Result<(String, StubStateChecker), RuntimeError> {
+        ) -> Result<(String, StateCheckerHandle), RuntimeError> {
             match self.get_expected_call() {
                 RuntimeCall::CreateWorkload(
                     expected_runtime_workload_config,
@@ -435,7 +429,7 @@ pub mod test {
             workload_id: &String,
             runtime_workload_config: WorkloadNamed,
             update_state_tx: WorkloadStateSender,
-        ) -> Result<StubStateChecker, RuntimeError> {
+        ) -> Result<StateCheckerHandle, RuntimeError> {
             match self.get_expected_call() {
                 RuntimeCall::StartChecker(
                     expected_workload_id,

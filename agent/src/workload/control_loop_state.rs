@@ -16,7 +16,7 @@
 use super::retry_manager::RetryManager;
 use crate::BUFFER_SIZE;
 use crate::control_interface::ControlInterfacePath;
-use crate::runtime_connectors::{RuntimeConnector, StateChecker};
+use crate::runtime_connectors::{RuntimeConnector, StateCheckerHandle};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
 use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
 
@@ -26,31 +26,29 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use tokio::sync::mpsc;
 
-pub struct ControlLoopState<WorkloadId, StChecker>
+pub struct ControlLoopState<WorkloadId>
 where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     pub workload_named: WorkloadNamed,
     pub control_interface_path: Option<ControlInterfacePath>,
     pub run_folder: PathBuf,
     pub workload_id: Option<WorkloadId>,
-    pub state_checker: Option<StChecker>,
+    pub state_checker: Option<StateCheckerHandle>,
     pub to_agent_workload_state_sender: WorkloadStateSender,
     pub state_checker_workload_state_sender: WorkloadStateSender,
     pub state_checker_workload_state_receiver: WorkloadStateReceiver,
-    pub runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
+    pub runtime: Box<dyn RuntimeConnector<WorkloadId>>,
     pub command_receiver: WorkloadCommandReceiver,
     pub retry_sender: WorkloadCommandSender,
     pub retry_manager: RetryManager,
 }
 
-impl<WorkloadId, StChecker> ControlLoopState<WorkloadId, StChecker>
+impl<WorkloadId> ControlLoopState<WorkloadId>
 where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    pub fn builder() -> ControlLoopStateBuilder<WorkloadId, StChecker> {
+    pub fn builder() -> ControlLoopStateBuilder<WorkloadId> {
         ControlLoopStateBuilder::new()
     }
 
@@ -59,25 +57,23 @@ where
     }
 }
 
-pub struct ControlLoopStateBuilder<WorkloadId, StChecker>
+pub struct ControlLoopStateBuilder<WorkloadId>
 where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     workload_named: Option<WorkloadNamed>,
     workload_id: Option<WorkloadId>,
     control_interface_path: Option<ControlInterfacePath>,
     run_folder: Option<PathBuf>,
     workload_state_sender: Option<WorkloadStateSender>,
-    runtime: Option<Box<dyn RuntimeConnector<WorkloadId, StChecker>>>,
+    runtime: Option<Box<dyn RuntimeConnector<WorkloadId>>>,
     workload_command_receiver: Option<WorkloadCommandReceiver>,
     retry_sender: Option<WorkloadCommandSender>,
 }
 
-impl<WorkloadId, StChecker> ControlLoopStateBuilder<WorkloadId, StChecker>
+impl<WorkloadId> ControlLoopStateBuilder<WorkloadId>
 where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     pub fn new() -> Self {
         ControlLoopStateBuilder {
@@ -120,7 +116,7 @@ where
         self
     }
 
-    pub fn runtime(mut self, runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>) -> Self {
+    pub fn runtime(mut self, runtime: Box<dyn RuntimeConnector<WorkloadId>>) -> Self {
         self.runtime = Some(runtime);
         self
     }
@@ -135,7 +131,7 @@ where
         self
     }
 
-    pub fn build(self) -> Result<ControlLoopState<WorkloadId, StChecker>, String> {
+    pub fn build(self) -> Result<ControlLoopState<WorkloadId>, String> {
         // new channel for receiving the workload states from the state checker
         let (state_checker_wl_state_sender, state_checker_wl_state_receiver) =
             mpsc::channel::<WorkloadStateSpec>(BUFFER_SIZE);
@@ -182,7 +178,7 @@ mod tests {
     use super::ControlLoopState;
     use crate::{
         control_interface::ControlInterfacePath,
-        runtime_connectors::test::{MockRuntimeConnector, StubStateChecker},
+        runtime_connectors::test::MockRuntimeConnector,
         workload::workload_command_channel::WorkloadCommandSender,
         workload_state::WorkloadStateSenderInterface,
     };
@@ -279,7 +275,7 @@ mod tests {
 
     #[test]
     fn utest_control_loop_state_builder_build_failed() {
-        let control_loop_state = ControlLoopState::<String, StubStateChecker>::builder().build();
+        let control_loop_state = ControlLoopState::<String>::builder().build();
         assert!(control_loop_state.is_err());
     }
 

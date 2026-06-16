@@ -31,18 +31,16 @@ pub struct GenericPollingStateChecker {
     task_handle: JoinHandle<()>,
 }
 
-#[async_trait]
-impl<WorkloadId> StateChecker<WorkloadId> for GenericPollingStateChecker
-where
-    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-{
-    // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
-    fn start_checker(
+impl GenericPollingStateChecker {
+    pub fn start_checker<WorkloadId>(
         workload_named: &WorkloadNamed,
         workload_id: WorkloadId,
         workload_state_sender: WorkloadStateSender,
         state_getter: impl RuntimeStateGetter<WorkloadId>,
-    ) -> Self {
+    ) -> Self
+    where
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
+    {
         let workload_named = workload_named.clone();
         let workload_name = workload_named.instance_name.workload_name().to_owned();
         let task_handle = tokio::spawn(async move {
@@ -80,8 +78,11 @@ where
             task_handle,
         }
     }
+}
 
-    async fn stop_checker(self) {
+#[async_trait]
+impl StateChecker for GenericPollingStateChecker {
+    async fn stop_checker(self: Box<Self>) {
         drop(self);
     }
 }
@@ -106,7 +107,7 @@ mod tests {
     use super::STATUS_CHECK_INTERVAL_MS;
     use crate::{
         generic_polling_state_checker::GenericPollingStateChecker,
-        runtime_connectors::{MockRuntimeStateGetter, StateChecker},
+        runtime_connectors::MockRuntimeStateGetter,
     };
 
     use ankaios_api::ank_base::ExecutionStateSpec;
@@ -169,7 +170,9 @@ mod tests {
             if !generic_state_state_checker.task_handle.is_finished() {
                 tokio::time::sleep(Duration::from_millis(1)).await;
             }
-        }).await.expect("The state checker task did not finish within the expected time.");
+        })
+        .await
+        .expect("The state checker task did not finish within the expected time.");
 
         assert!(generic_state_state_checker.task_handle.is_finished());
         assert!(

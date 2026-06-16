@@ -15,9 +15,10 @@
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
-        containerd::nerdctl_cli::NerdctlStartConfig, generic_log_fetcher::GenericLogFetcher,
-        log_fetcher::LogFetcher, runtime_connector::LogRequestOptions,
+        ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter,
+        StateCheckerHandle, containerd::nerdctl_cli::NerdctlStartConfig,
+        generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher,
+        runtime_connector::LogRequestOptions,
     },
     workload_state::WorkloadStateSender,
 };
@@ -126,7 +127,7 @@ impl ContainerdRuntime {
 
 #[async_trait]
 // [impl->swdd~containerd-implements-runtime-connector~1]
-impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for ContainerdRuntime {
+impl RuntimeConnector<ContainerdWorkloadId> for ContainerdRuntime {
     // [impl->swdd~containerd-name-returns-containerd~1]
     fn name(&self) -> String {
         CONTAINERD_RUNTIME_NAME.to_string()
@@ -160,7 +161,7 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
         workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
-    ) -> Result<(ContainerdWorkloadId, GenericPollingStateChecker), RuntimeError> {
+    ) -> Result<(ContainerdWorkloadId, StateCheckerHandle), RuntimeError> {
         let workload_cfg = ContainerdRuntimeConfig::try_from(&workload_named.workload)
             .map_err(RuntimeError::Unsupported)?;
 
@@ -248,7 +249,7 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
         workload_id: &ContainerdWorkloadId,
         workload_named: WorkloadNamed,
         update_state_tx: WorkloadStateSender,
-    ) -> Result<GenericPollingStateChecker, RuntimeError> {
+    ) -> Result<StateCheckerHandle, RuntimeError> {
         // [impl->swdd~containerd-state-getter-reset-cache~1]
         NerdctlCli::reset_ps_cache().await;
 
@@ -263,7 +264,7 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
             update_state_tx,
             ContainerdStateGetter {},
         );
-        Ok(checker)
+        Ok(Box::new(checker))
     }
 
     fn get_log_fetcher(

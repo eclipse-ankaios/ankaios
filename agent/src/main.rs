@@ -49,7 +49,6 @@ use common::{
     to_server_interface::ToServer,
 };
 
-use generic_polling_state_checker::GenericPollingStateChecker;
 use runtime_connectors::{
     GenericRuntimeFacade, RuntimeConnector, RuntimeFacade, SUPPORTED_RUNTIMES,
     containerd::{self, ContainerdRuntime, ContainerdWorkloadId},
@@ -119,10 +118,10 @@ macro_rules! register_runtime {
     ($map:expr, $runtime_instance:expr, $workload_id_type:ty, $run_path:expr) => {{
         let runtime = Box::new($runtime_instance);
         let runtime_name = runtime.name();
-        let podman_facade = Box::new(GenericRuntimeFacade::<
-            $workload_id_type,
-            GenericPollingStateChecker,
-        >::new(runtime, $run_path));
+        let podman_facade = Box::new(GenericRuntimeFacade::<$workload_id_type>::new(
+            runtime,
+            $run_path,
+        ));
         $map.insert(runtime_name, podman_facade);
     }};
 }

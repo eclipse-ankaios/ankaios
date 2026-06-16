@@ -13,7 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
-    ReusableWorkloadState, RuntimeConnector, RuntimeError, dummy_state_checker::DummyStateChecker,
+    ReusableWorkloadState, RuntimeConnector, RuntimeError, StateCheckerHandle,
+    dummy_state_checker::DummyStateChecker,
 };
 use crate::workload_state::WorkloadStateSender;
 use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed};
@@ -28,7 +29,7 @@ pub struct UnsupportedRuntime(pub String);
 
 // [impl->swdd~agent-skips-unknown-runtime~2]
 #[async_trait]
-impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime {
+impl RuntimeConnector<String> for UnsupportedRuntime {
     fn name(&self) -> String {
         self.0.clone()
     }
@@ -47,7 +48,7 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
         _control_interface_path: Option<PathBuf>,
         _update_state_tx: WorkloadStateSender,
         _workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
-    ) -> Result<(String, DummyStateChecker<String>), RuntimeError> {
+    ) -> Result<(String, StateCheckerHandle), RuntimeError> {
         if runtime_workload_config.workload.runtime == self.0 {
             Err(RuntimeError::Unsupported("Unsupported Runtime".into()))
         } else {
@@ -72,8 +73,8 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
         _workload_id: &String,
         _runtime_workload_config: WorkloadNamed,
         _update_state_tx: WorkloadStateSender,
-    ) -> Result<DummyStateChecker<String>, RuntimeError> {
-        Ok(DummyStateChecker::new())
+    ) -> Result<StateCheckerHandle, RuntimeError> {
+        Ok(Box::new(DummyStateChecker::new()))
     }
 
     fn get_log_fetcher(

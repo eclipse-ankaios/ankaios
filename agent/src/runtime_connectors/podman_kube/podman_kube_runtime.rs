@@ -20,9 +20,9 @@ use crate::runtime_connectors::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
-        generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher, podman_cli,
-        runtime_connector::LogRequestOptions,
+        ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter,
+        StateCheckerHandle, generic_log_fetcher::GenericLogFetcher,
+        log_fetcher::LogFetcher, podman_cli, runtime_connector::LogRequestOptions,
     },
     workload_state::WorkloadStateSender,
 };
@@ -94,7 +94,7 @@ impl PodmanKubeRuntime {
 
 #[async_trait]
 // [impl->swdd~podman-kube-implements-runtime-connector~1]
-impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRuntime {
+impl RuntimeConnector<PodmanKubeWorkloadId> for PodmanKubeRuntime {
     // [impl->swdd~podman-kube-name-returns-podman-kube~1]
     fn name(&self) -> String {
         PODMAN_KUBE_RUNTIME_NAME.to_string()
@@ -143,7 +143,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
         _workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
-    ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
+    ) -> Result<(PodmanKubeWorkloadId, StateCheckerHandle), RuntimeError> {
         let instance_name = workload_named.instance_name.clone();
 
         // [impl->swdd~podman-kube-rejects-workload-files~1]
@@ -292,19 +292,19 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         workload_id: &PodmanKubeWorkloadId,
         workload_named: WorkloadNamed,
         update_state_tx: WorkloadStateSender,
-    ) -> Result<GenericPollingStateChecker, RuntimeError> {
+    ) -> Result<StateCheckerHandle, RuntimeError> {
         // [impl->swdd~podman-kube-state-getter-reset-cache~1]
         PodmanCli::reset_ps_cache().await;
         log::debug!(
             "Starting the checker for the workload '{}'.",
             workload_named.instance_name,
         );
-        Ok(GenericPollingStateChecker::start_checker(
+        Ok(Box::new(GenericPollingStateChecker::start_checker(
             &workload_named,
             workload_id.clone(),
             update_state_tx,
             PodmanKubeRuntime {},
-        ))
+        )))
     }
 
     fn get_log_fetcher(
@@ -914,10 +914,7 @@ spec:
         let result = runtime
             .create_workload(workload_named, None, None, sender, Default::default())
             .await;
-        assert!(
-            matches!(&result, Err(RuntimeError::Unsupported(_))),
-            "Expected 'RuntimeError::Unsupported', Got: {result:?}"
-        );
+        assert!(matches!(result, Err(RuntimeError::Unsupported(_))));
     }
 
     // [utest->swdd~podman-kube-state-getter-reset-cache~1]
