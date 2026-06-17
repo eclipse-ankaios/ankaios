@@ -28,6 +28,7 @@ pub(crate) mod unsupported_runtime;
 mod runtime_connector;
 pub use runtime_connector::{
     LogRequestOptions, OwnableRuntime, ReusableWorkloadState, RuntimeConnector, RuntimeError,
+    RuntimeWorkloadId,
 };
 
 #[cfg(test)]

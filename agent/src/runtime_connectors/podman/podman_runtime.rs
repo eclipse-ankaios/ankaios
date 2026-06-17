@@ -20,8 +20,9 @@ use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
         ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter,
-        StateCheckerHandle, generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher,
-        podman_cli::PodmanStartConfig, runtime_connector::LogRequestOptions,
+        RuntimeWorkloadId, StateCheckerHandle, generic_log_fetcher::GenericLogFetcher,
+        log_fetcher::LogFetcher, podman_cli::PodmanStartConfig,
+        runtime_connector::LogRequestOptions,
     },
     workload_state::WorkloadStateSender,
 };
@@ -33,7 +34,7 @@ use common::std_extensions::UnreachableOption;
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall_double::double;
-use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, path::PathBuf};
 
 pub const PODMAN_RUNTIME_NAME: &str = "podman";
 
@@ -43,34 +44,16 @@ pub struct PodmanRuntime {}
 #[derive(Debug, Clone)]
 pub struct PodmanStateGetter {}
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct PodmanWorkloadId {
-    pub id: String,
-}
-
-impl Display for PodmanWorkloadId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.id.to_owned())
-    }
-}
-
-impl FromStr for PodmanWorkloadId {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(PodmanWorkloadId { id: s.to_string() })
-    }
-}
-
 #[async_trait]
 // [impl->swdd~podman-implements-runtime-state-getter~1]
-impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
-    async fn get_state(&self, workload_id: &PodmanWorkloadId) -> ExecutionStateSpec {
-        log::trace!("Getting the state for the workload '{}'", workload_id.id);
+impl RuntimeStateGetter<RuntimeWorkloadId> for PodmanStateGetter {
+    async fn get_state(&self, workload_id: &RuntimeWorkloadId) -> ExecutionStateSpec {
+        log::trace!("Getting the state for the workload '{}'", workload_id);
 
         // [impl->swdd~podman-state-getter-returns-unknown-state~1]
         // [impl->swdd~podman-state-getter-uses-podmancli~1]
         // [impl->swdd~podman-state-getter-returns-lost-state~1]
-        let exec_state = match PodmanCli::list_states_by_id(workload_id.id.as_str()).await {
+        let exec_state = match PodmanCli::list_states_by_id(workload_id.as_ref()).await {
             Ok(state) => {
                 if let Some(state) = state {
                     state
@@ -81,7 +64,7 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
             Err(err) => {
                 log::warn!(
                     "Could not get state of workload '{}': '{}'. Returning unknown.",
-                    workload_id.id,
+                    workload_id,
                     err
                 );
                 ExecutionStateSpec::unknown("Error getting state from Podman.")
@@ -91,7 +74,7 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
         log::trace!(
             "Returning the state '{}' for the workload '{}'",
             exec_state,
-            workload_id.id
+            workload_id
         );
         exec_state
     }
@@ -104,8 +87,8 @@ impl PodmanRuntime {
     ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
         let mut workload_states = Vec::<ReusableWorkloadState>::default();
         for instance_name in workload_instance_names {
-            let workload_id = &self.get_workload_id(instance_name).await?.id;
-            match PodmanCli::list_states_by_id(workload_id).await {
+            let workload_id = self.get_workload_id(instance_name).await?;
+            match PodmanCli::list_states_by_id(workload_id.as_ref()).await {
                 Ok(Some(execution_state)) => workload_states.push(ReusableWorkloadState::new(
                     instance_name.clone(),
                     execution_state,
@@ -125,7 +108,7 @@ impl PodmanRuntime {
 
 #[async_trait]
 // [impl->swdd~podman-implements-runtime-connector~1]
-impl RuntimeConnector<PodmanWorkloadId> for PodmanRuntime {
+impl RuntimeConnector for PodmanRuntime {
     // [impl->swdd~podman-name-returns-podman~1]
     fn name(&self) -> String {
         PODMAN_RUNTIME_NAME.to_string()
@@ -155,11 +138,11 @@ impl RuntimeConnector<PodmanWorkloadId> for PodmanRuntime {
     async fn create_workload(
         &self,
         workload_named: WorkloadNamed,
-        reusable_workload_id: Option<PodmanWorkloadId>,
+        reusable_workload_id: Option<RuntimeWorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
         workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
-    ) -> Result<(PodmanWorkloadId, StateCheckerHandle), RuntimeError> {
+    ) -> Result<(RuntimeWorkloadId, StateCheckerHandle), RuntimeError> {
         let workload_cfg = PodmanRuntimeConfig::try_from(&workload_named.workload)
             .map_err(RuntimeError::Unsupported)?;
 
@@ -167,7 +150,7 @@ impl RuntimeConnector<PodmanWorkloadId> for PodmanRuntime {
             Some(workload_id) => {
                 let start_config = PodmanStartConfig {
                     general_options: workload_cfg.general_options,
-                    container_id: workload_id.id,
+                    container_id: workload_id.to_string(),
                 };
                 PodmanCli::podman_start(start_config, &workload_named.instance_name)
                     .await
@@ -191,7 +174,7 @@ impl RuntimeConnector<PodmanWorkloadId> for PodmanRuntime {
                     workload_id
                 );
 
-                let podman_workload_id = PodmanWorkloadId { id: workload_id };
+                let podman_workload_id = RuntimeWorkloadId::from(workload_id);
                 let state_checker = self
                     .start_checker(&podman_workload_id, workload_named, update_state_tx)
                     .await?;
@@ -220,7 +203,7 @@ impl RuntimeConnector<PodmanWorkloadId> for PodmanRuntime {
     async fn get_workload_id(
         &self,
         instance_name: &WorkloadInstanceNameSpec,
-    ) -> Result<PodmanWorkloadId, RuntimeError> {
+    ) -> Result<RuntimeWorkloadId, RuntimeError> {
         // [impl->swdd~podman-get-workload-id-uses-label~1]
         let res =
             PodmanCli::list_container_ids_by_label("name", instance_name.to_string().as_str())
@@ -231,7 +214,7 @@ impl RuntimeConnector<PodmanWorkloadId> for PodmanRuntime {
         if LENGTH_FOR_VALID_ID == res.len() {
             let id = res.first().unwrap_or_unreachable();
             log::debug!("Found an id for workload '{instance_name}': '{id}'");
-            Ok(PodmanWorkloadId { id: id.to_string() })
+            Ok(RuntimeWorkloadId::from(id.to_string()))
         } else {
             log::warn!("get_workload_id returned unexpected number of workloads {res:?}");
             Err(RuntimeError::List(
@@ -243,7 +226,7 @@ impl RuntimeConnector<PodmanWorkloadId> for PodmanRuntime {
     // [impl->swdd~podman-start-checker-starts-podman-state-checker~1]
     async fn start_checker(
         &self,
-        workload_id: &PodmanWorkloadId,
+        workload_id: &RuntimeWorkloadId,
         workload_named: WorkloadNamed,
         update_state_tx: WorkloadStateSender,
     ) -> Result<StateCheckerHandle, RuntimeError> {
@@ -253,7 +236,7 @@ impl RuntimeConnector<PodmanWorkloadId> for PodmanRuntime {
         log::debug!(
             "Starting the checker for the workload '{}' with internal id '{}'",
             workload_named.instance_name,
-            workload_id.id
+            workload_id
         );
         let checker = GenericPollingStateChecker::start_checker(
             &workload_named,
@@ -266,7 +249,7 @@ impl RuntimeConnector<PodmanWorkloadId> for PodmanRuntime {
 
     fn get_log_fetcher(
         &self,
-        workload_id: PodmanWorkloadId,
+        workload_id: RuntimeWorkloadId,
         options: &LogRequestOptions,
     ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError> {
         let podman_log_fetcher =
@@ -276,9 +259,9 @@ impl RuntimeConnector<PodmanWorkloadId> for PodmanRuntime {
     }
 
     // [impl->swdd~podman-delete-workload-stops-and-removes-workload~1]
-    async fn delete_workload(&self, workload_id: &PodmanWorkloadId) -> Result<(), RuntimeError> {
-        log::debug!("Deleting workload with id '{}'", workload_id.id);
-        PodmanCli::remove_workloads_by_id(&workload_id.id)
+    async fn delete_workload(&self, workload_id: &RuntimeWorkloadId) -> Result<(), RuntimeError> {
+        log::debug!("Deleting workload with id '{}'", workload_id);
+        PodmanCli::remove_workloads_by_id(workload_id.as_ref())
             .await
             .map_err(|err| RuntimeError::Delete(err.to_string()))
     }
@@ -295,10 +278,10 @@ impl RuntimeConnector<PodmanWorkloadId> for PodmanRuntime {
 // [utest->swdd~agent-functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
-    use super::{
-        PODMAN_RUNTIME_NAME, PodmanCli, PodmanRuntime, PodmanStateGetter, PodmanWorkloadId,
+    use super::{PODMAN_RUNTIME_NAME, PodmanCli, PodmanRuntime, PodmanStateGetter};
+    use crate::runtime_connectors::{
+        RuntimeConnector, RuntimeError, RuntimeStateGetter, RuntimeWorkloadId,
     };
-    use crate::runtime_connectors::{RuntimeConnector, RuntimeError, RuntimeStateGetter};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
     use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
@@ -307,7 +290,6 @@ mod tests {
 
     use mockall::Sequence;
     use std::path::PathBuf;
-    use std::str::FromStr;
 
     fn generate_test_podman_workload() -> WorkloadNamed {
         generate_test_workload_named_with_params(
@@ -447,7 +429,10 @@ mod tests {
         let (workload_id, _checker) = res.unwrap();
 
         // [utest->swdd~podman-create-workload-returns-workload-id~1]
-        assert_eq!(workload_id.id, fixtures::WORKLOAD_IDS[0].to_string());
+        assert_eq!(
+            workload_id.to_string(),
+            fixtures::WORKLOAD_IDS[0].to_string()
+        );
     }
 
     // [utest->swdd~podman-create-workload-starts-existing-workload~1]
@@ -471,7 +456,9 @@ mod tests {
         let res = podman_runtime
             .create_workload(
                 workload,
-                Some(PodmanWorkloadId::from_str(fixtures::WORKLOAD_IDS[0]).unwrap()),
+                Some(RuntimeWorkloadId::from(
+                    fixtures::WORKLOAD_IDS[0].to_string(),
+                )),
                 Some(PathBuf::from(fixtures::RUN_FOLDER)),
                 state_change_tx,
                 Default::default(),
@@ -481,7 +468,7 @@ mod tests {
         let (workload_id, _checker) = res.unwrap();
 
         // [utest->swdd~podman-create-workload-returns-workload-id~1]
-        assert_eq!(workload_id.id, fixtures::WORKLOAD_IDS[0]);
+        assert_eq!(workload_id.to_string(), fixtures::WORKLOAD_IDS[0]);
     }
 
     // [utest->swdd~podman-state-getter-reset-cache~1]
@@ -542,9 +529,9 @@ mod tests {
 
         let state_getter = PodmanStateGetter {};
         let execution_state = state_getter
-            .get_state(&PodmanWorkloadId {
-                id: fixtures::WORKLOAD_IDS[0].into(),
-            })
+            .get_state(&RuntimeWorkloadId::from(
+                fixtures::WORKLOAD_IDS[0].to_string(),
+            ))
             .await;
 
         assert_eq!(execution_state, ExecutionStateSpec::running());
@@ -658,9 +645,9 @@ mod tests {
 
         assert_eq!(
             res,
-            Ok(PodmanWorkloadId {
-                id: fixtures::WORKLOAD_IDS[0].into()
-            })
+            Ok(RuntimeWorkloadId::from(
+                fixtures::WORKLOAD_IDS[0].to_string()
+            ))
         )
     }
 
@@ -713,9 +700,7 @@ mod tests {
             .expect()
             .return_const(Ok(Some(ExecutionStateSpec::running())));
 
-        let workload_id = PodmanWorkloadId {
-            id: fixtures::WORKLOAD_IDS[0].into(),
-        };
+        let workload_id = RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0].to_string());
         let checker = PodmanStateGetter {};
         let res = checker.get_state(&workload_id).await;
         assert_eq!(res, ExecutionStateSpec::running());
@@ -729,9 +714,7 @@ mod tests {
         let context = PodmanCli::list_states_by_id_context();
         context.expect().return_const(Ok(None));
 
-        let workload_id = PodmanWorkloadId {
-            id: "test_id".into(),
-        };
+        let workload_id = RuntimeWorkloadId::from("test_id");
         let checker = PodmanStateGetter {};
         let res = checker.get_state(&workload_id).await;
         assert_eq!(res, ExecutionStateSpec::lost())
@@ -745,9 +728,7 @@ mod tests {
         let context = PodmanCli::list_states_by_id_context();
         context.expect().return_const(Err("simulated error".into()));
 
-        let workload_id = PodmanWorkloadId {
-            id: fixtures::WORKLOAD_IDS[0].into(),
-        };
+        let workload_id = RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0].to_string());
         let checker = PodmanStateGetter {};
         let res = checker.get_state(&workload_id).await;
         assert_eq!(
@@ -764,9 +745,7 @@ mod tests {
         let context = PodmanCli::remove_workloads_by_id_context();
         context.expect().return_const(Ok(()));
 
-        let workload_id = PodmanWorkloadId {
-            id: fixtures::WORKLOAD_IDS[0].into(),
-        };
+        let workload_id = RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0].to_string());
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime.delete_workload(&workload_id).await;
@@ -780,9 +759,7 @@ mod tests {
         let context = PodmanCli::remove_workloads_by_id_context();
         context.expect().return_const(Err("simulated error".into()));
 
-        let workload_id = PodmanWorkloadId {
-            id: fixtures::WORKLOAD_IDS[0].into(),
-        };
+        let workload_id = RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0].to_string());
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime.delete_workload(&workload_id).await;
