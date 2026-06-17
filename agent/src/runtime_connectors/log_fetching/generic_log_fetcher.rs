@@ -182,8 +182,8 @@ pub mod test {
     use crate::runtime_connectors::{
         generic_log_fetcher::{GenericLogFetcher, GenericSingleLogFetcher},
         log_fetcher::{LogFetcher, StreamTrait},
-        podman::{PodmanWorkloadId, podman_log_fetcher::PodmanLogFetcher},
-        runtime_connector::LogRequestOptions,
+        podman::podman_log_fetcher::PodmanLogFetcher,
+        runtime_connector::{LogRequestOptions, RuntimeWorkloadId},
     };
 
     use std::{
@@ -463,11 +463,8 @@ pub mod test {
         stdout: Option<Box<dyn StreamTrait>>,
         stderr: Option<Box<dyn StreamTrait>>,
     ) -> GenericLogFetcher<PodmanLogFetcher> {
-        let workload_id = PodmanWorkloadId {
-            id: "test".to_string(),
-        };
         let mut podman_log_fetcher = PodmanLogFetcher::new(
-            &workload_id,
+            &RuntimeWorkloadId::from("test"),
             &LogRequestOptions {
                 follow: true,
                 since: Some("test_since".to_string()),

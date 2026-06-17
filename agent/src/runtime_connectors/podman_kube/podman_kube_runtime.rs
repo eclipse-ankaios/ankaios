@@ -21,7 +21,7 @@ use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
         ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter,
-        StateCheckerHandle, generic_log_fetcher::GenericLogFetcher,
+        RuntimeWorkloadId, StateCheckerHandle, generic_log_fetcher::GenericLogFetcher,
         log_fetcher::LogFetcher, podman_cli, runtime_connector::LogRequestOptions,
     },
     workload_state::WorkloadStateSender,
@@ -34,14 +34,16 @@ use async_trait::async_trait;
 use futures_util::TryFutureExt;
 #[cfg(test)]
 use mockall_double::double;
-use std::{cmp::min, collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
+use std::{cmp::min, collections::HashMap, fmt::Display, path::PathBuf, str::FromStr, sync::Mutex};
 
 pub const PODMAN_KUBE_RUNTIME_NAME: &str = "podman-kube";
 const CONFIG_VOLUME_SUFFIX: &str = ".config";
 const PODS_VOLUME_SUFFIX: &str = ".pods";
 
 #[derive(Debug, Clone)]
-pub struct PodmanKubeRuntime {}
+pub struct PodmanKubeRuntime {
+    workload_info_cache: std::sync::Arc<Mutex<HashMap<String, PodmanKubeWorkloadId>>>,
+}
 
 // [impl->swdd~podman-kube-workload-id]
 #[derive(Clone, Debug)]
@@ -71,16 +73,95 @@ impl FromStr for PodmanKubeWorkloadId {
         Err("Not supported for PodmanKubeWorkloadId".to_string())
     }
 }
+impl Default for PodmanKubeRuntime {
+    fn default() -> Self {
+        Self {
+            workload_info_cache: std::sync::Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+}
+
 impl PodmanKubeRuntime {
+    fn instance_name_from_runtime_id(
+        runtime_id: &RuntimeWorkloadId,
+    ) -> Result<WorkloadInstanceNameSpec, RuntimeError> {
+        runtime_id
+            .to_string()
+            .try_into()
+            .map_err(|err| RuntimeError::List(format!("Invalid runtime workload id: {err}")))
+    }
+
+    async fn load_workload_info(
+        &self,
+        instance_name: &WorkloadInstanceNameSpec,
+    ) -> Result<PodmanKubeWorkloadId, RuntimeError> {
+        let runtime_config =
+            PodmanCli::read_data_from_volume(&(instance_name.to_string() + CONFIG_VOLUME_SUFFIX))
+                .await
+                .map_err(|err| format!("Could not read config from volume: {err:?}"))
+                .and_then(|json| {
+                    serde_yaml::from_str::<PodmanKubeRuntimeConfig>(&json)
+                        .map_err(|err| format!("Could not parse config read from volume: {err:?}"))
+                })
+                .map_err(RuntimeError::Create)?;
+        let pods =
+            PodmanCli::read_data_from_volume(&(instance_name.to_string() + PODS_VOLUME_SUFFIX))
+                .await
+                .map_err(|err| format!("Could not read pods from volume: {err:?}"))
+                .and_then(|json| {
+                    serde_json::from_str(&json).map_err(|err| {
+                        format!("Could not parse pod list read from volume: {err:?}")
+                    })
+                });
+
+        let pods = match pods {
+            Ok(pods) => Some(pods),
+            Err(err) => {
+                log::warn!("{err}");
+                None
+            }
+        };
+
+        let workload_id = PodmanKubeWorkloadId {
+            name: instance_name.clone(),
+            pods,
+            manifest: runtime_config.manifest,
+            down_options: runtime_config.down_options,
+        };
+        // Cache the workload info by instance name
+        self.workload_info_cache
+            .lock()
+            .unwrap()
+            .insert(instance_name.to_string(), workload_id.clone());
+        Ok(workload_id)
+    }
+
+    fn get_cached_workload_info(
+        &self,
+        instance_name: &WorkloadInstanceNameSpec,
+    ) -> Option<PodmanKubeWorkloadId> {
+        self.workload_info_cache
+            .lock()
+            .unwrap()
+            .get(&instance_name.to_string())
+            .cloned()
+    }
+
+    fn remove_cached_workload_info(&self, instance_name: &WorkloadInstanceNameSpec) {
+        self.workload_info_cache
+            .lock()
+            .unwrap()
+            .remove(&instance_name.to_string());
+    }
+
     async fn sample_workload_states(
         &self,
         workload_instance_names: &Vec<WorkloadInstanceNameSpec>,
     ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
         let mut workload_states = Vec::<ReusableWorkloadState>::default();
         for instance_name in workload_instance_names {
-            let execution_state = self
-                .get_state(&self.get_workload_id(instance_name).await?)
-                .await;
+            let runtime_workload_id = self.get_workload_id(instance_name).await?;
+            let execution_state = self.get_state(&runtime_workload_id).await;
             workload_states.push(ReusableWorkloadState::new(
                 instance_name.clone(),
                 execution_state,
@@ -94,7 +175,7 @@ impl PodmanKubeRuntime {
 
 #[async_trait]
 // [impl->swdd~podman-kube-implements-runtime-connector~1]
-impl RuntimeConnector<PodmanKubeWorkloadId> for PodmanKubeRuntime {
+impl RuntimeConnector for PodmanKubeRuntime {
     // [impl->swdd~podman-kube-name-returns-podman-kube~1]
     fn name(&self) -> String {
         PODMAN_KUBE_RUNTIME_NAME.to_string()
@@ -139,11 +220,11 @@ impl RuntimeConnector<PodmanKubeWorkloadId> for PodmanKubeRuntime {
     async fn create_workload(
         &self,
         workload_named: WorkloadNamed,
-        _reusable_workload_id: Option<PodmanKubeWorkloadId>,
+        _reusable_workload_id: Option<RuntimeWorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
         _workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
-    ) -> Result<(PodmanKubeWorkloadId, StateCheckerHandle), RuntimeError> {
+    ) -> Result<(RuntimeWorkloadId, StateCheckerHandle), RuntimeError> {
         let instance_name = workload_named.instance_name.clone();
 
         // [impl->swdd~podman-kube-rejects-workload-files~1]
@@ -232,6 +313,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId> for PodmanKubeRuntime {
             manifest: workload_config.manifest,
             down_options: workload_config.down_options,
         };
+        let runtime_workload_id = RuntimeWorkloadId::from(workload_id.name.to_string());
 
         log::debug!(
             "The workload '{}' has been created.",
@@ -240,56 +322,25 @@ impl RuntimeConnector<PodmanKubeWorkloadId> for PodmanKubeRuntime {
 
         // [impl->swdd~podman-kube-create-starts-podman-kube-state-getter~1]
         let state_checker = self
-            .start_checker(&workload_id, workload_named, update_state_tx)
+            .start_checker(&runtime_workload_id, workload_named, update_state_tx)
             .await?;
 
         // [impl->swdd~podman-kube-create-workload-returns-workload-id~1]
-        Ok((workload_id, state_checker))
+        Ok((runtime_workload_id, state_checker))
     }
 
     // [impl->swdd~podman-kube-get-workload-id-uses-volumes~1]
     async fn get_workload_id(
         &self,
         instance_name: &WorkloadInstanceNameSpec,
-    ) -> Result<PodmanKubeWorkloadId, RuntimeError> {
-        let runtime_config =
-            PodmanCli::read_data_from_volume(&(instance_name.to_string() + CONFIG_VOLUME_SUFFIX))
-                .await
-                .map_err(|err| format!("Could not read config from volume: {err:?}"))
-                .and_then(|json| {
-                    serde_yaml::from_str::<PodmanKubeRuntimeConfig>(&json)
-                        .map_err(|err| format!("Could not parse config read from volume: {err:?}"))
-                })
-                .map_err(RuntimeError::Create)?;
-        let pods =
-            PodmanCli::read_data_from_volume(&(instance_name.to_string() + PODS_VOLUME_SUFFIX))
-                .await
-                .map_err(|err| format!("Could not read pods from volume: {err:?}"))
-                .and_then(|json| {
-                    serde_json::from_str(&json).map_err(|err| {
-                        format!("Could not parse pod list read from volume: {err:?}")
-                    })
-                });
-
-        let pods = match pods {
-            Ok(pods) => Some(pods),
-            Err(err) => {
-                log::warn!("{err}");
-                None
-            }
-        };
-
-        Ok(PodmanKubeWorkloadId {
-            name: instance_name.clone(),
-            pods,
-            manifest: runtime_config.manifest,
-            down_options: runtime_config.down_options,
-        })
+    ) -> Result<RuntimeWorkloadId, RuntimeError> {
+        self.load_workload_info(instance_name).await?;
+        Ok(RuntimeWorkloadId::from(instance_name.to_string()))
     }
 
     async fn start_checker(
         &self,
-        workload_id: &PodmanKubeWorkloadId,
+        workload_id: &RuntimeWorkloadId,
         workload_named: WorkloadNamed,
         update_state_tx: WorkloadStateSender,
     ) -> Result<StateCheckerHandle, RuntimeError> {
@@ -299,29 +350,44 @@ impl RuntimeConnector<PodmanKubeWorkloadId> for PodmanKubeRuntime {
             "Starting the checker for the workload '{}'.",
             workload_named.instance_name,
         );
+        let workload_id = workload_id.clone();
+
         Ok(Box::new(GenericPollingStateChecker::start_checker(
             &workload_named,
-            workload_id.clone(),
+            workload_id,
             update_state_tx,
-            PodmanKubeRuntime {},
+            PodmanKubeRuntime {
+                workload_info_cache: self.workload_info_cache.clone(),
+            },
         )))
     }
 
     fn get_log_fetcher(
         &self,
-        workload_id: PodmanKubeWorkloadId,
+        workload_id: RuntimeWorkloadId,
         options: &LogRequestOptions,
     ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError> {
+        let instance_name = Self::instance_name_from_runtime_id(&workload_id)
+            .map_err(|err| RuntimeError::CollectLog(err.to_string()))?;
+        let workload_info = PodmanKubeWorkloadId {
+            name: instance_name,
+            pods: None,
+            manifest: String::new(),
+            down_options: Vec::new(),
+        };
         let podman_kube_log_fetcher =
-            super::podman_kube_log_fetcher::PodmanKubeLogFetcher::new(&workload_id, options);
+            super::podman_kube_log_fetcher::PodmanKubeLogFetcher::new(&workload_info, options);
         let log_fetcher = GenericLogFetcher::new(podman_kube_log_fetcher);
         Ok(Box::new(log_fetcher))
     }
 
-    async fn delete_workload(
-        &self,
-        workload_id: &PodmanKubeWorkloadId,
-    ) -> Result<(), RuntimeError> {
+    async fn delete_workload(&self, workload_id: &RuntimeWorkloadId) -> Result<(), RuntimeError> {
+        let instance_name = Self::instance_name_from_runtime_id(workload_id)
+            .map_err(|err| RuntimeError::Delete(err.to_string()))?;
+        let workload_id = self
+            .load_workload_info(&instance_name)
+            .await
+            .map_err(|err| RuntimeError::Delete(err.to_string()))?;
         log::debug!(
             "Deleting workload with workload execution instance name '{}'",
             workload_id.name
@@ -340,14 +406,38 @@ impl RuntimeConnector<PodmanKubeWorkloadId> for PodmanKubeRuntime {
         PodmanCli::remove_volume(&(workload_id.name.to_string() + CONFIG_VOLUME_SUFFIX))
             .await
             .unwrap_or_else(|err| log::warn!("Could not remove configs volume: '{err}'"));
+        // Remove the workload info from cache after successful deletion
+        self.remove_cached_workload_info(&instance_name);
         Ok(())
     }
 }
 
 #[async_trait]
 // [impl->swdd~podman-kube-implements-runtime-state-getter~1]
-impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
-    async fn get_state(&self, id: &PodmanKubeWorkloadId) -> ExecutionStateSpec {
+impl RuntimeStateGetter<RuntimeWorkloadId> for PodmanKubeRuntime {
+    async fn get_state(&self, id: &RuntimeWorkloadId) -> ExecutionStateSpec {
+        let instance_name = match Self::instance_name_from_runtime_id(id) {
+            Ok(instance_name) => instance_name,
+            Err(err) => {
+                log::warn!("Could not parse runtime workload id '{id}': '{err}'");
+                return ExecutionStateSpec::unknown("Invalid runtime workload id");
+            }
+        };
+
+        let id = match self.get_cached_workload_info(&instance_name) {
+            Some(cached_id) => cached_id,
+            None => match self.load_workload_info(&instance_name).await {
+                Ok(id) => id,
+                Err(err) => {
+                    log::warn!(
+                        "Could not load workload metadata for '{}': {err}",
+                        instance_name
+                    );
+                    return ExecutionStateSpec::unknown("Could not load workload metadata");
+                }
+            },
+        };
+
         log::trace!("Getting the state for the workload '{}'", id.name);
         if let Some(pods) = &id.pods {
             // [impl->swdd~podman-kube-state-getter-uses-container-states~1]
@@ -443,7 +533,9 @@ mod tests {
     };
     use crate::runtime_connectors::RuntimeStateGetter;
     use crate::runtime_connectors::podman_cli::__mock_MockPodmanCli as podman_cli_mock;
-    use crate::runtime_connectors::{RuntimeConnector, RuntimeError, podman_cli::ContainerState};
+    use crate::runtime_connectors::{
+        RuntimeConnector, RuntimeError, RuntimeWorkloadId, podman_cli::ContainerState,
+    };
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
     use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
@@ -492,12 +584,14 @@ mod tests {
             manifest: SAMPLE_KUBE_CONFIG.into(),
             down_options: SAMPLE_DOWN_OPTIONS.clone(),
         };
+        pub static ref RUNTIME_WORKLOAD_ID: RuntimeWorkloadId =
+            RuntimeWorkloadId::from(WORKLOAD_INSTANCE_NAME.to_string());
     }
 
     // [utest->swdd~podman-kube-name-returns-podman-kube~1]
     #[test]
     fn utest_name_podman_kube() {
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
         assert_eq!(runtime.name(), "podman-kube");
     }
 
@@ -535,7 +629,7 @@ mod tests {
             .expect()
             .return_const(Ok(workload.runtime_config));
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
 
         let workloads = runtime
             .get_reusable_workloads(&fixtures::AGENT_NAMES[0].into())
@@ -567,7 +661,7 @@ mod tests {
         let mock_context = MockContext::new().await;
         mock_context.list_agent_config_volumes_returns(Err(SAMPLE_ERROR.into()));
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
 
         let workloads = runtime
             .get_reusable_workloads(&fixtures::AGENT_NAMES[0].into())
@@ -608,7 +702,7 @@ mod tests {
             .expect()
             .return_const(Ok(vec![ContainerState::Unknown]));
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
 
         let workloads = runtime
             .get_reusable_workloads(&fixtures::AGENT_NAMES[0].into())
@@ -651,7 +745,7 @@ mod tests {
             .expect()
             .return_const(Ok(vec![ContainerState::Unknown]));
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
 
         let workloads = runtime
             .get_reusable_workloads(&fixtures::AGENT_NAMES[0].into())
@@ -693,7 +787,7 @@ mod tests {
 
         mock_context.reset_ps_cache.expect().return_const(());
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
 
         let mut workload_named = generate_test_podman_kube_workload();
         workload_named.workload.files = Default::default();
@@ -705,10 +799,7 @@ mod tests {
             .await;
         // [utest->swdd~podman-kube-create-workload-returns-workload-id~1]
         assert!(matches!(workload, Ok((workload_id, _)) if
-                workload_id.name == *WORKLOAD_INSTANCE_NAME &&
-                workload_id.manifest == SAMPLE_KUBE_CONFIG &&
-                workload_id.pods == Some(SAMPLE_POD_LIST.clone()) &&
-                workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
+            workload_id.to_string() == WORKLOAD_INSTANCE_NAME.to_string()));
     }
 
     // [utest->swdd~podman-kube-mounts-control-interface~2]
@@ -788,7 +879,8 @@ spec:
 
         mock_context.reset_ps_cache.expect().return_const(());
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
+        let expected_instance_name = workload_named.instance_name.clone();
         let (sender, _) = tokio::sync::mpsc::channel(1);
 
         let result = runtime
@@ -803,7 +895,7 @@ spec:
 
         assert!(matches!(
             &result,
-            Ok((workload_id, _)) if workload_id.manifest.contains("control-interface-volume")
+            Ok((workload_id, _)) if workload_id.to_string() == expected_instance_name.to_string()
         ));
     }
 
@@ -836,7 +928,7 @@ spec:
 
         mock_context.reset_ps_cache.expect().return_const(());
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
 
         let mut workload_named = generate_test_podman_kube_workload();
         workload_named.workload.files = Default::default();
@@ -847,10 +939,7 @@ spec:
             .create_workload(workload_named, None, None, sender, Default::default())
             .await;
         assert!(matches!(workload, Ok((workload_id, _)) if
-                workload_id.name == *WORKLOAD_INSTANCE_NAME &&
-                workload_id.manifest == SAMPLE_KUBE_CONFIG &&
-                workload_id.pods == Some(SAMPLE_POD_LIST.clone()) &&
-                workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
+            workload_id.to_string() == WORKLOAD_INSTANCE_NAME.to_string()));
     }
 
     // [utest->swdd~podman-kube-create-continues-if-cannot-create-volume~1]
@@ -882,7 +971,7 @@ spec:
 
         mock_context.reset_ps_cache.expect().return_const(());
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
 
         let mut workload_named = generate_test_podman_kube_workload();
         workload_named.workload.files = Default::default();
@@ -893,16 +982,13 @@ spec:
             .create_workload(workload_named, None, None, sender, Default::default())
             .await;
         assert!(matches!(workload, Ok((workload_id, _)) if
-                workload_id.name == *WORKLOAD_INSTANCE_NAME &&
-                workload_id.manifest == SAMPLE_KUBE_CONFIG &&
-                workload_id.pods == Some(SAMPLE_POD_LIST.clone()) &&
-                workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
+            workload_id.to_string() == WORKLOAD_INSTANCE_NAME.to_string()));
     }
 
     // [utest->swdd~podman-kube-rejects-workload-files~1]
     #[tokio::test]
     async fn utest_create_workload_unsupported_workload_files_error() {
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
 
         let workload_named = generate_test_workload_named_with_params(
             fixtures::WORKLOAD_NAMES[0],
@@ -944,6 +1030,14 @@ spec:
             )
             .returns(Err(SAMPLE_ERROR.into()));
 
+        // Setup mock expectations for load_workload_info called by get_state
+        mock_context
+            .read_data(WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .returns(Ok(SAMPLE_RUNTIME_CONFIG.into()));
+        mock_context
+            .read_data(WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .returns(Ok(SAMPLE_PODS_AS_JSON.clone()));
+
         let mut seq = Sequence::new();
 
         mock_context
@@ -960,7 +1054,7 @@ spec:
             .return_const(Ok(vec![ContainerState::Running]))
             .in_sequence(&mut seq);
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
 
         let mut workload_named = generate_test_podman_kube_workload();
         workload_named.workload.files = Default::default();
@@ -994,7 +1088,7 @@ spec:
             )
             .returns(Err(SAMPLE_ERROR.into()));
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
 
         let mut workload_named = generate_test_podman_kube_workload();
         workload_named.workload.files = Default::default();
@@ -1020,14 +1114,11 @@ spec:
             .read_data(WORKLOAD_INSTANCE_NAME.as_pods_volume())
             .returns(Ok(SAMPLE_PODS_AS_JSON.to_string()));
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
         let workload = runtime.get_workload_id(&WORKLOAD_INSTANCE_NAME).await;
 
         assert!(matches!(workload, Ok(workload) if
-            workload.name == *WORKLOAD_INSTANCE_NAME &&
-            workload.pods == Some(SAMPLE_POD_LIST.clone()) &&
-            workload.manifest == SAMPLE_KUBE_CONFIG &&
-            workload.down_options == *SAMPLE_DOWN_OPTIONS
+            workload.to_string() == WORKLOAD_INSTANCE_NAME.to_string()
         ));
     }
 
@@ -1042,14 +1133,11 @@ spec:
             .read_data(WORKLOAD_INSTANCE_NAME.as_pods_volume())
             .returns(Err(SAMPLE_ERROR.into()));
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
         let workload = runtime.get_workload_id(&WORKLOAD_INSTANCE_NAME).await;
 
         assert!(matches!(workload, Ok(workload) if
-            workload.name == *WORKLOAD_INSTANCE_NAME &&
-            workload.pods.is_none() &&
-            workload.manifest == SAMPLE_KUBE_CONFIG &&
-            workload.down_options == *SAMPLE_DOWN_OPTIONS
+            workload.to_string() == WORKLOAD_INSTANCE_NAME.to_string()
         ));
     }
 
@@ -1064,14 +1152,11 @@ spec:
             .read_data(WORKLOAD_INSTANCE_NAME.as_pods_volume())
             .returns(Ok(r#"{"#.into()));
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
         let workload = runtime.get_workload_id(&WORKLOAD_INSTANCE_NAME).await;
 
         assert!(matches!(workload, Ok(workload) if
-            workload.name == *WORKLOAD_INSTANCE_NAME &&
-            workload.pods.is_none() &&
-            workload.manifest == SAMPLE_KUBE_CONFIG &&
-            workload.down_options == *SAMPLE_DOWN_OPTIONS
+            workload.to_string() == WORKLOAD_INSTANCE_NAME.to_string()
         ));
     }
 
@@ -1083,7 +1168,7 @@ spec:
             .read_data(WORKLOAD_INSTANCE_NAME.as_config_volume())
             .returns(Err(SAMPLE_ERROR.into()));
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
         let workload = runtime.get_workload_id(&WORKLOAD_INSTANCE_NAME).await;
 
         assert!(matches!(workload, Err(..)));
@@ -1097,7 +1182,7 @@ spec:
             .read_data(WORKLOAD_INSTANCE_NAME.as_config_volume())
             .returns(Ok("{".into()));
 
-        let runtime = PodmanKubeRuntime {};
+        let runtime = PodmanKubeRuntime::default();
         let workload = runtime.get_workload_id(&WORKLOAD_INSTANCE_NAME).await;
 
         assert!(matches!(workload, Err(..)));
@@ -1106,6 +1191,18 @@ spec:
     #[tokio::test]
     async fn utest_delete_workload_success() {
         let mock_context = MockContext::new().await;
+
+        // Setup mock expectations for load_workload_info
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.to_string()));
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .return_const(Ok(SAMPLE_PODS_AS_JSON.clone()));
 
         // [utest->swdd~podman-kube-delete-workload-downs-manifest-file~1]
         mock_context
@@ -1120,8 +1217,8 @@ spec:
             .remove_volume(WORKLOAD_INSTANCE_NAME.as_pods_volume())
             .returns(Ok(()));
 
-        let runtime = PodmanKubeRuntime {};
-        let workload = runtime.delete_workload(&WORKLOAD_ID).await;
+        let runtime = PodmanKubeRuntime::default();
+        let workload = runtime.delete_workload(&RUNTIME_WORKLOAD_ID).await;
 
         assert!(matches!(workload, Ok(())));
     }
@@ -1129,6 +1226,18 @@ spec:
     #[tokio::test]
     async fn utest_delete_workload_handles_remove_volume_fails() {
         let mock_context = MockContext::new().await;
+
+        // Setup mock expectations for load_workload_info
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.to_string()));
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .return_const(Ok(SAMPLE_PODS_AS_JSON.clone()));
 
         mock_context
             .down_kube(&*SAMPLE_DOWN_OPTIONS, SAMPLE_KUBE_CONFIG)
@@ -1140,8 +1249,8 @@ spec:
             .remove_volume(WORKLOAD_INSTANCE_NAME.as_pods_volume())
             .returns(Err(SAMPLE_ERROR.into()));
 
-        let runtime = PodmanKubeRuntime {};
-        let workload = runtime.delete_workload(&WORKLOAD_ID).await;
+        let runtime = PodmanKubeRuntime::default();
+        let workload = runtime.delete_workload(&RUNTIME_WORKLOAD_ID).await;
 
         assert!(matches!(workload, Ok(())));
     }
@@ -1150,12 +1259,24 @@ spec:
     async fn utest_delete_workload_fails() {
         let mock_context = MockContext::new().await;
 
+        // Setup mock expectations for load_workload_info
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.to_string()));
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .return_const(Ok(SAMPLE_PODS_AS_JSON.clone()));
+
         mock_context
             .down_kube(&*SAMPLE_DOWN_OPTIONS, SAMPLE_KUBE_CONFIG)
             .returns(Err(SAMPLE_ERROR.into()));
 
-        let runtime = PodmanKubeRuntime {};
-        let workload = runtime.delete_workload(&WORKLOAD_ID).await;
+        let runtime = PodmanKubeRuntime::default();
+        let workload = runtime.delete_workload(&RUNTIME_WORKLOAD_ID).await;
 
         assert!(matches!(workload, Err(..)));
     }
@@ -1165,6 +1286,18 @@ spec:
     #[tokio::test]
     async fn utest_get_state_failed() {
         let mock_context = MockContext::new().await;
+
+        // Setup mock expectations for load_workload_info
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.to_string()));
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .return_const(Ok(SAMPLE_PODS_AS_JSON.clone()));
 
         // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
@@ -1179,8 +1312,8 @@ spec:
                 ContainerState::Stopping,
             ]));
 
-        let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
+        let runtime = PodmanKubeRuntime::default();
+        let execution_state = runtime.get_state(&RUNTIME_WORKLOAD_ID).await;
 
         assert_eq!(
             execution_state,
@@ -1194,6 +1327,18 @@ spec:
     async fn utest_get_state_starting() {
         let mock_context = MockContext::new().await;
 
+        // Setup mock expectations for load_workload_info
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.to_string()));
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .return_const(Ok(SAMPLE_PODS_AS_JSON.clone()));
+
         // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
@@ -1206,8 +1351,8 @@ spec:
                 ContainerState::Stopping,
             ]));
 
-        let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
+        let runtime = PodmanKubeRuntime::default();
+        let execution_state = runtime.get_state(&RUNTIME_WORKLOAD_ID).await;
 
         assert_eq!(
             execution_state,
@@ -1221,6 +1366,18 @@ spec:
     async fn utest_get_state_unknown() {
         let mock_context = MockContext::new().await;
 
+        // Setup mock expectations for load_workload_info
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.to_string()));
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .return_const(Ok(SAMPLE_PODS_AS_JSON.clone()));
+
         // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
@@ -1231,8 +1388,8 @@ spec:
                 ContainerState::Unknown,
             ]));
 
-        let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
+        let runtime = PodmanKubeRuntime::default();
+        let execution_state = runtime.get_state(&RUNTIME_WORKLOAD_ID).await;
 
         assert_eq!(
             execution_state,
@@ -1246,6 +1403,18 @@ spec:
     async fn utest_get_state_unknown_from_paused() {
         let mock_context = MockContext::new().await;
 
+        // Setup mock expectations for load_workload_info
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.to_string()));
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .return_const(Ok(SAMPLE_PODS_AS_JSON.clone()));
+
         // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
@@ -1255,8 +1424,8 @@ spec:
                 ContainerState::Running,
             ]));
 
-        let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
+        let runtime = PodmanKubeRuntime::default();
+        let execution_state = runtime.get_state(&RUNTIME_WORKLOAD_ID).await;
 
         assert_eq!(
             execution_state,
@@ -1270,13 +1439,25 @@ spec:
     async fn utest_get_state_running() {
         let mock_context = MockContext::new().await;
 
+        // Setup mock expectations for load_workload_info
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.to_string()));
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .return_const(Ok(SAMPLE_PODS_AS_JSON.clone()));
+
         // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Ok(vec![ContainerState::Exited(0), ContainerState::Running]));
 
-        let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
+        let runtime = PodmanKubeRuntime::default();
+        let execution_state = runtime.get_state(&RUNTIME_WORKLOAD_ID).await;
 
         assert_eq!(execution_state, ExecutionStateSpec::running());
     }
@@ -1287,13 +1468,25 @@ spec:
     async fn utest_get_state_succeeded() {
         let mock_context = MockContext::new().await;
 
+        // Setup mock expectations for load_workload_info
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.to_string()));
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .return_const(Ok(SAMPLE_PODS_AS_JSON.clone()));
+
         // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Ok(vec![ContainerState::Exited(0)]));
 
-        let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
+        let runtime = PodmanKubeRuntime::default();
+        let execution_state = runtime.get_state(&RUNTIME_WORKLOAD_ID).await;
 
         assert_eq!(execution_state, ExecutionStateSpec::succeeded());
     }
@@ -1304,13 +1497,25 @@ spec:
     async fn utest_get_state_removed() {
         let mock_context = MockContext::new().await;
 
+        // Setup mock expectations for load_workload_info
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.to_string()));
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .return_const(Ok(SAMPLE_PODS_AS_JSON.clone()));
+
         // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Ok(vec![]));
 
-        let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
+        let runtime = PodmanKubeRuntime::default();
+        let execution_state = runtime.get_state(&RUNTIME_WORKLOAD_ID).await;
 
         assert_eq!(execution_state, ExecutionStateSpec::lost())
     }
@@ -1319,12 +1524,24 @@ spec:
     async fn utest_get_state_unknown_as_command_fails() {
         let mock_context = MockContext::new().await;
 
+        // Setup mock expectations for load_workload_info
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.to_string()));
+        mock_context
+            .read_data
+            .expect()
+            .withf(|volume_name| volume_name == WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .return_const(Ok(SAMPLE_PODS_AS_JSON.clone()));
+
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Err(SAMPLE_ERROR.into()));
 
-        let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
+        let runtime = PodmanKubeRuntime::default();
+        let execution_state = runtime.get_state(&RUNTIME_WORKLOAD_ID).await;
 
         assert_eq!(
             execution_state,
@@ -1334,13 +1551,17 @@ spec:
 
     #[tokio::test]
     async fn utest_get_state_unknown_as_pods_unknown() {
-        let workload_id = PodmanKubeWorkloadId {
-            pods: None,
-            ..WORKLOAD_ID.clone()
-        };
+        let mock_context = MockContext::new().await;
 
-        let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&workload_id).await;
+        mock_context
+            .read_data(WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .returns(Ok(SAMPLE_RUNTIME_CONFIG.into()));
+        mock_context
+            .read_data(WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .returns(Err(SAMPLE_ERROR.into()));
+
+        let runtime = PodmanKubeRuntime::default();
+        let execution_state = runtime.get_state(&RUNTIME_WORKLOAD_ID).await;
 
         assert_eq!(execution_state, ExecutionStateSpec::succeeded());
     }

@@ -16,39 +16,32 @@
 use super::retry_manager::RetryManager;
 use crate::BUFFER_SIZE;
 use crate::control_interface::ControlInterfacePath;
-use crate::runtime_connectors::{RuntimeConnector, StateCheckerHandle};
+use crate::runtime_connectors::{RuntimeConnector, RuntimeWorkloadId, StateCheckerHandle};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
 use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
 
 use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec};
 
 use std::path::PathBuf;
-use std::str::FromStr;
 use tokio::sync::mpsc;
 
-pub struct ControlLoopState<WorkloadId>
-where
-    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-{
+pub struct ControlLoopState {
     pub workload_named: WorkloadNamed,
     pub control_interface_path: Option<ControlInterfacePath>,
     pub run_folder: PathBuf,
-    pub workload_id: Option<WorkloadId>,
+    pub workload_id: Option<RuntimeWorkloadId>,
     pub state_checker: Option<StateCheckerHandle>,
     pub to_agent_workload_state_sender: WorkloadStateSender,
     pub state_checker_workload_state_sender: WorkloadStateSender,
     pub state_checker_workload_state_receiver: WorkloadStateReceiver,
-    pub runtime: Box<dyn RuntimeConnector<WorkloadId>>,
+    pub runtime: Box<dyn RuntimeConnector>,
     pub command_receiver: WorkloadCommandReceiver,
     pub retry_sender: WorkloadCommandSender,
     pub retry_manager: RetryManager,
 }
 
-impl<WorkloadId> ControlLoopState<WorkloadId>
-where
-    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-{
-    pub fn builder() -> ControlLoopStateBuilder<WorkloadId> {
+impl ControlLoopState {
+    pub fn builder() -> ControlLoopStateBuilder {
         ControlLoopStateBuilder::new()
     }
 
@@ -57,24 +50,18 @@ where
     }
 }
 
-pub struct ControlLoopStateBuilder<WorkloadId>
-where
-    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-{
+pub struct ControlLoopStateBuilder {
     workload_named: Option<WorkloadNamed>,
-    workload_id: Option<WorkloadId>,
+    workload_id: Option<RuntimeWorkloadId>,
     control_interface_path: Option<ControlInterfacePath>,
     run_folder: Option<PathBuf>,
     workload_state_sender: Option<WorkloadStateSender>,
-    runtime: Option<Box<dyn RuntimeConnector<WorkloadId>>>,
+    runtime: Option<Box<dyn RuntimeConnector>>,
     workload_command_receiver: Option<WorkloadCommandReceiver>,
     retry_sender: Option<WorkloadCommandSender>,
 }
 
-impl<WorkloadId> ControlLoopStateBuilder<WorkloadId>
-where
-    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-{
+impl ControlLoopStateBuilder {
     pub fn new() -> Self {
         ControlLoopStateBuilder {
             workload_named: None,
@@ -93,7 +80,7 @@ where
         self
     }
 
-    pub fn workload_id(mut self, workload_id: Option<WorkloadId>) -> Self {
+    pub fn workload_id(mut self, workload_id: Option<RuntimeWorkloadId>) -> Self {
         self.workload_id = workload_id;
         self
     }
@@ -116,7 +103,7 @@ where
         self
     }
 
-    pub fn runtime(mut self, runtime: Box<dyn RuntimeConnector<WorkloadId>>) -> Self {
+    pub fn runtime(mut self, runtime: Box<dyn RuntimeConnector>) -> Self {
         self.runtime = Some(runtime);
         self
     }
@@ -131,7 +118,7 @@ where
         self
     }
 
-    pub fn build(self) -> Result<ControlLoopState<WorkloadId>, String> {
+    pub fn build(self) -> Result<ControlLoopState, String> {
         // new channel for receiving the workload states from the state checker
         let (state_checker_wl_state_sender, state_checker_wl_state_receiver) =
             mpsc::channel::<WorkloadStateSpec>(BUFFER_SIZE);
@@ -177,15 +164,14 @@ where
 mod tests {
     use super::ControlLoopState;
     use crate::{
-        control_interface::ControlInterfacePath,
-        runtime_connectors::test::MockRuntimeConnector,
+        control_interface::ControlInterfacePath, runtime_connectors::test::MockRuntimeConnector,
         workload::workload_command_channel::WorkloadCommandSender,
         workload_state::WorkloadStateSenderInterface,
     };
 
     use ankaios_api::ank_base::ExecutionStateSpec;
     use ankaios_api::test_utils::{
-        generate_test_workload_named, generate_test_workload_state_with_workload_named, fixtures,
+        fixtures, generate_test_workload_named, generate_test_workload_state_with_workload_named,
     };
 
     use tokio::{sync::mpsc, time};
@@ -275,7 +261,7 @@ mod tests {
 
     #[test]
     fn utest_control_loop_state_builder_build_failed() {
-        let control_loop_state = ControlLoopState::<String>::builder().build();
+        let control_loop_state = ControlLoopState::builder().build();
         assert!(control_loop_state.is_err());
     }
 
