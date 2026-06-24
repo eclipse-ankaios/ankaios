@@ -787,6 +787,10 @@ Needs:
 
 ### Admission Hooks
 
+> [!Note]
+>The admission hooks feature is still in beta.
+> Both configuration format and the communication protocol between the server and hooks, is unstable and may change at any time.
+
 Admission hooks allow external programs to validate, reject, or mutate workload changes before they are applied.
 
 #### Server config supports admission hooks
@@ -802,6 +806,9 @@ The Ankaios server shall support configuring admission hooks in the server confi
 
 Rationale:
 Admission hooks need to be declaratively configured so that administrators can control which hooks run and in what order.
+
+Comment:
+Admission hooks are currently a beta feature. The interface to this feature, including both configuration and the communication protocol between the server and hooks, is unstable and may change at any time.
 
 Tags:
 - AnkaiosServer
@@ -840,6 +847,9 @@ When the server state changes, the Ankaios server shall execute each configured 
 
 Rationale:
 Using child processes with protobuf serialization provides a language-agnostic, sandboxed interface for admission hooks.
+
+Comment:
+Admission hooks are currently a beta feature. The interface to this feature, including both configuration and the communication protocol between the server and hooks, is unstable and may change at any time.
 
 Tags:
 - AdmissionHookRegistry
