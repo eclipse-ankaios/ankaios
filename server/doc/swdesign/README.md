@@ -95,6 +95,157 @@ The EventHandler holds metadata about the event subscribers and their subscribed
 
 The StateComparator compares the current with the new state to determine state differences for events.
 
+### SignatureValidator
+
+The SignatureValidator provides cryptographic verification of workload manifests using Ed25519 signatures. It validates signatures on UpdateStateRequest messages, prevents replay attacks using monotonic counters, and ensures manifest integrity through constant-time verification operations.
+
+#### Server validates signed workload manifests
+`swdd~server-signature-validation~1`
+
+Status: approved
+
+The server shall verify Ed25519 signatures on UpdateStateRequest messages when signature_metadata is present.
+
+Comment:
+Signature verification ensures workload manifests are cryptographically authenticated and have not been tampered with during transmission.
+
+Rationale:
+Cryptographic verification prevents unauthorized workload deployment and ensures manifest integrity in multi-tenant or security-critical environments.
+
+Tags:
+- SignatureValidator
+
+Needs:
+- impl
+- utest
+- itest
+
+#### Server verifies canonicalized protobuf
+`swdd~server-signature-canonical-protobuf~1`
+
+Status: approved
+
+The server shall:
+1. Compute Ed25519 signatures over the canonicalized protobuf representation of State messages
+2. Verify that the canonicalized protobuf extracted from the signature is byte-for-byte identical to the canonicalized protobuf used for state updates
+3. Reject any UpdateStateRequest where YAML-parsed protobuf differs from the signed protobuf payload
+
+Comment:
+This prevents YAML/protobuf mismatch attacks where an attacker submits YAML that parses to protobuf A (which has a valid signature) but the server applies protobuf B (which is unsigned and malicious). By signing the canonical protobuf and enforcing that the signed payload matches the applied state, the server ensures protobuf is the single source of truth.
+
+Rationale:
+Without this enforcement, an attacker could craft YAML that passes signature verification but delivers malicious protobuf for execution. The canonical protobuf signature creates a cryptographic binding between verification and execution, eliminating the YAML/protobuf mismatch attack vector identified in security review.
+
+Tags:
+- SignatureValidator
+
+Needs:
+- impl
+- utest
+
+#### Server includes counter and timestamp in signed payload
+`swdd~server-signature-includes-counter-timestamp~1`
+
+Status: approved
+
+The server shall verify that counter and timestamp values are cryptographically included in the Ed25519 signature payload.
+
+Comment:
+The SignedPayload structure containing {counter, timestamp, canonical_bytes} is what gets signed and verified.
+
+Rationale:
+Including counter/timestamp in the signature prevents attackers from modifying replay protection metadata.
+
+Tags:
+- SignatureValidator
+
+Needs:
+- impl
+- utest
+
+#### Server prevents replay attacks using monotonic counters
+`swdd~server-signature-replay-protection~1`
+
+Status: approved
+
+The server shall maintain per-key and per-source monotonic counters and reject manifests with counter values less than or equal to previously seen values.
+
+Comment:
+Counter state is persisted to disk and survives server restarts.
+
+Rationale:
+Prevents replay attacks where old valid signed manifests are resubmitted.
+
+Tags:
+- SignatureValidator
+
+Needs:
+- impl
+- utest
+- itest
+
+#### Server uses constant-time signature verification
+`swdd~server-signature-constant-time~1`
+
+Status: approved
+
+The server shall use constant-time operations for key lookup and signature verification to prevent timing attacks.
+
+Comment:
+Prevents key enumeration via timing side-channels.
+
+Rationale:
+Timing attacks could allow attackers to determine which keys are configured without having valid signatures.
+
+Tags:
+- SignatureValidator
+
+Needs:
+- impl
+
+#### Security Model for Signature Validation
+`swdd~server-signature-security-model~1`
+
+Status: approved
+
+The signature validation system implements defense-in-depth security with the following properties:
+
+**Threat Model:**
+- Attackers can intercept and replay old signed manifests (network-level replay)
+- Attackers can tamper with counter state files on disk (filesystem access)
+- Attackers can attempt timing attacks to enumerate valid key IDs
+- Attackers can submit manifests signed with compromised or unauthorized keys
+- Attackers can craft malicious request_ids to bypass restoration exemption checks (request_id injection)
+
+**Trust Assumptions:**
+- Ed25519 private keys are kept secure by authorized signers
+- Server filesystem is protected but may be compromised (defense-in-depth)
+- Network connections to server may be untrusted
+- Server restarts do not compromise security (counter state persists)
+
+**Attack Mitigations:**
+- **Replay protection**: Monotonic counters per key_id and per source
+- **Counter tampering**: Fail-closed on corrupted counter files, backup for forensics
+- **Timing attacks**: Constant-time key lookup and signature verification
+- **Unauthorized keys**: Allowlist-based key_id filtering via policy
+- **TOCTOU races**: Atomic counter state writes via temp file + rename
+- **Restoration exemption**: Startup workload restoration allowed with same counter, validated via authenticated identity chain parsing (not substring matching) to prevent request_id injection attacks
+- **Request_id injection**: Source format "request:{agent}@{workload}@{client_request_id}" parsed to validate workload name against allowed_restoration_plugins allowlist
+
+**Fail-Closed Behavior:**
+- Corrupted counter file → Refuse to start server
+- Invalid signature → Reject manifest
+- Counter rollback detected → Reject manifest
+- Unknown key_id (when allowlist configured) → Reject manifest
+
+Tags:
+- SignatureValidator
+
+Needs:
+- impl
+- utest
+- itest
+
 ## Behavioral view
 
 ### Startup sequence

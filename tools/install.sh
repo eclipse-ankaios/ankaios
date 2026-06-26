@@ -222,6 +222,12 @@ EOF
     fi
 fi
 
+# Create persistence directories for basic_persistency plugin
+if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
+    $SVC_SUDO mkdir -p /var/lib/ankaios/workloads
+    echo "Created persistence directories in /var/lib/ankaios/"
+fi
+
 echo "Downloading the configs: '${ANKAIOS_CONFIGS_URL}'"
 download_release "${ANKAIOS_CONFIGS_URL}"
 

@@ -59,6 +59,11 @@ uuid = { version = "1.7.0", features = ["v4"] }
 crossterm = "0.29.0"
 clap_complete = { version = "4.5", features = ["unstable-dynamic"] }
 once_cell = "1.10"
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+rand = "0.8"
+base64 = "0.22"
+prost = "0.14"
+fs2 = "0.4"
 
 [dev-dependencies]
 ankaios-api = { path = "../ankaios_api", features = ["test_utils"] }

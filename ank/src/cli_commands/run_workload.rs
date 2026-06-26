@@ -56,7 +56,7 @@ impl CliCommands {
             complete_state_update,
             update_mask
         );
-        self.update_state_and_wait_for_complete(complete_state_update, update_mask)
+        self.update_state_and_wait_for_complete(complete_state_update, update_mask, None)
             .await
     }
 }
@@ -129,8 +129,9 @@ mod tests {
                     "desiredState.workloads.{}",
                     fixtures::WORKLOAD_NAMES[0]
                 )]),
+                eq(None),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![format!(
                         "{}.{}.{}",

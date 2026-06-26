@@ -513,7 +513,7 @@ mod tests {
         let handle = tokio::spawn(async move { agent_manager.start().await });
 
         let complete_state_result = to_manager
-            .complete_state(request_id, complete_state, None)
+            .complete_state(request_id, complete_state, None, std::collections::HashMap::new())
             .await;
         assert!(complete_state_result.is_ok());
 
