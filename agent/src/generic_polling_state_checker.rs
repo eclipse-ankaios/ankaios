@@ -19,7 +19,7 @@ use crate::{
 use ankaios_api::ank_base::{ExecutionStateEnumSpec, ExecutionStateSpec, WorkloadNamed};
 
 use async_trait::async_trait;
-use std::{str::FromStr, time::Duration};
+use std::time::Duration;
 use tokio::{task::JoinHandle, time};
 
 // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
