@@ -46,7 +46,7 @@ pub struct PodmanStateGetter {}
 
 #[async_trait]
 // [impl->swdd~podman-implements-runtime-state-getter~1]
-impl RuntimeStateGetter<RuntimeWorkloadId> for PodmanStateGetter {
+impl RuntimeStateGetter for PodmanStateGetter {
     async fn get_state(&self, workload_id: &RuntimeWorkloadId) -> ExecutionStateSpec {
         log::trace!("Getting the state for the workload '{}'", workload_id);
 

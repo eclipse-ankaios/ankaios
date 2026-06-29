@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    runtime_connectors::{RuntimeStateGetter, StateChecker},
+    runtime_connectors::{RuntimeStateGetter, RuntimeWorkloadId, StateChecker},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 use ankaios_api::ank_base::{ExecutionStateEnumSpec, ExecutionStateSpec, WorkloadNamed};
@@ -32,15 +32,12 @@ pub struct GenericPollingStateChecker {
 }
 
 impl GenericPollingStateChecker {
-    pub fn start_checker<WorkloadId>(
+    pub fn start_checker(
         workload_named: &WorkloadNamed,
-        workload_id: WorkloadId,
+        workload_id: RuntimeWorkloadId,
         workload_state_sender: WorkloadStateSender,
-        state_getter: impl RuntimeStateGetter<WorkloadId>,
-    ) -> Self
-    where
-        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-    {
+        state_getter: impl RuntimeStateGetter,
+    ) -> Self {
         let workload_named = workload_named.clone();
         let workload_name = workload_named.instance_name.workload_name().to_owned();
         let task_handle = tokio::spawn(async move {
@@ -105,6 +102,7 @@ impl Drop for GenericPollingStateChecker {
 #[cfg(test)]
 mod tests {
     use super::STATUS_CHECK_INTERVAL_MS;
+    use crate::runtime_connectors::RuntimeWorkloadId;
     use crate::{
         generic_polling_state_checker::GenericPollingStateChecker,
         runtime_connectors::MockRuntimeStateGetter,
@@ -132,12 +130,12 @@ mod tests {
             .expect_get_state()
             .times(2)
             .in_sequence(&mut mock_sequence)
-            .returning(|_: &String| Box::pin(async { ExecutionStateSpec::running() }));
+            .returning(|_: &RuntimeWorkloadId| Box::pin(async { ExecutionStateSpec::running() }));
         mock_runtime_getter
             .expect_get_state()
             .once()
             .in_sequence(&mut mock_sequence)
-            .return_once(|_: &String| Box::pin(async { ExecutionStateSpec::removed() }));
+            .return_once(|_: &RuntimeWorkloadId| Box::pin(async { ExecutionStateSpec::removed() }));
 
         let (state_sender, mut state_receiver) = tokio::sync::mpsc::channel(20);
 
@@ -145,7 +143,7 @@ mod tests {
 
         let generic_state_state_checker = GenericPollingStateChecker::start_checker(
             &workload,
-            fixtures::WORKLOAD_IDS[0].to_string(),
+            fixtures::WORKLOAD_IDS[0].to_string().into(),
             state_sender.clone(),
             mock_runtime_getter,
         );
