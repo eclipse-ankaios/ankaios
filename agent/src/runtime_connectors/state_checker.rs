@@ -19,17 +19,16 @@ use async_trait::async_trait;
 use mockall::automock;
 use std::str::FromStr;
 
+use crate::runtime_connectors::RuntimeWorkloadId;
+
 pub type StateCheckerHandle = Box<dyn StateChecker + Send + Sync>;
 
 // [impl->swdd~agent-general-runtime-state-getter-interface~1]
 #[async_trait]
 #[cfg_attr(test, automock)]
-pub trait RuntimeStateGetter<WorkloadId>: Send + Sync + 'static
-where
-    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-{
+pub trait RuntimeStateGetter: Send + Sync + 'static {
     // [impl->swdd~allowed-workload-states~2]
-    async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionStateSpec;
+    async fn get_state(&self, workload_id: &RuntimeWorkloadId) -> ExecutionStateSpec;
 }
 
 // [impl->swdd~agent-general-state-checker-interface~1]

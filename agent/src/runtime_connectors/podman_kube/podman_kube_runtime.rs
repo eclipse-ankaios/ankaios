@@ -414,7 +414,7 @@ impl RuntimeConnector for PodmanKubeRuntime {
 
 #[async_trait]
 // [impl->swdd~podman-kube-implements-runtime-state-getter~1]
-impl RuntimeStateGetter<RuntimeWorkloadId> for PodmanKubeRuntime {
+impl RuntimeStateGetter for PodmanKubeRuntime {
     async fn get_state(&self, id: &RuntimeWorkloadId) -> ExecutionStateSpec {
         let instance_name = match Self::instance_name_from_runtime_id(id) {
             Ok(instance_name) => instance_name,

@@ -47,7 +47,7 @@ pub struct ContainerdStateGetter {}
 
 #[async_trait]
 // [impl->swdd~containerd-implements-runtime-state-getter~1]
-impl RuntimeStateGetter<RuntimeWorkloadId> for ContainerdStateGetter {
+impl RuntimeStateGetter for ContainerdStateGetter {
     async fn get_state(&self, workload_id: &RuntimeWorkloadId) -> ExecutionStateSpec {
         log::trace!("Getting the state for the workload '{}'", workload_id);
 
