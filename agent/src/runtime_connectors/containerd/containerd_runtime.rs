@@ -264,7 +264,7 @@ impl RuntimeConnector for ContainerdRuntime {
     // [impl->swdd~containerd-delete-workload-stops-and-removes-workload~1]
     async fn delete_workload(&self, workload_id: &RuntimeWorkloadId) -> Result<(), RuntimeError> {
         log::debug!("Deleting workload with id '{}'", workload_id);
-        NerdctlCli::remove_workloads_by_id(&workload_id.to_string())
+        NerdctlCli::remove_workloads_by_id(workload_id.as_ref())
             .await
             .map_err(|err| RuntimeError::Delete(err.to_string()))
     }

@@ -17,7 +17,6 @@ use ankaios_api::ank_base::ExecutionStateSpec;
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
-use std::str::FromStr;
 
 use crate::runtime_connectors::RuntimeWorkloadId;
 
