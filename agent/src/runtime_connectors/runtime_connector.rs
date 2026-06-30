@@ -58,6 +58,12 @@ impl AsRef<str> for RuntimeWorkloadId {
     }
 }
 
+impl Into<String> for RuntimeWorkloadId {
+    fn into(self) -> String {
+        self.0
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
     Create(String),
