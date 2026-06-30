@@ -429,10 +429,7 @@ mod tests {
         let (workload_id, _checker) = res.unwrap();
 
         // [utest->swdd~podman-create-workload-returns-workload-id~1]
-        assert_eq!(
-            workload_id.to_string(),
-            fixtures::WORKLOAD_IDS[0].to_string()
-        );
+        assert_eq!(workload_id.as_ref(), fixtures::WORKLOAD_IDS[0]);
     }
 
     // [utest->swdd~podman-create-workload-starts-existing-workload~1]
@@ -456,9 +453,7 @@ mod tests {
         let res = podman_runtime
             .create_workload(
                 workload,
-                Some(RuntimeWorkloadId::from(
-                    fixtures::WORKLOAD_IDS[0].to_string(),
-                )),
+                Some(RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0])),
                 Some(PathBuf::from(fixtures::RUN_FOLDER)),
                 state_change_tx,
                 Default::default(),
@@ -529,9 +524,7 @@ mod tests {
 
         let state_getter = PodmanStateGetter {};
         let execution_state = state_getter
-            .get_state(&RuntimeWorkloadId::from(
-                fixtures::WORKLOAD_IDS[0].to_string(),
-            ))
+            .get_state(&RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0]))
             .await;
 
         assert_eq!(execution_state, ExecutionStateSpec::running());
@@ -643,12 +636,7 @@ mod tests {
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime.get_workload_id(&workload_name).await;
 
-        assert_eq!(
-            res,
-            Ok(RuntimeWorkloadId::from(
-                fixtures::WORKLOAD_IDS[0].to_string()
-            ))
-        )
+        assert_eq!(res, Ok(RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0])))
     }
 
     #[tokio::test]
@@ -700,7 +688,7 @@ mod tests {
             .expect()
             .return_const(Ok(Some(ExecutionStateSpec::running())));
 
-        let workload_id = RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0].to_string());
+        let workload_id = RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0]);
         let checker = PodmanStateGetter {};
         let res = checker.get_state(&workload_id).await;
         assert_eq!(res, ExecutionStateSpec::running());
@@ -728,7 +716,7 @@ mod tests {
         let context = PodmanCli::list_states_by_id_context();
         context.expect().return_const(Err("simulated error".into()));
 
-        let workload_id = RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0].to_string());
+        let workload_id = RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0]);
         let checker = PodmanStateGetter {};
         let res = checker.get_state(&workload_id).await;
         assert_eq!(
@@ -745,7 +733,7 @@ mod tests {
         let context = PodmanCli::remove_workloads_by_id_context();
         context.expect().return_const(Ok(()));
 
-        let workload_id = RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0].to_string());
+        let workload_id = RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0]);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime.delete_workload(&workload_id).await;
@@ -759,7 +747,7 @@ mod tests {
         let context = PodmanCli::remove_workloads_by_id_context();
         context.expect().return_const(Err("simulated error".into()));
 
-        let workload_id = RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0].to_string());
+        let workload_id = RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0]);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime.delete_workload(&workload_id).await;
