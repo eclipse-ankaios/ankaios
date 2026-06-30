@@ -58,9 +58,9 @@ impl AsRef<str> for RuntimeWorkloadId {
     }
 }
 
-impl Into<String> for RuntimeWorkloadId {
-    fn into(self) -> String {
-        self.0
+impl From<RuntimeWorkloadId> for String {
+    fn from(value: RuntimeWorkloadId) -> String {
+        value.0
     }
 }
 
