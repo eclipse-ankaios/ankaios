@@ -40,8 +40,13 @@ pub const PODMAN_KUBE_RUNTIME_NAME: &str = "podman-kube";
 const CONFIG_VOLUME_SUFFIX: &str = ".config";
 const PODS_VOLUME_SUFFIX: &str = ".pods";
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PodmanKubeRuntime {
+    workload_info_store: PodmanKubeWorkloadInfoStore,
+}
+
+#[derive(Debug, Clone, Default)]
+struct PodmanKubeWorkloadInfoStore {
     workload_info_cache: std::sync::Arc<Mutex<HashMap<String, PodmanKubeWorkloadId>>>,
 }
 
@@ -73,22 +78,16 @@ impl FromStr for PodmanKubeWorkloadId {
         Err("Not supported for PodmanKubeWorkloadId".to_string())
     }
 }
-impl Default for PodmanKubeRuntime {
-    fn default() -> Self {
-        Self {
-            workload_info_cache: std::sync::Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-}
 
-impl PodmanKubeRuntime {
-    fn instance_name_from_runtime_id(
-        runtime_id: &RuntimeWorkloadId,
-    ) -> Result<WorkloadInstanceNameSpec, RuntimeError> {
-        runtime_id
-            .to_string()
-            .try_into()
-            .map_err(|err| RuntimeError::List(format!("Invalid runtime workload id: {err}")))
+impl PodmanKubeWorkloadInfoStore {
+    async fn get_workload_info(
+        &self,
+        instance_name: &WorkloadInstanceNameSpec,
+    ) -> Result<PodmanKubeWorkloadId, RuntimeError> {
+        match self.get_cached_workload_info(instance_name) {
+            Some(cached_id) => Ok(cached_id),
+            None => self.load_workload_info(instance_name).await,
+        }
     }
 
     async fn load_workload_info(
@@ -128,7 +127,7 @@ impl PodmanKubeRuntime {
             manifest: runtime_config.manifest,
             down_options: runtime_config.down_options,
         };
-        // Cache the workload info by instance name
+
         self.workload_info_cache
             .lock()
             .unwrap()
@@ -147,13 +146,24 @@ impl PodmanKubeRuntime {
             .cloned()
     }
 
-    fn remove_cached_workload_info(&self, instance_name: &WorkloadInstanceNameSpec) {
+    fn delete_workload_info(&self, instance_name: &WorkloadInstanceNameSpec) {
         self.workload_info_cache
             .lock()
             .unwrap()
             .remove(&instance_name.to_string());
     }
+}
 
+fn instance_name_from_runtime_id(
+    runtime_id: &RuntimeWorkloadId,
+) -> Result<WorkloadInstanceNameSpec, RuntimeError> {
+    runtime_id
+        .to_string()
+        .try_into()
+        .map_err(|err| RuntimeError::List(format!("Invalid runtime workload id: {err}")))
+}
+
+impl PodmanKubeRuntime {
     async fn sample_workload_states(
         &self,
         workload_instance_names: &Vec<WorkloadInstanceNameSpec>,
@@ -334,7 +344,9 @@ impl RuntimeConnector for PodmanKubeRuntime {
         &self,
         instance_name: &WorkloadInstanceNameSpec,
     ) -> Result<RuntimeWorkloadId, RuntimeError> {
-        self.load_workload_info(instance_name).await?;
+        self.workload_info_store
+            .get_workload_info(instance_name)
+            .await?;
         Ok(RuntimeWorkloadId::from(instance_name.to_string()))
     }
 
@@ -356,9 +368,7 @@ impl RuntimeConnector for PodmanKubeRuntime {
             &workload_named,
             workload_id,
             update_state_tx,
-            PodmanKubeRuntime {
-                workload_info_cache: self.workload_info_cache.clone(),
-            },
+            self.clone(),
         )))
     }
 
@@ -367,7 +377,7 @@ impl RuntimeConnector for PodmanKubeRuntime {
         workload_id: RuntimeWorkloadId,
         options: &LogRequestOptions,
     ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError> {
-        let instance_name = Self::instance_name_from_runtime_id(&workload_id)
+        let instance_name = instance_name_from_runtime_id(&workload_id)
             .map_err(|err| RuntimeError::CollectLog(err.to_string()))?;
         let workload_info = PodmanKubeWorkloadId {
             name: instance_name,
@@ -382,10 +392,11 @@ impl RuntimeConnector for PodmanKubeRuntime {
     }
 
     async fn delete_workload(&self, workload_id: &RuntimeWorkloadId) -> Result<(), RuntimeError> {
-        let instance_name = Self::instance_name_from_runtime_id(workload_id)
+        let instance_name = instance_name_from_runtime_id(workload_id)
             .map_err(|err| RuntimeError::Delete(err.to_string()))?;
         let workload_id = self
-            .load_workload_info(&instance_name)
+            .workload_info_store
+            .get_workload_info(&instance_name)
             .await
             .map_err(|err| RuntimeError::Delete(err.to_string()))?;
         log::debug!(
@@ -407,7 +418,8 @@ impl RuntimeConnector for PodmanKubeRuntime {
             .await
             .unwrap_or_else(|err| log::warn!("Could not remove configs volume: '{err}'"));
         // Remove the workload info from cache after successful deletion
-        self.remove_cached_workload_info(&instance_name);
+        self.workload_info_store
+            .delete_workload_info(&instance_name);
         Ok(())
     }
 }
@@ -416,7 +428,7 @@ impl RuntimeConnector for PodmanKubeRuntime {
 // [impl->swdd~podman-kube-implements-runtime-state-getter~1]
 impl RuntimeStateGetter for PodmanKubeRuntime {
     async fn get_state(&self, id: &RuntimeWorkloadId) -> ExecutionStateSpec {
-        let instance_name = match Self::instance_name_from_runtime_id(id) {
+        let instance_name = match instance_name_from_runtime_id(id) {
             Ok(instance_name) => instance_name,
             Err(err) => {
                 log::warn!("Could not parse runtime workload id '{id}': '{err}'");
@@ -424,18 +436,19 @@ impl RuntimeStateGetter for PodmanKubeRuntime {
             }
         };
 
-        let id = match self.get_cached_workload_info(&instance_name) {
-            Some(cached_id) => cached_id,
-            None => match self.load_workload_info(&instance_name).await {
-                Ok(id) => id,
-                Err(err) => {
-                    log::warn!(
-                        "Could not load workload metadata for '{}': {err}",
-                        instance_name
-                    );
-                    return ExecutionStateSpec::unknown("Could not load workload metadata");
-                }
-            },
+        let id = match self
+            .workload_info_store
+            .get_workload_info(&instance_name)
+            .await
+        {
+            Ok(id) => id,
+            Err(err) => {
+                log::warn!(
+                    "Could not load workload metadata for '{}': {err}",
+                    instance_name
+                );
+                return ExecutionStateSpec::unknown("Could not load workload metadata");
+            }
         };
 
         log::trace!("Getting the state for the workload '{}'", id.name);
