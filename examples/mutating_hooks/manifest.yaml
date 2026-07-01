@@ -4,7 +4,7 @@ workloads:
     runtime: podman
     agent: agent_A
     tags:
-      example_admission_hook: update
+      example_mutating_hook: update
     runtimeConfig: |
       image: docker.io/alpine:latest
       commandArgs: ["sh", "-c", "echo 'workload_update_1 running'; sleep 3600"]
@@ -13,7 +13,7 @@ workloads:
     runtime: podman
     agent: agent_A
     tags:
-      example_admission_hook: update
+      example_mutating_hook: update
     runtimeConfig: |
       image: docker.io/alpine:latest
       commandArgs: ["sh", "-c", "echo 'workload_update_2 running'; sleep 3600"]

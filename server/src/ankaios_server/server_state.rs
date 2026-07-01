@@ -12,10 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::admission_hook_registry::AdmissionHookRegistry;
-#[cfg(not(test))]
-use super::admission_hook_registry::update_effective_state;
 use super::cycle_check;
+use super::hooks_registry::HooksRegistry;
+#[cfg(not(test))]
+use super::hooks_registry::update_effective_state;
 use super::rendered_workloads::RenderedWorkloads;
 
 use ankaios_api::ALLOWED_CHAR_SET;
@@ -94,8 +94,8 @@ pub enum UpdateStateError {
     FieldNotFound(String),
     ResultInvalid(String),
     CycleInDependencies(String),
-    AdmissionHookError { hook: String, reason: String },
-    AdmissionHookVeto { hook: String, reason: String },
+    MutatingHookError { hook: String, reason: String },
+    MutatingHookVeto { hook: String, reason: String },
 }
 
 impl Display for UpdateStateError {
@@ -113,17 +113,13 @@ impl Display for UpdateStateError {
                     "workload dependency '{workload_part_of_cycle}' is part of a cycle."
                 )
             }
-            UpdateStateError::AdmissionHookError { hook, reason } => {
-                write!(
-                    f,
-                    "Admission hook '{}' execution failed: '{}'",
-                    hook, reason
-                )
+            UpdateStateError::MutatingHookError { hook, reason } => {
+                write!(f, "Mutating hook '{}' execution failed: '{}'", hook, reason)
             }
-            UpdateStateError::AdmissionHookVeto { hook, reason } => {
+            UpdateStateError::MutatingHookVeto { hook, reason } => {
                 write!(
                     f,
-                    "Admission hook '{}' vetoed the state change: '{}'",
+                    "Mutating hook '{}' vetoed the state change: '{}'",
                     hook, reason
                 )
             }
@@ -195,7 +191,7 @@ impl ServerState {
 
     // [impl->swdd~server-provides-effective-state~1]
     /// Builds the effective state from the current rendered workloads.
-    /// The effective state reflects workloads after config rendering and admission hook mutations.
+    /// The effective state reflects workloads after config rendering and hook mutations.
     pub fn build_effective_state(&self) -> StateSpec {
         let workloads = self
             .rendered_workloads
@@ -303,7 +299,7 @@ impl ServerState {
     pub fn update(
         &mut self,
         new_desired_state: StateSpec,
-        admission_hook_registry: &AdmissionHookRegistry,
+        hooks_registry: &HooksRegistry,
     ) -> Result<Option<AddedDeletedWorkloads>, UpdateStateError> {
         // [impl->swdd~update-desired-state-with-update-mask~1]
         // [impl->swdd~update-desired-state-empty-update-mask~1]
@@ -337,7 +333,7 @@ impl ServerState {
             // [impl->swdd~server-removes-dropped-workloads-from-effective-state~1]
             // [impl->swdd~server-restores-undeleted-workloads-in-effective-state~1]
             update_effective_state(
-                admission_hook_registry,
+                hooks_registry,
                 &mut added_deleted_workloads,
                 &mut new_rendered_workloads,
                 &self.rendered_workloads,
@@ -464,7 +460,7 @@ static UPDATE_EFFECTIVE_STATE_CALLED: std::sync::atomic::AtomicBool =
 
 #[cfg(test)]
 fn update_effective_state(
-    _admission_hook_registry: &AdmissionHookRegistry,
+    _hooks_registry: &HooksRegistry,
     added_deleted_workloads: &mut AddedDeletedWorkloads,
     new_rendered_workloads: &mut RenderedWorkloads,
     _old_rendered_workloads: &RenderedWorkloads,
@@ -483,9 +479,9 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::ankaios_server::{
-        admission_hook_registry::AdmissionHookRegistry,
         config_renderer::{ConfigRenderError, MockConfigRenderer},
         delete_graph::MockDeleteGraph,
+        hooks_registry::HooksRegistry,
         rendered_workloads::RenderedWorkloads,
         server_state::{
             AddedDeletedWorkloads, UpdateStateError, extract_added_and_deleted_workloads,
@@ -999,7 +995,7 @@ mod tests {
             config_renderer: mock_config_renderer,
         };
 
-        let result = server_state.update(desired_state_spec, &AdmissionHookRegistry::default());
+        let result = server_state.update(desired_state_spec, &HooksRegistry::default());
         assert_eq!(
             result,
             Err(UpdateStateError::CycleInDependencies(
@@ -1286,7 +1282,7 @@ mod tests {
         };
 
         let added_deleted_workloads = server_state
-            .update(StateSpec::default(), &AdmissionHookRegistry::default())
+            .update(StateSpec::default(), &HooksRegistry::default())
             .unwrap();
         assert!(added_deleted_workloads.is_none());
         assert_eq!(server_state.state, CompleteStateSpec::default());
@@ -1320,7 +1316,7 @@ mod tests {
         let added_deleted_workloads = server_state
             .update(
                 new_state_with_configs.desired_state.clone(),
-                &AdmissionHookRegistry::default(),
+                &HooksRegistry::default(),
             )
             .unwrap();
         assert!(added_deleted_workloads.is_none());
@@ -1364,10 +1360,7 @@ mod tests {
             config_renderer: mock_config_renderer,
         };
 
-        let result = server_state.update(
-            updated_state.desired_state,
-            &AdmissionHookRegistry::default(),
-        );
+        let result = server_state.update(updated_state.desired_state, &HooksRegistry::default());
         assert!(result.is_err());
         assert!(
             result
@@ -1456,7 +1449,7 @@ mod tests {
             .return_const(());
 
         let added_deleted_workloads = server_state
-            .update(new_state.desired_state, &AdmissionHookRegistry::default())
+            .update(new_state.desired_state, &HooksRegistry::default())
             .unwrap();
 
         assert_eq!(
@@ -1604,7 +1597,7 @@ mod tests {
                 },
                 ..Default::default()
             },
-            &AdmissionHookRegistry::default(),
+            &HooksRegistry::default(),
         );
 
         assert!(matches!(result, Err(UpdateStateError::ResultInvalid(_))));
@@ -1692,10 +1685,7 @@ mod tests {
         };
 
         let added_deleted_workloads = server_state
-            .update(
-                new_complete_state.desired_state,
-                &AdmissionHookRegistry::default(),
-            )
+            .update(new_complete_state.desired_state, &HooksRegistry::default())
             .unwrap();
         assert!(added_deleted_workloads.is_some());
     }
@@ -1846,7 +1836,7 @@ mod tests {
             delete_graph: delete_graph_mock,
         };
 
-        let result = server_state.update(new_state, &AdmissionHookRegistry::default());
+        let result = server_state.update(new_state, &HooksRegistry::default());
         assert!(result.is_ok());
         assert!(
             super::UPDATE_EFFECTIVE_STATE_CALLED.load(std::sync::atomic::Ordering::SeqCst),
@@ -1856,8 +1846,8 @@ mod tests {
 
     // [utest->swdd~server-state-compares-rendered-workloads~2]
     #[test]
-    fn utest_server_state_reapply_after_admission_hook_mutation_no_update() {
-        // Scenario: A manifest was applied and the admission hook mutated the workload
+    fn utest_server_state_reapply_after_hook_mutation_no_update() {
+        // Scenario: A manifest was applied and the hook mutated the workload
         // (e.g. changed runtime_config). Reapplying the same manifest should detect
         // no change because pre_hook_rendered_workloads stores the pre-mutation state.
         super::UPDATE_EFFECTIVE_STATE_CALLED.store(false, std::sync::atomic::Ordering::SeqCst);
@@ -1924,16 +1914,13 @@ mod tests {
         };
 
         // Reapply the same desired state
-        let result = server_state.update(
-            state.desired_state.clone(),
-            &AdmissionHookRegistry::default(),
-        );
+        let result = server_state.update(state.desired_state.clone(), &HooksRegistry::default());
 
         // No workload update should be triggered
         assert!(result.is_ok());
         assert!(
             result.unwrap().is_none(),
-            "Reapplying a manifest after admission hook mutation shall not trigger a workload update"
+            "Reapplying a manifest after hook mutation shall not trigger a workload update"
         );
         assert!(
             !super::UPDATE_EFFECTIVE_STATE_CALLED.load(std::sync::atomic::Ordering::SeqCst),

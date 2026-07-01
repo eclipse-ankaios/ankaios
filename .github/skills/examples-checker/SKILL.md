@@ -165,5 +165,5 @@ After all examples have been checked:
 - Use `cleanup.sh` between examples to ensure clean state.
 - SDK examples (python_sdk_*, rust_sdk_*) may download SDK packages from the internet during build. Ensure network access is available.
 - The `python_sdk_interactive` example is inherently manual — only verify it starts successfully.
-- The `admission_hooks` example requires special server configuration and should be skipped unless explicitly requested.
+- The `mutating_hooks` example requires special server configuration and should be skipped unless explicitly requested.
 - Always use `--insecure` or the `-k` flag when calling `ank` commands in the devcontainer (the `ank` alias already includes this).

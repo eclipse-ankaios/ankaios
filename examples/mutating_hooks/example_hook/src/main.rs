@@ -12,13 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-//! Example admission hook for Ankaios.
+//! Example mutating hook for Ankaios.
 //!
 //! This hook processes workloads received via protobuf on stdin and:
-//! - Rejects any workload tagged with `example_admission_hook: reject`
+//! - Rejects any workload tagged with `example_mutating_hook: reject`
 //!   (exits non-zero with an error on stderr).
-//! - Mutates the tag `example_admission_hook: update` to
-//!   `example_admission_hook: marked` and returns the modified workload.
+//! - Mutates the tag `example_mutating_hook: update` to
+//!   `example_mutating_hook: marked` and returns the modified workload.
 //! - Accepts all other workloads unchanged.
 
 use prost::Message;
@@ -35,7 +35,7 @@ mod ank_base {
     include!(concat!(env!("OUT_DIR"), "/ank_base.rs"));
 }
 
-const TAG_KEY: &str = "example_admission_hook";
+const TAG_KEY: &str = "example_mutating_hook";
 
 fn main() {
     let mut input = Vec::new();
@@ -59,7 +59,7 @@ fn main() {
                             .unwrap_or("<unknown>");
                         eprintln!(
                             "Reject input workloads due to the presence of \
-                             \"example_admission_hook: reject\" tag on workload '{name}'"
+                             \"example_mutating_hook: reject\" tag on workload '{name}'"
                         );
                         process::exit(1);
                     }
