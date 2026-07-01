@@ -73,19 +73,19 @@ fn run_hook(input: &[u8]) -> std::process::Output {
 
 #[test]
 fn reject_tag_causes_nonzero_exit() {
-    let msg = make_update("example_admission_hook", "reject");
+    let msg = make_update("example_mutating_hook", "reject");
     let out = run_hook(&msg.encode_to_vec());
     assert!(!out.status.success());
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        stderr.contains("example_admission_hook: reject"),
+        stderr.contains("example_mutating_hook: reject"),
         "stderr should mention the reject tag, got: {stderr}"
     );
 }
 
 #[test]
 fn update_tag_is_mutated_to_marked() {
-    let msg = make_update("example_admission_hook", "update");
+    let msg = make_update("example_mutating_hook", "update");
     let out = run_hook(&msg.encode_to_vec());
     assert!(out.status.success());
     let result = grpc_api::UpdateWorkload::decode(out.stdout.as_slice()).unwrap();
@@ -97,7 +97,7 @@ fn update_tag_is_mutated_to_marked() {
         .as_ref()
         .unwrap()
         .tags
-        .get("example_admission_hook")
+        .get("example_mutating_hook")
         .unwrap();
     assert_eq!(tag_val, "marked");
 }

@@ -21,46 +21,42 @@ use prost::Message;
 
 use crate::ankaios_server::rendered_workloads::RenderedWorkloads;
 use crate::ankaios_server::server_state::{AddedDeletedWorkloads, UpdateStateError};
-use crate::server_config::AdmissionHook;
+use crate::server_config::MutatingHook;
 
 #[cfg_attr(test, mockall::automock)]
-pub trait AdmissionHookMutator {
-    fn mutate_with_admission_hooks(
+pub trait HookMutator {
+    fn mutate_with_hooks(
         &self,
         added_deleted_workloads: &mut AddedDeletedWorkloads,
     ) -> Result<(), UpdateStateError>;
 }
 
 #[derive(Debug, Default)]
-pub struct AdmissionHookRegistry {
-    admission_hooks: Vec<AdmissionHook>,
+pub struct HooksRegistry {
+    mutating_hooks: Vec<MutatingHook>,
 }
 
-impl AdmissionHookRegistry {
-    // [impl->swdd~server-sorts-admission-hooks-by-priority~1]
-    pub fn new(mut admission_hooks: Vec<AdmissionHook>) -> Self {
+impl HooksRegistry {
+    // [impl->swdd~server-sorts-mutating-hooks-by-priority~1]
+    pub fn new(mut mutating_hooks: Vec<MutatingHook>) -> Self {
         log::debug!(
-            "Initializing AdmissionHookRegistry with hooks: {:?}",
-            admission_hooks
+            "Initializing HooksRegistry with hooks: {:?}",
+            mutating_hooks
         );
 
-        admission_hooks.sort_by_key(|h| h.prio);
-        AdmissionHookRegistry { admission_hooks }
+        mutating_hooks.sort_by_key(|h| h.prio);
+        HooksRegistry { mutating_hooks }
     }
 }
 
-impl AdmissionHookMutator for AdmissionHookRegistry {
-    // [impl->swdd~server-executes-admission-hooks-as-subprocess~1]
-    fn mutate_with_admission_hooks(
+impl HookMutator for HooksRegistry {
+    // [impl->swdd~server-executes-mutating-hooks-as-subprocess~1]
+    fn mutate_with_hooks(
         &self,
         added_deleted_workloads: &mut AddedDeletedWorkloads,
     ) -> Result<(), UpdateStateError> {
-        for hook in &self.admission_hooks {
-            log::debug!(
-                "Running admission hook '{}' (prio={})",
-                hook.name,
-                hook.prio
-            );
+        for hook in &self.mutating_hooks {
+            log::debug!("Running mutating hook '{}' (prio={})", hook.name, hook.prio);
 
             let proto_msg = UpdateWorkload::from(added_deleted_workloads.clone());
             let input_bytes = proto_msg.encode_to_vec();
@@ -71,14 +67,14 @@ impl AdmissionHookMutator for AdmissionHookRegistry {
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()
-                .map_err(|err| UpdateStateError::AdmissionHookError {
+                .map_err(|err| UpdateStateError::MutatingHookError {
                     hook: hook.name.clone(),
                     reason: format!("Failed to execute hook '{}': {err}", hook.name),
                 })?;
 
             if let Some(mut stdin) = child.stdin.take() {
                 stdin.write_all(&input_bytes).map_err(|err| {
-                    UpdateStateError::AdmissionHookError {
+                    UpdateStateError::MutatingHookError {
                         hook: hook.name.clone(),
                         reason: format!("Failed to write to hook '{}' stdin: {err}", hook.name),
                     }
@@ -88,21 +84,21 @@ impl AdmissionHookMutator for AdmissionHookRegistry {
             let output =
                 child
                     .wait_with_output()
-                    .map_err(|err| UpdateStateError::AdmissionHookError {
+                    .map_err(|err| UpdateStateError::MutatingHookError {
                         hook: hook.name.clone(),
                         reason: format!("Failed to wait for hook '{}': {err}", hook.name),
                     })?;
 
-            // [impl->swdd~server-admission-hook-veto~1]
+            // [impl->swdd~server-mutating-hook-veto~1]
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                // [impl->swdd~server-traces-admission-hook-stderr~1]
+                // [impl->swdd~server-traces-mutating-hook-stderr~1]
                 log::debug!(
-                    "Admission hook '{}' failed with stderr: {}",
+                    "Mutating hook '{}' failed with stderr: {}",
                     hook.name,
                     stderr.trim()
                 );
-                return Err(UpdateStateError::AdmissionHookVeto {
+                return Err(UpdateStateError::MutatingHookVeto {
                     hook: hook.name.clone(),
                     reason: format!(
                         "Hook '{}' rejected the change: {}",
@@ -112,14 +108,14 @@ impl AdmissionHookMutator for AdmissionHookRegistry {
                 });
             }
 
-            // [impl->swdd~server-traces-admission-hook-stderr~1]
+            // [impl->swdd~server-traces-mutating-hook-stderr~1]
             log::debug!(
-                "Admission hook '{}' completed successfully: {}",
+                "Mutating hook '{}' completed successfully: {}",
                 hook.name,
                 String::from_utf8_lossy(&output.stderr).trim()
             );
 
-            // [impl->swdd~server-admission-hook-skip-unchanged-response~1]
+            // [impl->swdd~server-mutating-hook-skip-unchanged-response~1]
             if output.stdout != input_bytes {
                 let mutated_proto =
                     UpdateWorkload::decode(output.stdout.as_slice()).map_err(|err| {
@@ -147,7 +143,7 @@ impl AdmissionHookMutator for AdmissionHookRegistry {
 // [impl->swdd~server-removes-dropped-workloads-from-effective-state~1]
 // [impl->swdd~server-restores-undeleted-workloads-in-effective-state~1]
 pub fn update_effective_state(
-    admission_hook_registry: &impl AdmissionHookMutator,
+    hooks_registry: &impl HookMutator,
     added_deleted_workloads: &mut AddedDeletedWorkloads,
     new_rendered_workloads: &mut RenderedWorkloads,
     old_rendered_workloads: &RenderedWorkloads,
@@ -163,7 +159,7 @@ pub fn update_effective_state(
         .map(|w| w.instance_name.workload_name().to_owned())
         .collect();
 
-    admission_hook_registry.mutate_with_admission_hooks(added_deleted_workloads)?;
+    hooks_registry.mutate_with_hooks(added_deleted_workloads)?;
 
     let mutated_added_names: HashSet<String> = added_deleted_workloads
         .added_workloads
@@ -185,7 +181,7 @@ pub fn update_effective_state(
     // Workloads removed from added_workloads by hooks -> remove from effective state
     for name in original_added_names.difference(&mutated_added_names) {
         log::debug!(
-            "Admission hook removed workload '{}' from added workloads, removing from effective state",
+            "Mutating hook removed workload '{}' from added workloads, removing from effective state",
             name
         );
         new_rendered_workloads.remove(name);
@@ -195,7 +191,7 @@ pub fn update_effective_state(
     for name in original_deleted_names.difference(&mutated_deleted_names) {
         if let Some(old_workload) = old_rendered_workloads.get(name) {
             log::debug!(
-                "Admission hook removed workload '{}' from deleted workloads, re-adding to effective state",
+                "Mutating hook removed workload '{}' from deleted workloads, re-adding to effective state",
                 name
             );
             new_rendered_workloads.insert(name.clone(), old_workload.clone());
@@ -250,85 +246,82 @@ mod tests {
     };
     use std::path::PathBuf;
 
-    // [utest->swdd~server-sorts-admission-hooks-by-priority~1]
+    // [utest->swdd~server-sorts-mutating-hooks-by-priority~1]
     #[test]
     fn utest_registry_from_empty_config() {
-        let registry = AdmissionHookRegistry::new(vec![]);
-        assert!(registry.admission_hooks.is_empty());
+        let registry = HooksRegistry::new(vec![]);
+        assert!(registry.mutating_hooks.is_empty());
     }
 
-    // [utest->swdd~server-sorts-admission-hooks-by-priority~1]
+    // [utest->swdd~server-sorts-mutating-hooks-by-priority~1]
     #[test]
     fn utest_registry_sorts_by_priority() {
         let configs = vec![
-            AdmissionHook {
+            MutatingHook {
                 name: "hook-c".to_string(),
                 prio: 30,
                 path: PathBuf::from("/usr/libexec/ankaios/hooks"),
             },
-            AdmissionHook {
+            MutatingHook {
                 name: "hook-a".to_string(),
                 prio: 10,
                 path: PathBuf::from("/usr/libexec/ankaios/hooks"),
             },
-            AdmissionHook {
+            MutatingHook {
                 name: "hook-b".to_string(),
                 prio: 20,
                 path: PathBuf::from("/usr/libexec/ankaios/hooks"),
             },
         ];
 
-        let registry = AdmissionHookRegistry::new(configs);
+        let registry = HooksRegistry::new(configs);
 
-        assert_eq!(registry.admission_hooks.len(), 3);
-        assert_eq!(registry.admission_hooks[0].name, "hook-a");
-        assert_eq!(registry.admission_hooks[0].prio, 10);
-        assert_eq!(registry.admission_hooks[1].name, "hook-b");
-        assert_eq!(registry.admission_hooks[1].prio, 20);
-        assert_eq!(registry.admission_hooks[2].name, "hook-c");
-        assert_eq!(registry.admission_hooks[2].prio, 30);
+        assert_eq!(registry.mutating_hooks.len(), 3);
+        assert_eq!(registry.mutating_hooks[0].name, "hook-a");
+        assert_eq!(registry.mutating_hooks[0].prio, 10);
+        assert_eq!(registry.mutating_hooks[1].name, "hook-b");
+        assert_eq!(registry.mutating_hooks[1].prio, 20);
+        assert_eq!(registry.mutating_hooks[2].name, "hook-c");
+        assert_eq!(registry.mutating_hooks[2].prio, 30);
     }
 
-    // [utest->swdd~server-config-supports-admission-hooks~1]
+    // [utest->swdd~server-config-supports-mutating-hooks~1]
     #[test]
     fn utest_registry_uses_custom_hooks_dir() {
-        let configs = vec![AdmissionHook {
+        let configs = vec![MutatingHook {
             name: "my-hook".to_string(),
             prio: 5,
             path: PathBuf::from("/opt/hooks"),
         }];
 
-        let registry = AdmissionHookRegistry::new(configs);
+        let registry = HooksRegistry::new(configs);
 
-        assert_eq!(
-            registry.admission_hooks[0].path,
-            PathBuf::from("/opt/hooks")
-        );
+        assert_eq!(registry.mutating_hooks[0].path, PathBuf::from("/opt/hooks"));
     }
 
-    // [utest->swdd~server-sorts-admission-hooks-by-priority~1]
+    // [utest->swdd~server-sorts-mutating-hooks-by-priority~1]
     #[test]
     fn utest_registry_stable_sort_equal_priorities() {
         let configs = vec![
-            AdmissionHook {
+            MutatingHook {
                 name: "first".to_string(),
                 prio: 10,
                 path: PathBuf::from("/usr/libexec/ankaios/hooks"),
             },
-            AdmissionHook {
+            MutatingHook {
                 name: "second".to_string(),
                 prio: 10,
                 path: PathBuf::from("/usr/libexec/ankaios/hooks"),
             },
         ];
 
-        let registry = AdmissionHookRegistry::new(configs);
+        let registry = HooksRegistry::new(configs);
 
-        assert_eq!(registry.admission_hooks[0].name, "first");
-        assert_eq!(registry.admission_hooks[1].name, "second");
+        assert_eq!(registry.mutating_hooks[0].name, "first");
+        assert_eq!(registry.mutating_hooks[1].name, "second");
     }
 
-    // [utest->swdd~server-executes-admission-hooks-as-subprocess~1]
+    // [utest->swdd~server-executes-mutating-hooks-as-subprocess~1]
     #[test]
     fn utest_update_workload_roundtrip_conversion() {
         let original = AddedDeletedWorkloads {
@@ -342,16 +335,13 @@ mod tests {
         assert_eq!(original, restored);
     }
 
-    // -- update_effective_state tests (using MockAdmissionHookMutator) --
-
     // [utest->swdd~server-applies-mutated-workloads-to-effective-state~1]
     #[test]
     fn utest_update_effective_state_no_mutation_applies_added_workloads() {
         let wl = generate_test_workload_named_with_params("wl_a", "agent_A", "runtime_A");
 
-        let mut mock = MockAdmissionHookMutator::new();
-        mock.expect_mutate_with_admission_hooks()
-            .returning(|_| Ok(()));
+        let mut mock = MockHookMutator::new();
+        mock.expect_mutate_with_hooks().returning(|_| Ok(()));
 
         let mut added_deleted = AddedDeletedWorkloads {
             added_workloads: vec![wl.clone()],
@@ -369,9 +359,8 @@ mod tests {
     // [utest->swdd~server-applies-mutated-workloads-to-effective-state~1]
     #[test]
     fn utest_update_effective_state_no_mutation_empty_input() {
-        let mut mock = MockAdmissionHookMutator::new();
-        mock.expect_mutate_with_admission_hooks()
-            .returning(|_| Ok(()));
+        let mut mock = MockHookMutator::new();
+        mock.expect_mutate_with_hooks().returning(|_| Ok(()));
 
         let mut added_deleted = AddedDeletedWorkloads::default();
         let mut new_rendered = RenderedWorkloads::default();
@@ -388,9 +377,8 @@ mod tests {
     fn utest_update_effective_state_passthrough_no_change() {
         let wl = generate_test_workload_named_with_params("wl_x", "agent_A", "runtime_A");
 
-        let mut mock = MockAdmissionHookMutator::new();
-        mock.expect_mutate_with_admission_hooks()
-            .returning(|_| Ok(()));
+        let mut mock = MockHookMutator::new();
+        mock.expect_mutate_with_hooks().returning(|_| Ok(()));
 
         let mut added_deleted = AddedDeletedWorkloads {
             added_workloads: vec![wl.clone()],
@@ -412,13 +400,12 @@ mod tests {
         let wl_b = generate_test_workload_named_with_params("wl_b", "agent_A", "runtime_A");
         let wl_b_clone = wl_b.clone();
 
-        let mut mock = MockAdmissionHookMutator::new();
-        mock.expect_mutate_with_admission_hooks()
-            .returning(move |adw| {
-                // Hook removes wl_a, keeps only wl_b
-                adw.added_workloads = vec![wl_b_clone.clone()];
-                Ok(())
-            });
+        let mut mock = MockHookMutator::new();
+        mock.expect_mutate_with_hooks().returning(move |adw| {
+            // Hook removes wl_a, keeps only wl_b
+            adw.added_workloads = vec![wl_b_clone.clone()];
+            Ok(())
+        });
 
         let mut added_deleted = AddedDeletedWorkloads {
             added_workloads: vec![wl_a.clone(), wl_b.clone()],
@@ -450,8 +437,8 @@ mod tests {
         let wl_keep = generate_test_workload_named_with_params("wl_keep", "agent_A", "runtime_A");
         let del_wl = generate_test_deleted_workload_with_params("agent_A", "wl_keep");
 
-        let mut mock = MockAdmissionHookMutator::new();
-        mock.expect_mutate_with_admission_hooks().returning(|adw| {
+        let mut mock = MockHookMutator::new();
+        mock.expect_mutate_with_hooks().returning(|adw| {
             // Hook removes wl_keep from deleted list
             adw.deleted_workloads.clear();
             Ok(())
@@ -479,8 +466,8 @@ mod tests {
     fn utest_update_effective_state_hook_removes_from_deleted_not_in_old_no_crash() {
         let del_wl = generate_test_deleted_workload_with_params("agent_A", "wl_gone");
 
-        let mut mock = MockAdmissionHookMutator::new();
-        mock.expect_mutate_with_admission_hooks().returning(|adw| {
+        let mut mock = MockHookMutator::new();
+        mock.expect_mutate_with_hooks().returning(|adw| {
             // Hook removes wl_gone from deleted list
             adw.deleted_workloads.clear();
             Ok(())
@@ -510,13 +497,12 @@ mod tests {
         let wl_orig_clone = wl_orig.clone();
         let wl_new_clone = wl_new.clone();
 
-        let mut mock = MockAdmissionHookMutator::new();
-        mock.expect_mutate_with_admission_hooks()
-            .returning(move |adw| {
-                // Hook adds wl_new alongside wl_orig
-                adw.added_workloads = vec![wl_orig_clone.clone(), wl_new_clone.clone()];
-                Ok(())
-            });
+        let mut mock = MockHookMutator::new();
+        mock.expect_mutate_with_hooks().returning(move |adw| {
+            // Hook adds wl_new alongside wl_orig
+            adw.added_workloads = vec![wl_orig_clone.clone(), wl_new_clone.clone()];
+            Ok(())
+        });
 
         let mut added_deleted = AddedDeletedWorkloads {
             added_workloads: vec![wl_orig.clone()],
@@ -540,12 +526,12 @@ mod tests {
         );
     }
 
-    // [utest->swdd~server-admission-hook-veto~1]
+    // [utest->swdd~server-mutating-hook-veto~1]
     #[test]
     fn utest_update_effective_state_hook_veto_propagates_error() {
-        let mut mock = MockAdmissionHookMutator::new();
-        mock.expect_mutate_with_admission_hooks().returning(|_| {
-            Err(UpdateStateError::AdmissionHookVeto {
+        let mut mock = MockHookMutator::new();
+        mock.expect_mutate_with_hooks().returning(|_| {
+            Err(UpdateStateError::MutatingHookVeto {
                 hook: "veto-hook".to_string(),
                 reason: "policy violation".to_string(),
             })
@@ -563,7 +549,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(UpdateStateError::AdmissionHookVeto { .. })
+            Err(UpdateStateError::MutatingHookVeto { .. })
         ));
     }
 }

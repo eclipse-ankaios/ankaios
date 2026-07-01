@@ -12,12 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod admission_hook_registry;
 mod config_renderer;
 mod cycle_check;
 mod delete_graph;
 mod event_handler;
 mod log_campaign_store;
+pub mod hooks_registry;
 mod rendered_workloads;
 mod request_id;
 pub mod server_state;
@@ -65,9 +65,9 @@ use log_campaign_store::LogCollectorRequestId;
 
 use std::collections::HashSet;
 
-use crate::ankaios_server::admission_hook_registry::AdmissionHookRegistry;
+use crate::ankaios_server::hooks_registry::HooksRegistry;
 use crate::ankaios_server::server_state::UpdateStateError;
-use crate::server_config::AdmissionHook;
+use crate::server_config::MutatingHook;
 
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
@@ -79,14 +79,14 @@ pub struct AnkaiosServer {
     agent_map: AgentMapSpec,
     log_campaign_store: LogCampaignStore,
     event_handler: EventHandler,
-    admission_hook_registry: AdmissionHookRegistry,
+    hooks_registry: HooksRegistry,
 }
 
 impl AnkaiosServer {
     pub fn new(
         receiver: ToServerReceiver,
         to_agents: FromServerSender,
-        admission_hooks: Vec<AdmissionHook>,
+        mutating_hooks: Vec<MutatingHook>,
     ) -> Self {
         AnkaiosServer {
             receiver,
@@ -96,7 +96,7 @@ impl AnkaiosServer {
             agent_map: AgentMapSpec::default(),
             log_campaign_store: LogCampaignStore::default(),
             event_handler: EventHandler::default(),
-            admission_hook_registry: AdmissionHookRegistry::new(admission_hooks),
+            hooks_registry: HooksRegistry::new(mutating_hooks),
         }
     }
 
@@ -107,7 +107,7 @@ impl AnkaiosServer {
 
             match self
                 .server_state
-                .update(state.desired_state, &self.admission_hook_registry)
+                .update(state.desired_state, &self.hooks_registry)
             {
                 Ok(Some(added_deleted_workloads)) => {
                     let added_workloads = added_deleted_workloads.added_workloads;
@@ -472,7 +472,7 @@ impl AnkaiosServer {
 
                             match self.server_state.update(
                                 state_generation_result.new_desired_state.clone(),
-                                &self.admission_hook_registry,
+                                &self.hooks_registry,
                             ) {
                                 Ok(Some(added_deleted_workloads)) => {
                                     self.set_agent_tags(&state_generation_result.new_agent_map);
@@ -529,14 +529,14 @@ impl AnkaiosServer {
                                 }
                                 Err(error_msg) => {
                                     let rejection_message = match &error_msg {
-                                        // [impl->swdd~server-admission-hook-veto~1]
-                                        UpdateStateError::AdmissionHookVeto { hook, reason } => {
-                                            let admission_hooks_msg = format!(
-                                                "Update rejected by admission hook '{}': '{}'",
+                                        // [impl->swdd~server-mutating-hook-veto~1]
+                                        UpdateStateError::MutatingHookVeto { hook, reason } => {
+                                            let mutating_hooks_msg = format!(
+                                                "Update rejected by mutating hook '{}': '{}'",
                                                 hook, reason
                                             );
-                                            log::info!("{admission_hooks_msg}");
-                                            admission_hooks_msg
+                                            log::info!("{mutating_hooks_msg}");
+                                            mutating_hooks_msg
                                         }
                                         _ => {
                                             // [impl->swdd~server-continues-on-invalid-updated-state~1]

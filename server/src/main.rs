@@ -135,7 +135,7 @@ async fn main() {
     let mut server = AnkaiosServer::new(
         server_receiver,
         to_agents.clone(),
-        server_config.admission_hooks,
+        server_config.mutating_hooks,
     );
 
     tokio::select! {

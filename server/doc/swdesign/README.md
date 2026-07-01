@@ -49,12 +49,12 @@ Considered alternatives:
 - Askama: does not support rendering templates at runtime, mainly used for generating code based on templates
 - Tera: Jinja2 template engine contains too many features beyond the use case
 
-#### Admission hook response optimization via byte comparison
-`swdd~server-admission-hook-skip-unchanged-response~1`
+#### Mutating hook response optimization via byte comparison
+`swdd~server-mutating-hook-skip-unchanged-response~1`
 
 Status: approved
 
-When an admission hook returns its response, the server compares the raw protobuf output bytes against the input bytes. If they are identical, the server skips decoding and conversion entirely.
+When a mutating hook returns its response, the server compares the raw protobuf output bytes against the input bytes. If they are identical, the server skips decoding and conversion entirely.
 
 Rationale:
 
@@ -65,12 +65,12 @@ Needs:
 
 Assumptions:
 
-Up to 10 admission hooks may be chained. The performance bottleneck is process spawning (~1–5ms per hook), not data serialization or pipe I/O.
+Up to 10 mutating hooks may be chained. The performance bottleneck is process spawning (~1–5ms per hook), not data serialization or pipe I/O.
 
 Considered alternatives:
 
 - **No optimization**: Always decode and convert the response. Simple, but performs redundant work in the common non-mutating case. The decoding and conversion cost is small but unnecessary.
-- **Lightweight admission result message**: The hook returns a small response carrying only workload names and an "admitted" flag when no mutation occurred. This would save a few KB of pipe I/O per hook but adds significant complexity: a new protobuf message type, a framing mechanism for the server to distinguish response formats, two code paths for response handling, and additional burden on hook authors. The pipe I/O savings (~10–50 microseconds total across 10 hooks) are negligible compared to process spawning costs (~10–50 milliseconds), making the trade-off unjustified.
+- **Lightweight mutating result message**: The hook returns a small response carrying only workload names and an "admitted" flag when no mutation occurred. This would save a few KB of pipe I/O per hook but adds significant complexity: a new protobuf message type, a framing mechanism for the server to distinguish response formats, two code paths for response handling, and additional burden on hook authors. The pipe I/O savings (~10–50 microseconds total across 10 hooks) are negligible compared to process spawning costs (~10–50 milliseconds), making the trade-off unjustified.
 - **Per-workload hash tracking**: Track individual workload mutations via content hashes to selectively skip conversion of unchanged workloads. Adds protocol complexity and statefulness without meaningful gain, since the entire message must still be transferred and decoded to extract the hashes.
 
 ## Structural view
@@ -115,9 +115,9 @@ In the following a workload requesting logs is sometimes also called log collect
 
 The EventHandler holds metadata about the event subscribers and their subscribed field masks. It is responsible for sending out events to the corresponding event subscribers.
 
-### AdmissionHookRegistry
+### HooksRegistry
 
-The AdmissionHookRegistry holds the list of configured admission hooks sorted by priority. It is responsible for executing admission hooks as child processes, feeding them the serialized workload update via stdin and reading back the (potentially mutated) result from stdout. The registry is initialized at server startup from the server configuration.
+The HooksRegistry holds the list of configured mutating hooks sorted by priority. It is responsible for executing mutating hooks as child processes, feeding them the serialized workload update via stdin and reading back the (potentially mutated) result from stdout. The registry is initialized at server startup from the server configuration.
 
 ### StateComparator
 
@@ -785,30 +785,30 @@ Needs:
 - impl
 - stest
 
-### Admission Hooks
+### Mutating Hooks
 
 > [!Note]
->The admission hooks feature is still in beta.
+>The mutating hooks feature is still in beta.
 > Both configuration format and the communication protocol between the server and hooks, is unstable and may change at any time.
 
-Admission hooks allow external programs to validate, reject, or mutate workload changes before they are applied.
+Mutating hooks allow external programs to validate, reject, or mutate workload changes before they are applied.
 
-#### Server config supports admission hooks
-`swdd~server-config-supports-admission-hooks~1`
+#### Server config supports mutating hooks
+`swdd~server-config-supports-mutating-hooks~1`
 
 Status: approved
 
-The Ankaios server shall support configuring admission hooks in the server configuration file with the following attributes per hook:
+The Ankaios server shall support configuring mutating hooks in the server configuration file with the following attributes per hook:
 
 - `name` — the hook executable name (required)
 - `prio` — execution priority as an unsigned 8-bit integer (`0`–`255`, optional, default `0`)
 - `path` — directory containing the hook executable (optional, default `/usr/libexec/ankaios/hooks`)
 
 Rationale:
-Admission hooks need to be declaratively configured so that administrators can control which hooks run and in what order.
+Mutating hooks need to be declaratively configured so that administrators can control which hooks run and in what order.
 
 Comment:
-Admission hooks are currently a beta feature. The interface to this feature, including both configuration and the communication protocol between the server and hooks, is unstable and may change at any time.
+Mutating hooks are currently a beta feature. The interface to this feature, including both configuration and the communication protocol between the server and hooks, is unstable and may change at any time.
 
 Tags:
 - AnkaiosServer
@@ -817,77 +817,77 @@ Needs:
 - impl
 - utest
 
-#### Server sorts admission hooks by priority
-`swdd~server-sorts-admission-hooks-by-priority~1`
+#### Server sorts mutating hooks by priority
+`swdd~server-sorts-mutating-hooks-by-priority~1`
 
 Status: approved
 
-The Ankaios server shall sort admission hooks by their configured priority in ascending order before executing them, where hooks with equal priority maintain their declaration order (stable sort).
+The Ankaios server shall sort mutating hooks by their configured priority in ascending order before executing them, where hooks with equal priority maintain their declaration order (stable sort).
 
 Rationale:
 Priority ordering allows administrators to ensure validation hooks run before mutation hooks.
 
 Tags:
-- AdmissionHookRegistry
+- HooksRegistry
 
 Needs:
 - impl
 - utest
 
-#### Server executes admission hooks as child processes
-`swdd~server-executes-admission-hooks-as-subprocess~1`
+#### Server executes mutating hooks as child processes
+`swdd~server-executes-mutating-hooks-as-subprocess~1`
 
 Status: approved
 
-When the server state changes, the Ankaios server shall execute each configured admission hook as a child process by performing the following actions in order:
+When the server state changes, the Ankaios server shall execute each configured mutating hook as a child process by performing the following actions in order:
 
 1. Serialize the added and deleted workloads as a protobuf `UpdateWorkload` message
 2. Write the serialized message to the hook's stdin
 3. Read the hook's stdout as the potentially mutated protobuf response
 
 Rationale:
-Using child processes with protobuf serialization provides a language-agnostic, sandboxed interface for admission hooks.
+Using child processes with protobuf serialization provides a language-agnostic, sandboxed interface for mutating hooks.
 
 Comment:
-Admission hooks are currently a beta feature. The interface to this feature, including both configuration and the communication protocol between the server and hooks, is unstable and may change at any time.
+Mutating hooks are currently a beta feature. The interface to this feature, including both configuration and the communication protocol between the server and hooks, is unstable and may change at any time.
 
 Tags:
-- AdmissionHookRegistry
+- HooksRegistry
 
 Needs:
 - impl
 - utest
 
-#### Admission hook can veto state changes
-`swdd~server-admission-hook-veto~1`
+#### Mutating hook can veto state changes
+`swdd~server-mutating-hook-veto~1`
 
 Status: approved
 
-When an admission hook exits with a non-zero exit code, the Ankaios server shall reject the entire state update and return an error containing the hook name and its stderr output.
+When a mutating hook exits with a non-zero exit code, the Ankaios server shall reject the entire state update and return an error containing the hook name and its stderr output.
 
 Rationale:
-Admission hooks need to be able to enforce policies by rejecting invalid or unauthorized workload changes.
+Mutating hooks need to be able to enforce policies by rejecting invalid or unauthorized workload changes.
 
 Tags:
-- AdmissionHookRegistry
+- HooksRegistry
 - AnkaiosServer
 
 Needs:
 - impl
 - utest
 
-#### Server traces admission hook stderr
-`swdd~server-traces-admission-hook-stderr~1`
+#### Server traces mutating hook stderr
+`swdd~server-traces-mutating-hook-stderr~1`
 
 Status: approved
 
-When an admission hook finishes, the Ankaios server shall trace the hook's stderr output for debugging reasons.
+When a mutating hook finishes, the Ankaios server shall trace the hook's stderr output for debugging reasons.
 
 Rationale:
-Admission hooks are external executables and their diagnostics are written to stderr. Tracing stderr output supports debugging hook behavior in both successful and rejected update paths.
+Mutating hooks are external executables and their diagnostics are written to stderr. Tracing stderr output supports debugging hook behavior in both successful and rejected update paths.
 
 Tags:
-- AdmissionHookRegistry
+- HooksRegistry
 
 Needs:
 - impl
@@ -897,13 +897,13 @@ Needs:
 
 Status: approved
 
-After running admission hooks, the Ankaios server shall apply the mutated added workloads to the effective state.
+After running mutating hooks, the Ankaios server shall apply the mutated added workloads to the effective state.
 
 Rationale:
 The effective state must reflect the workload configurations that are actually sent to agents after hook mutations.
 
 Tags:
-- AdmissionHookRegistry
+- HooksRegistry
 - ServerState
 
 Needs:
@@ -915,13 +915,13 @@ Needs:
 
 Status: approved
 
-When an admission hook removes a workload from the added workloads list, the Ankaios server shall remove that workload from the effective state.
+When a mutating hook removes a workload from the added workloads list, the Ankaios server shall remove that workload from the effective state.
 
 Rationale:
 If a hook drops a workload from the added list, the effective state must not contain a workload that will not be deployed.
 
 Tags:
-- AdmissionHookRegistry
+- HooksRegistry
 
 Needs:
 - impl
@@ -932,13 +932,13 @@ Needs:
 
 Status: approved
 
-When an admission hook removes a workload from the deleted workloads list, the Ankaios server shall restore that workload in the effective state from the previous rendered workloads.
+When a mutating hook removes a workload from the deleted workloads list, the Ankaios server shall restore that workload in the effective state from the previous rendered workloads.
 
 Rationale:
 If a hook prevents a workload from being deleted, the effective state must continue to contain that workload.
 
 Tags:
-- AdmissionHookRegistry
+- HooksRegistry
 
 Needs:
 - impl
@@ -955,7 +955,7 @@ Comment:
 The effective state supports field mask filtering and automatic inclusion of the apiVersion, consistent with the existing desiredState filtering behavior. The configs field is currently not filled in the effective state as configs have already been applied (rendered) into the workload configurations.
 
 Rationale:
-Users and workloads need visibility into the actual workload configurations sent to agents, which may differ from the desired state due to admission hook mutations.
+Users and workloads need visibility into the actual workload configurations sent to agents, which may differ from the desired state due to mutating hook mutations.
 
 Tags:
 - ServerState
@@ -992,7 +992,7 @@ Status: approved
 The Ankaios server shall ignore the `effectiveState` field when processing state updates.
 
 Comment:
-The effective state is computed internally from rendered workloads and admission hook results. It is never set by external clients.
+The effective state is computed internally from rendered workloads and mutating hook results. It is never set by external clients.
 
 Rationale:
 Allowing external writes to the effective state would break its consistency with the actual hook processing pipeline.
@@ -1062,10 +1062,10 @@ Needs:
 
 Status: approved
 
-When the ServerState determines changes in its State, the ServerState shall compare the rendered workload configurations of its new DesiredState against the pre-admission-hook rendered workloads of the current DesiredState.
+When the ServerState determines changes in its State, the ServerState shall compare the rendered workload configurations of its new DesiredState against the pre-mutating-hook rendered workloads of the current DesiredState.
 
 Rationale:
-This ensures that the system recognizes a workload as changed when a configuration item referenced by that workload is updated, while avoiding unnecessary updates when reapplying a manifest that was previously mutated by admission hooks.
+This ensures that the system recognizes a workload as changed when a configuration item referenced by that workload is updated, while avoiding unnecessary updates when reapplying a manifest that was previously mutated by mutating hooks.
 
 Tags:
 - ServerState
