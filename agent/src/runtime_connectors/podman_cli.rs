@@ -14,7 +14,7 @@
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_connectors::cli_command::CliCommand;
-use ankaios_api::ank_base::ExecutionStateSpec;
+use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec};
 
 use base64::Engine;
 #[cfg(test)]
@@ -305,14 +305,13 @@ impl PodmanCli {
 
     pub async fn podman_run(
         mut run_config: PodmanRunConfig,
-        workload_name: &str,
-        agent: &str,
+        instance_name: &WorkloadInstanceNameSpec,
         control_interface_path: Option<PathBuf>,
         workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
     ) -> Result<String, String> {
         log::debug!(
             "Creating the workload '{}' with image '{}'",
-            workload_name,
+            instance_name,
             run_config.image
         );
 
@@ -328,7 +327,7 @@ impl PodmanCli {
         // Therefore we do insist on container names in particular format.
         //
         // [impl->swdd~podman-create-workload-sets-optionally-container-name~2]
-        args.append(&mut vec!["--name".into(), workload_name.to_string()]);
+        args.append(&mut vec!["--name".into(), instance_name.short_workload_name()]);
 
         args.append(&mut run_config.command_options);
 
@@ -360,8 +359,8 @@ impl PodmanCli {
         }
 
         // [impl->swdd~podman-create-workload-creates-labels~2]
-        args.push(format!("--label=name={workload_name}"));
-        args.push(format!("--label=agent={agent}"));
+        args.push(format!("--label=name={instance_name}"));
+        args.push(format!("--label=agent={}", instance_name.agent_name()));
         args.push(run_config.image);
 
         args.append(&mut run_config.command_args);
@@ -378,11 +377,11 @@ impl PodmanCli {
 
     pub async fn podman_start(
         start_config: PodmanStartConfig,
-        workload_name: &str,
+        instance_name: &WorkloadInstanceNameSpec,
     ) -> Result<String, String> {
         log::debug!(
             "Starting the workload '{}' with id '{}'",
-            workload_name,
+            instance_name,
             start_config.container_id
         );
 
@@ -564,7 +563,7 @@ mod tests {
     use super::{CliCommand, ContainerState, PodmanCli, PodmanContainerInfo, PodmanPsCache};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
-    use ankaios_api::ank_base::ExecutionStateSpec;
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec};
     use common::test_utils::serialize_as_map;
 
     use serde::Serialize;
@@ -1026,6 +1025,9 @@ mod tests {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         CliCommand::reset();
 
+        let instance_name =
+            WorkloadInstanceNameSpec::new("test_agent", "test_workload", "abcdefghijklmnop");
+
         CliCommand::new_expect(
             "podman",
             CliCommand::default()
@@ -1033,8 +1035,8 @@ mod tests {
                     "run",
                     "--detach",
                     "--name",
-                    "test_workload_name",
-                    "--label=name=test_workload_name",
+                    "test_workload.abcdefg.test_agent",
+                    "--label=name=test_workload.abcdefghijklmnop.test_agent",
                     "--label=agent=test_agent",
                     "alpine:latest",
                 ])
@@ -1049,8 +1051,7 @@ mod tests {
         };
         let res = PodmanCli::podman_run(
             run_config,
-            "test_workload_name",
-            "test_agent",
+            &instance_name,
             None,
             Default::default(),
         )
@@ -1063,6 +1064,9 @@ mod tests {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         CliCommand::reset();
 
+        let instance_name =
+            WorkloadInstanceNameSpec::new("test_agent", "test_workload", "abcdefghijklmnop");
+
         CliCommand::new_expect(
             "podman",
             CliCommand::default()
@@ -1070,8 +1074,8 @@ mod tests {
                     "run",
                     "--detach",
                     "--name",
-                    "test_workload_name",
-                    "--label=name=test_workload_name",
+                    "test_workload.abcdefg.test_agent",
+                    "--label=name=test_workload.abcdefghijklmnop.test_agent",
                     "--label=agent=test_agent",
                     "alpine:latest",
                 ])
@@ -1086,8 +1090,7 @@ mod tests {
         };
         let res = PodmanCli::podman_run(
             run_config,
-            "test_workload_name",
-            "test_agent",
+            &instance_name,
             None,
             Default::default(),
         )
@@ -1106,6 +1109,9 @@ mod tests {
         const HOST_WORKLOAD_FILE_PATH: &str = "/some/path/on/host/file/system/file.conf";
         const MOUNT_POINT_PATH: &str = "/mount/point/in/container/test.conf";
 
+        let instance_name =
+            WorkloadInstanceNameSpec::new("test_agent", "test_workload", "abcdefghijklmnop");
+
         CliCommand::new_expect(
             "podman",
             CliCommand::default()
@@ -1114,13 +1120,13 @@ mod tests {
                     "run",
                     "--detach",
                     "--name",
-                    "test_workload_name",
+                    "test_workload.abcdefg.test_agent",
                     "--network=host",
                     "--name",
                     "myCont",
                     "--mount=type=bind,source=/test/path,destination=/run/ankaios/control_interface",
                     &format!("--mount=type=bind,source={HOST_WORKLOAD_FILE_PATH},destination={MOUNT_POINT_PATH},readonly=true"),
-                    "--label=name=test_workload_name",
+                    "--label=name=test_workload.abcdefghijklmnop.test_agent",
                     "--label=agent=test_agent",
                     "alpine:latest",
                     "sh",
@@ -1136,8 +1142,7 @@ mod tests {
         };
         let res = PodmanCli::podman_run(
             run_config,
-            "test_workload_name",
-            "test_agent",
+            &instance_name,
             Some("/test/path".into()),
             HashMap::from([(HOST_WORKLOAD_FILE_PATH.into(), MOUNT_POINT_PATH.into())]),
         )
@@ -1160,11 +1165,13 @@ mod tests {
                 .exec_returns(Ok(ID.to_string())),
         );
 
+        let instance_name =
+            WorkloadInstanceNameSpec::new("test_agent", "test_workload", "abcdefghijklmnop");
         let start_config = super::PodmanStartConfig {
             general_options: vec!["--remote".into()],
             container_id: ID.into(),
         };
-        let res = PodmanCli::podman_start(start_config, "test_workload_name").await;
+        let res = PodmanCli::podman_start(start_config, &instance_name).await;
         assert_eq!(res, Ok(ID.to_string()));
     }
 
@@ -1183,11 +1190,13 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
+        let instance_name =
+            WorkloadInstanceNameSpec::new("test_agent", "test_workload", "abcdefghijklmnop");
         let start_config = super::PodmanStartConfig {
             general_options: vec![],
             container_id: ID.into(),
         };
-        let res = PodmanCli::podman_start(start_config, "test_workload_name").await;
+        let res = PodmanCli::podman_start(start_config, &instance_name).await;
         assert_eq!(res, Err(SAMPLE_ERROR_MESSAGE.to_string()));
     }
 
