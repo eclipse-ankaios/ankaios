@@ -146,7 +146,7 @@ Rationale:
 An Ankaios CLI configuration file allows a reproducible execution of the CLI with lower effort.
 
 Comment:
-The Ankaios CLI expects the configuration file per default in the standard locations [`$HOME/.config/ankaios/ank.conf`, `/etc/ankaios/ank.conf`] with first existing file taking precedence over the other. The configuration file in the user home directory is optional.
+The Ankaios CLI expects the configuration file per default in the standard locations [`$HOME/.config/ankaios/ank.conf`, `/etc/ankaios/ank.conf`] with first existing file taking precedence over the other. The existence of the user home environment variable `HOME` is optional.
 
 Needs:
 - impl
