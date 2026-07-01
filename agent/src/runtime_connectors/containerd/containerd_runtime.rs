@@ -170,14 +170,13 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
                     general_options: workload_cfg.general_options,
                     container_id: workload_id.id,
                 };
-                NerdctlCli::nerdctl_start(start_config, &workload_named.instance_name.to_string())
+                NerdctlCli::nerdctl_start(start_config, &workload_named.instance_name)
                     .await
             }
             None => {
                 NerdctlCli::nerdctl_run(
                     workload_cfg.into(),
-                    &workload_named.instance_name.to_string(),
-                    workload_named.instance_name.agent_name(),
+                    &workload_named.instance_name,
                     control_interface_path,
                     workload_file_path_mappings,
                 )

@@ -169,14 +169,13 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
                     general_options: workload_cfg.general_options,
                     container_id: workload_id.id,
                 };
-                PodmanCli::podman_start(start_config, &workload_named.instance_name.to_string())
+                PodmanCli::podman_start(start_config, &workload_named.instance_name)
                     .await
             }
             None => {
                 PodmanCli::podman_run(
                     workload_cfg.into(),
-                    &workload_named.instance_name.to_string(),
-                    workload_named.instance_name.agent_name(),
+                    &workload_named.instance_name,
                     control_interface_path,
                     workload_file_path_mappings,
                 )
