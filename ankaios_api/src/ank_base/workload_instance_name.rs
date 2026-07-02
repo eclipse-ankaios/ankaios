@@ -79,6 +79,18 @@ impl WorkloadInstanceNameSpec {
         ))
     }
 
+    pub fn short_workload_name(&self) -> String {
+        let short_id = &self.id[..7.min(self.id.len())];
+        format!(
+            "{}{}{}{}{}",
+            self.workload_name,
+            INSTANCE_NAME_SEPARATOR,
+            short_id,
+            INSTANCE_NAME_SEPARATOR,
+            self.agent_name
+        )
+    }
+
     pub fn builder() -> WorkloadInstanceNameBuilder {
         WorkloadInstanceNameBuilder::default()
     }
@@ -185,5 +197,17 @@ mod tests {
             name.to_string(),
             format!("{workload_name}.{expected_hash}.{agent_name}")
         )
+    }
+
+    #[test]
+    fn utest_short_workload_name_truncates_hash_to_7_chars() {
+        let name = WorkloadInstanceNameSpec::new("my_agent", "my_workload", "abcdefghijklmnop");
+        assert_eq!(name.short_workload_name(), "my_workload.abcdefg.my_agent");
+    }
+
+    #[test]
+    fn utest_short_workload_name_hash_shorter_than_7_chars() {
+        let name = WorkloadInstanceNameSpec::new("my_agent", "my_workload", "abc");
+        assert_eq!(name.short_workload_name(), "my_workload.abc.my_agent");
     }
 }
