@@ -13,8 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::super::log_fetcher::{GetOutputStreams, StreamTrait};
-use super::PodmanWorkloadId;
-use crate::runtime_connectors::runtime_connector::LogRequestOptions;
+use crate::runtime_connectors::runtime_connector::{LogRequestOptions, RuntimeWorkloadId};
 
 use std::process::Stdio;
 #[cfg(test)]
@@ -34,7 +33,7 @@ pub struct PodmanLogFetcher {
 }
 
 impl PodmanLogFetcher {
-    pub fn new(workload_id: &PodmanWorkloadId, options: &LogRequestOptions) -> Self {
+    pub fn new(workload_id: &RuntimeWorkloadId, options: &LogRequestOptions) -> Self {
         let mut args = Vec::with_capacity(9);
         args.push("logs");
         if options.follow {
@@ -54,7 +53,7 @@ impl PodmanLogFetcher {
             args.push("--tail");
             args.push(_tail.as_str());
         }
-        args.push(&workload_id.id);
+        args.push(workload_id.as_ref());
         let cmd = Command::new("podman")
             .args(args)
             .stdout(Stdio::piped())
@@ -137,7 +136,7 @@ impl GetOutputStreams for PodmanLogFetcher {
 mod tests {
     use super::PodmanLogFetcher;
     use crate::runtime_connectors::{
-        LogRequestOptions, log_fetcher::GetOutputStreams, podman::PodmanWorkloadId,
+        LogRequestOptions, RuntimeWorkloadId, log_fetcher::GetOutputStreams,
     };
     use ankaios_api::test_utils::fixtures;
 
@@ -219,9 +218,7 @@ mod tests {
         let _guard = TEST_LOCK.lock().unwrap();
         *CAN_SPAWN.lock().unwrap() = true;
         let mut log_fetcher = PodmanLogFetcher::new(
-            &PodmanWorkloadId {
-                id: fixtures::WORKLOAD_IDS[0].into(),
-            },
+            &RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0]),
             &LogRequestOptions {
                 follow: false,
                 tail: None,
@@ -251,9 +248,7 @@ mod tests {
         let _guard = TEST_LOCK.lock().unwrap();
         *CAN_SPAWN.lock().unwrap() = true;
         let mut log_fetcher = PodmanLogFetcher::new(
-            &PodmanWorkloadId {
-                id: fixtures::WORKLOAD_IDS[0].into(),
-            },
+            &RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0]),
             &LogRequestOptions {
                 follow: true,
                 tail: Some(10),
@@ -282,9 +277,7 @@ mod tests {
         let _guard = TEST_LOCK.lock().unwrap();
         *CAN_SPAWN.lock().unwrap() = false;
         let log_fetcher = PodmanLogFetcher::new(
-            &PodmanWorkloadId {
-                id: fixtures::WORKLOAD_IDS[0].into(),
-            },
+            &RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0]),
             &LogRequestOptions {
                 follow: false,
                 tail: None,
@@ -304,9 +297,7 @@ mod tests {
 
         *CAN_KILL.lock().unwrap() = true;
         let log_fetcher = PodmanLogFetcher::new(
-            &PodmanWorkloadId {
-                id: fixtures::WORKLOAD_IDS[0].into(),
-            },
+            &RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0]),
             &LogRequestOptions {
                 follow: true,
                 tail: None,
@@ -327,9 +318,7 @@ mod tests {
         *CAN_SPAWN.lock().unwrap() = true;
         *CAN_KILL.lock().unwrap() = false;
         let log_fetcher = PodmanLogFetcher::new(
-            &PodmanWorkloadId {
-                id: fixtures::WORKLOAD_IDS[0].into(),
-            },
+            &RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0]),
             &LogRequestOptions {
                 follow: true,
                 tail: None,

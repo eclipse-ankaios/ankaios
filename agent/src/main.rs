@@ -49,12 +49,11 @@ use common::{
     to_server_interface::ToServer,
 };
 
-use generic_polling_state_checker::GenericPollingStateChecker;
 use runtime_connectors::{
     GenericRuntimeFacade, RuntimeConnector, RuntimeFacade, SUPPORTED_RUNTIMES,
-    containerd::{self, ContainerdRuntime, ContainerdWorkloadId},
-    podman::{self, PodmanRuntime, PodmanWorkloadId},
-    podman_kube::{self, PodmanKubeRuntime, PodmanKubeWorkloadId},
+    containerd::{self, ContainerdRuntime},
+    podman::{self, PodmanRuntime},
+    podman_kube::{self, PodmanKubeRuntime},
 };
 
 use grpc::client::GRPCCommunicationsClient;
@@ -116,13 +115,10 @@ pub fn validate_runtimes(config_runtimes: &Option<Vec<String>>) -> Result<Vec<&s
 }
 
 macro_rules! register_runtime {
-    ($map:expr, $runtime_instance:expr, $workload_id_type:ty, $run_path:expr) => {{
+    ($map:expr, $runtime_instance:expr, $run_path:expr) => {{
         let runtime = Box::new($runtime_instance);
         let runtime_name = runtime.name();
-        let podman_facade = Box::new(GenericRuntimeFacade::<
-            $workload_id_type,
-            GenericPollingStateChecker,
-        >::new(runtime, $run_path));
+        let podman_facade = Box::new(GenericRuntimeFacade::new(runtime, $run_path));
         $map.insert(runtime_name, podman_facade);
     }};
 }
@@ -137,7 +133,8 @@ async fn main() {
     let mut agent_config: AgentConfig =
         handle_config(&args.config_path, &DEFAULT_AGENT_CONFIG_FILE_PATH);
 
-    agent_config.update_with_args(&args)
+    agent_config
+        .update_with_args(&args)
         .unwrap_or_exit("Failed to load certificate files!");
 
     validate_agent_name(&agent_config.name)
@@ -175,7 +172,6 @@ async fn main() {
                 register_runtime!(
                     runtime_facade_map,
                     PodmanRuntime {},
-                    PodmanWorkloadId,
                     run_directory.get_path()
                 );
             }
@@ -183,8 +179,7 @@ async fn main() {
                 // [impl->swdd~agent-supports-podman-kube-runtime~1]
                 register_runtime!(
                     runtime_facade_map,
-                    PodmanKubeRuntime {},
-                    PodmanKubeWorkloadId,
+                    PodmanKubeRuntime::default(),
                     run_directory.get_path()
                 );
             }
@@ -193,7 +188,6 @@ async fn main() {
                 register_runtime!(
                     runtime_facade_map,
                     ContainerdRuntime {},
-                    ContainerdWorkloadId,
                     run_directory.get_path()
                 );
             }

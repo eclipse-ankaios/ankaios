@@ -12,37 +12,22 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{RuntimeStateGetter, StateChecker};
-use crate::workload_state::WorkloadStateSender;
-use ankaios_api::ank_base::WorkloadNamed;
-
+use super::StateChecker;
 use async_trait::async_trait;
-use std::str::FromStr;
 
 // [impl->swdd~agent-skips-unknown-runtime~2]
-pub struct DummyStateChecker<WorkloadId>(std::marker::PhantomData<WorkloadId>);
+pub struct DummyStateChecker;
 
-impl<WorkloadId> DummyStateChecker<WorkloadId> {
+impl DummyStateChecker {
     pub fn new() -> Self {
-        Self(std::marker::PhantomData)
+        Self
     }
 }
 
 // [impl->swdd~agent-skips-unknown-runtime~2]
 #[async_trait]
-impl<WorkloadId> StateChecker<WorkloadId> for DummyStateChecker<WorkloadId>
-where
-    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-{
-    fn start_checker(
-        _workload_named: &WorkloadNamed,
-        _workload_id: WorkloadId,
-        _manager_interface: WorkloadStateSender,
-        _state_getter: impl RuntimeStateGetter<WorkloadId>,
-    ) -> Self {
-        Self(std::marker::PhantomData)
-    }
-    async fn stop_checker(self) {}
+impl StateChecker for DummyStateChecker {
+    async fn stop_checker(self: Box<Self>) {}
 }
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
@@ -54,21 +39,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{DummyStateChecker, StateChecker};
-    use crate::runtime_connectors::MockRuntimeStateGetter;
-
-    use ankaios_api::test_utils::{fixtures, generate_test_workload_named};
+    use super::DummyStateChecker;
+    use crate::runtime_connectors::StateChecker;
 
     // [utest->swdd~agent-skips-unknown-runtime~2]
     #[tokio::test]
     async fn utest_dummy_state_checker() {
-        let workload = generate_test_workload_named();
-        let workload_id = fixtures::WORKLOAD_IDS[0].to_string();
-        let (state_sender, _) = tokio::sync::mpsc::channel(10);
-        let state_getter = MockRuntimeStateGetter::default();
-
-        let checker =
-            DummyStateChecker::start_checker(&workload, workload_id, state_sender, state_getter);
+        let checker: Box<dyn StateChecker + Send + Sync> = Box::new(DummyStateChecker::new());
 
         checker.stop_checker().await;
     }

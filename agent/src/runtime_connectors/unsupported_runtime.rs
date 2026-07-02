@@ -13,7 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
-    ReusableWorkloadState, RuntimeConnector, RuntimeError, dummy_state_checker::DummyStateChecker,
+    ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeWorkloadId, StateCheckerHandle,
+    dummy_state_checker::DummyStateChecker,
 };
 use crate::workload_state::WorkloadStateSender;
 use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed};
@@ -28,7 +29,7 @@ pub struct UnsupportedRuntime(pub String);
 
 // [impl->swdd~agent-skips-unknown-runtime~2]
 #[async_trait]
-impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime {
+impl RuntimeConnector for UnsupportedRuntime {
     fn name(&self) -> String {
         self.0.clone()
     }
@@ -43,11 +44,11 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
     async fn create_workload(
         &self,
         runtime_workload_config: WorkloadNamed,
-        _reusable_workload_id: Option<String>,
+        _reusable_workload_id: Option<RuntimeWorkloadId>,
         _control_interface_path: Option<PathBuf>,
         _update_state_tx: WorkloadStateSender,
         _workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
-    ) -> Result<(String, DummyStateChecker<String>), RuntimeError> {
+    ) -> Result<(RuntimeWorkloadId, StateCheckerHandle), RuntimeError> {
         if runtime_workload_config.workload.runtime == self.0 {
             Err(RuntimeError::Unsupported("Unsupported Runtime".into()))
         } else {
@@ -61,7 +62,7 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
     async fn get_workload_id(
         &self,
         _instance_name: &WorkloadInstanceNameSpec,
-    ) -> Result<String, RuntimeError> {
+    ) -> Result<RuntimeWorkloadId, RuntimeError> {
         Err(RuntimeError::List(
             "Cannot get information about workload with unsupported runtime".into(),
         ))
@@ -69,16 +70,16 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
 
     async fn start_checker(
         &self,
-        _workload_id: &String,
+        _workload_id: &RuntimeWorkloadId,
         _runtime_workload_config: WorkloadNamed,
         _update_state_tx: WorkloadStateSender,
-    ) -> Result<DummyStateChecker<String>, RuntimeError> {
-        Ok(DummyStateChecker::new())
+    ) -> Result<StateCheckerHandle, RuntimeError> {
+        Ok(Box::new(DummyStateChecker::new()))
     }
 
     fn get_log_fetcher(
         &self,
-        _workload_id: String,
+        _workload_id: RuntimeWorkloadId,
         _options: &super::LogRequestOptions,
     ) -> Result<Box<dyn super::log_fetcher::LogFetcher + Send>, RuntimeError> {
         Err(RuntimeError::Unsupported(
@@ -86,7 +87,7 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
         ))
     }
 
-    async fn delete_workload(&self, _workload_id: &String) -> Result<(), RuntimeError> {
+    async fn delete_workload(&self, _workload_id: &RuntimeWorkloadId) -> Result<(), RuntimeError> {
         Ok(())
     }
 }
@@ -102,10 +103,10 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
 #[cfg(test)]
 mod tests {
     use super::{RuntimeError, UnsupportedRuntime, WorkloadInstanceNameSpec};
-    use crate::runtime_connectors::{LogRequestOptions, RuntimeConnector};
+    use crate::runtime_connectors::{LogRequestOptions, RuntimeConnector, RuntimeWorkloadId};
 
     use ankaios_api::test_utils::{
-        generate_test_workload_named, generate_test_workload_named_with_params, fixtures,
+        fixtures, generate_test_workload_named, generate_test_workload_named_with_params,
     };
     use common::objects::AgentName;
 
@@ -202,7 +203,7 @@ mod tests {
 
         let result = unsupported_runtime
             .start_checker(
-                &fixtures::WORKLOAD_IDS[0].to_owned(),
+                &RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0].to_owned()),
                 workload,
                 mpsc::channel(1).0,
             )
@@ -222,8 +223,10 @@ mod tests {
             tail: None,
         };
 
-        let result =
-            unsupported_runtime.get_log_fetcher(fixtures::WORKLOAD_IDS[0].to_owned(), &options);
+        let result = unsupported_runtime.get_log_fetcher(
+            RuntimeWorkloadId::from(fixtures::WORKLOAD_IDS[0].to_owned()),
+            &options,
+        );
 
         assert!(matches!(
             result,
@@ -237,7 +240,9 @@ mod tests {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
 
         let result = unsupported_runtime
-            .delete_workload(&fixtures::WORKLOAD_IDS[0].to_owned())
+            .delete_workload(&RuntimeWorkloadId::from(
+                fixtures::WORKLOAD_IDS[0].to_owned(),
+            ))
             .await;
 
         assert!(result.is_ok());

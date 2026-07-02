@@ -13,8 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::super::log_fetcher::{GetOutputStreams, StreamTrait};
-use super::ContainerdWorkloadId;
-use crate::runtime_connectors::runtime_connector::LogRequestOptions;
+use crate::runtime_connectors::{LogRequestOptions, RuntimeWorkloadId};
 
 use std::process::Stdio;
 #[cfg(test)]
@@ -35,7 +34,7 @@ pub struct ContainerdLogFetcher {
 }
 
 impl ContainerdLogFetcher {
-    pub fn new(workload_id: &ContainerdWorkloadId, options: &LogRequestOptions) -> Self {
+    pub fn new(workload_id: &RuntimeWorkloadId, options: &LogRequestOptions) -> Self {
         let mut args = Vec::with_capacity(9);
         args.push("logs");
         if options.follow {
@@ -55,7 +54,7 @@ impl ContainerdLogFetcher {
             args.push("--tail");
             args.push(_tail.as_str());
         }
-        args.push(&workload_id.id);
+        args.push(workload_id.as_ref());
         let cmd = Command::new(NERDCTL_CMD)
             .args(args)
             .stdout(Stdio::piped())
@@ -128,7 +127,7 @@ impl GetOutputStreams for ContainerdLogFetcher {
 mod tests {
     use super::{ContainerdLogFetcher, NERDCTL_CMD};
     use crate::runtime_connectors::{
-        LogRequestOptions, containerd::ContainerdWorkloadId, log_fetcher::GetOutputStreams,
+        LogRequestOptions, RuntimeWorkloadId, log_fetcher::GetOutputStreams,
     };
 
     use std::process::Stdio;
@@ -211,9 +210,7 @@ mod tests {
         let _guard = TEST_LOCK.lock().unwrap();
         *CAN_SPAWN.lock().unwrap() = true;
         let mut log_fetcher = ContainerdLogFetcher::new(
-            &ContainerdWorkloadId {
-                id: WORKLOAD_ID.into(),
-            },
+            &RuntimeWorkloadId::from(WORKLOAD_ID),
             &LogRequestOptions {
                 follow: false,
                 tail: None,
@@ -243,9 +240,7 @@ mod tests {
         let _guard = TEST_LOCK.lock().unwrap();
         *CAN_SPAWN.lock().unwrap() = true;
         let mut log_fetcher = ContainerdLogFetcher::new(
-            &ContainerdWorkloadId {
-                id: WORKLOAD_ID.into(),
-            },
+            &RuntimeWorkloadId::from(WORKLOAD_ID),
             &LogRequestOptions {
                 follow: true,
                 tail: Some(10),
@@ -274,9 +269,7 @@ mod tests {
         let _guard = TEST_LOCK.lock().unwrap();
         *CAN_SPAWN.lock().unwrap() = false;
         let log_fetcher = ContainerdLogFetcher::new(
-            &ContainerdWorkloadId {
-                id: WORKLOAD_ID.into(),
-            },
+            &RuntimeWorkloadId::from(WORKLOAD_ID),
             &LogRequestOptions {
                 follow: false,
                 tail: None,
@@ -296,9 +289,7 @@ mod tests {
 
         *CAN_KILL.lock().unwrap() = true;
         let log_fetcher = ContainerdLogFetcher::new(
-            &ContainerdWorkloadId {
-                id: WORKLOAD_ID.into(),
-            },
+            &RuntimeWorkloadId::from(WORKLOAD_ID),
             &LogRequestOptions {
                 follow: true,
                 tail: None,
@@ -319,9 +310,7 @@ mod tests {
         *CAN_SPAWN.lock().unwrap() = true;
         *CAN_KILL.lock().unwrap() = false;
         let log_fetcher = ContainerdLogFetcher::new(
-            &ContainerdWorkloadId {
-                id: WORKLOAD_ID.into(),
-            },
+            &RuntimeWorkloadId::from(WORKLOAD_ID),
             &LogRequestOptions {
                 follow: true,
                 tail: None,

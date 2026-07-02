@@ -13,15 +13,56 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::log_fetcher::LogFetcher;
-use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
+use crate::{runtime_connectors::StateCheckerHandle, workload_state::WorkloadStateSender};
 
 use ankaios_api::ank_base::{
-    ExecutionStateSpec, LogsRequest, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec
+    ExecutionStateSpec, LogsRequest, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec,
 };
 use common::objects::AgentName;
 
 use async_trait::async_trait;
 use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RuntimeWorkloadId(String);
+
+impl Display for RuntimeWorkloadId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<String> for RuntimeWorkloadId {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for RuntimeWorkloadId {
+    fn from(value: &str) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl FromStr for RuntimeWorkloadId {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.to_string()))
+    }
+}
+
+impl AsRef<str> for RuntimeWorkloadId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<RuntimeWorkloadId> for String {
+    fn from(value: RuntimeWorkloadId) -> String {
+        value.0
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -99,11 +140,7 @@ impl ReusableWorkloadState {
 
 // [impl->swdd~agent-functions-required-by-runtime-connector~1]
 #[async_trait]
-pub trait RuntimeConnector<WorkloadId, StChecker>: Sync + Send
-where
-    StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-{
+pub trait RuntimeConnector: Sync + Send {
     fn name(&self) -> String;
 
     async fn get_reusable_workloads(
@@ -114,48 +151,42 @@ where
     async fn create_workload(
         &self,
         runtime_workload_config: WorkloadNamed,
-        reusable_workload_id: Option<WorkloadId>,
+        reusable_workload_id: Option<RuntimeWorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
         workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
-    ) -> Result<(WorkloadId, StChecker), RuntimeError>;
+    ) -> Result<(RuntimeWorkloadId, StateCheckerHandle), RuntimeError>;
 
     async fn get_workload_id(
         &self,
         instance_name: &WorkloadInstanceNameSpec,
-    ) -> Result<WorkloadId, RuntimeError>;
+    ) -> Result<RuntimeWorkloadId, RuntimeError>;
 
     async fn start_checker(
         &self,
-        workload_id: &WorkloadId,
+        workload_id: &RuntimeWorkloadId,
         runtime_workload_config: WorkloadNamed,
         update_state_tx: WorkloadStateSender,
-    ) -> Result<StChecker, RuntimeError>;
+    ) -> Result<StateCheckerHandle, RuntimeError>;
 
     fn get_log_fetcher(
         &self,
-        workload_id: WorkloadId,
+        workload_id: RuntimeWorkloadId,
         options: &LogRequestOptions,
     ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError>;
 
-    async fn delete_workload(&self, workload_id: &WorkloadId) -> Result<(), RuntimeError>;
+    async fn delete_workload(&self, workload_id: &RuntimeWorkloadId) -> Result<(), RuntimeError>;
 }
 
-pub trait OwnableRuntime<WorkloadId, StChecker>: RuntimeConnector<WorkloadId, StChecker>
-where
-    StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-{
-    fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>>;
+pub trait OwnableRuntime: RuntimeConnector {
+    fn to_owned(&self) -> Box<dyn RuntimeConnector>;
 }
 
-impl<R, WorkloadId, StChecker> OwnableRuntime<WorkloadId, StChecker> for R
+impl<R> OwnableRuntime for R
 where
-    R: RuntimeConnector<WorkloadId, StChecker> + Clone + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
+    R: RuntimeConnector + Clone + 'static,
 {
-    fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>> {
+    fn to_owned(&self) -> Box<dyn RuntimeConnector> {
         Box::new(self.clone())
     }
 }
@@ -170,15 +201,15 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use super::{LogRequestOptions, RuntimeConnector, RuntimeError};
+    use super::{LogRequestOptions, RuntimeConnector, RuntimeError, RuntimeWorkloadId};
     use crate::{
         runtime_connectors::{
-            ReusableWorkloadState, RuntimeStateGetter, StateChecker, log_fetcher::LogFetcher,
+            ReusableWorkloadState, StateChecker, StateCheckerHandle, log_fetcher::LogFetcher,
         },
         workload_state::WorkloadStateSender,
     };
 
-    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
+    use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed};
     use common::objects::AgentName;
 
     use async_trait::async_trait;
@@ -187,13 +218,6 @@ pub mod test {
         path::PathBuf,
         sync::{Arc, Mutex},
     };
-
-    #[async_trait]
-    impl RuntimeStateGetter<String> for StubStateChecker {
-        async fn get_state(&self, _workload_id: &String) -> ExecutionStateSpec {
-            ExecutionStateSpec::running()
-        }
-    }
 
     #[derive(Debug)]
     pub struct StubStateChecker {
@@ -213,18 +237,8 @@ pub mod test {
     }
 
     #[async_trait]
-    impl StateChecker<String> for StubStateChecker {
-        fn start_checker(
-            _workload: &WorkloadNamed,
-            _workload_id: String,
-            _manager_interface: WorkloadStateSender,
-            _state_getter: impl RuntimeStateGetter<String>,
-        ) -> Self {
-            log::info!("Starting the checker ;)");
-            StubStateChecker::new()
-        }
-
-        async fn stop_checker(mut self) {
+    impl StateChecker for StubStateChecker {
+        async fn stop_checker(mut self: Box<Self>) {
             log::info!("Stopping the checker ;)");
             self.panic_if_not_stopped = false;
         }
@@ -238,7 +252,6 @@ pub mod test {
         }
     }
 
-    #[derive(Debug)]
     pub enum RuntimeCall {
         GetReusableWorkloads(AgentName, Result<Vec<ReusableWorkloadState>, RuntimeError>),
         CreateWorkload(
@@ -246,20 +259,35 @@ pub mod test {
             Option<String>,
             Option<PathBuf>,
             HashMap<PathBuf, PathBuf>,
-            Result<(String, StubStateChecker), RuntimeError>,
+            Result<(String, StateCheckerHandle), RuntimeError>,
         ),
         GetWorkloadId(WorkloadInstanceNameSpec, Result<String, RuntimeError>),
         StartChecker(
             String,
             WorkloadNamed,
             WorkloadStateSender,
-            Result<StubStateChecker, RuntimeError>,
+            Result<StateCheckerHandle, RuntimeError>,
         ),
         DeleteWorkload(String, Result<(), RuntimeError>),
         StartLogFetcher(
             LogRequestOptions,
             Result<Box<dyn LogFetcher + Send>, RuntimeError>,
         ),
+    }
+
+    impl std::fmt::Debug for RuntimeCall {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let variant_name = match self {
+                RuntimeCall::GetReusableWorkloads(_, _) => "GetReusableWorkloads",
+                RuntimeCall::CreateWorkload(_, _, _, _, _) => "CreateWorkload",
+                RuntimeCall::GetWorkloadId(_, _) => "GetWorkloadId",
+                RuntimeCall::StartChecker(_, _, _, _) => "StartChecker",
+                RuntimeCall::DeleteWorkload(_, _) => "DeleteWorkload",
+                RuntimeCall::StartLogFetcher(_, _) => "StartLogFetcher",
+            };
+
+            write!(f, "{variant_name}")
+        }
     }
 
     #[derive(Debug)]
@@ -355,7 +383,7 @@ pub mod test {
     pub type MockRuntimeConnector = MockBase<RuntimeCall>;
 
     #[async_trait]
-    impl RuntimeConnector<String, StubStateChecker> for MockBase<RuntimeCall> {
+    impl RuntimeConnector for MockBase<RuntimeCall> {
         fn name(&self) -> String {
             "mock-runtime".to_string()
         }
@@ -382,11 +410,11 @@ pub mod test {
         async fn create_workload(
             &self,
             runtime_workload_config: WorkloadNamed,
-            reusable_workload_id: Option<String>,
+            reusable_workload_id: Option<RuntimeWorkloadId>,
             control_interface_path: Option<PathBuf>,
             _update_state_tx: WorkloadStateSender,
             host_workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
-        ) -> Result<(String, StubStateChecker), RuntimeError> {
+        ) -> Result<(RuntimeWorkloadId, StateCheckerHandle), RuntimeError> {
             match self.get_expected_call() {
                 RuntimeCall::CreateWorkload(
                     expected_runtime_workload_config,
@@ -395,12 +423,15 @@ pub mod test {
                     expected_host_workload_file_path_mappings,
                     result,
                 ) if expected_runtime_workload_config == runtime_workload_config
-                    && expected_reusable_workload_id == reusable_workload_id
+                    && expected_reusable_workload_id
+                        == reusable_workload_id.as_ref().map(ToString::to_string)
                     && expected_control_interface_path == control_interface_path
                     && host_workload_file_path_mappings
                         == expected_host_workload_file_path_mappings =>
                 {
-                    return result;
+                    return result.map(|(workload_id, checker)| {
+                        (RuntimeWorkloadId::from(workload_id), checker)
+                    });
                 }
                 expected_call => {
                     self.unexpected_call();
@@ -414,12 +445,12 @@ pub mod test {
         async fn get_workload_id(
             &self,
             instance_name: &WorkloadInstanceNameSpec,
-        ) -> Result<String, RuntimeError> {
+        ) -> Result<RuntimeWorkloadId, RuntimeError> {
             match self.get_expected_call() {
                 RuntimeCall::GetWorkloadId(expected_instance_name, result)
                     if expected_instance_name == *instance_name =>
                 {
-                    return result;
+                    return result.map(RuntimeWorkloadId::from);
                 }
                 expected_call => {
                     self.unexpected_call();
@@ -432,17 +463,17 @@ pub mod test {
 
         async fn start_checker(
             &self,
-            workload_id: &String,
+            workload_id: &RuntimeWorkloadId,
             runtime_workload_config: WorkloadNamed,
             update_state_tx: WorkloadStateSender,
-        ) -> Result<StubStateChecker, RuntimeError> {
+        ) -> Result<StateCheckerHandle, RuntimeError> {
             match self.get_expected_call() {
                 RuntimeCall::StartChecker(
                     expected_workload_id,
                     expected_runtime_workload_config,
                     expected_update_state_tx,
                     result,
-                ) if expected_workload_id == *workload_id
+                ) if expected_workload_id == workload_id.to_string()
                     && expected_runtime_workload_config == runtime_workload_config
                     && expected_update_state_tx.same_channel(&update_state_tx) =>
                 {
@@ -459,7 +490,7 @@ pub mod test {
 
         fn get_log_fetcher(
             &self,
-            workload_id: String,
+            workload_id: RuntimeWorkloadId,
             options: &LogRequestOptions,
         ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError> {
             match self.get_expected_call() {
@@ -477,10 +508,13 @@ pub mod test {
             }
         }
 
-        async fn delete_workload(&self, workload_id: &String) -> Result<(), RuntimeError> {
+        async fn delete_workload(
+            &self,
+            workload_id: &RuntimeWorkloadId,
+        ) -> Result<(), RuntimeError> {
             match self.get_expected_call() {
                 RuntimeCall::DeleteWorkload(expected_workload_id, result)
-                    if expected_workload_id == *workload_id =>
+                    if expected_workload_id == workload_id.to_string() =>
                 {
                     return result;
                 }

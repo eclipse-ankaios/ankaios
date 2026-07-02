@@ -28,6 +28,7 @@ pub(crate) mod unsupported_runtime;
 mod runtime_connector;
 pub use runtime_connector::{
     LogRequestOptions, OwnableRuntime, ReusableWorkloadState, RuntimeConnector, RuntimeError,
+    RuntimeWorkloadId,
 };
 
 #[cfg(test)]
@@ -42,7 +43,7 @@ pub use runtime_facade::{GenericRuntimeFacade, RuntimeFacade};
 pub use runtime_facade::MockRuntimeFacade;
 
 mod state_checker;
-pub use state_checker::{RuntimeStateGetter, StateChecker};
+pub use state_checker::{RuntimeStateGetter, StateChecker, StateCheckerHandle};
 
 #[cfg(test)]
 pub use state_checker::MockRuntimeStateGetter;
