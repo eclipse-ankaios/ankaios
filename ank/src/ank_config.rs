@@ -638,4 +638,51 @@ mod tests {
             Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
     }
+
+    #[test]
+    fn utest_ank_config_with_home_env_variable() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+
+        const USER_HOME_DIR: &str = "/tmp";
+        const USER_ANK_CONFIG_PATH: &str = "/tmp/.config/ankaios/ank.conf";
+
+        unsafe {
+            std::env::set_var("HOME", USER_HOME_DIR);
+        }
+
+        assert_eq!(std::env::var("HOME"), Ok(USER_HOME_DIR.to_string()));
+
+        let default_config_paths = super::DEFAULT_ANK_CONFIG_FILE_PATHS.clone();
+
+        assert_eq!(
+            default_config_paths.as_slice(),
+            &[
+                USER_ANK_CONFIG_PATH,
+                super::DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH
+            ]
+        );
+
+        unsafe {
+            std::env::remove_var("HOME");
+        }
+
+        assert!(std::env::var("HOME").is_err());
+    }
+
+    #[test]
+    fn utest_ank_config_without_home_env_variable() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+
+        unsafe {
+            std::env::remove_var("HOME");
+        }
+
+        let default_config_paths = super::DEFAULT_ANK_CONFIG_FILE_PATHS.clone();
+
+        assert_eq!(
+            default_config_paths.as_slice(),
+            &[super::DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH]
+        );
+        assert!(std::env::var("HOME").is_err());
+    }
 }
