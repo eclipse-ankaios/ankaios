@@ -131,7 +131,12 @@ async fn main() {
         // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
         tls_config.unwrap_or_exit("Missing certificate files"),
     );
-    let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
+
+    let mut server = AnkaiosServer::new(
+        server_receiver,
+        to_agents.clone(),
+        server_config.mutating_hooks,
+    );
 
     tokio::select! {
         // [impl->swdd~server-default-communication-grpc~1]

@@ -1,0 +1,12 @@
+[package]
+name = "example_hook"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+prost = "0.14"
+
+[build-dependencies]
+tonic-prost-build = "0.14"

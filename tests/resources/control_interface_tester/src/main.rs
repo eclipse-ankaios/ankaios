@@ -137,7 +137,7 @@ enum TestResultEnum {
     LogRequestResponse(TagSerializedResult<LogsRequestAccepted>),
     LogEntriesResponse(TagSerializedResult<LogEntriesResponse>),
     LogCancelResponse(TagSerializedResult<LogsCancelAccepted>),
-    EventEntryResponse(TagSerializedResult<(CompleteState, AlteredFields)>),
+    EventEntryResponse(Box<TagSerializedResult<(CompleteState, AlteredFields)>>),
     EventsCancelResponse(TagSerializedResult<EventsCancelAccepted>),
     NoApi,
     SendHelloResult(TagSerializedResult<()>),
@@ -671,9 +671,9 @@ impl Connection {
             ResponseContent::EventsCancelAccepted(logs_response) => Ok(
                 TestResultEnum::EventsCancelResponse(TagSerializedResult::Ok(logs_response)),
             ),
-            ResponseContent::Error(error) => Ok(TestResultEnum::EventEntryResponse(
+            ResponseContent::Error(error) => Ok(TestResultEnum::EventEntryResponse(Box::new(
                 TagSerializedResult::Err(error.message),
-            )),
+            ))),
             response_content => Err(CommandError::GenericError(format!(
                 "Received wrong response type. Expected LogsCancelAccepted, received: '{response_content:?}'"
             ))),
@@ -690,16 +690,16 @@ impl Connection {
             ResponseContent::CompleteStateResponse(complete_state) => {
                 match (complete_state.complete_state, complete_state.altered_fields) {
                     (Some(complete_state), Some(altered_fields)) => {
-                        TagSerializedResult::Ok((complete_state, altered_fields))
+                        Box::new(TagSerializedResult::Ok((complete_state, altered_fields)))
                     }
-                    _ => TagSerializedResult::Err(
+                    _ => Box::new(TagSerializedResult::Err(
                         "Received CompleteStateResponse without complete_state field.".to_string(),
-                    ),
+                    )),
                 }
             }
-            response => TagSerializedResult::Err(format!(
+            response => Box::new(TagSerializedResult::Err(format!(
                 "Received wrong response type. Expected CompleteState, received: '{response:?}'"
-            )),
+            ))),
         }))
     }
 
