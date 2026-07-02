@@ -639,6 +639,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_with_home_env_variable() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
@@ -669,6 +670,7 @@ mod tests {
         assert!(std::env::var("HOME").is_err());
     }
 
+    // [utest->swdd~cli-loads-config-file~2]
     #[test]
     fn utest_ank_config_without_home_env_variable() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
