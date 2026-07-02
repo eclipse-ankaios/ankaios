@@ -340,6 +340,7 @@ impl PodmanCli {
                     &path.to_string_lossy(),
                     ",destination=",
                     API_PIPES_MOUNT_POINT,
+                    ",relabel=shared",
                 ]
                 .concat(),
             );
@@ -1118,7 +1119,7 @@ mod tests {
                     "--network=host",
                     "--name",
                     "myCont",
-                    "--mount=type=bind,source=/test/path,destination=/run/ankaios/control_interface",
+                    "--mount=type=bind,source=/test/path,destination=/run/ankaios/control_interface,relabel=shared",
                     &format!("--mount=type=bind,source={HOST_WORKLOAD_FILE_PATH},destination={MOUNT_POINT_PATH},readonly=true"),
                     "--label=name=test_workload_name",
                     "--label=agent=test_agent",

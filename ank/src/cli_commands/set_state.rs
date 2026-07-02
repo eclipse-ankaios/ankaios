@@ -83,7 +83,7 @@ impl CliCommands {
         );
 
         // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
-        self.update_state_and_wait_for_complete(new_complete_state, object_field_mask)
+        self.update_state_and_wait_for_complete(new_complete_state, object_field_mask, None)
             .await
     }
 }
@@ -195,8 +195,8 @@ mod tests {
             .returning(|_| Ok(CompleteState::default()));
         mock_server_connection
             .expect_update_state()
-            .with(eq(updated_state), eq(update_mask.clone()))
-            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
+            .with(eq(updated_state), eq(update_mask.clone()), eq(None))
+            .return_once(|_, _, _| Ok(UpdateStateSuccess::default()));
 
         let mut cmd = CliCommands {
             no_wait: true,

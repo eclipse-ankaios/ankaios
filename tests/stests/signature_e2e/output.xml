@@ -1,0 +1,1829 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 7.4.2 (Python 3.14.4 on linux)" generated="2026-05-23T18:15:45.722237" rpa="false" schemaversion="5">
+<suite id="s1" name="Signature Persistence" source="/home/pierrey/repos/gitrepo/ankaios/tests/stests/signature_e2e/signature_persistence.robot">
+<kw name="Setup Test Run Directory" type="SETUP">
+<kw name="Verify Test Environment" owner="signature_utils">
+<kw name="File Should Exist" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:45.752880" level="INFO" html="true">File '&lt;a href="file:///home/pierrey/repos/gitrepo/ankaios/target/x86_64-unknown-linux-gnu/release/ank-server"&gt;/home/pierrey/repos/gitrepo/ankaios/target/x86_64-unknown-linux-gnu/release/ank-server&lt;/a&gt;' exists.</msg>
+<arg>${ANKAIOS_BIN_DIR}/ank-server</arg>
+<arg>msg=ank-server binary not found. Run: cargo build --release --target ${ANKAIOS_TARGET} -p ank-server</arg>
+<doc>Fails unless the given ``path`` points to an existing file.</doc>
+<status status="PASS" start="2026-05-23T18:15:45.752694" elapsed="0.000232"/>
+</kw>
+<kw name="File Should Exist" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:45.753097" level="INFO" html="true">File '&lt;a href="file:///home/pierrey/repos/gitrepo/ankaios/target/x86_64-unknown-linux-gnu/release/ank-agent"&gt;/home/pierrey/repos/gitrepo/ankaios/target/x86_64-unknown-linux-gnu/release/ank-agent&lt;/a&gt;' exists.</msg>
+<arg>${ANKAIOS_BIN_DIR}/ank-agent</arg>
+<arg>msg=ank-agent binary not found. Run: cargo build --release --target ${ANKAIOS_TARGET} -p ank-agent</arg>
+<doc>Fails unless the given ``path`` points to an existing file.</doc>
+<status status="PASS" start="2026-05-23T18:15:45.752992" elapsed="0.000130"/>
+</kw>
+<kw name="File Should Exist" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:45.753260" level="INFO" html="true">File '&lt;a href="file:///home/pierrey/repos/gitrepo/ankaios/target/x86_64-unknown-linux-gnu/release/ank"&gt;/home/pierrey/repos/gitrepo/ankaios/target/x86_64-unknown-linux-gnu/release/ank&lt;/a&gt;' exists.</msg>
+<arg>${ANKAIOS_BIN_DIR}/ank</arg>
+<arg>msg=ank binary not found. Run: cargo build --release --target ${ANKAIOS_TARGET} -p ank</arg>
+<doc>Fails unless the given ``path`` points to an existing file.</doc>
+<status status="PASS" start="2026-05-23T18:15:45.753170" elapsed="0.000110"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:45.753485" level="INFO">Starting process:
+podman images -q localhost/ank-persist:test</msg>
+<msg time="2026-05-23T18:15:45.754418" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:45.811543" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:45.811684" level="INFO">${persist_image_check} = &lt;result object with rc 0&gt;</msg>
+<var>${persist_image_check}</var>
+<arg>podman</arg>
+<arg>images</arg>
+<arg>-q</arg>
+<arg>localhost/ank-persist:test</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:45.753323" elapsed="0.058380"/>
+</kw>
+<kw name="Should Not Be Empty" owner="BuiltIn">
+<msg time="2026-05-23T18:15:45.812322" level="INFO">Length is 12.</msg>
+<arg>${persist_image_check.stdout}</arg>
+<arg>msg=Persistence plugin image not found. Run: podman build -t localhost/ank-persist:test -f examples/plugins/basic_persistency/Containerfile .</arg>
+<doc>Verifies that the given item is not empty.</doc>
+<status status="PASS" start="2026-05-23T18:15:45.811814" elapsed="0.000538"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:45.812600" level="INFO">Starting process:
+podman images -q localhost/fleet-connector:test</msg>
+<msg time="2026-05-23T18:15:45.813010" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:45.866180" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:45.866366" level="INFO">${fleet_image_check} = &lt;result object with rc 0&gt;</msg>
+<var>${fleet_image_check}</var>
+<arg>podman</arg>
+<arg>images</arg>
+<arg>-q</arg>
+<arg>localhost/fleet-connector:test</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:45.812420" elapsed="0.053977"/>
+</kw>
+<kw name="Should Not Be Empty" owner="BuiltIn">
+<msg time="2026-05-23T18:15:45.867237" level="INFO">Length is 12.</msg>
+<arg>${fleet_image_check.stdout}</arg>
+<arg>msg=Fleet connector image not found. Run: podman build -t localhost/fleet-connector:test -f tools/tutorials/fleet_management/fleet-connector/Dockerfile tools/tutorials/fleet_management/fleet-connector</arg>
+<doc>Verifies that the given item is not empty.</doc>
+<status status="PASS" start="2026-05-23T18:15:45.866550" elapsed="0.000736"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:45.867625" level="INFO">✅ Test environment verified: all binaries and images found</msg>
+<arg>✅ Test environment verified: all binaries and images found</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:45.867398" elapsed="0.000273"/>
+</kw>
+<doc>Verify that all required binaries and images exist before running tests</doc>
+<status status="PASS" start="2026-05-23T18:15:45.752471" elapsed="0.115274"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:45.868099" level="INFO">Starting process:
+pkill -f ank-server</msg>
+<msg time="2026-05-23T18:15:45.868618" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:45.897113" level="INFO">Process completed.</msg>
+<arg>pkill</arg>
+<arg>-f</arg>
+<arg>ank-server</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:45.867841" elapsed="0.029316"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:45.897386" level="INFO">Starting process:
+pkill -f ank-agent</msg>
+<msg time="2026-05-23T18:15:45.897688" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:45.913739" level="INFO">Process completed.</msg>
+<arg>pkill</arg>
+<arg>-f</arg>
+<arg>ank-agent</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:45.897232" elapsed="0.016542"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-05-23T18:15:46.914249" level="INFO">Slept 1 second.</msg>
+<msg time="2026-05-23T18:15:46.914430" level="INFO">Wait for processes to die</msg>
+<arg>1s</arg>
+<arg>reason=Wait for processes to die</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-05-23T18:15:45.913854" elapsed="1.000677"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:46.915495" level="INFO">Starting process:
+podman ps -a --filter name=basic_persistency --format={{.Names}}</msg>
+<msg time="2026-05-23T18:15:46.916325" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:46.934636" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:46.934830" level="INFO">${result_plugin} = &lt;result object with rc 0&gt;</msg>
+<var>${result_plugin}</var>
+<arg>podman</arg>
+<arg>ps</arg>
+<arg>-a</arg>
+<arg>--filter</arg>
+<arg>name\=basic_persistency</arg>
+<arg>--format\={{.Names}}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:46.914835" elapsed="0.020019"/>
+</kw>
+<kw name="Split String" owner="String">
+<msg time="2026-05-23T18:15:46.935575" level="INFO">@{plugin_containers} = [  ]</msg>
+<var>@{plugin_containers}</var>
+<arg>${result_plugin.stdout}</arg>
+<arg>\n</arg>
+<doc>Splits the ``string`` using ``separator`` as a delimiter string.</doc>
+<status status="PASS" start="2026-05-23T18:15:46.935020" elapsed="0.000580"/>
+</kw>
+<for flavor="IN">
+<iter>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${container}" != ""</arg>
+<arg>Run Process</arg>
+<arg>podman</arg>
+<arg>rm</arg>
+<arg>-f</arg>
+<arg>${container}</arg>
+<arg>shell=False</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:46.936010" elapsed="0.000544"/>
+</kw>
+<var name="${container}"/>
+<status status="PASS" start="2026-05-23T18:15:46.935883" elapsed="0.000771"/>
+</iter>
+<var>${container}</var>
+<value>@{plugin_containers}</value>
+<status status="PASS" start="2026-05-23T18:15:46.935681" elapsed="0.001019"/>
+</for>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:46.937305" level="INFO">Starting process:
+podman ps -a --filter name=nginx --format={{.Names}}</msg>
+<msg time="2026-05-23T18:15:46.937807" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:46.957504" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:46.957688" level="INFO">${result_workloads} = &lt;result object with rc 0&gt;</msg>
+<var>${result_workloads}</var>
+<arg>podman</arg>
+<arg>ps</arg>
+<arg>-a</arg>
+<arg>--filter</arg>
+<arg>name\=nginx</arg>
+<arg>--format\={{.Names}}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:46.936859" elapsed="0.020850"/>
+</kw>
+<kw name="Split String" owner="String">
+<msg time="2026-05-23T18:15:46.958433" level="INFO">@{workload_containers} = [  ]</msg>
+<var>@{workload_containers}</var>
+<arg>${result_workloads.stdout}</arg>
+<arg>\n</arg>
+<doc>Splits the ``string`` using ``separator`` as a delimiter string.</doc>
+<status status="PASS" start="2026-05-23T18:15:46.957875" elapsed="0.000580"/>
+</kw>
+<for flavor="IN">
+<iter>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${container}" != ""</arg>
+<arg>Run Process</arg>
+<arg>podman</arg>
+<arg>rm</arg>
+<arg>-f</arg>
+<arg>${container}</arg>
+<arg>shell=False</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:46.958796" elapsed="0.000355"/>
+</kw>
+<var name="${container}"/>
+<status status="PASS" start="2026-05-23T18:15:46.958687" elapsed="0.000506"/>
+</iter>
+<var>${container}</var>
+<value>@{workload_containers}</value>
+<status status="PASS" start="2026-05-23T18:15:46.958525" elapsed="0.000697"/>
+</for>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:46.959623" level="INFO">Starting process:
+podman ps -a --filter name=mqtt --format={{.Names}}</msg>
+<msg time="2026-05-23T18:15:46.960076" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:46.986074" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:46.986242" level="INFO">${result_mqtt} = &lt;result object with rc 0&gt;</msg>
+<var>${result_mqtt}</var>
+<arg>podman</arg>
+<arg>ps</arg>
+<arg>-a</arg>
+<arg>--filter</arg>
+<arg>name\=mqtt</arg>
+<arg>--format\={{.Names}}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:46.959309" elapsed="0.026959"/>
+</kw>
+<kw name="Split String" owner="String">
+<msg time="2026-05-23T18:15:46.986899" level="INFO">@{mqtt_containers} = [  ]</msg>
+<var>@{mqtt_containers}</var>
+<arg>${result_mqtt.stdout}</arg>
+<arg>\n</arg>
+<doc>Splits the ``string`` using ``separator`` as a delimiter string.</doc>
+<status status="PASS" start="2026-05-23T18:15:46.986416" elapsed="0.000505"/>
+</kw>
+<for flavor="IN">
+<iter>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${container}" != ""</arg>
+<arg>Run Process</arg>
+<arg>podman</arg>
+<arg>rm</arg>
+<arg>-f</arg>
+<arg>${container}</arg>
+<arg>shell=False</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:46.987160" elapsed="0.000271"/>
+</kw>
+<var name="${container}"/>
+<status status="PASS" start="2026-05-23T18:15:46.987088" elapsed="0.000377"/>
+</iter>
+<var>${container}</var>
+<value>@{mqtt_containers}</value>
+<status status="PASS" start="2026-05-23T18:15:46.986972" elapsed="0.000512"/>
+</for>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:46.987787" level="INFO">Starting process:
+podman ps -a --filter name=workload --format={{.Names}}</msg>
+<msg time="2026-05-23T18:15:46.988224" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:47.010249" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:47.010425" level="INFO">${result_test} = &lt;result object with rc 0&gt;</msg>
+<var>${result_test}</var>
+<arg>podman</arg>
+<arg>ps</arg>
+<arg>-a</arg>
+<arg>--filter</arg>
+<arg>name\=workload</arg>
+<arg>--format\={{.Names}}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:46.987551" elapsed="0.022894"/>
+</kw>
+<kw name="Split String" owner="String">
+<msg time="2026-05-23T18:15:47.011163" level="INFO">@{test_containers} = [  ]</msg>
+<var>@{test_containers}</var>
+<arg>${result_test.stdout}</arg>
+<arg>\n</arg>
+<doc>Splits the ``string`` using ``separator`` as a delimiter string.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.010624" elapsed="0.000561"/>
+</kw>
+<for flavor="IN">
+<iter>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${container}" != ""</arg>
+<arg>Run Process</arg>
+<arg>podman</arg>
+<arg>rm</arg>
+<arg>-f</arg>
+<arg>${container}</arg>
+<arg>shell=False</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.011453" elapsed="0.000345"/>
+</kw>
+<var name="${container}"/>
+<status status="PASS" start="2026-05-23T18:15:47.011372" elapsed="0.000464"/>
+</iter>
+<var>${container}</var>
+<value>@{test_containers}</value>
+<status status="PASS" start="2026-05-23T18:15:47.011245" elapsed="0.000616"/>
+</for>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.012196" level="INFO">${timestamp} = 1779552947</msg>
+<var>${timestamp}</var>
+<arg>int(__import__('time').time())</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.011938" elapsed="0.000279"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.012517" level="INFO">${random} = 3737</msg>
+<var>${random}</var>
+<arg>__import__('random').randint(1000, 9999)</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.012289" elapsed="0.000246"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.012841" level="INFO">${TEST_RUN_ID} = 1779552947-3737</msg>
+<var>${TEST_RUN_ID}</var>
+<arg>${timestamp}-${random}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.012606" elapsed="0.000252"/>
+</kw>
+<kw name="Set Suite Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.013179" level="INFO">${TEST_RUN_ID} = 1779552947-3737</msg>
+<arg>${TEST_RUN_ID}</arg>
+<doc>Makes a variable available everywhere within the scope of the current suite.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.012937" elapsed="0.000272"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.013480" level="INFO">${TEST_DIR} = /tmp/ankaios-test-1779552947-3737</msg>
+<var>${TEST_DIR}</var>
+<arg>/tmp/ankaios-test-${TEST_RUN_ID}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.013277" elapsed="0.000221"/>
+</kw>
+<kw name="Set Suite Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.013798" level="INFO">${TEST_DIR} = /tmp/ankaios-test-1779552947-3737</msg>
+<arg>${TEST_DIR}</arg>
+<doc>Makes a variable available everywhere within the scope of the current suite.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.013571" elapsed="0.000258"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.014105" level="INFO">${KEYS_DIR} = /tmp/ankaios-test-1779552947-3737/keys</msg>
+<var>${KEYS_DIR}</var>
+<arg>${TEST_DIR}/keys</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.013897" elapsed="0.000226"/>
+</kw>
+<kw name="Set Suite Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.014407" level="INFO">${KEYS_DIR} = /tmp/ankaios-test-1779552947-3737/keys</msg>
+<arg>${KEYS_DIR}</arg>
+<doc>Makes a variable available everywhere within the scope of the current suite.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.014197" elapsed="0.000264"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.014753" level="INFO">${WORKLOADS_DIR} = /tmp/ankaios-test-1779552947-3737/workloads</msg>
+<var>${WORKLOADS_DIR}</var>
+<arg>${TEST_DIR}/workloads</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.014532" elapsed="0.000241"/>
+</kw>
+<kw name="Set Suite Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.015076" level="INFO">${WORKLOADS_DIR} = /tmp/ankaios-test-1779552947-3737/workloads</msg>
+<arg>${WORKLOADS_DIR}</arg>
+<doc>Makes a variable available everywhere within the scope of the current suite.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.014853" elapsed="0.000253"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Remove Directory" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:47.015587" level="INFO" html="true">Directory '&lt;a href="file:///tmp/ankaios-test-1779552947-3737"&gt;/tmp/ankaios-test-1779552947-3737&lt;/a&gt;' does not exist.</msg>
+<arg>${TEST_DIR}</arg>
+<arg>recursive=True</arg>
+<doc>Removes the directory pointed to by the given ``path``.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.015404" elapsed="0.000234"/>
+</kw>
+<arg>Remove Directory</arg>
+<arg>${TEST_DIR}</arg>
+<arg>recursive=True</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.015181" elapsed="0.000499"/>
+</kw>
+<kw name="Create Directory" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:47.016093" level="INFO" html="true">Created directory '&lt;a href="file:///tmp/ankaios-test-1779552947-3737"&gt;/tmp/ankaios-test-1779552947-3737&lt;/a&gt;'.</msg>
+<arg>${TEST_DIR}</arg>
+<doc>Creates the specified directory.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.015760" elapsed="0.000389"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.016434" level="INFO">Created test directory: /tmp/ankaios-test-1779552947-3737</msg>
+<arg>Created test directory: ${TEST_DIR}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.016230" elapsed="0.000236"/>
+</kw>
+<doc>Create unique test directory for this run and cleanup old containers</doc>
+<status status="PASS" start="2026-05-23T18:15:45.752292" elapsed="1.264231"/>
+</kw>
+<test id="s1-t1" name="Signed Manifest Is Persisted With Signature Block" line="110">
+<kw name="Generate Ed25519 Keypair" owner="signature_utils">
+<kw name="Create Directory" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:47.017455" level="INFO" html="true">Created directory '&lt;a href="file:///tmp/ankaios-test-1779552947-3737/keys"&gt;/tmp/ankaios-test-1779552947-3737/keys&lt;/a&gt;'.</msg>
+<arg>${output_dir}</arg>
+<doc>Creates the specified directory.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.017317" elapsed="0.000177"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:47.017857" level="INFO">Starting process:
+/home/pierrey/repos/gitrepo/ankaios/tests/stests/signature_e2e/../../../target/x86_64-unknown-linux-gnu/release/ank keygen --output /tmp/ankaios-test-1779552947-3737/keys/test-key-001.pem</msg>
+<msg time="2026-05-23T18:15:47.018232" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:47.019992" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:47.020137" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>${ANKAIOS_BIN_DIR}/ank</arg>
+<arg>keygen</arg>
+<arg>--output</arg>
+<arg>${output_dir}/${key_id}.pem</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.017563" elapsed="0.002597"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.021071" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Keypair generation failed: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.020288" elapsed="0.000836"/>
+</kw>
+<kw name="Should Exist" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:47.021354" level="INFO" html="true">Path '&lt;a href="file:///tmp/ankaios-test-1779552947-3737/keys/test-key-001.pem"&gt;/tmp/ankaios-test-1779552947-3737/keys/test-key-001.pem&lt;/a&gt;' exists.</msg>
+<arg>${output_dir}/${key_id}.pem</arg>
+<doc>Fails unless the given path (file or directory) exists.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.021209" elapsed="0.000181"/>
+</kw>
+<kw name="Should Exist" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:47.021591" level="INFO" html="true">Path '&lt;a href="file:///tmp/ankaios-test-1779552947-3737/keys/test-key-001.pem.pub"&gt;/tmp/ankaios-test-1779552947-3737/keys/test-key-001.pem.pub&lt;/a&gt;' exists.</msg>
+<arg>${output_dir}/${key_id}.pem.pub</arg>
+<doc>Fails unless the given path (file or directory) exists.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.021463" elapsed="0.000162"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.021896" level="INFO">Generated keypair: test-key-001 using ank keygen</msg>
+<arg>Generated keypair: ${key_id} using ank keygen</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.021700" elapsed="0.000241"/>
+</kw>
+<arg>test-key-001</arg>
+<arg>${KEYS_DIR}</arg>
+<doc>Generate Ed25519 keypair using ank keygen</doc>
+<status status="PASS" start="2026-05-23T18:15:47.017087" elapsed="0.004899"/>
+</kw>
+<kw name="Copy File" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:47.022479" level="INFO" html="true">Copied file from '&lt;a href="file:///home/pierrey/repos/gitrepo/ankaios/tests/stests/signature_e2e/fixtures/signed_workload.yaml"&gt;/home/pierrey/repos/gitrepo/ankaios/tests/stests/signature_e2e/fixtures/signed_workload.yaml&lt;/a&gt;' to '&lt;a href="file:///tmp/test_manifest.yaml"&gt;/tmp/test_manifest.yaml&lt;/a&gt;'.</msg>
+<arg>${FIXTURES_DIR}/signed_workload.yaml</arg>
+<arg>/tmp/test_manifest.yaml</arg>
+<doc>Copies the source file into the destination.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.022061" elapsed="0.000462"/>
+</kw>
+<kw name="Sign Manifest" owner="signature_utils">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:47.023273" level="INFO">Starting process:
+/home/pierrey/repos/gitrepo/ankaios/tests/stests/signature_e2e/../../../target/x86_64-unknown-linux-gnu/release/ank sign --input /tmp/test_manifest.yaml --key /tmp/ankaios-test-1779552947-3737/keys/test-key-001.pem --key-id test-key-001 --counter 1</msg>
+<msg time="2026-05-23T18:15:47.023523" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:47.025456" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:47.025651" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>${ANKAIOS_BIN_DIR}/ank</arg>
+<arg>sign</arg>
+<arg>--input</arg>
+<arg>${manifest_path}</arg>
+<arg>--key</arg>
+<arg>${private_key_path}</arg>
+<arg>--key-id</arg>
+<arg>${key_id}</arg>
+<arg>--counter</arg>
+<arg>${counter}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.022927" elapsed="0.002750"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.027011" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Signing failed: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.025871" elapsed="0.001210"/>
+</kw>
+<kw name="Replace String" owner="String">
+<msg time="2026-05-23T18:15:47.027431" level="INFO">${pb_path} = /tmp/test_manifest.pb</msg>
+<var>${pb_path}</var>
+<arg>${manifest_path}</arg>
+<arg>.yaml</arg>
+<arg>.pb</arg>
+<doc>Replaces ``search_for`` in the given ``string`` with ``replace_with``.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.027201" elapsed="0.000289"/>
+</kw>
+<kw name="Should Exist" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:47.027827" level="INFO" html="true">Path '&lt;a href="file:///tmp/test_manifest.pb"&gt;/tmp/test_manifest.pb&lt;/a&gt;' exists.</msg>
+<arg>${pb_path}</arg>
+<arg>msg=Signed binary manifest not found: ${pb_path}</arg>
+<doc>Fails unless the given path (file or directory) exists.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.027593" elapsed="0.000285"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.028372" level="INFO">Signed manifest: /tmp/test_manifest.yaml -&gt; /tmp/test_manifest.pb with counter=1</msg>
+<arg>Signed manifest: ${manifest_path} -&gt; ${pb_path} with counter=${counter}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.027977" elapsed="0.000441"/>
+</kw>
+<arg>/tmp/test_manifest.yaml</arg>
+<arg>${KEYS_DIR}/test-key-001.pem</arg>
+<arg>test-key-001</arg>
+<arg>1</arg>
+<doc>Sign YAML manifest with Ed25519 signature using ank sign (outputs binary .pb file)</doc>
+<status status="PASS" start="2026-05-23T18:15:47.022669" elapsed="0.005821"/>
+</kw>
+<kw name="Start Ankaios Server" owner="signature_utils">
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.029893" level="INFO">${sig_enabled_str} = true</msg>
+<var>${sig_enabled_str}</var>
+<arg>str(${signature_verification_enabled}).lower()</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.029434" elapsed="0.000492"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.030438" level="INFO">${sig_required_str} = true</msg>
+<var>${sig_required_str}</var>
+<arg>str(${require_signature}).lower()</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.030046" elapsed="0.000424"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.031121" level="INFO">${test_dir} = /tmp/ankaios-test-1779552947-3737</msg>
+<var>${test_dir}</var>
+<arg>str(pathlib.Path("${workloads_dir}").parent)</arg>
+<arg>modules=pathlib</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.030585" elapsed="0.000569"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.031672" level="INFO">${config_file} = /tmp/ankaios-test-1779552947-3737/ank-server.conf</msg>
+<var>${config_file}</var>
+<arg>${test_dir}/ank-server.conf</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.031288" elapsed="0.000415"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.032179" level="INFO">${startup_file} = /tmp/ankaios-test-1779552947-3737/startup.yaml</msg>
+<var>${startup_file}</var>
+<arg>${test_dir}/startup.yaml</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.031828" elapsed="0.000381"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.032634" level="INFO">${server_log} = /tmp/ankaios-test-1779552947-3737/ankaios-server.log</msg>
+<var>${server_log}</var>
+<arg>${test_dir}/ankaios-server.log</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.032322" elapsed="0.000340"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.033111" level="INFO">${agent_log} = /tmp/ankaios-test-1779552947-3737/ankaios-agent.log</msg>
+<var>${agent_log}</var>
+<arg>${test_dir}/ankaios-agent.log</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.032773" elapsed="0.000372"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.033585" level="INFO">${counter_state} = /tmp/ankaios-test-1779552947-3737/signature-counters.json</msg>
+<var>${counter_state}</var>
+<arg>${test_dir}/signature-counters.json</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.033259" elapsed="0.000354"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<kw name="Create Startup Manifest With Persistence Plugin" owner="signature_utils">
+<kw name="Create Directory" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:47.035084" level="INFO" html="true">Created directory '&lt;a href="file:///tmp/ankaios-test-1779552947-3737/workloads"&gt;/tmp/ankaios-test-1779552947-3737/workloads&lt;/a&gt;'.</msg>
+<arg>${test_dir}/workloads</arg>
+<doc>Creates the specified directory.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.034736" elapsed="0.000422"/>
+</kw>
+<kw name="Catenate" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.037504" level="INFO">${manifest} = apiVersion: v1
+workloads:
+  basic_persistency:
+    runtime: podman
+    agent: agent_A
+    runtimeConfig: |
+      image: localhost/ank-persist:test
+      commandOptions: ["-v", "/tmp/ankaios-test-17795...</msg>
+<var>${manifest}</var>
+<arg>SEPARATOR=\n</arg>
+<arg>apiVersion: v1</arg>
+<arg>workloads:</arg>
+<arg>${SPACE}${SPACE}basic_persistency:</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}runtime: podman</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}agent: agent_A</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}runtimeConfig: |</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}image: localhost/ank-persist:test</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}commandOptions: ["-v", "${test_dir}:${test_dir}:z", "-e", "PERSISTENCE_FILE_PATH=${test_dir}/runtime_state.yaml", "-e", "RUST_LOG=debug"]</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}controlInterfaceAccess:</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}allowRules:</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}- type: StateRule</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}operation: ReadWrite</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}filterMasks:</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}- "desiredState.workloads.*"</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}- "desiredState.configs.*"</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}- "workloadStates.*.*.*.state"</arg>
+<arg>${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}${SPACE}- "desiredState.configs"</arg>
+<doc>Catenates the given items together and returns the resulted string.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.035275" elapsed="0.002257"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:47.038041" level="INFO" html="true">Created file '&lt;a href="file:///tmp/ankaios-test-1779552947-3737/startup.yaml"&gt;/tmp/ankaios-test-1779552947-3737/startup.yaml&lt;/a&gt;'.</msg>
+<arg>${startup_file}</arg>
+<arg>${manifest}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.037664" elapsed="0.000458"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.038683" level="INFO">Created startup manifest with persistence plugin container using test dir: /tmp/ankaios-test-1779552947-3737</msg>
+<arg>Created startup manifest with persistence plugin container using test dir: ${test_dir}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.038290" elapsed="0.000469"/>
+</kw>
+<arg>${test_dir}</arg>
+<arg>${startup_file}</arg>
+<doc>Create startup manifest that includes persistence plugin as workload</doc>
+<status status="PASS" start="2026-05-23T18:15:47.034347" elapsed="0.004495"/>
+</kw>
+<arg>${persistence_plugin}</arg>
+<arg>Create Startup Manifest With Persistence Plugin</arg>
+<arg>${test_dir}</arg>
+<arg>${startup_file}</arg>
+<arg>ELSE</arg>
+<arg>Create Startup Manifest Without Persistence</arg>
+<arg>${startup_file}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.033768" elapsed="0.005165"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<kw name="Sign Startup Manifest" owner="signature_utils">
+<kw name="List Files In Directory" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:47.040471" level="INFO" html="true">Listing contents of directory '&lt;a href="file:///tmp/ankaios-test-1779552947-3737/keys"&gt;/tmp/ankaios-test-1779552947-3737/keys&lt;/a&gt;'.</msg>
+<msg time="2026-05-23T18:15:47.040738" level="INFO">1 file:
+test-key-001.pem</msg>
+<msg time="2026-05-23T18:15:47.040820" level="INFO">${all_files} = ['test-key-001.pem']</msg>
+<var>${all_files}</var>
+<arg>${keys_dir}</arg>
+<arg>*.pem</arg>
+<arg>absolute=False</arg>
+<doc>Wrapper for `List Directory` that returns only files.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.040271" elapsed="0.000565"/>
+</kw>
+<kw name="Create List" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.041162" level="INFO">${key_files} = []</msg>
+<var>${key_files}</var>
+<doc>Returns a list containing given items.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.040930" elapsed="0.000251"/>
+</kw>
+<for flavor="IN">
+<iter>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.041797" level="INFO">${is_private} = True</msg>
+<var>${is_private}</var>
+<arg>not '${file}'.endswith('.pub')</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.041452" elapsed="0.000365"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<kw name="Append To List" owner="Collections">
+<arg>${key_files}</arg>
+<arg>${file}</arg>
+<doc>Adds ``values`` to the end of ``list``.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.042135" elapsed="0.000225"/>
+</kw>
+<arg>${is_private}</arg>
+<arg>Append To List</arg>
+<arg>${key_files}</arg>
+<arg>${file}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.041897" elapsed="0.000512"/>
+</kw>
+<var name="${file}">test-key-001.pem</var>
+<status status="PASS" start="2026-05-23T18:15:47.041379" elapsed="0.001055"/>
+</iter>
+<var>${file}</var>
+<value>@{all_files}</value>
+<status status="PASS" start="2026-05-23T18:15:47.041237" elapsed="0.001226"/>
+</for>
+<kw name="Get Length" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.042940" level="INFO">Length is 1.</msg>
+<msg time="2026-05-23T18:15:47.043005" level="INFO">${key_count} = 1</msg>
+<var>${key_count}</var>
+<arg>${key_files}</arg>
+<doc>Returns and logs the length of the given item as an integer.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.042558" elapsed="0.000463"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.043446" level="INFO">${last_index} = 0</msg>
+<var>${last_index}</var>
+<arg>${key_count} - 1</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.043128" elapsed="0.000339"/>
+</kw>
+<kw name="Get From List" owner="Collections">
+<msg time="2026-05-23T18:15:47.043700" level="INFO">${last_key} = test-key-001.pem</msg>
+<var>${last_key}</var>
+<arg>${key_files}</arg>
+<arg>${last_index}</arg>
+<doc>Returns the value specified with an ``index`` from ``list``.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.043549" elapsed="0.000180"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.044008" level="INFO">${key_path} = /tmp/ankaios-test-1779552947-3737/keys/test-key-001.pem</msg>
+<var>${key_path}</var>
+<arg>${keys_dir}/${last_key}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.043795" elapsed="0.000232"/>
+</kw>
+<kw name="Replace String" owner="String">
+<msg time="2026-05-23T18:15:47.044508" level="INFO">${key_id} = test-key-001</msg>
+<var>${key_id}</var>
+<arg>${last_key}</arg>
+<arg>.pem</arg>
+<arg>${EMPTY}</arg>
+<doc>Replaces ``search_for`` in the given ``string`` with ``replace_with``.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.044095" elapsed="0.000432"/>
+</kw>
+<kw name="Sign Manifest" owner="signature_utils">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:47.045371" level="INFO">Starting process:
+/home/pierrey/repos/gitrepo/ankaios/tests/stests/signature_e2e/../../../target/x86_64-unknown-linux-gnu/release/ank sign --input /tmp/ankaios-test-1779552947-3737/startup.yaml --key /tmp/ankaios-test-1779552947-3737/keys/test-key-001.pem --key-id test-key-001 --counter 0</msg>
+<msg time="2026-05-23T18:15:47.045830" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:47.047016" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:47.047144" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>${ANKAIOS_BIN_DIR}/ank</arg>
+<arg>sign</arg>
+<arg>--input</arg>
+<arg>${manifest_path}</arg>
+<arg>--key</arg>
+<arg>${private_key_path}</arg>
+<arg>--key-id</arg>
+<arg>${key_id}</arg>
+<arg>--counter</arg>
+<arg>${counter}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.044959" elapsed="0.002202"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.048053" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Signing failed: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.047293" elapsed="0.000806"/>
+</kw>
+<kw name="Replace String" owner="String">
+<msg time="2026-05-23T18:15:47.048308" level="INFO">${pb_path} = /tmp/ankaios-test-1779552947-3737/startup.pb</msg>
+<var>${pb_path}</var>
+<arg>${manifest_path}</arg>
+<arg>.yaml</arg>
+<arg>.pb</arg>
+<doc>Replaces ``search_for`` in the given ``string`` with ``replace_with``.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.048182" elapsed="0.000141"/>
+</kw>
+<kw name="Should Exist" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:47.048519" level="INFO" html="true">Path '&lt;a href="file:///tmp/ankaios-test-1779552947-3737/startup.pb"&gt;/tmp/ankaios-test-1779552947-3737/startup.pb&lt;/a&gt;' exists.</msg>
+<arg>${pb_path}</arg>
+<arg>msg=Signed binary manifest not found: ${pb_path}</arg>
+<doc>Fails unless the given path (file or directory) exists.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.048379" elapsed="0.000169"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.048827" level="INFO">Signed manifest: /tmp/ankaios-test-1779552947-3737/startup.yaml -&gt; /tmp/ankaios-test-1779552947-3737/startup.pb with counter=0</msg>
+<arg>Signed manifest: ${manifest_path} -&gt; ${pb_path} with counter=${counter}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.048603" elapsed="0.000250"/>
+</kw>
+<arg>${startup_file}</arg>
+<arg>${key_path}</arg>
+<arg>${key_id}</arg>
+<arg>0</arg>
+<doc>Sign YAML manifest with Ed25519 signature using ank sign (outputs binary .pb file)</doc>
+<status status="PASS" start="2026-05-23T18:15:47.044685" elapsed="0.004205"/>
+</kw>
+<kw name="Replace String" owner="String">
+<msg time="2026-05-23T18:15:47.049063" level="INFO">${signed_path} = /tmp/ankaios-test-1779552947-3737/startup.pb</msg>
+<var>${signed_path}</var>
+<arg>${startup_file}</arg>
+<arg>.yaml</arg>
+<arg>.pb</arg>
+<doc>Replaces ``search_for`` in the given ``string`` with ``replace_with``.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.048953" elapsed="0.000123"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.049276" level="INFO">Signed startup manifest with test-key-001.pem -&gt; /tmp/ankaios-test-1779552947-3737/startup.pb</msg>
+<arg>Signed startup manifest with ${last_key} -&gt; ${signed_path}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.049128" elapsed="0.000193"/>
+</kw>
+<return>
+<value>${signed_path}</value>
+<status status="PASS" start="2026-05-23T18:15:47.049365" elapsed="0.000054"/>
+</return>
+<arg>${keys_dir}</arg>
+<arg>${startup_file}</arg>
+<doc>Sign the startup manifest with most recently generated key, returns path to signed .pb file</doc>
+<status status="PASS" start="2026-05-23T18:15:47.039928" elapsed="0.009566"/>
+</kw>
+<msg time="2026-05-23T18:15:47.049542" level="INFO">${manifest_to_load} = /tmp/ankaios-test-1779552947-3737/startup.pb</msg>
+<var>${manifest_to_load}</var>
+<arg>${signature_verification_enabled}</arg>
+<arg>Sign Startup Manifest</arg>
+<arg>${keys_dir}</arg>
+<arg>${startup_file}</arg>
+<arg>ELSE</arg>
+<arg>Set Variable</arg>
+<arg>${startup_file}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.039113" elapsed="0.010441"/>
+</kw>
+<kw name="Catenate" owner="BuiltIn">
+<msg time="2026-05-23T18:15:47.049906" level="INFO">${config} = version = "v1"
+startup_manifest = "/tmp/ankaios-test-1779552947-3737/startup.pb"
+[signature_verification]
+enabled = true
+require_signature = true
+keys_directory = "/tmp/ankaios-test-1779552947-3737/ke...</msg>
+<var>${config}</var>
+<arg>SEPARATOR=\n</arg>
+<arg>version = "v1"</arg>
+<arg>startup_manifest = "${manifest_to_load}"</arg>
+<arg>[signature_verification]</arg>
+<arg>enabled = ${sig_enabled_str}</arg>
+<arg>require_signature = ${sig_required_str}</arg>
+<arg>keys_directory = "${keys_dir}"</arg>
+<doc>Catenates the given items together and returns the resulted string.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.049618" elapsed="0.000303"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:47.050223" level="INFO" html="true">Created file '&lt;a href="file:///tmp/ankaios-test-1779552947-3737/ank-server.conf"&gt;/tmp/ankaios-test-1779552947-3737/ank-server.conf&lt;/a&gt;'.</msg>
+<arg>${config_file}</arg>
+<arg>${config}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.049981" elapsed="0.000278"/>
+</kw>
+<kw name="Start Process" owner="Process">
+<msg time="2026-05-23T18:15:47.050723" level="INFO">Starting process:
+/home/pierrey/repos/gitrepo/ankaios/tests/stests/signature_e2e/../../../target/x86_64-unknown-linux-gnu/release/ank-server --server-config /tmp/ankaios-test-1779552947-3737/ank-server.conf --insecure</msg>
+<arg>${ANKAIOS_BIN_DIR}/ank-server</arg>
+<arg>--server-config</arg>
+<arg>${config_file}</arg>
+<arg>--insecure</arg>
+<arg>alias=ankaios-server</arg>
+<arg>stdout=${server_log}</arg>
+<arg>stderr=STDOUT</arg>
+<arg>env:ANKAIOS_COUNTER_STATE_PATH=${counter_state}</arg>
+<doc>Starts a new process on background.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.050320" elapsed="0.000742"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-05-23T18:15:49.051607" level="INFO">Slept 2 seconds.</msg>
+<msg time="2026-05-23T18:15:49.051886" level="INFO">Wait for server to initialize</msg>
+<arg>2s</arg>
+<arg>reason=Wait for server to initialize</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-05-23T18:15:47.051139" elapsed="2.000971"/>
+</kw>
+<kw name="Is Process Running" owner="Process">
+<msg time="2026-05-23T18:15:49.053987" level="INFO">${server_running} = False</msg>
+<var>${server_running}</var>
+<arg>ankaios-server</arg>
+<doc>Checks is the process running or not.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.052642" elapsed="0.001436"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:49.057303" level="ERROR">ERROR: Server process exited immediately - check /tmp/ankaios-test-1779552947-3737/ankaios-server.log</msg>
+<arg>ERROR: Server process exited immediately - check ${server_log}</arg>
+<arg>level=ERROR</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.056084" elapsed="0.001656"/>
+</kw>
+<arg>not ${server_running}</arg>
+<arg>Log</arg>
+<arg>ERROR: Server process exited immediately - check ${server_log}</arg>
+<arg>level=ERROR</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.054507" elapsed="0.003433"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<kw name="Log File" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:49.060161" level="INFO" html="true">Getting file '&lt;a href="file:///tmp/ankaios-test-1779552947-3737/ankaios-server.log"&gt;/tmp/ankaios-test-1779552947-3737/ankaios-server.log&lt;/a&gt;'.</msg>
+<msg time="2026-05-23T18:15:49.060505" level="INFO">[2026-05-23T16:15:47Z INFO  common::config] Loading config from user provided path '/tmp/ankaios-test-1779552947-3737/ank-server.conf'
+[2026-05-23T16:15:47Z INFO  ank_server::signature_validator] Loaded Ed25519 public key: test-key-001.pem
+[2026-05-23T16:15:47Z INFO  ank_server] ✅ Signature verification enabled
+[2026-05-23T16:15:47Z ERROR ank_server] ❌ Startup manifest signature verification failed: GenericVerificationFailure
+</msg>
+<arg>${server_log}</arg>
+<doc>Wrapper for `Get File` that also logs the returned file.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.059706" elapsed="0.000945"/>
+</kw>
+<arg>not ${server_running}</arg>
+<arg>Log File</arg>
+<arg>${server_log}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.058349" elapsed="0.002458"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<kw name="Fail" owner="BuiltIn">
+<msg time="2026-05-23T18:15:49.063119" level="FAIL">Server failed to start - see log above</msg>
+<arg>Server failed to start - see log above</arg>
+<doc>Fails the test with the given message and optionally alters its tags.</doc>
+<status status="FAIL" start="2026-05-23T18:15:49.062200" elapsed="0.001383">Server failed to start - see log above</status>
+</kw>
+<arg>not ${server_running}</arg>
+<arg>Fail</arg>
+<arg>Server failed to start - see log above</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="FAIL" start="2026-05-23T18:15:49.061101" elapsed="0.002699">Server failed to start - see log above</status>
+</kw>
+<kw name="Start Process" owner="Process">
+<arg>${ANKAIOS_BIN_DIR}/ank-agent</arg>
+<arg>--name</arg>
+<arg>agent_A</arg>
+<arg>--insecure</arg>
+<arg>alias=ankaios-agent</arg>
+<arg>stdout=${agent_log}</arg>
+<arg>stderr=STDOUT</arg>
+<doc>Starts a new process on background.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.064150" elapsed="0.000061"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<arg>2s</arg>
+<arg>reason=Wait for agent to connect and register</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.064435" elapsed="0.000042"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>${persistence_plugin}</arg>
+<arg>Wait For Persistence Plugin To Be Ready</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.064663" elapsed="0.000036"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<arg>Ankaios server and agent started with signature_verification=${signature_verification_enabled}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.064890" elapsed="0.000035"/>
+</kw>
+<arg>signature_verification_enabled=${True}</arg>
+<arg>require_signature=${True}</arg>
+<arg>keys_dir=${KEYS_DIR}</arg>
+<arg>persistence_plugin=${True}</arg>
+<arg>workloads_dir=${WORKLOADS_DIR}</arg>
+<doc>Start ank-server with signature verification config</doc>
+<status status="FAIL" start="2026-05-23T18:15:47.028798" elapsed="2.036406">Server failed to start - see log above</status>
+</kw>
+<kw name="Apply Manifest" owner="signature_utils">
+<var>${result}</var>
+<arg>/tmp/test_manifest.pb</arg>
+<doc>Apply manifest via ank CLI. Fails only on actual apply errors (signature/policy), not on workload state timeouts.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.065791" elapsed="0.000062"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<arg>Apply result: ${result}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.066047" elapsed="0.000037"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<arg>3s</arg>
+<arg>reason=Wait for workload to reach Running state and persist</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.066222" elapsed="0.000032"/>
+</kw>
+<kw name="File Should Exist" owner="OperatingSystem">
+<arg>${WORKLOADS_DIR}/nginx-persistent.yaml</arg>
+<arg>msg=Workload file should exist in workloads directory</arg>
+<doc>Fails unless the given ``path`` points to an existing file.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.066393" elapsed="0.000031"/>
+</kw>
+<kw name="Get File" owner="OperatingSystem">
+<var>${persisted_content}</var>
+<arg>${WORKLOADS_DIR}/nginx-persistent.yaml</arg>
+<doc>Returns the contents of a specified file.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.066577" elapsed="0.000032"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${persisted_content}</arg>
+<arg>---</arg>
+<arg>msg=Workload file must contain signature separator</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.066765" elapsed="0.000030"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${persisted_content}</arg>
+<arg>signature:</arg>
+<arg>msg=Workload file must contain signature field</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.066928" elapsed="0.000030"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${persisted_content}</arg>
+<arg>key_id: test-key-001</arg>
+<arg>msg=Workload file must contain correct key_id</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.067073" elapsed="0.000024"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${persisted_content}</arg>
+<arg>counter: 1</arg>
+<arg>msg=Workload file must contain correct counter</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.067209" elapsed="0.000024"/>
+</kw>
+<kw name="Verify Manifest Signature" owner="signature_utils">
+<var>${verify_result}</var>
+<arg>${WORKLOADS_DIR}/nginx-persistent.yaml</arg>
+<arg>${KEYS_DIR}/test-key-001.pem.pub</arg>
+<doc>Verify Ed25519 signature on manifest using ank verify</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.067467" elapsed="0.000033"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${verify_result}</arg>
+<arg>VALID</arg>
+<arg>msg=Persisted workload file signature must be valid</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.067623" elapsed="0.000024"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<arg>✅ SUCCESS: Persistence file contains valid signature</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="NOT RUN" start="2026-05-23T18:15:49.067769" elapsed="0.000023"/>
+</kw>
+<kw name="Run Keywords" owner="BuiltIn" type="TEARDOWN">
+<kw name="Stop Ankaios Server" owner="signature_utils">
+<kw name="Terminate Process" owner="Process">
+<msg time="2026-05-23T18:15:49.070074" level="INFO">${result_agent} = None</msg>
+<msg time="2026-05-23T18:15:49.070143" level="FAIL">Non-existing index or alias 'ankaios-agent'.</msg>
+<var>${result_agent}</var>
+<arg>ankaios-agent</arg>
+<doc>Stops the process gracefully or forcefully.</doc>
+<status status="FAIL" start="2026-05-23T18:15:49.069586" elapsed="0.000767">Non-existing index or alias 'ankaios-agent'.</status>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:49.071594" level="FAIL">Resolving variable '${result_agent.rc}' failed: AttributeError: 'NoneType' object has no attribute 'rc'</msg>
+<arg>Agent stopped with exit code: ${result_agent.rc}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="FAIL" start="2026-05-23T18:15:49.070846" elapsed="0.000792">Resolving variable '${result_agent.rc}' failed: AttributeError: 'NoneType' object has no attribute 'rc'</status>
+</kw>
+<arg>Log</arg>
+<arg>Agent stopped with exit code: ${result_agent.rc}</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.070517" elapsed="0.001192"/>
+</kw>
+<kw name="Terminate Process" owner="Process">
+<msg time="2026-05-23T18:15:49.072050" level="INFO">Gracefully terminating process.</msg>
+<msg time="2026-05-23T18:15:49.072244" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:49.072332" level="INFO">${result_server} = &lt;result object with rc 1&gt;</msg>
+<var>${result_server}</var>
+<arg>ankaios-server</arg>
+<doc>Stops the process gracefully or forcefully.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.071828" elapsed="0.000523"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:49.073256" level="INFO">Server stopped with exit code: 1</msg>
+<arg>Server stopped with exit code: ${result_server.rc}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.072770" elapsed="0.000534"/>
+</kw>
+<arg>Log</arg>
+<arg>Server stopped with exit code: ${result_server.rc}</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.072462" elapsed="0.000886"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:49.073938" level="INFO">Starting process:
+bash -c "podman stop $(podman ps -q --filter name=nginx-persistent) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:49.074626" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:49.113271" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=nginx-persistent) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.073634" elapsed="0.039749"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=nginx-persistent) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.073422" elapsed="0.040023"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:49.114125" level="INFO">Starting process:
+bash -c "podman rm -f $(podman ps -aq --filter name=nginx-persistent) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:49.114500" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:49.144940" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=nginx-persistent) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.113889" elapsed="0.031158"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=nginx-persistent) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.113574" elapsed="0.031534"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:49.145767" level="INFO">Starting process:
+bash -c "podman stop $(podman ps -q --filter name=mqtt) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:49.146121" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:49.182469" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=mqtt) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.145529" elapsed="0.037059"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=mqtt) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.145242" elapsed="0.037410"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:49.183307" level="INFO">Starting process:
+bash -c "podman rm -f $(podman ps -aq --filter name=mqtt) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:49.183731" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:49.216427" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=mqtt) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.183078" elapsed="0.033452"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=mqtt) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.182788" elapsed="0.033804"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:49.217260" level="INFO">Starting process:
+bash -c "podman stop $(podman ps -q --filter name=workload) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:49.217651" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:49.263342" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=workload) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.217029" elapsed="0.046425"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=workload) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.216742" elapsed="0.046776"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:49.264182" level="INFO">Starting process:
+bash -c "podman rm -f $(podman ps -aq --filter name=workload) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:49.264618" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:49.301988" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=workload) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.263956" elapsed="0.038141"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=workload) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.263648" elapsed="0.038513"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:49.302850" level="INFO">Starting process:
+bash -c "podman stop $(podman ps -q --filter name=basic_persistency) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:49.303222" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:49.338759" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=basic_persistency) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.302625" elapsed="0.036247"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=basic_persistency) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.302320" elapsed="0.036615"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:49.339649" level="INFO">Starting process:
+bash -c "podman rm -f $(podman ps -aq --filter name=basic_persistency) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:49.340023" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:49.379220" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=basic_persistency) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.339408" elapsed="0.039928"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=basic_persistency) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.339076" elapsed="0.040321"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-05-23T18:15:51.380067" level="INFO">Slept 2 seconds.</msg>
+<msg time="2026-05-23T18:15:51.380247" level="INFO">Wait for server port to be released and containers to fully stop</msg>
+<arg>2s</arg>
+<arg>reason=Wait for server port to be released and containers to fully stop</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-05-23T18:15:49.379532" elapsed="2.000845"/>
+</kw>
+<doc>Stop the Ankaios server and agent</doc>
+<status status="FAIL" start="2026-05-23T18:15:49.069168" elapsed="2.311595">Non-existing index or alias 'ankaios-agent'.</status>
+</kw>
+<kw name="Remove File" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:51.381526" level="INFO" html="true">Removed file '&lt;a href="file:///tmp/test_manifest.yaml"&gt;/tmp/test_manifest.yaml&lt;/a&gt;'.</msg>
+<arg>/tmp/test_manifest.yaml</arg>
+<doc>Removes a file with the given path.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.381111" elapsed="0.000501"/>
+</kw>
+<kw name="Remove File" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:51.382120" level="INFO" html="true">Removed file '&lt;a href="file:///tmp/test_manifest.pb"&gt;/tmp/test_manifest.pb&lt;/a&gt;'.</msg>
+<arg>/tmp/test_manifest.pb</arg>
+<doc>Removes a file with the given path.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.381830" elapsed="0.000368"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Remove Directory" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:51.383447" level="INFO" html="true">Removed directory '&lt;a href="file:///tmp/ankaios-test-1779552947-3737/workloads"&gt;/tmp/ankaios-test-1779552947-3737/workloads&lt;/a&gt;'.</msg>
+<arg>${WORKLOADS_DIR}</arg>
+<arg>recursive=True</arg>
+<doc>Removes the directory pointed to by the given ``path``.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.383006" elapsed="0.000520"/>
+</kw>
+<arg>Remove Directory</arg>
+<arg>${WORKLOADS_DIR}</arg>
+<arg>recursive=True</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.382417" elapsed="0.001186"/>
+</kw>
+<arg>Stop Ankaios Server</arg>
+<arg>AND</arg>
+<arg>Remove File</arg>
+<arg>/tmp/test_manifest.yaml</arg>
+<arg>AND</arg>
+<arg>Remove File</arg>
+<arg>/tmp/test_manifest.pb</arg>
+<arg>AND</arg>
+<arg>Run Keyword And Ignore Error</arg>
+<arg>Remove Directory</arg>
+<arg>${WORKLOADS_DIR}</arg>
+<arg>recursive=True</arg>
+<doc>Executes all the given keywords in a sequence.</doc>
+<status status="FAIL" start="2026-05-23T18:15:49.068186" elapsed="2.315551">Non-existing index or alias 'ankaios-agent'.</status>
+</kw>
+<doc>Verify that persistence plugin saves signed YAML with signature intact</doc>
+<tag>critical</tag>
+<tag>persistence</tag>
+<tag>signature</tag>
+<status status="FAIL" start="2026-05-23T18:15:47.016600" elapsed="4.367316">Server failed to start - see log above
+
+Also teardown failed:
+Non-existing index or alias 'ankaios-agent'.</status>
+</test>
+<kw name="Run Keywords" owner="BuiltIn" type="TEARDOWN">
+<kw name="Cleanup Ankaios" owner="signature_utils">
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Stop Ankaios Server" owner="signature_utils">
+<kw name="Terminate Process" owner="Process">
+<msg time="2026-05-23T18:15:51.387084" level="INFO">${result_agent} = None</msg>
+<msg time="2026-05-23T18:15:51.387152" level="FAIL">Non-existing index or alias 'ankaios-agent'.</msg>
+<var>${result_agent}</var>
+<arg>ankaios-agent</arg>
+<doc>Stops the process gracefully or forcefully.</doc>
+<status status="FAIL" start="2026-05-23T18:15:51.386540" elapsed="0.000789">Non-existing index or alias 'ankaios-agent'.</status>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:51.388839" level="FAIL">Resolving variable '${result_agent.rc}' failed: AttributeError: 'NoneType' object has no attribute 'rc'</msg>
+<arg>Agent stopped with exit code: ${result_agent.rc}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="FAIL" start="2026-05-23T18:15:51.387933" elapsed="0.000956">Resolving variable '${result_agent.rc}' failed: AttributeError: 'NoneType' object has no attribute 'rc'</status>
+</kw>
+<arg>Log</arg>
+<arg>Agent stopped with exit code: ${result_agent.rc}</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.387511" elapsed="0.001460"/>
+</kw>
+<kw name="Terminate Process" owner="Process">
+<msg time="2026-05-23T18:15:51.389391" level="INFO">Gracefully terminating process.</msg>
+<msg time="2026-05-23T18:15:51.389525" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:51.389629" level="INFO">${result_server} = &lt;result object with rc 1&gt;</msg>
+<var>${result_server}</var>
+<arg>ankaios-server</arg>
+<doc>Stops the process gracefully or forcefully.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.389108" elapsed="0.000551"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:51.390840" level="INFO">Server stopped with exit code: 1</msg>
+<arg>Server stopped with exit code: ${result_server.rc}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.390132" elapsed="0.000765"/>
+</kw>
+<arg>Log</arg>
+<arg>Server stopped with exit code: ${result_server.rc}</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.389802" elapsed="0.001153"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:51.391790" level="INFO">Starting process:
+bash -c "podman stop $(podman ps -q --filter name=nginx-persistent) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:51.392622" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:51.437449" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=nginx-persistent) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.391424" elapsed="0.046121"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=nginx-persistent) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.391077" elapsed="0.046527"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:51.438272" level="INFO">Starting process:
+bash -c "podman rm -f $(podman ps -aq --filter name=nginx-persistent) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:51.438598" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:51.480540" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=nginx-persistent) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.438036" elapsed="0.042581"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=nginx-persistent) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.437733" elapsed="0.042927"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:51.481143" level="INFO">Starting process:
+bash -c "podman stop $(podman ps -q --filter name=mqtt) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:51.481488" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:51.513370" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=mqtt) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.480992" elapsed="0.032461"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=mqtt) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.480758" elapsed="0.032740"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:51.514001" level="INFO">Starting process:
+bash -c "podman rm -f $(podman ps -aq --filter name=mqtt) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:51.514347" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:51.545131" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=mqtt) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.513830" elapsed="0.031380"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=mqtt) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.513593" elapsed="0.031665"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:51.545751" level="INFO">Starting process:
+bash -c "podman stop $(podman ps -q --filter name=workload) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:51.546081" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:51.576436" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=workload) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.545578" elapsed="0.030942"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=workload) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.545354" elapsed="0.031213"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:51.577077" level="INFO">Starting process:
+bash -c "podman rm -f $(podman ps -aq --filter name=workload) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:51.577454" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:51.607732" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=workload) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.576909" elapsed="0.030906"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=workload) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.576667" elapsed="0.031197"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:51.608327" level="INFO">Starting process:
+bash -c "podman stop $(podman ps -q --filter name=basic_persistency) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:51.608669" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:51.643273" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=basic_persistency) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.608178" elapsed="0.035174"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman stop $(podman ps -q --filter name\=basic_persistency) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.607967" elapsed="0.035430"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:51.643890" level="INFO">Starting process:
+bash -c "podman rm -f $(podman ps -aq --filter name=basic_persistency) 2&gt;/dev/null"</msg>
+<msg time="2026-05-23T18:15:51.644255" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:51.676664" level="INFO">Process completed.</msg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=basic_persistency) 2&gt;/dev/null</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.643722" elapsed="0.033030"/>
+</kw>
+<arg>Run Process</arg>
+<arg>bash</arg>
+<arg>-c</arg>
+<arg>podman rm -f $(podman ps -aq --filter name\=basic_persistency) 2&gt;/dev/null</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.643492" elapsed="0.033307"/>
+</kw>
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-05-23T18:15:53.677287" level="INFO">Slept 2 seconds.</msg>
+<msg time="2026-05-23T18:15:53.677441" level="INFO">Wait for server port to be released and containers to fully stop</msg>
+<arg>2s</arg>
+<arg>reason=Wait for server port to be released and containers to fully stop</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.676891" elapsed="2.000700"/>
+</kw>
+<doc>Stop the Ankaios server and agent</doc>
+<status status="FAIL" start="2026-05-23T18:15:51.386287" elapsed="2.291619">Non-existing index or alias 'ankaios-agent'.</status>
+</kw>
+<arg>Stop Ankaios Server</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.385768" elapsed="2.292242"/>
+</kw>
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Stop Persistence Plugin" owner="signature_utils">
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:53.680521" level="INFO">Starting process:
+/home/pierrey/repos/gitrepo/ankaios/tests/stests/signature_e2e/../../../target/x86_64-unknown-linux-gnu/release/ank --insecure delete workload basic_persistency</msg>
+<msg time="2026-05-23T18:15:53.681600" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:53.689813" level="INFO">Process completed.</msg>
+<arg>${ANKAIOS_BIN_DIR}/ank</arg>
+<arg>--insecure</arg>
+<arg>delete</arg>
+<arg>workload</arg>
+<arg>basic_persistency</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.679930" elapsed="0.010027"/>
+</kw>
+<arg>Run Process</arg>
+<arg>${ANKAIOS_BIN_DIR}/ank</arg>
+<arg>--insecure</arg>
+<arg>delete</arg>
+<arg>workload</arg>
+<arg>basic_persistency</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.679402" elapsed="0.010682"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:53.691018" level="INFO">Starting process:
+podman ps -a --filter name=basic_persistency --format {{.ID}}</msg>
+<msg time="2026-05-23T18:15:53.691887" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:53.717825" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:53.717996" level="INFO">${containers} = &lt;result object with rc 0&gt;</msg>
+<var>${containers}</var>
+<arg>podman</arg>
+<arg>ps</arg>
+<arg>-a</arg>
+<arg>--filter</arg>
+<arg>name\=basic_persistency</arg>
+<arg>--format</arg>
+<arg>{{.ID}}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.690317" elapsed="0.027699"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${containers.stdout}" != ""</arg>
+<arg>Run Process</arg>
+<arg>podman</arg>
+<arg>stop</arg>
+<arg>${containers.stdout}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.718184" elapsed="0.000563"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${containers.stdout}" != ""</arg>
+<arg>Run Process</arg>
+<arg>podman</arg>
+<arg>rm</arg>
+<arg>${containers.stdout}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.718828" elapsed="0.000369"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:53.719473" level="INFO">Persistence plugin stopped</msg>
+<arg>Persistence plugin stopped</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.719265" elapsed="0.000250"/>
+</kw>
+<doc>Stop the persistence plugin workload</doc>
+<status status="PASS" start="2026-05-23T18:15:53.679064" elapsed="0.040495"/>
+</kw>
+<arg>Stop Persistence Plugin</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.678260" elapsed="0.041330"/>
+</kw>
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:53.719818" level="INFO">Ankaios processes stopped</msg>
+<arg>Ankaios processes stopped</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.719652" elapsed="0.000195"/>
+</kw>
+<doc>Clean up all Ankaios processes</doc>
+<status status="PASS" start="2026-05-23T18:15:51.385472" elapsed="2.334412"/>
+</kw>
+<kw name="Cleanup Test Run Directory">
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:53.720504" level="INFO">Starting process:
+podman ps -a --filter name=basic_persistency --format={{.Names}}</msg>
+<msg time="2026-05-23T18:15:53.720928" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:53.736283" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:53.736453" level="INFO">${result_plugin} = &lt;result object with rc 0&gt;</msg>
+<var>${result_plugin}</var>
+<arg>podman</arg>
+<arg>ps</arg>
+<arg>-a</arg>
+<arg>--filter</arg>
+<arg>name\=basic_persistency</arg>
+<arg>--format\={{.Names}}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.720220" elapsed="0.016253"/>
+</kw>
+<kw name="Split String" owner="String">
+<msg time="2026-05-23T18:15:53.737140" level="INFO">@{plugin_containers} = [  ]</msg>
+<var>@{plugin_containers}</var>
+<arg>${result_plugin.stdout}</arg>
+<arg>\n</arg>
+<doc>Splits the ``string`` using ``separator`` as a delimiter string.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.736621" elapsed="0.000543"/>
+</kw>
+<for flavor="IN">
+<iter>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${container}" != ""</arg>
+<arg>Run Process</arg>
+<arg>podman</arg>
+<arg>rm</arg>
+<arg>-f</arg>
+<arg>${container}</arg>
+<arg>shell=False</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.737489" elapsed="0.000379"/>
+</kw>
+<var name="${container}"/>
+<status status="PASS" start="2026-05-23T18:15:53.737378" elapsed="0.000532"/>
+</iter>
+<var>${container}</var>
+<value>@{plugin_containers}</value>
+<status status="PASS" start="2026-05-23T18:15:53.737226" elapsed="0.000709"/>
+</for>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:53.738311" level="INFO">Starting process:
+podman ps -a --filter name=nginx --format={{.Names}}</msg>
+<msg time="2026-05-23T18:15:53.738767" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:53.756632" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:53.756915" level="INFO">${result_workloads} = &lt;result object with rc 0&gt;</msg>
+<var>${result_workloads}</var>
+<arg>podman</arg>
+<arg>ps</arg>
+<arg>-a</arg>
+<arg>--filter</arg>
+<arg>name\=nginx</arg>
+<arg>--format\={{.Names}}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.738017" elapsed="0.018938"/>
+</kw>
+<kw name="Split String" owner="String">
+<msg time="2026-05-23T18:15:53.757999" level="INFO">@{workload_containers} = [  ]</msg>
+<var>@{workload_containers}</var>
+<arg>${result_workloads.stdout}</arg>
+<arg>\n</arg>
+<doc>Splits the ``string`` using ``separator`` as a delimiter string.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.757195" elapsed="0.000835"/>
+</kw>
+<for flavor="IN">
+<iter>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${container}" != ""</arg>
+<arg>Run Process</arg>
+<arg>podman</arg>
+<arg>rm</arg>
+<arg>-f</arg>
+<arg>${container}</arg>
+<arg>shell=False</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.758350" elapsed="0.000356"/>
+</kw>
+<var name="${container}"/>
+<status status="PASS" start="2026-05-23T18:15:53.758238" elapsed="0.000518"/>
+</iter>
+<var>${container}</var>
+<value>@{workload_containers}</value>
+<status status="PASS" start="2026-05-23T18:15:53.758099" elapsed="0.000682"/>
+</for>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:53.759164" level="INFO">Starting process:
+podman ps -a --filter name=mqtt --format={{.Names}}</msg>
+<msg time="2026-05-23T18:15:53.759706" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:53.777963" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:53.778140" level="INFO">${result_mqtt} = &lt;result object with rc 0&gt;</msg>
+<var>${result_mqtt}</var>
+<arg>podman</arg>
+<arg>ps</arg>
+<arg>-a</arg>
+<arg>--filter</arg>
+<arg>name\=mqtt</arg>
+<arg>--format\={{.Names}}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.758860" elapsed="0.019299"/>
+</kw>
+<kw name="Split String" owner="String">
+<msg time="2026-05-23T18:15:53.778781" level="INFO">@{mqtt_containers} = [  ]</msg>
+<var>@{mqtt_containers}</var>
+<arg>${result_mqtt.stdout}</arg>
+<arg>\n</arg>
+<doc>Splits the ``string`` using ``separator`` as a delimiter string.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.778307" elapsed="0.000492"/>
+</kw>
+<for flavor="IN">
+<iter>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${container}" != ""</arg>
+<arg>Run Process</arg>
+<arg>podman</arg>
+<arg>rm</arg>
+<arg>-f</arg>
+<arg>${container}</arg>
+<arg>shell=False</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.779017" elapsed="0.000280"/>
+</kw>
+<var name="${container}"/>
+<status status="PASS" start="2026-05-23T18:15:53.778952" elapsed="0.000377"/>
+</iter>
+<var>${container}</var>
+<value>@{mqtt_containers}</value>
+<status status="PASS" start="2026-05-23T18:15:53.778847" elapsed="0.000501"/>
+</for>
+<kw name="Run Process" owner="Process">
+<msg time="2026-05-23T18:15:53.779639" level="INFO">Starting process:
+podman ps -a --filter name=workload --format={{.Names}}</msg>
+<msg time="2026-05-23T18:15:53.779985" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-05-23T18:15:53.799424" level="INFO">Process completed.</msg>
+<msg time="2026-05-23T18:15:53.799612" level="INFO">${result_test} = &lt;result object with rc 0&gt;</msg>
+<var>${result_test}</var>
+<arg>podman</arg>
+<arg>ps</arg>
+<arg>-a</arg>
+<arg>--filter</arg>
+<arg>name\=workload</arg>
+<arg>--format\={{.Names}}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.779409" elapsed="0.020226"/>
+</kw>
+<kw name="Split String" owner="String">
+<msg time="2026-05-23T18:15:53.800448" level="INFO">@{test_containers} = [  ]</msg>
+<var>@{test_containers}</var>
+<arg>${result_test.stdout}</arg>
+<arg>\n</arg>
+<doc>Splits the ``string`` using ``separator`` as a delimiter string.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.799814" elapsed="0.000657"/>
+</kw>
+<for flavor="IN">
+<iter>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${container}" != ""</arg>
+<arg>Run Process</arg>
+<arg>podman</arg>
+<arg>rm</arg>
+<arg>-f</arg>
+<arg>${container}</arg>
+<arg>shell=False</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.800788" elapsed="0.000376"/>
+</kw>
+<var name="${container}"/>
+<status status="PASS" start="2026-05-23T18:15:53.800692" elapsed="0.000517"/>
+</iter>
+<var>${container}</var>
+<value>@{test_containers}</value>
+<status status="PASS" start="2026-05-23T18:15:53.800540" elapsed="0.000698"/>
+</for>
+<kw name="Run Keyword If" owner="BuiltIn">
+<kw name="Run Keyword And Ignore Error" owner="BuiltIn">
+<kw name="Remove Directory" owner="OperatingSystem">
+<msg time="2026-05-23T18:15:53.802325" level="INFO" html="true">Removed directory '&lt;a href="file:///tmp/ankaios-test-1779552947-3737"&gt;/tmp/ankaios-test-1779552947-3737&lt;/a&gt;'.</msg>
+<arg>${TEST_DIR}</arg>
+<arg>recursive=True</arg>
+<doc>Removes the directory pointed to by the given ``path``.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.801911" elapsed="0.000480"/>
+</kw>
+<arg>Remove Directory</arg>
+<arg>${TEST_DIR}</arg>
+<arg>recursive=True</arg>
+<doc>Runs the given keyword with the given arguments and ignores possible error.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.801665" elapsed="0.000778"/>
+</kw>
+<arg>"${TEST_DIR}" != ""</arg>
+<arg>Run Keyword And Ignore Error</arg>
+<arg>Remove Directory</arg>
+<arg>${TEST_DIR}</arg>
+<arg>recursive=True</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.801329" elapsed="0.001154"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-05-23T18:15:53.803202" level="INFO">Cleaned up test directory: /tmp/ankaios-test-1779552947-3737</msg>
+<arg>Cleaned up test directory: ${TEST_DIR}</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.802959" elapsed="0.000289"/>
+</kw>
+<arg>"${TEST_DIR}" != ""</arg>
+<arg>Log</arg>
+<arg>Cleaned up test directory: ${TEST_DIR}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-23T18:15:53.802583" elapsed="0.000710"/>
+</kw>
+<doc>Remove test directory and containers after run</doc>
+<status status="PASS" start="2026-05-23T18:15:53.720087" elapsed="0.083264"/>
+</kw>
+<arg>Cleanup Ankaios</arg>
+<arg>AND</arg>
+<arg>Cleanup Test Run Directory</arg>
+<doc>Executes all the given keywords in a sequence.</doc>
+<status status="PASS" start="2026-05-23T18:15:51.384833" elapsed="2.418566"/>
+</kw>
+<doc>End-to-end tests for signature preservation through persistence plugin</doc>
+<status status="FAIL" start="2026-05-23T18:15:45.722599" elapsed="8.080868"/>
+</suite>
+<statistics>
+<total>
+<stat pass="0" fail="1" skip="0">All Tests</stat>
+</total>
+<tag>
+<stat pass="0" fail="1" skip="0">critical</stat>
+<stat pass="0" fail="1" skip="0">persistence</stat>
+<stat pass="0" fail="1" skip="0">signature</stat>
+</tag>
+<suite>
+<stat name="Signature Persistence" id="s1" pass="0" fail="1" skip="0">Signature Persistence</stat>
+</suite>
+</statistics>
+<errors>
+<msg time="2026-05-23T18:15:49.057303" level="ERROR">ERROR: Server process exited immediately - check /tmp/ankaios-test-1779552947-3737/ankaios-server.log</msg>
+</errors>
+</robot>
