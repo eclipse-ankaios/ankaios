@@ -33,6 +33,7 @@ mod workload_state;
 
 mod io_utils;
 
+use crate::runtime_connectors::OwnableRuntime;
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
 
@@ -50,10 +51,8 @@ use common::{
 };
 
 use runtime_connectors::{
-    GenericRuntimeFacade, RuntimeConnector, RuntimeFacade, SUPPORTED_RUNTIMES,
-    containerd::{self, ContainerdRuntime},
-    podman::{self, PodmanRuntime},
-    podman_kube::{self, PodmanKubeRuntime},
+    GenericRuntimeFacade, RuntimeFacade, SUPPORTED_RUNTIMES, containerd::ContainerdRuntime,
+    podman::PodmanRuntime, podman_kube::PodmanKubeRuntime,
 };
 
 use grpc::client::GRPCCommunicationsClient;
@@ -114,15 +113,6 @@ pub fn validate_runtimes(config_runtimes: &Option<Vec<String>>) -> Result<Vec<&s
     }
 }
 
-macro_rules! register_runtime {
-    ($map:expr, $runtime_instance:expr, $run_path:expr) => {{
-        let runtime = Box::new($runtime_instance);
-        let runtime_name = runtime.name();
-        let podman_facade = Box::new(GenericRuntimeFacade::new(runtime, $run_path));
-        $map.insert(runtime_name, podman_facade);
-    }};
-}
-
 #[tokio::main]
 async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
@@ -165,35 +155,26 @@ async fn main() {
     // [impl->swdd~agent-allows-enabled-runtimes~1]
     let runtimes_to_register: Vec<&str> =
         validate_runtimes(&agent_config.runtimes).unwrap_or_exit("Invalid runtime configuration");
+
+    let mut available_runtimes = ([
+        Box::new(PodmanRuntime {}),
+        Box::new(PodmanKubeRuntime::default()),
+        Box::new(ContainerdRuntime {}),
+    ] as [Box<dyn OwnableRuntime>; 3])
+        .into_iter()
+        .map(|r| {
+            (
+                r.name(),
+                GenericRuntimeFacade::new(r, run_directory.get_path()),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
     for runtime_name in runtimes_to_register {
-        match runtime_name {
-            podman::NAME => {
-                // [impl->swdd~agent-supports-podman~2]
-                register_runtime!(
-                    runtime_facade_map,
-                    PodmanRuntime {},
-                    run_directory.get_path()
-                );
-            }
-            podman_kube::NAME => {
-                // [impl->swdd~agent-supports-podman-kube-runtime~1]
-                register_runtime!(
-                    runtime_facade_map,
-                    PodmanKubeRuntime::default(),
-                    run_directory.get_path()
-                );
-            }
-            containerd::NAME => {
-                // [impl->swdd~agent-supports-containerd~1]
-                register_runtime!(
-                    runtime_facade_map,
-                    ContainerdRuntime {},
-                    run_directory.get_path()
-                );
-            }
-            _ => {
-                log::error!("Unexpected runtime name to register: {runtime_name}");
-            }
+        if let Some(runtime) = available_runtimes.remove(runtime_name) {
+            runtime_facade_map.insert(runtime_name.to_string(), Box::new(runtime));
+        } else {
+            log::error!("Unexpected runtime name to register: {runtime_name}");
         }
     }
 
