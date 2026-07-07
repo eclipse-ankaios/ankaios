@@ -12,6 +12,7 @@ If you have some missing resources, please feel free to open a [pull request](ht
 - The [Eclipse Symphony Target Provider Rust binding](https://crates.io/crates/symphony) includes a provider to use Symphony with Ankaios.
 - [AI Powered Orchestration with Eclipse Ankaios & Eclipse LMOS](https://www.youtube.com/watch?v=6t4IoP55qa0&list=PLXGqib0ZinZE3ZYZvYHeRciBf4hgFPqza&index=2), a talk from Kaloyan Rusev on the Eclipse SDV community day IAV 2025 (see also the corresponding [repository](https://github.com/krucod3/arc-with-ankaios/tree/ankaios-experiments)).
 - [AI-driven edge analytics for Software Defined Vehicles](https://www.youtube.com/watch?v=xq91mDfKlp4), a talk from Oliver Kral on the Eclipse SDV community day T-Systems 2026
+- [Vehicular Architecture for the Orchestration of Containerized Vehicle Microservices](https://webthesis.biblio.polito.it/39868/1/tesi.pdf), Master’s Degree Thesis by Luca Ferraris, comparing Ankaios, BlueChi, and K3s and creating a domain-specific management framework named Atlas on top of Ankaios
 
 ## Projects using Ankaios
 
