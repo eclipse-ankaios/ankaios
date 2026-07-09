@@ -69,7 +69,7 @@ impl HookMutator for HooksRegistry {
                 .spawn()
                 .map_err(|err| UpdateStateError::MutatingHookError {
                     hook: hook.name.clone(),
-                    reason: format!("Failed to execute hook '{}': {err}", hook.name),
+                    reason: format!("Failed to execute hook '{}': {err}", executable.display()),
                 })?;
 
             if let Some(mut stdin) = child.stdin.take() {
