@@ -39,8 +39,8 @@ pub struct HooksRegistry {
 impl HooksRegistry {
     // [impl->swdd~server-sorts-mutating-hooks-by-priority~1]
     pub fn new(mut mutating_hooks: Vec<MutatingHook>) -> Self {
-        log::debug!(
-            "Initializing HooksRegistry with hooks: {:?}",
+        log::info!(
+            "Initializing HooksRegistry with mutating hooks: {:?}",
             mutating_hooks
         );
 
@@ -76,7 +76,7 @@ impl HookMutator for HooksRegistry {
                 stdin.write_all(&input_bytes).map_err(|err| {
                     UpdateStateError::MutatingHookError {
                         hook: hook.name.clone(),
-                        reason: format!("Failed to write to hook '{}' stdin: {err}", hook.name),
+                        reason: format!("Failed to write to hook '{}' stdin: {err}", executable.display()),
                     }
                 })?;
             }
@@ -86,7 +86,7 @@ impl HookMutator for HooksRegistry {
                     .wait_with_output()
                     .map_err(|err| UpdateStateError::MutatingHookError {
                         hook: hook.name.clone(),
-                        reason: format!("Failed to wait for hook '{}': {err}", hook.name),
+                        reason: format!("Failed to wait for hook '{}': {err}", executable.display()),
                     })?;
 
             // [impl->swdd~server-mutating-hook-veto~1]
@@ -110,7 +110,7 @@ impl HookMutator for HooksRegistry {
 
             // [impl->swdd~server-traces-mutating-hook-stderr~1]
             log::debug!(
-                "Mutating hook '{}' completed successfully: {}",
+                "Mutating hook '{}' completed successfully. Output: '{}'",
                 hook.name,
                 String::from_utf8_lossy(&output.stderr).trim()
             );
