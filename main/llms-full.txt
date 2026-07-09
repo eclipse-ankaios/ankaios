@@ -1971,11 +1971,12 @@ A message containing a list of fields that were added, updated, or removed in th
 
 A message containing the complete state of the Ankaios system. This is a response to the [CompleteStateRequest](#completestaterequest) message.
 
-| Field          | Type                                             | Label | Description                                            |
-| -------------- | ------------------------------------------------ | ----- | ------------------------------------------------------ |
-| desiredState   | [State](#ank_base-State)                         |       | The state the user wants to reach.                     |
-| workloadStates | [WorkloadStatesMap](#ank_base-WorkloadStatesMap) |       | The current execution states of the workloads.         |
-| agents         | [AgentMap](#ank_base-AgentMap)                   |       | The agents currently connected to the Ankaios cluster. |
+| Field          | Type                                             | Label | Description                                                                                                                                                          |
+| -------------- | ------------------------------------------------ | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| desiredState   | [State](#ank_base-State)                         |       | The state the user wants to reach.                                                                                                                                   |
+| workloadStates | [WorkloadStatesMap](#ank_base-WorkloadStatesMap) |       | The current execution states of the workloads.                                                                                                                       |
+| agents         | [AgentMap](#ank_base-AgentMap)                   |       | The agents currently connected to the Ankaios cluster.                                                                                                               |
+| effectiveState | [State](#ank_base-State)                         |       | The rendered state with expanded templates after hooks mutations. Reflects the actual workload configurations sent to agents. Configs not filled as already applied. |
 
 ### CompleteStateRequest
 
