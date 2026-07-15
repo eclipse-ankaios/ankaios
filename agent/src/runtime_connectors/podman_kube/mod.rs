@@ -16,6 +16,4 @@ mod podman_kube_control_interface;
 pub mod podman_kube_log_fetcher;
 mod podman_kube_runtime;
 mod podman_kube_runtime_config;
-pub use podman_kube_runtime::{
-    PODMAN_KUBE_RUNTIME_NAME as NAME, PodmanKubeRuntime, PodmanKubeWorkloadId,
-};
+pub use podman_kube_runtime::{PODMAN_KUBE_RUNTIME_NAME as NAME, PodmanKubeRuntime};

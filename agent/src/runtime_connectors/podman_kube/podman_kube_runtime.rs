@@ -317,13 +317,7 @@ impl RuntimeConnector for PodmanKubeRuntime {
             )
         });
 
-        let workload_id = PodmanKubeWorkloadId {
-            name: instance_name,
-            pods: Some(created_pods),
-            manifest: workload_config.manifest,
-            down_options: workload_config.down_options,
-        };
-        let runtime_workload_id = RuntimeWorkloadId::from(workload_id.name.to_string());
+        let runtime_workload_id = RuntimeWorkloadId::from(instance_name.to_string());
 
         log::debug!(
             "The workload '{}' has been created.",
@@ -374,19 +368,10 @@ impl RuntimeConnector for PodmanKubeRuntime {
 
     fn get_log_fetcher(
         &self,
-        workload_id: RuntimeWorkloadId,
-        options: &LogRequestOptions,
+        _workload_id: RuntimeWorkloadId,
+        _options: &LogRequestOptions,
     ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError> {
-        let instance_name = instance_name_from_runtime_id(&workload_id)
-            .map_err(|err| RuntimeError::CollectLog(err.to_string()))?;
-        let workload_info = PodmanKubeWorkloadId {
-            name: instance_name,
-            pods: None,
-            manifest: String::new(),
-            down_options: Vec::new(),
-        };
-        let podman_kube_log_fetcher =
-            super::podman_kube_log_fetcher::PodmanKubeLogFetcher::new(&workload_info, options);
+        let podman_kube_log_fetcher = super::podman_kube_log_fetcher::PodmanKubeLogFetcher();
         let log_fetcher = GenericLogFetcher::new(podman_kube_log_fetcher);
         Ok(Box::new(log_fetcher))
     }
