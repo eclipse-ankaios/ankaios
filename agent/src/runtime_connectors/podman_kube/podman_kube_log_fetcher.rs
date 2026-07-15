@@ -13,17 +13,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::super::log_fetcher::{GetOutputStreams, StreamTrait};
-use super::PodmanKubeWorkloadId;
-use crate::runtime_connectors::runtime_connector::LogRequestOptions;
 
 #[derive(Debug)]
-pub struct PodmanKubeLogFetcher {}
-
-impl PodmanKubeLogFetcher {
-    pub fn new(_workload_id: &PodmanKubeWorkloadId, _options: &LogRequestOptions) -> Self {
-        Self {}
-    }
-}
+pub struct PodmanKubeLogFetcher();
 
 impl GetOutputStreams for PodmanKubeLogFetcher {
     type OutputStream = Box<dyn StreamTrait>;
