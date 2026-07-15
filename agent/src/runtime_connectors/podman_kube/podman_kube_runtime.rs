@@ -128,11 +128,15 @@ impl PodmanKubeWorkloadInfoStore {
             down_options: runtime_config.down_options,
         };
 
+        self.add(workload_id.clone());
+        Ok(workload_id)
+    }
+
+    fn add(&self, workload_id: PodmanKubeWorkloadId) {
         self.workload_info_cache
             .lock()
             .unwrap()
-            .insert(instance_name.to_string(), workload_id.clone());
-        Ok(workload_id)
+            .insert(workload_id.name.to_string(), workload_id);
     }
 
     fn get_cached_workload_info(
@@ -296,6 +300,13 @@ impl RuntimeConnector for PodmanKubeRuntime {
         )
         .await
         .map_err(RuntimeError::Create)?;
+
+        self.workload_info_store.add(PodmanKubeWorkloadId {
+            name: instance_name.clone(),
+            pods: Some(created_pods.clone()),
+            manifest: workload_config.manifest.clone(),
+            down_options: workload_config.down_options.clone(),
+        });
 
         // [impl->swdd~podman-kube-create-workload-creates-pods-volume~1]
         // [impl->swdd~podman-kube-create-continues-if-cannot-create-volume~1]
@@ -1027,14 +1038,6 @@ spec:
                 SAMPLE_PODS_AS_JSON.as_str(),
             )
             .returns(Err(SAMPLE_ERROR.into()));
-
-        // Setup mock expectations for load_workload_info called by get_state
-        mock_context
-            .read_data(WORKLOAD_INSTANCE_NAME.as_config_volume())
-            .returns(Ok(SAMPLE_RUNTIME_CONFIG.into()));
-        mock_context
-            .read_data(WORKLOAD_INSTANCE_NAME.as_pods_volume())
-            .returns(Ok(SAMPLE_PODS_AS_JSON.clone()));
 
         let mut seq = Sequence::new();
 
