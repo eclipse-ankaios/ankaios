@@ -687,7 +687,10 @@ mod tests {
             .build();
 
         runtime_mock.expect(vec![
-            RuntimeCall::GetWorkloadId(workload_instance_name.clone(), Ok(fixtures::WORKLOAD_IDS[0].to_string())),
+            RuntimeCall::GetWorkloadId(
+                workload_instance_name.clone(),
+                Ok(fixtures::WORKLOAD_IDS[0].into()),
+            ),
             RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
         ]);
 
@@ -733,7 +736,10 @@ mod tests {
             .build();
 
         runtime_mock.expect(vec![
-            RuntimeCall::GetWorkloadId(workload_instance_name.clone(), Ok(fixtures::WORKLOAD_IDS[0].to_string())),
+            RuntimeCall::GetWorkloadId(
+                workload_instance_name.clone(),
+                Ok(fixtures::WORKLOAD_IDS[0].into()),
+            ),
             RuntimeCall::DeleteWorkload(
                 fixtures::WORKLOAD_IDS[0].to_string(),
                 Err(crate::runtime_connectors::RuntimeError::Delete(

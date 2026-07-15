@@ -786,7 +786,7 @@ mod tests {
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
                 Ok((
-                    fixtures::WORKLOAD_IDS[0].to_string(),
+                    fixtures::WORKLOAD_IDS[0].into(),
                     Box::new(new_mock_state_checker),
                 )),
             ),
@@ -991,7 +991,7 @@ mod tests {
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
                 Ok((
-                    fixtures::WORKLOAD_IDS[0].to_string(),
+                    fixtures::WORKLOAD_IDS[0].into(),
                     Box::new(new_mock_state_checker),
                 )),
             ),
@@ -1107,7 +1107,7 @@ mod tests {
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
                 Ok((
-                    fixtures::WORKLOAD_IDS[0].to_string(),
+                    fixtures::WORKLOAD_IDS[0].into(),
                     Box::new(new_mock_state_checker),
                 )),
             ),
@@ -1424,7 +1424,7 @@ mod tests {
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
                 Ok((
-                    fixtures::WORKLOAD_IDS[0].to_string(),
+                    fixtures::WORKLOAD_IDS[0].into(),
                     Box::new(new_mock_state_checker),
                 )),
             ),
@@ -1505,7 +1505,7 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::GetWorkloadId(
                 workload.instance_name.clone(),
-                Ok(fixtures::WORKLOAD_IDS[0].to_string()),
+                Ok(fixtures::WORKLOAD_IDS[0].into()),
             ),
             RuntimeCall::StartChecker(
                 fixtures::WORKLOAD_IDS[0].to_string(),
@@ -1575,7 +1575,7 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::GetWorkloadId(
                 workload.instance_name.clone(),
-                Ok(fixtures::WORKLOAD_IDS[0].to_string()),
+                Ok(fixtures::WORKLOAD_IDS[0].into()),
             ),
             RuntimeCall::StartChecker(
                 fixtures::WORKLOAD_IDS[0].to_string(),
@@ -1678,7 +1678,7 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::GetWorkloadId(
                 workload.instance_name.clone(),
-                Ok(fixtures::WORKLOAD_IDS[0].to_string()),
+                Ok(fixtures::WORKLOAD_IDS[0].into()),
             ),
             RuntimeCall::StartChecker(
                 fixtures::WORKLOAD_IDS[0].to_string(),
@@ -1834,7 +1834,7 @@ mod tests {
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
                 Ok((
-                    fixtures::WORKLOAD_IDS[1].to_string(), // new workload id after restart
+                    fixtures::WORKLOAD_IDS[1].into(), // new workload id after restart
                     Box::new(new_mock_state_checker),
                 )),
             ),
@@ -1941,7 +1941,7 @@ mod tests {
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
                 Ok((
-                    fixtures::WORKLOAD_IDS[0].to_string(),
+                    fixtures::WORKLOAD_IDS[0].into(),
                     Box::new(new_mock_state_checker),
                 )),
             ),
@@ -2152,7 +2152,7 @@ mod tests {
             None,
             expected_mount_point_mappings.clone(),
             Ok((
-                fixtures::WORKLOAD_IDS[0].to_string(),
+                fixtures::WORKLOAD_IDS[0].into(),
                 Box::new(StubStateChecker::new()),
             )),
         )]);
@@ -2558,7 +2558,7 @@ mod tests {
                 Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
                 Ok((
-                    fixtures::WORKLOAD_IDS[0].to_string(),
+                    fixtures::WORKLOAD_IDS[0].into(),
                     Box::new(StubStateChecker::new()),
                 )),
             ),
