@@ -259,9 +259,12 @@ pub mod test {
             Option<String>,
             Option<PathBuf>,
             HashMap<PathBuf, PathBuf>,
-            Result<(String, StateCheckerHandle), RuntimeError>,
+            Result<(RuntimeWorkloadId, StateCheckerHandle), RuntimeError>,
         ),
-        GetWorkloadId(WorkloadInstanceNameSpec, Result<String, RuntimeError>),
+        GetWorkloadId(
+            WorkloadInstanceNameSpec,
+            Result<RuntimeWorkloadId, RuntimeError>,
+        ),
         StartChecker(
             String,
             WorkloadNamed,
@@ -429,9 +432,7 @@ pub mod test {
                     && host_workload_file_path_mappings
                         == expected_host_workload_file_path_mappings =>
                 {
-                    return result.map(|(workload_id, checker)| {
-                        (RuntimeWorkloadId::from(workload_id), checker)
-                    });
+                    return result;
                 }
                 expected_call => {
                     self.unexpected_call();
@@ -450,7 +451,7 @@ pub mod test {
                 RuntimeCall::GetWorkloadId(expected_instance_name, result)
                     if expected_instance_name == *instance_name =>
                 {
-                    return result.map(RuntimeWorkloadId::from);
+                    return result;
                 }
                 expected_call => {
                     self.unexpected_call();
