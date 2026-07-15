@@ -15,7 +15,8 @@
 use crate::{
     control_interface::ControlInterfacePath,
     runtime_connectors::{
-        LogRequestOptions, log_fetcher::LogFetcher, unsupported_runtime::UnsupportedRuntime,
+        LogRequestOptions, log_fetcher::LogFetcher,
+        unsupported::unsupported_runtime::UnsupportedRuntime,
     },
 };
 
