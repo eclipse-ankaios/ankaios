@@ -22,8 +22,7 @@ pub(crate) mod podman_kube;
 
 pub(crate) mod containerd;
 
-pub(crate) mod dummy_state_checker;
-pub(crate) mod unsupported_runtime;
+pub(crate) mod unsupported;
 
 mod runtime_connector;
 pub use runtime_connector::{

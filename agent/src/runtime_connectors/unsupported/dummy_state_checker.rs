@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::StateChecker;
+use crate::runtime_connectors::StateChecker;
 use async_trait::async_trait;
 
 // [impl->swdd~agent-skips-unknown-runtime~2]

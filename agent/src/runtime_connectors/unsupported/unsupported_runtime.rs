@@ -12,9 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{
-    ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeWorkloadId, StateCheckerHandle,
-    dummy_state_checker::DummyStateChecker,
+use super::dummy_state_checker::DummyStateChecker;
+use crate::runtime_connectors::{
+    LogRequestOptions, ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeWorkloadId,
+    StateCheckerHandle, log_fetcher::LogFetcher,
 };
 use crate::workload_state::WorkloadStateSender;
 use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed};
@@ -80,8 +81,8 @@ impl RuntimeConnector for UnsupportedRuntime {
     fn get_log_fetcher(
         &self,
         _workload_id: RuntimeWorkloadId,
-        _options: &super::LogRequestOptions,
-    ) -> Result<Box<dyn super::log_fetcher::LogFetcher + Send>, RuntimeError> {
+        _options: &LogRequestOptions,
+    ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError> {
         Err(RuntimeError::Unsupported(
             "Cannot collect logs for workload with unsupported runtime".into(),
         ))
