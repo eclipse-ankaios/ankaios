@@ -46,7 +46,7 @@ Test Ankaios containerd create workloads
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-supports-containerd~1]
-# [stest->swdd~containerd-create-workload-sets-optionally-container-name~1]
+# [stest->swdd~containerd-create-workload-sets-optionally-container-name~2]
 Test Ankaios containerd create a container with custom name
     [Setup]    Run Keywords    Setup Ankaios
 

@@ -326,7 +326,7 @@ impl PodmanCli {
         // We store workload name as a label (and use them from there).
         // Therefore we do insist on container names in particular format.
         //
-        // [impl->swdd~podman-create-workload-sets-optionally-container-name~2]
+        // [impl->swdd~podman-create-workload-sets-optionally-container-name~3]
         args.append(&mut vec!["--name".into(), instance_name.short_workload_name()]);
 
         args.append(&mut run_config.command_options);
@@ -1017,7 +1017,7 @@ mod tests {
     }
 
     // [utest->swdd~podman-create-workload-creates-labels~2]
-    // [utest->swdd~podman-create-workload-sets-optionally-container-name~2]
+    // [utest->swdd~podman-create-workload-sets-optionally-container-name~3]
     // [utest->swdd~podman-create-workload-mounts-fifo-files~1]
     // [utest->swdd~podman-create-mounts-workload-files~1]
     #[tokio::test]
@@ -1098,7 +1098,7 @@ mod tests {
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
-    // [utest->swdd~podman-create-workload-sets-optionally-container-name~2]
+    // [utest->swdd~podman-create-workload-sets-optionally-container-name~3]
     // [utest->swdd~podman-create-workload-mounts-fifo-files~1]
     // [utest->swdd~podman-create-mounts-workload-files~1]
     #[tokio::test]

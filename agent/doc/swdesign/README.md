@@ -2231,12 +2231,12 @@ Needs:
 - utest
 
 ##### Podman create workload sets optionally container name
-`swdd~podman-create-workload-sets-optionally-container-name~2`
+`swdd~podman-create-workload-sets-optionally-container-name~3`
 
 Status: approved
 
 When the podman runtime connector is called without an existing workload id to create a new workload and the workload name is not set in the runtime configuration,
-the podman runtime connector shall set the workload execution name as the workload name.
+the podman runtime connector shall set the shortened workload execution instance name as the workload name.
 
 Tags:
 - PodmanRuntimeConnector
@@ -2773,11 +2773,11 @@ Needs:
 - utest
 
 ##### Containerd create workload sets optionally container name
-`swdd~containerd-create-workload-sets-optionally-container-name~1`
+`swdd~containerd-create-workload-sets-optionally-container-name~2`
 
 Status: approved
 
-When the containerd runtime connector is called without an existing workload ID to create a new workload and the workload name is not set in the runtime configuration, the containerd runtime connector shall set the workload execution name as the workload name.
+When the containerd runtime connector is called without an existing workload ID to create a new workload and the workload name is not set in the runtime configuration, the containerd runtime connector shall set the shortened workload execution instance name as the workload name.
 
 Tags:
 - ContainerdRuntimeConnector

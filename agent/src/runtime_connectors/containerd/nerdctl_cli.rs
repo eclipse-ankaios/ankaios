@@ -222,7 +222,7 @@ impl NerdctlCli {
         // We store workload name as a label (and use them from there).
         // Therefore we do insist on container names in particular format.
         //
-        // [impl->swdd~containerd-create-workload-sets-optionally-container-name~1]
+        // [impl->swdd~containerd-create-workload-sets-optionally-container-name~2]
         args.append(&mut vec![
             "--name".into(),
             instance_name.short_workload_name(),
@@ -644,7 +644,7 @@ mod tests {
     }
 
     // [utest->swdd~containerd-create-workload-creates-labels~1]
-    // [utest->swdd~containerd-create-workload-sets-optionally-container-name~1]
+    // [utest->swdd~containerd-create-workload-sets-optionally-container-name~2]
     // [utest->swdd~containerd-create-workload-mounts-fifo-files~1]
     // [utest->swdd~containerd-create-mounts-workload-files~1]
     #[tokio::test]
@@ -715,7 +715,7 @@ mod tests {
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
-    // [utest->swdd~containerd-create-workload-sets-optionally-container-name~1]
+    // [utest->swdd~containerd-create-workload-sets-optionally-container-name~2]
     // [utest->swdd~containerd-create-workload-mounts-fifo-files~1]
     // [utest->swdd~containerd-create-mounts-workload-files~1]
     #[tokio::test]
