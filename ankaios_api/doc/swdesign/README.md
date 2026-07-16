@@ -348,6 +348,30 @@ Needs:
 - impl
 - utest
 
+#### Shortened workload execution instance name
+`swdd~api-short-workload-execution-instance-naming~1`
+
+Status: approved
+
+Ankaios shall provide functionality for retrieving the shortened Workload execution instance name of the workload in the following naming schema:
+
+    <Workload name>.<short runtime config hash>.<Agent name>
+
+Where the short runtime config hash is built from the first 7 characters of the full runtime config hash.
+
+Comment:
+The shortened Workload execution instance name is used as default container name for runtime connectors such as Podman and Containerd.
+
+Rationale:
+Using a shortened runtime config hash keeps the container name deterministic and reproducible while reducing its length.
+
+Tags:
+- SpecObjects
+
+Needs:
+- impl
+- utest
+
 #### Control Interface convention for workload names in logs access rules
 `swdd~api-access-rules-logs-workload-names-convention~1`
 

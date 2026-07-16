@@ -48,7 +48,7 @@ Test Ankaios Podman create workloads
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-supports-podman~2]
-# [stest->swdd~podman-create-workload-sets-optionally-container-name~2]
+# [stest->swdd~podman-create-workload-sets-optionally-container-name~3]
 Test Ankaios Podman create a container with custom name
     [Setup]    Run Keywords    Setup Ankaios
 

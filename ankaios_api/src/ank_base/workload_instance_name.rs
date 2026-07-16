@@ -79,6 +79,7 @@ impl WorkloadInstanceNameSpec {
         ))
     }
 
+    // [impl->swdd~api-short-workload-execution-instance-naming~1]
     pub fn short_workload_name(&self) -> String {
         let short_id = &self.id[..7.min(self.id.len())];
         format!(
@@ -199,12 +200,14 @@ mod tests {
         )
     }
 
+    // [utest->swdd~api-short-workload-execution-instance-naming~1]
     #[test]
     fn utest_short_workload_name_truncates_hash_to_7_chars() {
         let name = WorkloadInstanceNameSpec::new("my_agent", "my_workload", "abcdefghijklmnop");
         assert_eq!(name.short_workload_name(), "my_workload.abcdefg.my_agent");
     }
 
+    // [utest->swdd~api-short-workload-execution-instance-naming~1]
     #[test]
     fn utest_short_workload_name_hash_shorter_than_7_chars() {
         let name = WorkloadInstanceNameSpec::new("my_agent", "my_workload", "abc");
