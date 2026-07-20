@@ -18,7 +18,7 @@ use crate::ankaios_server::server_state::ServerState;
 
 use crate::ankaios_server::state_comparator::StateDifferenceTree;
 
-use super::request_id::{CliConnectionName, RequestId};
+use super::request_id::{CommandConnectionName, RequestId};
 use common::{
     from_server_interface::{FromServerInterface, FromServerSender},
     state_manipulation::Path,
@@ -70,11 +70,11 @@ impl EventHandler {
     }
 
     // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
-    pub fn remove_cli_subscriber(&mut self, cli_connection_name: &CliConnectionName) {
+    pub fn remove_command_subscriber(&mut self, command_connection_name: &CommandConnectionName) {
         self.subscriber_store.retain(|request_id, _| {
-            if let RequestId::CliRequestId(cli_request_id) = request_id && cli_request_id.cli_name == *cli_connection_name {
+            if let RequestId::CommandRequestId(command_request_id) = request_id && command_request_id.command_name == *command_connection_name {
                 log::debug!(
-                    "Removing event subscriber '{request_id}' of CLI connection '{cli_connection_name}'",
+                    "Removing event subscriber '{request_id}' of Command connection '{command_connection_name}'",
                 );
                 false
             } else {
@@ -435,8 +435,8 @@ mod tests {
     use super::StateDifferenceTree;
 
     use ankaios_api::ank_base::{
-        AgentMapSpec, CompleteStateSpec, StateSpec, WorkloadMapSpec,
-        WorkloadSpec, WorkloadStatesMapSpec, response::ResponseContent,
+        AgentMapSpec, CompleteStateSpec, StateSpec, WorkloadMapSpec, WorkloadSpec,
+        WorkloadStatesMapSpec, response::ResponseContent,
     };
     use mockall::predicate;
 
@@ -561,7 +561,7 @@ mod tests {
             ]),
         };
 
-        event_handler.remove_cli_subscriber(&"cli-conn-1".to_owned());
+        event_handler.remove_command_subscriber(&"cli-conn-1".to_owned());
         assert_eq!(event_handler.subscriber_store.len(), 2);
         assert!(
             event_handler

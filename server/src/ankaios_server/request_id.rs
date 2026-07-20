@@ -17,17 +17,17 @@ use std::fmt::{self, Display};
 
 pub type AgentName = String;
 pub type WorkloadName = String;
-pub type CliConnectionName = String;
+pub type CommandConnectionName = String;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct CliRequestId {
-    pub cli_name: CliConnectionName,
+pub struct CommandRequestId {
+    pub command_name: CommandConnectionName,
     pub request_id: String,
 }
 
-impl Display for CliRequestId {
+impl Display for CommandRequestId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}@{}", self.cli_name, self.request_id)
+        write!(f, "{}@{}", self.command_name, self.request_id)
     }
 }
 
@@ -47,7 +47,7 @@ where
 
 pub fn to_string_id(request_id: &RequestId) -> String {
     match request_id {
-        RequestId::CliRequestId(cli_request_id) => cli_request_id.to_string(),
+        RequestId::CommandRequestId(command_request_id) => command_request_id.to_string(),
         RequestId::AgentRequestId(agent_request_id) => agent_request_id.to_string(),
     }
 }
@@ -64,15 +64,15 @@ impl Display for AgentRequestId {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RequestId {
-    CliRequestId(CliRequestId),
+    CommandRequestId(CommandRequestId),
     AgentRequestId(AgentRequestId),
 }
 
 impl Display for RequestId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            RequestId::CliRequestId(cli_request_id) => {
-                write!(f, "CLI request Id: {cli_request_id}")
+            RequestId::CommandRequestId(command_request_id) => {
+                write!(f, "Command request Id: {command_request_id}")
             }
             RequestId::AgentRequestId(agent_request_id) => {
                 write!(f, "agent request Id: {agent_request_id}")
@@ -82,6 +82,7 @@ impl Display for RequestId {
 }
 
 const CLI_PREFIX: &str = "cli-conn";
+const COMMANDER_PREFIX: &str = "commander-conn";
 const CLI_REQUEST_PARTS_LEN: usize = 2;
 const CLI_REQUEST_NAME_INDEX: usize = 0;
 const CLI_REQUEST_ID_INDEX: usize = 1;
@@ -96,13 +97,15 @@ where
     S: AsRef<str>,
 {
     fn from(request_id: S) -> Self {
-        if request_id.as_ref().starts_with(CLI_PREFIX) {
+        if request_id.as_ref().starts_with(CLI_PREFIX)
+            || request_id.as_ref().starts_with(COMMANDER_PREFIX)
+        {
             let parts: Vec<&str> = request_id
                 .as_ref()
                 .splitn(CLI_REQUEST_PARTS_LEN, '@')
                 .collect();
-            RequestId::CliRequestId(CliRequestId {
-                cli_name: parts[CLI_REQUEST_NAME_INDEX].to_string(),
+            RequestId::CommandRequestId(CommandRequestId {
+                command_name: parts[CLI_REQUEST_NAME_INDEX].to_string(),
                 request_id: parts[CLI_REQUEST_ID_INDEX].to_string(),
             })
         } else {
@@ -135,13 +138,21 @@ mod tests {
     const REQUEST_ID_AGENT_A: &str = "agent_A@workload_1@request_id";
     const CLI_CON_1: &str = "cli-conn-1";
     const CLI_REQUEST_ID_1: &str = "cli-conn-1@cli_request_id_1";
+    const COMMANDER_CON_1: &str = "commander-conn-1";
+    const COMMANDER_REQUEST_ID_1: &str = "commander-conn-1@commander_request_id_1";
 
     #[test]
     fn utest_request_id_from_string() {
         let cli_request_id = super::RequestId::from(CLI_REQUEST_ID_1);
         assert!(
-            matches!(cli_request_id, super::RequestId::CliRequestId(super::CliRequestId { cli_name, request_id })
-            if cli_name == CLI_CON_1 && request_id == "cli_request_id_1")
+            matches!(cli_request_id, super::RequestId::CommandRequestId(super::CommandRequestId { command_name, request_id })
+            if command_name == CLI_CON_1 && request_id == "cli_request_id_1")
+        );
+
+        let commander_request_id = super::RequestId::from(COMMANDER_REQUEST_ID_1);
+        assert!(
+            matches!(commander_request_id, super::RequestId::CommandRequestId(super::CommandRequestId { command_name, request_id })
+            if command_name == COMMANDER_CON_1 && request_id == "commander_request_id_1")
         );
 
         let agent_request_id = super::RequestId::from(REQUEST_ID_AGENT_A);
