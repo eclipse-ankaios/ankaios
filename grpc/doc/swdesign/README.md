@@ -66,6 +66,9 @@ Rationale:
 Today the CLI receives unsolicited `UpdateWorkloadState` and `LogsCancelRequest` messages because it is stored in the same senders map as the agents.
 A dedicated endpoint cleanly separates the two client kinds at the interface level instead of patching the behavior of a shared connection.
 
+Needs:
+- impl
+
 Assumptions:
 No assumptions were taken.
 

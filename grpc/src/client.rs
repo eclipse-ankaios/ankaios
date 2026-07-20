@@ -296,6 +296,7 @@ impl GRPCCommunicationsClient {
                         .await?;
                     let mut client = CliConnectionClient::new(channel);
 
+                    #[allow(deprecated)]
                     let res = client
                         .connect_cli(ReceiverStream::new(grpc_rx))
                         .await?
@@ -307,6 +308,7 @@ impl GRPCCommunicationsClient {
                     let mut client =
                         CliConnectionClient::connect(self.server_address.to_string()).await?;
 
+                    #[allow(deprecated)]
                     let res = client
                         .connect_cli(ReceiverStream::new(grpc_rx))
                         .await?

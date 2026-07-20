@@ -242,7 +242,7 @@ async fn distribute_workload_states_to_agents(
 ) {
     // Workload states are agent related. Sending a flattened set here is not very good for the performance ...
 
-    for agent_name in agent_senders.get_all_agent_names() {
+    for agent_name in agent_senders.get_all_client_names() {
         // Filter the workload states as we don't want to send an agent its own updates
         let filtered_workload_states: Vec<WorkloadState> = workload_state_collection
             .clone()
@@ -393,7 +393,7 @@ async fn distribute_log_cancel_requests_to_agent(
     agent_senders: &ClientSendersMap,
     request_id: String,
 ) {
-    for agent in agent_senders.get_all_agent_names() {
+    for agent in agent_senders.get_all_client_names() {
         if let Some(sender) = agent_senders.get(&agent) {
             log::trace!(
                 "Sending logs cancel request with id '{}' to agent '{}'",
