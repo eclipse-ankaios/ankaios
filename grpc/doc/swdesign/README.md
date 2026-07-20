@@ -63,8 +63,9 @@ The `CommandConnection` endpoint stores its clients in a separate senders map, s
 The existing `CliConnection` endpoint remains unchanged for backwards compatibility.
 
 Rationale:
-Today the CLI receives unsolicited `UpdateWorkloadState` and `LogsCancelRequest` messages because it is stored in the same senders map as the agents.
-A dedicated endpoint cleanly separates the two client kinds at the interface level instead of patching the behavior of a shared connection.
+Third party command applications should not receive unsolicited `UpdateWorkloadState` and `LogsCancelRequest` messages which agents normally do.
+A new dedicated endpoint cleanly separates the two client kinds at the interface level instead of patching the behavior of a shared connection.
+Leaving the old endpoint as is also provides backwards compatibility for older clients.
 
 Needs:
 - impl
