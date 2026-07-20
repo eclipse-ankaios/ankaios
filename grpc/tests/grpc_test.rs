@@ -27,8 +27,11 @@ mod grpc_tests {
     };
     use grpc::{
         client::GRPCCommunicationsClient,
+        command_connection_client::CommandConnectionClient,
         security::{self, TLSConfig, read_pem_file, PemFileType},
         server::GRPCCommunicationsServer,
+        to_server::ToServerEnum,
+        CommanderHello, Goodbye, ToServer as ProtoToServer,
     };
 
     use std::{
@@ -43,6 +46,8 @@ mod grpc_tests {
 
     use tempfile::TempDir;
     use tokio::{sync::mpsc, task::JoinHandle, time::timeout};
+    use tokio_stream::wrappers::ReceiverStream;
+    use tonic::transport::Channel;
 
     /* 10 years validity issued at 08/16/2024 check validity if tests are failing */
     static TEST_CA_PEM_CONTENT: &str = r#"-----BEGIN CERTIFICATE-----
@@ -482,5 +487,155 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
                 tags: Default::default(),
             })))
         );
+    }
+
+    // Starts an insecure gRPC communication server for testing the commander connection
+    // and returns the receiver on which the server forwards the received ToServer messages.
+    // The returned FromServerSender must be kept alive for the whole test, otherwise the
+    // server shuts down as soon as its FromServer channel is closed.
+    async fn start_insecure_test_grpc_server(
+        port: u16,
+    ) -> (
+        ToServerReceiver,
+        FromServerSender,
+        JoinHandle<Result<(), CommunicationMiddlewareError>>,
+    ) {
+        let server_addr = format!("0.0.0.0:{port}");
+        let (to_grpc_server, grpc_server_receiver) = mpsc::channel::<FromServer>(20);
+        let (to_server, server_receiver) = mpsc::channel::<ToServer>(20);
+
+        let mut communications_server = GRPCCommunicationsServer::new(to_server, None);
+        let socket_addr: SocketAddr = server_addr.parse().unwrap();
+
+        let grpc_server_task = tokio::spawn(async move {
+            communications_server
+                .start(grpc_server_receiver, socket_addr)
+                .await
+        });
+
+        (server_receiver, to_grpc_server, grpc_server_task)
+    }
+
+    // Connects a raw CommandConnectionClient to the test server, retrying until the
+    // server accepts connections.
+    async fn connect_command_client_with_retry(url: String) -> CommandConnectionClient<Channel> {
+        for _ in 0..50 {
+            if let Ok(client) = CommandConnectionClient::connect(url.clone()).await {
+                return client;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        panic!("Could not connect to the test gRPC server on '{url}'.");
+    }
+
+    // [itest->swdd~grpc-server-creates-commander-connection~1]
+    // [itest->swdd~grpc-server-provides-endpoint-for-commander-connection-handling~1]
+    // [itest->swdd~grpc-client-connects-with-unique-commander-connection-name~1]
+    // [itest->swdd~grpc-commander-connection-creates-from-server-channel~1]
+    // [itest->swdd~grpc-commander-connection-checks-version-compatibility~1]
+    // [itest->swdd~grpc-commander-connection-stores-from-server-channel-tx~1]
+    // [itest->swdd~grpc-commander-connection-forwards-commands-to-server~1]
+    // [itest->swdd~grpc-commander-connection-responds-with-from-server-channel-rx~1]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
+    async fn itest_grpc_communication_command_connection_grpc_server_received_request_complete_state()
+     {
+        let test_request_id = "test_request_id";
+        let (mut server_receiver, _to_grpc_server, _grpc_server_task) =
+            start_insecure_test_grpc_server(50055).await;
+
+        let (client_to_server_tx, grpc_client_receiver) = mpsc::channel::<ProtoToServer>(20);
+
+        // The first message on the stream must be the CommanderHello.
+        client_to_server_tx
+            .send(ProtoToServer {
+                to_server_enum: Some(ToServerEnum::CommanderHello(CommanderHello::new())),
+            })
+            .await
+            .unwrap();
+
+        let mut client = connect_command_client_with_retry("http://127.0.0.1:50055".to_owned()).await;
+        let _response_stream = client
+            .connect_command(ReceiverStream::new(grpc_client_receiver))
+            .await
+            .unwrap()
+            .into_inner();
+
+        // Send a request through the established commander connection.
+        client_to_server_tx
+            .send(ProtoToServer {
+                to_server_enum: Some(ToServerEnum::Request(Request {
+                    request_id: test_request_id.to_owned(),
+                    request_content: Some(RequestContent::CompleteStateRequest(
+                        CompleteStateRequest {
+                            field_mask: vec![],
+                            subscribe_for_events: false,
+                        },
+                    )),
+                })),
+            })
+            .await
+            .unwrap();
+
+        let result = timeout(Duration::from_secs(10), server_receiver.recv()).await;
+
+        assert!(matches!(
+            result,
+            Ok(Some(ToServer::Request(Request {
+                request_id,
+                request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
+                    field_mask,
+                    subscribe_for_events,
+                })),
+            }))) if request_id.contains(test_request_id) && field_mask.is_empty() && !subscribe_for_events
+        ));
+    }
+
+    // [itest->swdd~grpc-commander-connection-checks-version-compatibility~1]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
+    async fn itest_grpc_communication_command_connection_refused_on_version_mismatch() {
+        let (_server_receiver, _to_grpc_server, _grpc_server_task) =
+            start_insecure_test_grpc_server(50056).await;
+
+        let (client_to_server_tx, grpc_client_receiver) = mpsc::channel::<ProtoToServer>(20);
+
+        // Send a CommanderHello with an incompatible protocol version.
+        client_to_server_tx
+            .send(ProtoToServer {
+                to_server_enum: Some(ToServerEnum::CommanderHello(CommanderHello {
+                    protocol_version: "0.0.1".to_owned(),
+                })),
+            })
+            .await
+            .unwrap();
+
+        let mut client = connect_command_client_with_retry("http://127.0.0.1:50056".to_owned()).await;
+        let result = client
+            .connect_command(ReceiverStream::new(grpc_client_receiver))
+            .await;
+
+        assert_eq!(result.unwrap_err().code(), tonic::Code::FailedPrecondition);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
+    async fn itest_grpc_communication_command_connection_refused_on_missing_commander_hello() {
+        let (_server_receiver, _to_grpc_server, _grpc_server_task) =
+            start_insecure_test_grpc_server(50057).await;
+
+        let (client_to_server_tx, grpc_client_receiver) = mpsc::channel::<ProtoToServer>(20);
+
+        // Send a message that is not a CommanderHello as the first message.
+        client_to_server_tx
+            .send(ProtoToServer {
+                to_server_enum: Some(ToServerEnum::Goodbye(Goodbye {})),
+            })
+            .await
+            .unwrap();
+
+        let mut client = connect_command_client_with_retry("http://127.0.0.1:50057".to_owned()).await;
+        let result = client
+            .connect_command(ReceiverStream::new(grpc_client_receiver))
+            .await;
+
+        assert_eq!(result.unwrap_err().code(), tonic::Code::InvalidArgument);
     }
 }

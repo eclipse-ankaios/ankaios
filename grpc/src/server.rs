@@ -81,6 +81,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                         .add_service(AgentConnectionServer::new(my_connection))
                         // [impl->swdd~grpc-server-provides-endpoint-for-cli-connection-handling~1]
                         .add_service(CliConnectionServer::new(my_cli_connection))
+                        // [impl->swdd~grpc-commander-uses-dedicated-server-endpoint~1]
                         // [impl->swdd~grpc-server-provides-endpoint-for-commander-connection-handling~1]
                         .add_service(CommandConnectionServer::new(my_commander_connection))
                         .serve(addr) => {
