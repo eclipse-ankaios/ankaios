@@ -138,11 +138,12 @@ pub mod security {
     }
 }
 
-mod agent_senders_map;
+mod client_senders_map;
 pub mod client;
 mod from_server_proxy;
 mod grpc_agent_connection;
 mod grpc_cli_connection;
+mod grpc_commander_connection;
 pub mod server;
 mod to_server_proxy;
 

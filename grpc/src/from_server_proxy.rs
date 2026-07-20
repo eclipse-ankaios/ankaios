@@ -12,8 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
+use crate::client_senders_map::ClientSendersMap;
 use crate::grpc_api::{self, from_server::FromServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
@@ -133,7 +133,8 @@ pub async fn forward_from_proto_to_ankaios(
 
 // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 pub async fn forward_from_ankaios_to_proto(
-    agent_senders: &AgentSendersMap,
+    agent_senders: &ClientSendersMap,
+    commander_senders: &ClientSendersMap,
     receiver: &mut FromServerReceiver,
 ) {
     while let Some(from_server_msg) = receiver.recv().await {
@@ -183,11 +184,17 @@ pub async fn forward_from_ankaios_to_proto(
                     .await;
             }
             FromServer::Response(response) => {
-                let (agent_name, request_id) =
+                let (receiver_name, request_id) =
                     detach_prefix_from_request_id(response.request_id.as_ref());
-                if let Some(sender) = agent_senders.get(&agent_name) {
+                // [impl->swdd~grpc-server-forwards-responses-to-commander~1]
+                // The response may target either an agent or a commander application
+                // (e.g. the Ankaios CLI). Both are stored in separate senders maps.
+                if let Some(sender) = agent_senders
+                    .get(&receiver_name)
+                    .or_else(|| commander_senders.get(&receiver_name))
+                {
                     let response_content: Option<ResponseContent> = response.response_content;
-                    log::trace!("Sending response to agent '{agent_name}': {response_content:?}.");
+                    log::trace!("Sending response to '{receiver_name}': {response_content:?}.");
 
                     let result = sender
                         .send(Ok(grpc_api::FromServer {
@@ -200,10 +207,10 @@ pub async fn forward_from_ankaios_to_proto(
                         }))
                         .await;
                     if result.is_err() {
-                        log::warn!("Could not send response to agent '{agent_name}'",);
+                        log::warn!("Could not send response to '{receiver_name}'",);
                     }
                 } else {
-                    log::warn!("Unknown agent with name: '{agent_name}'");
+                    log::warn!("Unknown response receiver with name: '{receiver_name}'");
                 }
             }
             FromServer::LogsRequest(request_id, logs_request) => {
@@ -230,7 +237,7 @@ pub async fn forward_from_ankaios_to_proto(
 
 // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 async fn distribute_workload_states_to_agents(
-    agent_senders: &AgentSendersMap,
+    agent_senders: &ClientSendersMap,
     workload_state_collection: Vec<WorkloadStateSpec>,
 ) {
     // Workload states are agent related. Sending a flattened set here is not very good for the performance ...
@@ -309,7 +316,7 @@ fn get_workloads_per_agent(
 
 // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 async fn distribute_workloads_to_agents(
-    agent_senders: &AgentSendersMap,
+    agent_senders: &ClientSendersMap,
     added_workloads: Vec<WorkloadNamed>,
     deleted_workloads: Vec<DeletedWorkload>,
 ) {
@@ -354,7 +361,7 @@ async fn distribute_workloads_to_agents(
 }
 
 async fn distribute_log_requests_to_agent(
-    agent_senders: &AgentSendersMap,
+    agent_senders: &ClientSendersMap,
     request_id: String,
     mut logs_request: LogsRequest,
 ) {
@@ -383,7 +390,7 @@ async fn distribute_log_requests_to_agent(
 }
 
 async fn distribute_log_cancel_requests_to_agent(
-    agent_senders: &AgentSendersMap,
+    agent_senders: &ClientSendersMap,
     request_id: String,
 ) {
     for agent in agent_senders.get_all_agent_names() {
@@ -436,7 +443,7 @@ mod tests {
     extern crate tonic;
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use crate::grpc_api::{self, FromServer, UpdateWorkload, from_server::FromServerEnum};
-    use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
+    use crate::{client_senders_map::ClientSendersMap, from_server_proxy::GRPCStreaming};
 
     use ankaios_api::ank_base::{
         self, CompleteState, CompleteStateResponse, Dependencies, ExecutionStateSpec, LogsRequest,
@@ -462,7 +469,7 @@ mod tests {
         Receiver<from_server_interface::FromServer>,
         Sender<Result<FromServer, tonic::Status>>,
         Receiver<Result<FromServer, tonic::Status>>,
-        AgentSendersMap,
+        ClientSendersMap,
     );
 
     fn create_test_setup(agent_name: &str) -> TestSetup {
@@ -471,7 +478,7 @@ mod tests {
         let (agent_tx, agent_rx) =
             mpsc::channel::<Result<FromServer, tonic::Status>>(common::CHANNEL_CAPACITY);
 
-        let agent_senders_map = AgentSendersMap::new();
+        let agent_senders_map = ClientSendersMap::new();
 
         agent_senders_map.insert(agent_name, agent_tx.clone());
 
@@ -591,7 +598,12 @@ mod tests {
             .await;
         assert!(update_workload_result.is_ok());
 
-        let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
+        let commander_senders_map = ClientSendersMap::new();
+        let handle = forward_from_ankaios_to_proto(
+            &agent_senders_map,
+            &commander_senders_map,
+            &mut manager_receiver,
+        );
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
@@ -621,7 +633,12 @@ mod tests {
             .await;
         assert!(update_workload_state_result.is_ok());
 
-        let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
+        let commander_senders_map = ClientSendersMap::new();
+        let handle = forward_from_ankaios_to_proto(
+            &agent_senders_map,
+            &commander_senders_map,
+            &mut manager_receiver,
+        );
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
@@ -915,7 +932,12 @@ mod tests {
             .await;
         assert!(complete_state_result.is_ok());
 
-        let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
+        let commander_senders_map = ClientSendersMap::new();
+        let handle = forward_from_ankaios_to_proto(
+            &agent_senders_map,
+            &commander_senders_map,
+            &mut manager_receiver,
+        );
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
@@ -941,13 +963,54 @@ mod tests {
     }
 
     #[tokio::test]
+    // [utest->swdd~grpc-server-forwards-responses-to-commander~1]
+    async fn utest_from_server_proxy_forward_from_ankaios_to_proto_response_to_commander() {
+        let commander_name = "commander-conn-1";
+        let (to_manager, mut manager_receiver) =
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+        let (commander_tx, mut commander_rx) =
+            mpsc::channel::<Result<FromServer, tonic::Status>>(common::CHANNEL_CAPACITY);
+
+        // No agents are connected, only a commander application.
+        let agent_senders_map = ClientSendersMap::new();
+        let commander_senders_map = ClientSendersMap::new();
+        commander_senders_map.insert(commander_name, commander_tx);
+
+        let my_request_id = "my_request_id".to_owned();
+        let prefixed_my_request_id = format!("{commander_name}@{my_request_id}");
+
+        let complete_state_result = to_manager
+            .complete_state(prefixed_my_request_id, CompleteState::default(), None)
+            .await;
+        assert!(complete_state_result.is_ok());
+        drop(to_manager);
+
+        forward_from_ankaios_to_proto(
+            &agent_senders_map,
+            &commander_senders_map,
+            &mut manager_receiver,
+        )
+        .await;
+
+        let result = commander_rx.recv().await.unwrap().unwrap();
+
+        assert!(matches!(
+            result.from_server_enum,
+            Some(FromServerEnum::Response(Response {
+                request_id,
+                ..
+            })) if request_id == my_request_id
+        ));
+    }
+
+    #[tokio::test]
     async fn utest_from_server_proxy_forward_from_ankaios_to_proto_logs_request() {
         let (to_manager, mut manager_receiver) =
             mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
         let (agent_1_tx, mut agent_1_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
         let (agent_2_tx, mut agent_2_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
 
-        let agent_senders_map = AgentSendersMap::new();
+        let agent_senders_map = ClientSendersMap::new();
         agent_senders_map.insert(fixtures::AGENT_NAMES[0], agent_1_tx);
         agent_senders_map.insert(fixtures::AGENT_NAMES[1], agent_2_tx);
 
@@ -979,7 +1042,13 @@ mod tests {
         assert!(complete_state_result.is_ok());
         drop(to_manager);
 
-        forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver).await;
+        let commander_senders_map = ClientSendersMap::new();
+        forward_from_ankaios_to_proto(
+            &agent_senders_map,
+            &commander_senders_map,
+            &mut manager_receiver,
+        )
+        .await;
         drop(agent_senders_map);
 
         assert!(matches!(
@@ -1013,7 +1082,7 @@ mod tests {
         let (agent_1_tx, mut agent_1_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
         let (agent_2_tx, mut agent_2_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
 
-        let agent_senders_map = AgentSendersMap::new();
+        let agent_senders_map = ClientSendersMap::new();
         agent_senders_map.insert(fixtures::AGENT_NAMES[0], agent_1_tx);
         agent_senders_map.insert(fixtures::AGENT_NAMES[1], agent_2_tx);
 
@@ -1023,7 +1092,13 @@ mod tests {
         assert!(complete_state_result.is_ok());
         drop(to_manager);
 
-        forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver).await;
+        let commander_senders_map = ClientSendersMap::new();
+        forward_from_ankaios_to_proto(
+            &agent_senders_map,
+            &commander_senders_map,
+            &mut manager_receiver,
+        )
+        .await;
         drop(agent_senders_map);
 
         assert!(matches!(

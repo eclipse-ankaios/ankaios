@@ -23,7 +23,7 @@ use tonic::Status;
 type ShareableHashMap<K, V> = Arc<Mutex<HashMap<K, V>>>;
 
 #[derive(Debug, Clone)]
-pub struct AgentSendersMap {
+pub struct ClientSendersMap {
     agent_senders: ShareableHashMap<String, Sender<Result<FromServer, Status>>>,
 }
 
@@ -33,9 +33,9 @@ pub struct AgentSendersMap {
 // the lock across the await of the send() of the sender.
 //
 // https://tokio.rs/tokio/tutorial/shared-state#on-using-stdsyncmutex
-impl AgentSendersMap {
+impl ClientSendersMap {
     pub fn new() -> Self {
-        AgentSendersMap {
+        ClientSendersMap {
             agent_senders: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -82,8 +82,8 @@ impl AgentSendersMap {
     }
 }
 
-impl Default for AgentSendersMap {
+impl Default for ClientSendersMap {
     fn default() -> Self {
-        AgentSendersMap::new()
+        ClientSendersMap::new()
     }
 }

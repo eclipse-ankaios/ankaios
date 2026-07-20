@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2026 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client_senders_map::ClientSendersMap;
-use crate::grpc_api::{self, cli_connection_server::CliConnection};
+use crate::grpc_api::{self, command_connection_server::CommandConnection};
 use crate::to_server::ToServerEnum;
 use crate::to_server_proxy::{GRPCToServerStreaming, forward_from_proto_to_ankaios};
 use common::{check_version_compatibility, to_server_interface};
@@ -24,40 +24,34 @@ use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status};
 
-/// Deprecated: use [`crate::grpc_commander_connection::GRPCCommanderConnection`] instead.
-///
-/// This connection is kept only for backwards compatibility. Its clients are stored in the
-/// same senders map as the Ankaios agents and therefore receive messages targeted at agents
-/// (e.g. unsolicited `UpdateWorkloadState` and `LogsCancelRequest` messages). New commander
-/// applications shall connect via the `CommandConnection` service.
 #[derive(Debug)]
-pub struct GRPCCliConnection {
-    cli_senders: ClientSendersMap,
+pub struct GRPCCommanderConnection {
+    commander_senders: ClientSendersMap,
     to_ankaios_server: Sender<to_server_interface::ToServer>,
 }
 
-impl GRPCCliConnection {
+impl GRPCCommanderConnection {
     pub fn new(
-        cli_senders: ClientSendersMap,
+        commander_senders: ClientSendersMap,
         to_ankaios_server: Sender<to_server_interface::ToServer>,
     ) -> Self {
         Self {
-            cli_senders,
+            commander_senders,
             to_ankaios_server,
         }
     }
 }
 
 #[tonic::async_trait]
-impl CliConnection for GRPCCliConnection {
-    type ConnectCliStream =
+impl CommandConnection for GRPCCommanderConnection {
+    type ConnectCommandStream =
         Pin<Box<dyn Stream<Item = Result<grpc_api::FromServer, Status>> + Send + 'static>>;
 
-    // [impl->swdd~grpc-client-connects-with-unique-cli-connection-name~1]
-    async fn connect_cli(
+    // [impl->swdd~grpc-client-connects-with-unique-commander-connection-name~1]
+    async fn connect_command(
         &self,
         request: Request<tonic::Streaming<grpc_api::ToServer>>,
-    ) -> Result<Response<Self::ConnectCliStream>, Status> {
+    ) -> Result<Response<Self::ConnectCommandStream>, Status> {
         let mut stream = request.into_inner();
 
         // [impl->swdd~grpc-commander-connection-creates-from-server-channel~1]
@@ -65,11 +59,11 @@ impl CliConnection for GRPCCliConnection {
             Result<grpc_api::FromServer, tonic::Status>,
         >(common::CHANNEL_CAPACITY);
 
-        let cli_connection_name = format!("cli-conn-{}", uuid::Uuid::new_v4());
-        log::debug!("Connection to CLI (name={cli_connection_name}) open.");
+        let commander_connection_name = format!("commander-conn-{}", uuid::Uuid::new_v4());
+        log::debug!("Connection to commander (name={commander_connection_name}) open.");
 
         let ankaios_tx = self.to_ankaios_server.clone();
-        let cli_senders = self.cli_senders.clone();
+        let commander_senders = self.commander_senders.clone();
 
         // The first_message must be a commander hello
         match stream
@@ -80,31 +74,34 @@ impl CliConnection for GRPCCliConnection {
             .ok_or(Status::invalid_argument("Empty"))?
         {
             ToServerEnum::CommanderHello(grpc_api::CommanderHello { protocol_version }) => {
-                log::trace!("Received a hello from a cli/commander application.");
+                log::trace!("Received a hello from a commander application.");
 
                 // [impl->swdd~grpc-commander-connection-checks-version-compatibility~1]
                 check_version_compatibility(&protocol_version).map_err(|err| {
-                    log::warn!("Refused cli/commander connection due to unsupported version: '{protocol_version}'");
+                    log::warn!("Refused commander connection due to unsupported version: '{protocol_version}'");
                     Status::failed_precondition(err)})?;
 
                 // [impl->swdd~grpc-commander-connection-stores-from-server-channel-tx~1]
-                self.cli_senders.insert(&cli_connection_name, new_sender);
+                self.commander_senders
+                    .insert(&commander_connection_name, new_sender);
                 // [impl->swdd~grpc-commander-connection-forwards-commands-to-server~1]
                 let _x = tokio::spawn(async move {
                     let mut stream = GRPCToServerStreaming::new(stream);
                     let result = forward_from_proto_to_ankaios(
-                        cli_connection_name.clone(),
+                        commander_connection_name.clone(),
                         &mut stream,
                         ankaios_tx.clone(),
                     )
                     .await;
                     if result.is_err() {
                         log::debug!(
-                            "Connection to CLI (name={cli_connection_name}) failed with {result:?}."
+                            "Connection to commander (name={commander_connection_name}) failed with {result:?}."
                         );
                     }
-                    cli_senders.remove(&cli_connection_name);
-                    log::debug!("Connection to CLI (name={cli_connection_name}) has been closed.");
+                    commander_senders.remove(&commander_connection_name);
+                    log::debug!(
+                        "Connection to commander (name={commander_connection_name}) has been closed."
+                    );
                 });
                 // [impl->swdd~grpc-commander-connection-responds-with-from-server-channel-rx~1]
                 Ok(Response::new(Box::pin(ReceiverStream::new(new_receiver))))

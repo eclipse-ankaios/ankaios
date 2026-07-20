@@ -35,8 +35,24 @@ service AgentConnection {
     rpc ConnectAgent (stream ToServer) returns (stream FromServer);
 }
 
+/**
+* Deprecated: use the CommandConnection service instead.
+*
+* This service is kept only for backwards compatibility. Clients connected via
+* this service are stored in the same senders map as the Ankaios agents and
+* therefore receive messages targeted at agents (e.g. unsolicited
+* UpdateWorkloadState and LogsCancelRequest messages). New commander
+* applications shall connect via the CommandConnection service.
+*/
 service CliConnection {
-    rpc ConnectCli (stream ToServer) returns (stream FromServer);
+    option deprecated = true;
+    rpc ConnectCli (stream ToServer) returns (stream FromServer) {
+        option deprecated = true;
+    }
+}
+
+service CommandConnection {
+    rpc ConnectCommand (stream ToServer) returns (stream FromServer);
 }
 
 /**
