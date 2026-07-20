@@ -16,8 +16,8 @@ mod config_renderer;
 mod cycle_check;
 mod delete_graph;
 mod event_handler;
-mod log_campaign_store;
 pub mod hooks_registry;
+mod log_campaign_store;
 mod rendered_workloads;
 mod request_id;
 pub mod server_state;
@@ -699,19 +699,19 @@ impl AnkaiosServer {
                     log::debug!("Received 'Goodbye' from '{}'", goodbye.connection_name);
 
                     // [impl->swdd~server-cancels-log-campaign-for-disconnected-cli~1]
-                    let removed_cli_log_requests = self
+                    let removed_command_log_requests = self
                         .log_campaign_store
-                        .remove_cli_log_campaign_entry(&goodbye.connection_name);
+                        .remove_command_log_campaign_entry(&goodbye.connection_name);
 
                     self.cancel_log_requests_of_disconnected_collector(
                         &goodbye.connection_name,
-                        removed_cli_log_requests,
+                        removed_command_log_requests,
                     )
                     .await;
 
                     // [impl->swdd~server-removes-event-subscription-for-disconnected-cli~1]
                     self.event_handler
-                        .remove_cli_subscriber(&goodbye.connection_name);
+                        .remove_command_subscriber(&goodbye.connection_name);
                 }
                 ToServer::Stop(_method_obj) => {
                     log::debug!("Received Stop from communications server");
@@ -973,7 +973,7 @@ mod tests {
 
     const SECOND_REQUEST_ID: &str = "request_id_2";
     const MESSAGE: &str = "message";
-    const CLI_CONNECTION_NAME: &str = "cli-conn-1234";
+    const COMMAND_CONNECTION_NAME: &str = "cli-conn-1234";
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-fails-on-invalid-startup-state~1]
@@ -3338,24 +3338,24 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let cli_request_id = format!("{CLI_CONNECTION_NAME}@cli-request-id-1");
+        let cli_request_id = format!("{COMMAND_CONNECTION_NAME}@cli-request-id-1");
         let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
         server
             .log_campaign_store
-            .expect_remove_cli_log_campaign_entry()
-            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
+            .expect_remove_command_log_campaign_entry()
+            .with(mockall::predicate::eq(COMMAND_CONNECTION_NAME.to_owned()))
             .once()
             .return_const(HashSet::from([cli_request_id.clone()]));
         server
             .event_handler
-            .expect_remove_cli_subscriber()
-            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
+            .expect_remove_command_subscriber()
+            .with(mockall::predicate::eq(COMMAND_CONNECTION_NAME.to_owned()))
             .once()
             .return_const(());
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        let result = to_server.goodbye(CLI_CONNECTION_NAME.to_owned()).await;
+        let result = to_server.goodbye(COMMAND_CONNECTION_NAME.to_owned()).await;
         assert!(result.is_ok());
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
@@ -4155,21 +4155,21 @@ mod tests {
         let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
         server
             .log_campaign_store
-            .expect_remove_cli_log_campaign_entry()
-            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
+            .expect_remove_command_log_campaign_entry()
+            .with(mockall::predicate::eq(COMMAND_CONNECTION_NAME.to_owned()))
             .once()
             .return_const(HashSet::default());
 
         server
             .event_handler
-            .expect_remove_cli_subscriber()
-            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
+            .expect_remove_command_subscriber()
+            .with(mockall::predicate::eq(COMMAND_CONNECTION_NAME.to_owned()))
             .once()
             .return_const(());
 
         assert!(
             to_server
-                .goodbye(CLI_CONNECTION_NAME.to_owned())
+                .goodbye(COMMAND_CONNECTION_NAME.to_owned())
                 .await
                 .is_ok()
         );
