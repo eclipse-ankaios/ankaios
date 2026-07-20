@@ -51,6 +51,30 @@ Considered alternatives:
 * implementing the gRPC protocol completely inside the middleware
 * using an http library and a protobuf converter
 
+#### Commander applications use a dedicated server endpoint
+`swdd~grpc-commander-uses-dedicated-server-endpoint~1`
+
+Status: approved
+
+Commander applications (the Ankaios CLI `ank` and third-party command components) shall connect to the Ankaios server through a dedicated `CommandConnection` gRPC endpoint that is separate from the agent endpoint.
+
+Comment:
+The `CommandConnection` endpoint stores its clients in a separate senders map, so that messages targeted at agents (e.g. unsolicited `UpdateWorkloadState` and `LogsCancelRequest` messages) are never delivered to commander applications.
+The existing `CliConnection` endpoint remains unchanged for backwards compatibility.
+
+Rationale:
+Today the CLI receives unsolicited `UpdateWorkloadState` and `LogsCancelRequest` messages because it is stored in the same senders map as the agents.
+A dedicated endpoint cleanly separates the two client kinds at the interface level instead of patching the behavior of a shared connection.
+
+Assumptions:
+No assumptions were taken.
+
+Considered alternatives:
+
+* Adding an optional attribute to the `CommanderHello` message to opt out of the unsolicited `UpdateWorkloadState` messages.
+  This was rejected because it would leave the interface in a strange state where the connection can be configured to still send unnecessary `UpdateWorkloadState` messages.
+  Such an attribute would be a patch to the external interface rather than a real fix of the underlying problem.
+
 ## Structural view
 
 ![Unit overview](drawio/unit_overview.drawio.svg)
@@ -73,6 +97,12 @@ The gRPC Server also forwards messages from the Ankaios Server to the Agents.
 The Agent Senders Map holds the sink ends of the channels to the Ankaios Agents.
 It also allows concurrent access to the sinks by internal locking.
 
+### Commander Senders Map
+
+The Commander Senders Map holds the sink ends of the channels to the connected commander applications (i.e. the ank cli and third-party command components).
+It uses the same type as the Agent Senders Map and allows concurrent access to the sinks by internal locking.
+Keeping the commander sinks separate from the agent sinks ensures that agent-targeted messages (e.g. workload updates, workload states) are never delivered to commander applications.
+
 ### FromServer Proxy
 
 The FromServer Proxy provides functions that forward FromServer messages to and from Ankaios via gRPC.
@@ -90,6 +120,12 @@ One gRPC Agent Connection is created by the gRPC Server at startup. The gRPC Ser
 ### gRPC Commander Connection
 
 One gRPC Commander Connection is created by the gRPC Server at startup. This connection is used by the Ankaios CLI `ank` or by third-party-applications to connect to the Ankaios server. The gRPC Server then spawns a tonic gRPC service in a new green thread and all calls to the service are handled in tasks by the gRPC Commander Connection.
+
+### gRPC CLI Connection (deprecated)
+
+Deprecated: use the gRPC Commander Connection instead.
+
+One gRPC CLI Connection is created by the gRPC Server at startup and is kept only for backwards compatibility. Its clients are stored in the same Agent Senders Map as the Ankaios Agents and therefore receive messages targeted at agents (e.g. unsolicited workload states). New commander applications shall connect via the gRPC Commander Connection.
 
 ## Behavioral view
 
@@ -120,12 +156,31 @@ Status: approved
 
 Upon startup, the gRPC Server shall create a gRPC CLI Connection responsible for handling calls from the gRPC Client
 
+Comment:
+Deprecated: this connection is kept only for backwards compatibility. New commander applications shall use the gRPC Commander Connection (`swdd~grpc-server-creates-commander-connection~1`) instead.
+
 Tags:
 - gRPC_Commander_Connection
 
 Needs:
 - impl
 - itest
+
+#### gRPC Server creates gRPC Commander Connection
+`swdd~grpc-server-creates-commander-connection~1`
+
+Status: approved
+
+Upon startup, the gRPC Server shall create a gRPC Commander Connection responsible for handling calls from the `ank` cli commander applications.
+
+Rationale:
+Commander applications shall be handled independently of the Ankaios agents so that agent-targeted messages are never delivered to commander applications.
+
+Tags:
+- gRPC_Commander_Connection
+
+Needs:
+- impl
 
 #### gRPC Server spawns tonic service
 `swdd~grpc-server-spawns-tonic-service~1`
@@ -151,12 +206,28 @@ Status: approved
 
 The gRPC Server shall provide a gRPC endpoint for handling the gRPC CLI connection.
 
+Comment:
+Deprecated: this endpoint is kept only for backwards compatibility. New commander applications shall use the gRPC Commander Connection endpoint (`swdd~grpc-server-provides-endpoint-for-commander-connection-handling~1`) instead.
+
 Tags:
 - gRPC_Server
 
 Needs:
 - impl
 - itest
+
+#### gRPC Server provides a gRPC endpoint for commander connection handling
+`swdd~grpc-server-provides-endpoint-for-commander-connection-handling~1`
+
+Status: approved
+
+The gRPC Server shall provide a gRPC endpoint for handling the gRPC Commander connection.
+
+Tags:
+- gRPC_Server
+
+Needs:
+- impl
 
 #### gRPC Client retries gRPC Agent Connection to server upon connection loss
 `swdd~grpc-client-retries-connection~2`
@@ -255,6 +326,22 @@ Tags:
 Needs:
 - impl
 - itest
+
+#### gRPC Commander Connection connects with a unique name
+`swdd~grpc-client-connects-with-unique-commander-connection-name~1`
+
+Status: approved
+
+For each received connection request, the gRPC Commander Connection shall assign a unique name to the commander application.
+
+Rationale:
+The unique name is used as request id prefix to route the responses back to the correct commander application.
+
+Tags:
+- gRPC_Commander_Connection
+
+Needs:
+- impl
 
 #### gRPC Client send supported version with first message
 `swdd~grpc-client-sends-supported-version~1`
@@ -405,6 +492,23 @@ Tags:
 Needs:
 - impl
 - itest
+
+#### gRPC Server forwards responses to commander applications
+`swdd~grpc-server-forwards-responses-to-commander~1`
+
+Status: approved
+
+When the gRPC Server receives a Response whose request id prefix does not match any entry in the Agent Senders Map, the gRPC Server shall forward the Response to the matching entry in the Commander Senders Map.
+
+Rationale:
+Responses to commands issued by commander applications must be routed back to the requesting commander application, which is stored in the Commander Senders Map.
+
+Tags:
+- FromServerProxy
+
+Needs:
+- impl
+- utest
 
 ### Secure mTLS and insecure communication
 

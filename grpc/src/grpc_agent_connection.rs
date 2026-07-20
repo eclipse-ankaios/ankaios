@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::agent_senders_map::AgentSendersMap;
+use crate::client_senders_map::ClientSendersMap;
 use crate::grpc_api::{self, agent_connection_server::AgentConnection, to_server::ToServerEnum};
 use crate::to_server_proxy::{GRPCToServerStreaming, forward_from_proto_to_ankaios};
 
@@ -33,12 +33,12 @@ use x509_parser::extensions::GeneralName;
 
 #[derive(Debug)]
 pub struct GRPCAgentConnection {
-    agent_senders: AgentSendersMap,
+    agent_senders: ClientSendersMap,
     to_ankaios_server: Sender<ToServer>,
 }
 
 impl GRPCAgentConnection {
-    pub fn new(agent_senders: AgentSendersMap, to_ankaios_server: Sender<ToServer>) -> Self {
+    pub fn new(agent_senders: ClientSendersMap, to_ankaios_server: Sender<ToServer>) -> Self {
         Self {
             agent_senders,
             to_ankaios_server,

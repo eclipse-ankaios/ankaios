@@ -12,12 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::agent_senders_map::AgentSendersMap;
+use crate::client_senders_map::ClientSendersMap;
 use crate::from_server_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
 use crate::grpc_api::agent_connection_server::AgentConnectionServer;
 use crate::grpc_api::cli_connection_server::CliConnectionServer;
+use crate::grpc_api::command_connection_server::CommandConnectionServer;
 use crate::grpc_cli_connection::GRPCCliConnection;
+use crate::grpc_commander_connection::GRPCCommanderConnection;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use crate::security::TLSConfig;
 
@@ -33,7 +35,8 @@ use tonic::transport::{Certificate, Identity, Server, ServerTlsConfig};
 #[derive(Debug)]
 pub struct GRPCCommunicationsServer {
     sender: ToServerSender,
-    agent_senders: AgentSendersMap,
+    agent_senders: ClientSendersMap,
+    commander_senders: ClientSendersMap,
     tls_config: Option<TLSConfig>,
 }
 
@@ -52,7 +55,12 @@ impl CommunicationsServer for GRPCCommunicationsServer {
         let my_cli_connection =
             GRPCCliConnection::new(self.agent_senders.clone(), self.sender.clone());
 
+        // [impl->swdd~grpc-server-creates-commander-connection~1]
+        let my_commander_connection =
+            GRPCCommanderConnection::new(self.commander_senders.clone(), self.sender.clone());
+
         let agent_senders_clone = self.agent_senders.clone();
+        let commander_senders_clone = self.commander_senders.clone();
 
         match &self.tls_config {
             // [impl->swdd~grpc-server-activate-mtls-when-certificates-and-key-provided-upon-start~1]
@@ -73,6 +81,8 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                         .add_service(AgentConnectionServer::new(my_connection))
                         // [impl->swdd~grpc-server-provides-endpoint-for-cli-connection-handling~1]
                         .add_service(CliConnectionServer::new(my_cli_connection))
+                        // [impl->swdd~grpc-server-provides-endpoint-for-commander-connection-handling~1]
+                        .add_service(CommandConnectionServer::new(my_commander_connection))
                         .serve(addr) => {
                             result.map_err(|err| {
                                 GrpcMiddlewareError::StartError(format!("{err:?}"))
@@ -81,6 +91,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                     // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
                     _ = from_server_proxy::forward_from_ankaios_to_proto(
                         &agent_senders_clone,
+                        &commander_senders_clone,
                         &mut receiver,
                     ) => {
                         Err(GrpcMiddlewareError::ConnectionInterrupted(
@@ -101,6 +112,8 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                         .add_service(AgentConnectionServer::new(my_connection))
                         // [impl->swdd~grpc-server-provides-endpoint-for-cli-connection-handling~1]
                         .add_service(CliConnectionServer::new(my_cli_connection))
+                        // [impl->swdd~grpc-server-provides-endpoint-for-commander-connection-handling~1]
+                        .add_service(CommandConnectionServer::new(my_commander_connection))
                         .serve(addr) => {
                             result.map_err(|err| {
                                 GrpcMiddlewareError::StartError(format!("{err:?}"))
@@ -109,6 +122,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                     // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
                     _ = from_server_proxy::forward_from_ankaios_to_proto(
                         &agent_senders_clone,
+                        &commander_senders_clone,
                         &mut receiver,
                     ) => {
                         Err(GrpcMiddlewareError::ConnectionInterrupted(
@@ -126,7 +140,8 @@ impl CommunicationsServer for GRPCCommunicationsServer {
 impl GRPCCommunicationsServer {
     pub fn new(sender: ToServerSender, tls_config: Option<TLSConfig>) -> Self {
         GRPCCommunicationsServer {
-            agent_senders: AgentSendersMap::new(),
+            agent_senders: ClientSendersMap::new(),
+            commander_senders: ClientSendersMap::new(),
             sender,
             tls_config,
         }
