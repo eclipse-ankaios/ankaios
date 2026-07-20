@@ -157,8 +157,11 @@ async fn main() {
         validate_runtimes(&agent_config.runtimes).unwrap_or_exit("Invalid runtime configuration");
 
     let mut available_runtimes = ([
+        // [impl->swdd~agent-supports-podman~2]
         Box::new(PodmanRuntime {}),
+        // [impl->swdd~agent-supports-podman-kube-runtime~1]
         Box::new(PodmanKubeRuntime::default()),
+        // [impl->swdd~agent-supports-containerd~1]
         Box::new(ContainerdRuntime {}),
     ] as [Box<dyn OwnableRuntime>; 3])
         .into_iter()
