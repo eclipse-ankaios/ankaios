@@ -455,8 +455,9 @@ impl ServerState {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
-static UPDATE_EFFECTIVE_STATE_CALLED: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
+thread_local! {
+    static UPDATE_EFFECTIVE_STATE_CALLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
 
 #[cfg(test)]
 fn update_effective_state(
@@ -465,7 +466,7 @@ fn update_effective_state(
     new_rendered_workloads: &mut RenderedWorkloads,
     _old_rendered_workloads: &RenderedWorkloads,
 ) -> Result<(), UpdateStateError> {
-    UPDATE_EFFECTIVE_STATE_CALLED.store(true, std::sync::atomic::Ordering::SeqCst);
+    UPDATE_EFFECTIVE_STATE_CALLED.with(|called| called.set(true));
     for wl_named in &added_deleted_workloads.added_workloads {
         let name = wl_named.instance_name.workload_name().to_owned();
         new_rendered_workloads.insert(name, wl_named.clone());
@@ -1791,7 +1792,7 @@ mod tests {
     #[test]
     fn utest_server_state_update_state_calls_update_effective_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
-        super::UPDATE_EFFECTIVE_STATE_CALLED.store(false, std::sync::atomic::Ordering::SeqCst);
+        super::UPDATE_EFFECTIVE_STATE_CALLED.with(|called| called.set(false));
 
         let w1 = generate_test_workload_named_with_params(
             fixtures::WORKLOAD_NAMES[0],
@@ -1839,7 +1840,7 @@ mod tests {
         let result = server_state.update(new_state, &HooksRegistry::default());
         assert!(result.is_ok());
         assert!(
-            super::UPDATE_EFFECTIVE_STATE_CALLED.load(std::sync::atomic::Ordering::SeqCst),
+            super::UPDATE_EFFECTIVE_STATE_CALLED.with(|called| called.get()),
             "update_effective_state must be called during ServerState::update"
         );
     }
@@ -1850,7 +1851,7 @@ mod tests {
         // Scenario: A manifest was applied and the hook mutated the workload
         // (e.g. changed runtime_config). Reapplying the same manifest should detect
         // no change because pre_hook_rendered_workloads stores the pre-mutation state.
-        super::UPDATE_EFFECTIVE_STATE_CALLED.store(false, std::sync::atomic::Ordering::SeqCst);
+        super::UPDATE_EFFECTIVE_STATE_CALLED.with(|called| called.set(false));
 
         let original_runtime_config = "original_config".to_owned();
         let mutated_runtime_config = "mutated_by_hook_config".to_owned();
@@ -1923,7 +1924,7 @@ mod tests {
             "Reapplying a manifest after hook mutation shall not trigger a workload update"
         );
         assert!(
-            !super::UPDATE_EFFECTIVE_STATE_CALLED.load(std::sync::atomic::Ordering::SeqCst),
+            !super::UPDATE_EFFECTIVE_STATE_CALLED.with(|called| called.get()),
             "update_effective_state must not be called when no workload change is detected"
         );
     }
