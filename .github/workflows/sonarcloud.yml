@@ -96,7 +96,35 @@ jobs:
           lcov_to_sonar(sys.argv[1], sys.argv[2])
           PYEOF
 
+      # Secrets are withheld from pull_request runs opened by Dependabot or from forks,
+      # so the scan itself can't happen here. Persist the reports + PR metadata as an
+      # artifact and let the trusted sonarcloud-pr-scan.yml (workflow_run) do the upload.
+      - name: Save PR metadata
+        if: github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          jq -n \
+            --arg number "$PR_NUMBER" \
+            --arg headSha "$PR_HEAD_SHA" \
+            --arg headRef "$PR_HEAD_REF" \
+            --arg baseRef "$PR_BASE_REF" \
+            '{number: $number, headSha: $headSha, headRef: $headRef, baseRef: $baseRef}' \
+            > target/sonar/pr.json
+
+      - name: Upload sonar reports
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: sonar-reports
+          path: target/sonar
+          retention-days: 1
+
       - name: SonarCloud Scan
+        if: github.event_name == 'push'
         uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
