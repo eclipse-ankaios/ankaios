@@ -107,13 +107,15 @@ jobs:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          jq -n \
-            --arg number "$PR_NUMBER" \
-            --arg headSha "$PR_HEAD_SHA" \
-            --arg headRef "$PR_HEAD_REF" \
-            --arg baseRef "$PR_BASE_REF" \
-            '{number: $number, headSha: $headSha, headRef: $headRef, baseRef: $baseRef}' \
-            > target/sonar/pr.json
+          python3 -c "
+          import json, os
+          json.dump({
+              'number': os.environ['PR_NUMBER'],
+              'headSha': os.environ['PR_HEAD_SHA'],
+              'headRef': os.environ['PR_HEAD_REF'],
+              'baseRef': os.environ['PR_BASE_REF'],
+          }, open('target/sonar/pr.json', 'w'))
+          "
 
       - name: Upload sonar reports
         if: github.event_name == 'pull_request'
