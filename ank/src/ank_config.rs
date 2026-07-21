@@ -25,7 +25,6 @@ use grpc::security::read_pem_file;
 #[cfg(test)]
 use tests::read_pem_file;
 
-use once_cell::sync::Lazy;
 use serde::de::value::MapDeserializer;
 use serde::de::{Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
@@ -39,23 +38,25 @@ use std::path::PathBuf;
 
 pub const DEFAULT_CONFIG: &str = "default";
 pub const DEFAULT_RESPONSE_TIMEOUT: u64 = 3000;
-pub static DEFAULT_ANK_CONFIG_USER_FILE_PATH: Lazy<Option<String>> = Lazy::new(|| {
-    let home_dir = env::var("HOME").ok();
-    home_dir.map(|dir| format!("{dir}/.config/ankaios/ank.conf"))
-});
 pub const DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH: &str = "/etc/ankaios/ank.conf";
 
-pub static DEFAULT_ANK_CONFIG_FILE_PATHS: Lazy<Vec<&str>> = Lazy::new(|| {
-    if let Some(user_config_path) = DEFAULT_ANK_CONFIG_USER_FILE_PATH.as_deref() {
-        vec![user_config_path, DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH]
+fn get_user_config_path() -> Option<String> {
+    env::var("HOME")
+        .ok()
+        .map(|dir| format!("{dir}/.config/ankaios/ank.conf"))
+}
+
+pub fn get_config_file_paths() -> Vec<String> {
+    if let Some(user_config_path) = get_user_config_path() {
+        vec![user_config_path, DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH.to_string()]
     } else {
         output_warn!(
             "HOME environment variable not found, continue with searching only system config file at '{}'.",
             DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH
         );
-        vec![DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH]
+        vec![DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH.to_string()]
     }
-});
+}
 
 fn get_default_response_timeout() -> u64 {
     DEFAULT_RESPONSE_TIMEOUT
@@ -295,7 +296,7 @@ impl AnkConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATHS};
+    use super::AnkConfig;
     use crate::{
         ank_config::{get_default_response_timeout, get_default_url},
         cli::{AnkCli, Commands, GetArgs, GetCommands},
@@ -413,7 +414,7 @@ mod tests {
                 }),
             }),
             server_url: Some(TEST_SERVER_URL.to_string()),
-            config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATHS[0].to_string()),
+            config_path: Some(super::get_config_file_paths()[0].clone()),
             response_timeout_ms: Some(5000),
             insecure: Some(false),
             verbose: Some(true),
@@ -477,7 +478,7 @@ mod tests {
                 }),
             }),
             server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
-            config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATHS[0].to_string()),
+            config_path: Some(super::get_config_file_paths()[0].clone()),
             response_timeout_ms: Some(5000),
             insecure: Some(false),
             verbose: Some(true),
@@ -532,7 +533,7 @@ mod tests {
                 }),
             }),
             server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
-            config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATHS[0].to_string()),
+            config_path: Some(super::get_config_file_paths()[0].clone()),
             response_timeout_ms: Some(5000),
             insecure: None,
             verbose: None,
@@ -647,13 +648,15 @@ mod tests {
         const USER_HOME_DIR: &str = "/tmp";
         const USER_ANK_CONFIG_PATH: &str = "/tmp/.config/ankaios/ank.conf";
 
+        let original_home = std::env::var("HOME").ok();
+
         unsafe {
             std::env::set_var("HOME", USER_HOME_DIR);
         }
 
         assert_eq!(std::env::var("HOME"), Ok(USER_HOME_DIR.to_string()));
 
-        let default_config_paths = super::DEFAULT_ANK_CONFIG_FILE_PATHS.clone();
+        let default_config_paths = super::get_config_file_paths();
 
         assert_eq!(
             default_config_paths.as_slice(),
@@ -663,11 +666,10 @@ mod tests {
             ]
         );
 
-        unsafe {
-            std::env::remove_var("HOME");
+        match original_home {
+            Some(home) => unsafe { std::env::set_var("HOME", home) },
+            None => unsafe { std::env::remove_var("HOME") },
         }
-
-        assert!(std::env::var("HOME").is_err());
     }
 
     // [utest->swdd~cli-loads-config-file~2]
@@ -675,16 +677,22 @@ mod tests {
     fn utest_ank_config_without_home_env_variable() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
+        let original_home = std::env::var("HOME").ok();
+
         unsafe {
             std::env::remove_var("HOME");
         }
 
-        let default_config_paths = super::DEFAULT_ANK_CONFIG_FILE_PATHS.clone();
+        let default_config_paths = super::get_config_file_paths();
 
         assert_eq!(
             default_config_paths.as_slice(),
             &[super::DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH]
         );
         assert!(std::env::var("HOME").is_err());
+
+        if let Some(home) = original_home {
+            unsafe { std::env::set_var("HOME", home) };
+        }
     }
 }

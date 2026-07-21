@@ -20,7 +20,7 @@ mod cli_signals;
 mod log;
 
 use crate::log::{IS_QUIET, IS_VERBOSE};
-use ank_config::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATHS};
+use ank_config::{AnkConfig, get_config_file_paths};
 use cli_commands::CliCommands;
 use common::config::handle_config;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult};
@@ -35,8 +35,10 @@ async fn main() {
     let args = cli::parse();
 
     // [impl->swdd~cli-loads-config-file~2]
+    let config_file_paths = get_config_file_paths();
+    let config_file_paths_refs: Vec<&str> = config_file_paths.iter().map(|s| s.as_str()).collect();
     let mut ank_config: AnkConfig =
-        handle_config(&args.config_path, &DEFAULT_ANK_CONFIG_FILE_PATHS);
+        handle_config(&args.config_path, &config_file_paths_refs);
     ank_config.update_with_args(&args)
         .unwrap_or_exit_func(|err| output_and_error!("{}", err), -1);
 
