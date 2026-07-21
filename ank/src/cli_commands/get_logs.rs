@@ -45,46 +45,53 @@ impl CliCommands {
             .get_complete_state(request_details)
             .await?;
 
-        let wl_states = complete_state.workload_states.ok_or_else(|| {
-            CliError::ExecutionError(
+        if let Some(wl_states) = complete_state.workload_states {
+            let available_instance_names: HashMap<String, BTreeSet<WorkloadInstanceNameSpec>> =
+                Vec::<WorkloadState>::from(wl_states)
+                    .into_iter()
+                    .map(|wl_state| {
+                        let instance_name: WorkloadInstanceNameSpec = match wl_state.instance_name {
+                            Some(instance_name) => instance_name.try_into().map_err(|err| {
+                                CliError::ExecutionError(format!(
+                                    "Failed to convert instance name: {err}"
+                                ))
+                            })?,
+                            None => {
+                                return Err(CliError::ExecutionError(
+                                    "Instance name is missing.".to_string(),
+                                ));
+                            }
+                        };
+                        let workload_name = instance_name.workload_name();
+                        Ok((workload_name.to_owned(), instance_name))
+                    })
+                    .fold(HashMap::new(), |mut acc, item| {
+                        if let Ok((workload_name, instance_name)) = item {
+                            acc.entry(workload_name).or_default().insert(instance_name);
+                        }
+                        acc
+                    });
+
+            let mut converted_instance_names = BTreeSet::new();
+            for wl_name in workload_names {
+                if let Some(instance_names) = available_instance_names.get(&wl_name) {
+                    for workload_instance_name in instance_names {
+                        converted_instance_names.insert(workload_instance_name.clone());
+                    }
+                } else {
+                    return Err(CliError::ExecutionError(format!(
+                        "Workload name '{wl_name}' does not exist."
+                    )));
+                }
+            }
+
+            Ok(converted_instance_names)
+        } else {
+            Err(CliError::ExecutionError(
                 "No workload states available to convert workload names to instance names."
                     .to_string(),
-            )
-        })?;
-
-        let available_instance_names: HashMap<String, BTreeSet<WorkloadInstanceNameSpec>> =
-            Vec::<WorkloadState>::from(wl_states)
-                .into_iter()
-                .map(|wl_state| {
-                    let instance_name: WorkloadInstanceNameSpec = wl_state
-                        .instance_name
-                        .ok_or_else(|| {
-                            CliError::ExecutionError("Instance name is missing.".to_string())
-                        })?
-                        .try_into()
-                        .map_err(|err| {
-                            CliError::ExecutionError(format!(
-                                "Failed to convert instance name: {err}"
-                            ))
-                        })?;
-                    Ok((instance_name.workload_name().to_owned(), instance_name))
-                })
-                .fold(HashMap::new(), |mut acc, item: Result<_, CliError>| {
-                    if let Ok((workload_name, instance_name)) = item {
-                        acc.entry(workload_name).or_default().insert(instance_name);
-                    }
-                    acc
-                });
-
-        let mut converted_instance_names = BTreeSet::new();
-        for wl_name in workload_names {
-            let instance_names = available_instance_names.get(&wl_name).ok_or_else(|| {
-                CliError::ExecutionError(format!("Workload name '{wl_name}' does not exist."))
-            })?;
-            converted_instance_names.extend(instance_names.iter().cloned());
+            ))
         }
-
-        Ok(converted_instance_names)
     }
 }
 

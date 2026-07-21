@@ -40,6 +40,10 @@ mod get_state;
 mod get_workloads;
 mod run_workload;
 mod set_state;
+pub mod sign;
+pub mod keygen;
+pub mod verify;
+pub mod inspect;
 
 use ankaios_api::ank_base::{
     CompleteState, ExecutionStateEnumSpec, Workload, WorkloadInstanceNameSpec, WorkloadState,
@@ -79,23 +83,31 @@ pub const DESIRED_STATE_CONFIGS: &str = "desiredState.configs";
 pub const DESIRED_STATE_WORKLOADS: &str = "desiredState.workloads";
 
 pub fn get_input_sources(manifest_files: &[String]) -> Result<Vec<InputSourcePair>, String> {
-    match manifest_files.first().map(String::as_str) {
-        None => Ok(vec![]),
-        // [impl->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
-        Some("-") => Ok(vec![("stdin".to_owned(), Box::new(std::io::stdin()))]),
-        // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
-        Some(_) => manifest_files
-            .iter()
-            .map(|file_path| {
-                open_manifest(file_path).map_err(|err| {
-                    if err.kind() == std::io::ErrorKind::NotFound {
-                        format!("File '{file_path}' not found!")
-                    } else {
-                        err.to_string()
+    if let Some(first_arg) = manifest_files.first() {
+        match first_arg.as_str() {
+            // [impl->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
+            "-" => Ok(vec![("stdin".to_owned(), Box::new(std::io::stdin()))]),
+            // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
+            _ => {
+                let mut res: Vec<InputSourcePair> = vec![];
+                for file_path in manifest_files.iter() {
+                    match open_manifest(file_path) {
+                        Ok(open_file) => res.push(open_file),
+                        Err(err) => {
+                            return Err(match err.kind() {
+                                std::io::ErrorKind::NotFound => {
+                                    format!("File '{file_path}' not found!")
+                                }
+                                _ => err.to_string(),
+                            });
+                        }
                     }
-                })
-            })
-            .collect(),
+                }
+                Ok(res)
+            }
+        }
+    } else {
+        Ok(vec![])
     }
 }
 
@@ -242,6 +254,7 @@ impl CliCommands {
         &mut self,
         new_state: CompleteState,
         update_mask: Vec<String>,
+        signature_metadata: Option<ankaios_api::ank_base::SignatureMetadata>,
     ) -> Result<(), CliError> {
         /* to keep track of deleted not initially started workloads in the wait mode
         the current workloads before the update must be stored in an ordered map. Affects only user output.
@@ -251,7 +264,7 @@ impl CliCommands {
 
         let update_state_success = self
             .server_connection
-            .update_state(new_state, update_mask)
+            .update_state(new_state, update_mask, signature_metadata)
             .await?;
 
         output_debug!("Got update success: {:?}", update_state_success);

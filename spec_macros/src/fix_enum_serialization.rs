@@ -221,7 +221,7 @@ pub fn fix_prost_enum_serialization(mut input: DeriveInput) -> syn::Result<Token
                                 original_type,
                                 &new_type,
                             );
-                        }
+                        };
                         new_functions.push(serializer_fn);
                         new_functions.push(deserializer_fn);
 
@@ -277,7 +277,7 @@ pub fn fix_prost_enum_serialization(mut input: DeriveInput) -> syn::Result<Token
                 "fix_enum_serialization does not support unions",
             ));
         }
-    }
+    };
 
     // Return the modified item
     let expanded = quote! {

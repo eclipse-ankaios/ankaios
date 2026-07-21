@@ -66,8 +66,67 @@ fn detect_api_version(obj: &Object, obj_paths: &[Path]) -> Result<Option<&'stati
 // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
 // [impl->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
 // [impl->swdd~cli-apply-manifest-accepts-v01-api-version~1]
-pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
-    let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
+pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>, Option<ankaios_api::ank_base::SignatureMetadata>), String> {
+    use std::io::Read;
+    use ankaios_api::ank_base::UpdateStateRequest;
+    use prost::Message;
+
+    // Check file extension to determine format
+    let is_binary_protobuf = manifest.0.ends_with(".pb");
+
+    let (content_to_parse, signature_metadata) = if is_binary_protobuf {
+        // Binary protobuf format (.pb files)
+        let mut bytes = Vec::new();
+        manifest.1.read_to_end(&mut bytes)
+            .map_err(|err| format!("Failed to read binary manifest: {err}"))?;
+
+        let update_request = UpdateStateRequest::decode(&bytes[..])
+            .map_err(|err| format!("Failed to decode protobuf manifest: {err}"))?;
+
+        let sig_meta = update_request.signature_metadata;
+
+        // Extract the State from newState.desiredState
+        if let Some(complete_state) = update_request.new_state {
+            if let Some(desired_state) = complete_state.desired_state {
+                let state_yaml = serde_yaml::to_string(&desired_state)
+                    .map_err(|err| format!("Failed to serialize state: {err}"))?;
+                (state_yaml, sig_meta)
+            } else {
+                return Err("UpdateStateRequest missing desiredState".to_string());
+            }
+        } else {
+            return Err("UpdateStateRequest missing newState".to_string());
+        }
+    } else {
+        // YAML format (.yaml, .yml, or no extension)
+        let mut yaml_content = String::new();
+        manifest.1.read_to_string(&mut yaml_content)
+            .map_err(|err| format!("Failed to read manifest: {err}"))?;
+
+        // Try to parse as UpdateStateRequest first (YAML format with signature metadata)
+        if let Ok(update_request) = serde_yaml::from_str::<UpdateStateRequest>(&yaml_content) {
+            // New YAML format: UpdateStateRequest with signature_metadata
+            let sig_meta = update_request.signature_metadata;
+
+            // Extract the State from newState.desiredState
+            if let Some(complete_state) = update_request.new_state {
+                if let Some(desired_state) = complete_state.desired_state {
+                    let state_yaml = serde_yaml::to_string(&desired_state)
+                        .map_err(|err| format!("Failed to serialize state: {err}"))?;
+                    (state_yaml, sig_meta)
+                } else {
+                    return Err("UpdateStateRequest missing desiredState".to_string());
+                }
+            } else {
+                return Err("UpdateStateRequest missing newState".to_string());
+            }
+        } else {
+            // Plain unsigned YAML
+            (yaml_content, None)
+        }
+    };
+
+    let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_str(&content_to_parse)
         .map_err(|err| format!("Invalid manifest data provided: {err}"))?;
 
     // [impl->swdd~cli-validates-manifest-against-schema~1]
@@ -97,7 +156,7 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
         }
     }
 
-    Ok((obj, workload_paths.into_iter().collect()))
+    Ok((obj, workload_paths.into_iter().collect(), signature_metadata))
 }
 
 // [impl->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
@@ -172,7 +231,8 @@ pub fn create_filter_masks_from_paths(paths: &[Path], prefix: &str) -> Vec<Strin
 pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
-) -> Result<Option<(CompleteState, Vec<String>)>, String> {
+) -> Result<Option<(CompleteState, Vec<String>, Option<ankaios_api::ank_base::SignatureMetadata>)>, String> {
+
     let mut req_obj: Object = State {
         api_version: CURRENT_API_VERSION.to_string(),
         ..Default::default()
@@ -180,12 +240,19 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     .try_into()
     .map_err(|err| format!("Could not create initial empty state object from State: {err}"))?;
     let mut req_paths: Vec<Path> = Vec::new();
+    let mut signature_metadatas: Vec<ankaios_api::ank_base::SignatureMetadata> = Vec::new();
+
     for manifest in manifests.iter_mut() {
-        let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
+        let (cur_obj, mut cur_workload_paths, sig_meta) = parse_manifest(manifest)?;
 
         update_request_obj(&mut req_obj, &cur_obj, &cur_workload_paths)?;
 
         req_paths.append(&mut cur_workload_paths);
+
+        // Collect signature metadata
+        if let Some(sig) = sig_meta {
+            signature_metadatas.push(sig);
+        }
     }
 
     if req_paths.is_empty() {
@@ -210,7 +277,15 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     };
     output_debug!("\nstate_obj:\n{:?}\n", complete_state_req_obj);
 
-    Ok(Some((complete_state_req_obj, filter_masks)))
+    // Only use signature if exactly one manifest was signed
+    // Multiple signed manifests cannot be combined
+    let signature_metadata = if signature_metadatas.len() == 1 {
+        Some(signature_metadatas.into_iter().next().unwrap())
+    } else {
+        None
+    };
+
+    Ok(Some((complete_state_req_obj, filter_masks, signature_metadata)))
 }
 
 impl CliCommands {
@@ -218,12 +293,12 @@ impl CliCommands {
     pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<(), CliError> {
         match get_input_sources(&apply_args.manifest_files) {
             Ok(mut manifests) => {
-                if let Some((complete_state_req_obj, filter_masks)) =
+                if let Some((complete_state_req_obj, filter_masks, signature_metadata)) =
                     generate_state_obj_and_filter_masks_from_manifests(&mut manifests, &apply_args)
                         .map_err(CliError::ExecutionError)?
                 {
                     // [impl->swdd~cli-apply-send-update-state~1]
-                    self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
+                    self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks, signature_metadata)
                         .await
                 } else {
                     output!("Nothing to update.");
@@ -724,7 +799,7 @@ mod tests {
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
 
         assert_eq!(
-            Ok(Some((expected_complete_state_obj, expected_filter_masks))),
+            Ok(Some((expected_complete_state_obj, expected_filter_masks, None))),
             generate_state_obj_and_filter_masks_from_manifests(
                 &mut manifests[..],
                 &ApplyArgs {
@@ -767,7 +842,7 @@ mod tests {
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
 
         assert_eq!(
-            Ok(Some((expected_complete_state_obj, expected_filter_masks))),
+            Ok(Some((expected_complete_state_obj, expected_filter_masks, None))),
             generate_state_obj_and_filter_masks_from_manifests(
                 &mut manifests[..],
                 &ApplyArgs {
@@ -825,8 +900,9 @@ mod tests {
                     "desiredState.workloads.{}",
                     fixtures::WORKLOAD_NAMES[0]
                 )]),
+                eq(None),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec![deleted_workload],
@@ -925,8 +1001,9 @@ mod tests {
                     "desiredState.workloads.{}",
                     fixtures::WORKLOAD_NAMES[0]
                 )]),
+                eq(None),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![added_workload],
                     deleted_workloads: vec![],
@@ -1025,8 +1102,9 @@ mod tests {
             .with(
                 eq(updated_state.clone()),
                 eq(vec!["desiredState.configs.config_1".to_string()]),
+                eq(None),
             )
-            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
+            .return_once(|_, _, _| Ok(UpdateStateSuccess::default()));
 
         mock_server_connection
             .expect_get_complete_state()
@@ -1148,8 +1226,9 @@ mod tests {
             .with(
                 eq(updated_state.clone()),
                 eq(vec!["desiredState.workloads.simple.manifest1".to_string()]),
+                eq(None),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![added_workload],
                     deleted_workloads: vec![],

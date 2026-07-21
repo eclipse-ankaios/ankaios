@@ -73,11 +73,12 @@ pub async fn forward_from_proto_to_ankaios(
                         let UpdateStateRequest {
                             new_state,
                             update_mask,
+                            signature_metadata,
                         } = *update_state_request;
                         log::debug!("Received UpdateStateRequest from '{agent_name}'");
                         match new_state {
                             Some(new_state) => {
-                                sink.update_state(request_id, new_state, update_mask)
+                                sink.update_state(request_id, new_state, update_mask, signature_metadata)
                                     .await?;
                             }
                             None => {
@@ -85,7 +86,7 @@ pub async fn forward_from_proto_to_ankaios(
                                     "No CompleteState for forwarding.".to_string(),
                                 ));
                             }
-                        }
+                        };
                     }
                     RequestContent::CompleteStateRequest(complete_state_request) => {
                         log::trace!("Received RequestCompleteState from '{agent_name}'");
@@ -432,6 +433,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_owned(),
                 input_state.clone(),
                 update_mask.clone(),
+                None,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -565,6 +567,7 @@ mod tests {
                             UpdateStateRequest {
                                 new_state: None,
                                 update_mask: ankaios_update_mask.clone(),
+                                signature_metadata: None,
                             },
                         ))),
                     })),
@@ -603,6 +606,7 @@ mod tests {
                             UpdateStateRequest {
                                 new_state: Some(ankaios_state.clone()),
                                 update_mask: ankaios_update_mask.clone(),
+                                signature_metadata: None,
                             },
                         ))),
                     })),

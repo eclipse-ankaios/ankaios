@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ankaios_api::ank_base::{
-    AgentMap, CompleteState, ConfigMap, ExecutionsStatesOfWorkload, LogsRequest,
-    State, WorkloadInstanceName, WorkloadMap, WorkloadStatesMap,
+    CompleteState, ConfigMap, ExecutionsStatesOfWorkload, LogsRequest, WorkloadInstanceName,
+    WorkloadMap,
 };
 use common::helpers::parse_key_val;
 
@@ -89,85 +89,69 @@ fn config_completer(current: &OsStr) -> Vec<CompletionCandidate> {
 }
 
 fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
+    const DESIRED_STATE: &str = "desiredState";
+    const WORKLOADS: &str = "workloads";
+    const CONFIGS: &str = "configs";
+    const WORKLOAD_STATES: &str = "workloadStates";
+    const AGENTS: &str = "agents";
+    const AGENT_STATUS_FIELD: &str = "status";
+    const AGENT_TAGS_FIELD: &str = "tags";
+
     let mut result = Vec::new();
 
     let Ok(state) = serde_json::from_slice::<CompleteState>(&state) else {
         return vec![];
     };
 
-    collect_desired_state_field_masks(&mut result, state.desired_state);
-    collect_workload_state_field_masks(&mut result, state.workload_states);
-    collect_agent_field_masks(&mut result, state.agents);
+    if let Some(desired_state) = state.desired_state {
+        result.push(DESIRED_STATE.to_string());
+        if let Some(WorkloadMap { workloads }) = desired_state.workloads {
+            result.push(format!("{DESIRED_STATE}.{WORKLOADS}"));
+            for workload_name in workloads.keys() {
+                result.push(format!("{DESIRED_STATE}.{WORKLOADS}.{workload_name}"));
+            }
+        }
+
+        if let Some(ConfigMap { configs }) = desired_state.configs {
+            result.push(format!("{DESIRED_STATE}.{CONFIGS}"));
+            for config_name in configs.keys() {
+                result.push(format!("{DESIRED_STATE}.{CONFIGS}.{config_name}"));
+            }
+        }
+    }
+
+    if let Some(workload_states) = state.workload_states {
+        result.push(WORKLOAD_STATES.to_string());
+        for (agent, ExecutionsStatesOfWorkload { wl_name_state_map }) in
+            workload_states.agent_state_map.into_iter()
+        {
+            result.push(format!("{WORKLOAD_STATES}.{agent}"));
+            for workload_name in wl_name_state_map.keys() {
+                result.push(format!("{WORKLOAD_STATES}.{agent}.{workload_name}"));
+            }
+        }
+    }
+
+    if let Some(agents) = state.agents {
+        result.push(AGENTS.to_owned());
+        for (agent_name, agent_data) in agents.agents {
+            result.push(format!("{AGENTS}.{agent_name}"));
+            if let Some(_status) = agent_data.status {
+                result.push(format!("{AGENTS}.{agent_name}.{AGENT_STATUS_FIELD}"));
+            }
+
+            if let Some(_tags) = agent_data.tags {
+                result.push(format!("{AGENTS}.{agent_name}.{AGENT_TAGS_FIELD}"));
+            }
+        }
+    }
 
     let cur = current.to_str().unwrap_or("");
     result
         .into_iter()
-        .filter(|s| s.starts_with(cur))
+        .filter(|s| s.to_string().starts_with(cur))
         .map(CompletionCandidate::new)
         .collect()
-}
-
-fn collect_desired_state_field_masks(result: &mut Vec<String>, desired_state: Option<State>) {
-    const DESIRED_STATE: &str = "desiredState";
-    const WORKLOADS: &str = "workloads";
-    const CONFIGS: &str = "configs";
-
-    let Some(desired_state) = desired_state else {
-        return;
-    };
-    result.push(DESIRED_STATE.to_string());
-    if let Some(WorkloadMap { workloads }) = desired_state.workloads {
-        result.push(format!("{DESIRED_STATE}.{WORKLOADS}"));
-        for workload_name in workloads.keys() {
-            result.push(format!("{DESIRED_STATE}.{WORKLOADS}.{workload_name}"));
-        }
-    }
-    if let Some(ConfigMap { configs }) = desired_state.configs {
-        result.push(format!("{DESIRED_STATE}.{CONFIGS}"));
-        for config_name in configs.keys() {
-            result.push(format!("{DESIRED_STATE}.{CONFIGS}.{config_name}"));
-        }
-    }
-}
-
-fn collect_workload_state_field_masks(
-    result: &mut Vec<String>,
-    workload_states: Option<WorkloadStatesMap>,
-) {
-    const WORKLOAD_STATES: &str = "workloadStates";
-
-    let Some(workload_states) = workload_states else {
-        return;
-    };
-    result.push(WORKLOAD_STATES.to_string());
-    for (agent, ExecutionsStatesOfWorkload { wl_name_state_map }) in
-        workload_states.agent_state_map.into_iter()
-    {
-        result.push(format!("{WORKLOAD_STATES}.{agent}"));
-        for workload_name in wl_name_state_map.keys() {
-            result.push(format!("{WORKLOAD_STATES}.{agent}.{workload_name}"));
-        }
-    }
-}
-
-fn collect_agent_field_masks(result: &mut Vec<String>, agents: Option<AgentMap>) {
-    const AGENTS: &str = "agents";
-    const AGENT_STATUS_FIELD: &str = "status";
-    const AGENT_TAGS_FIELD: &str = "tags";
-
-    let Some(agents) = agents else {
-        return;
-    };
-    result.push(AGENTS.to_owned());
-    for (agent_name, agent_data) in agents.agents {
-        result.push(format!("{AGENTS}.{agent_name}"));
-        if agent_data.status.is_some() {
-            result.push(format!("{AGENTS}.{agent_name}.{AGENT_STATUS_FIELD}"));
-        }
-        if agent_data.tags.is_some() {
-            result.push(format!("{AGENTS}.{agent_name}.{AGENT_TAGS_FIELD}"));
-        }
-    }
 }
 
 // [impl->swdd~cli-shell-completion~2]
@@ -239,6 +223,14 @@ pub enum Commands {
     Apply(ApplyArgs),
     #[command(arg_required_else_help = true)]
     Logs(LogsArgs),
+    #[command(arg_required_else_help = true)]
+    Keygen(KeygenArgs),
+    #[command(arg_required_else_help = true)]
+    Sign(SignArgs),
+    #[command(arg_required_else_help = true)]
+    Verify(VerifyArgs),
+    #[command(arg_required_else_help = true)]
+    Inspect(InspectArgs),
 }
 
 /// Retrieve information about the current Ankaios system
@@ -423,6 +415,54 @@ pub struct LogsArgs {
     /// Show logs before a specific TIMESTAMP in RFC3339 format
     #[arg(short = 'u', long = "until")]
     pub until: Option<String>,
+}
+
+/// Generate Ed25519 keypair for signing workload manifests
+#[derive(clap::Args, Debug)]
+pub struct KeygenArgs {
+    /// Output path for the private key (public key will be written to <output>.pub)
+    #[arg(long = "output", required = true, value_hint = ValueHint::FilePath)]
+    pub output: String,
+
+    /// Force overwrite if key files already exist
+    #[arg(long = "force", short = 'f')]
+    pub force: bool,
+}
+
+/// Sign a workload manifest with Ed25519 signature
+#[derive(clap::Args, Debug)]
+pub struct SignArgs {
+    /// Input YAML manifest file to sign
+    #[arg(long = "input", required = true, value_hint = ValueHint::FilePath)]
+    pub input: String,
+    /// Path to private key file
+    #[arg(long = "key", required = true, value_hint = ValueHint::FilePath)]
+    pub key: String,
+    /// Key identifier to include in signature
+    #[arg(long = "key-id", required = true)]
+    pub key_id: String,
+    /// Counter value for replay protection (auto-increments if not provided)
+    #[arg(long = "counter", required = false)]
+    pub counter: Option<u64>,
+}
+
+/// Verify a signed manifest's signature
+#[derive(clap::Args, Debug)]
+pub struct VerifyArgs {
+    /// Path to signed binary protobuf manifest file (.pb)
+    #[arg(long = "input", required = true, value_hint = ValueHint::FilePath)]
+    pub input: String,
+    /// Path to public key file
+    #[arg(long = "key", required = true, value_hint = ValueHint::FilePath)]
+    pub key: String,
+}
+
+/// Inspect a signed binary protobuf manifest
+#[derive(Debug, clap::Args, Clone)]
+pub struct InspectArgs {
+    /// Path to binary protobuf manifest file (.pb)
+    #[arg(long = "input", required = true, value_hint = ValueHint::FilePath)]
+    pub input: String,
 }
 
 pub fn logs_args_to_request(

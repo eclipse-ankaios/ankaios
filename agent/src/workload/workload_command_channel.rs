@@ -64,7 +64,7 @@ impl WorkloadCommandSender {
                 .is_err()
             {
                 log::debug!("Could not send retry command");
-            }
+            };
         }));
 
         Ok(())

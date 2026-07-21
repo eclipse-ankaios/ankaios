@@ -451,7 +451,6 @@ mod tests {
                 ExecutionStateSpec::running(),
             ),
             agents: agent_map,
-            effective_state: StateSpec::default(),
         };
 
         let expected = Object {
@@ -482,7 +481,6 @@ mod tests {
                 ExecutionStateSpec::running(),
             ),
             agents: agent_map,
-            effective_state: StateSpec::default(),
         };
 
         let actual: CompleteStateSpec = object.clone().try_into().unwrap();
@@ -1018,12 +1016,6 @@ mod tests {
                             )
                             .entry("tags", Mapping::default().entry("type", "agent")),
                     ),
-                )
-                .entry("effectiveState",
-                    Mapping::default()
-                        .entry("apiVersion", CURRENT_API_VERSION)
-                        .entry("workloads", Mapping::default())
-                        .entry("configs", Mapping::default())
                 )
         }
 

@@ -12,7 +12,6 @@ Ankaios is a lightweight embedded workload orchestrator for edge devices.
 - Do not invent container images; if none is provided, ask the user for an image
 - Prefer the simplest solution that satisfies the request
 - Respect existing crate/module patterns; avoid unrelated refactors
-- **Always trace requirements** when implementing features: link code to existing requirements with `// [impl->swdd~name~version]` comments, write new requirements when no matching one exists, and add test tracing (`// [utest->...]`, `# [stest->...]`). Use the `requirement-tracing` skill for the full format conventions.
 
 ## 3) Execute the agent playbook
 

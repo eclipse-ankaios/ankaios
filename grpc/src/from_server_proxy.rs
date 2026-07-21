@@ -408,7 +408,7 @@ async fn distribute_log_cancel_requests_to_agent(
         } else {
             log::debug!("Sender for agent '{agent}' gone while iterating all agents");
             continue;
-        }
+        };
     }
 }
 
@@ -911,7 +911,7 @@ mod tests {
         };
 
         let complete_state_result = to_manager
-            .complete_state(prefixed_my_request_id, test_complete_state.clone(), None)
+            .complete_state(prefixed_my_request_id, test_complete_state.clone(), None, std::collections::HashMap::new())
             .await;
         assert!(complete_state_result.is_ok());
 
@@ -1076,7 +1076,8 @@ mod tests {
             response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
                 CompleteStateResponse {
                     complete_state: Some(proto_complete_state),
-                    ..Default::default()
+                    altered_fields: None,
+                    signed_workload_requests: HashMap::new(),
                 },
             ))),
         };

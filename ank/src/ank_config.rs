@@ -13,10 +13,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::AnkCli;
-use crate::output_warn;
 use common::DEFAULT_SERVER_ADDRESS;
 use common::config::{CONFIG_VERSION, ConfigFile, ConversionErrors};
-use common::std_extensions::UnreachableOption;
+use common::std_extensions::{GracefulExitResult, UnreachableOption};
 
 use grpc::security::PemFileType;
 
@@ -39,22 +38,17 @@ use std::path::PathBuf;
 
 pub const DEFAULT_CONFIG: &str = "default";
 pub const DEFAULT_RESPONSE_TIMEOUT: u64 = 3000;
-pub static DEFAULT_ANK_CONFIG_USER_FILE_PATH: Lazy<Option<String>> = Lazy::new(|| {
-    let home_dir = env::var("HOME").ok();
-    home_dir.map(|dir| format!("{dir}/.config/ankaios/ank.conf"))
+pub static DEFAULT_ANK_CONFIG_USER_FILE_PATH: Lazy<String> = Lazy::new(|| {
+    let home_dir = env::var("HOME").unwrap_or_exit("HOME environment variable not set");
+    format!("{home_dir}/.config/ankaios/ank.conf")
 });
 pub const DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH: &str = "/etc/ankaios/ank.conf";
 
 pub static DEFAULT_ANK_CONFIG_FILE_PATHS: Lazy<Vec<&str>> = Lazy::new(|| {
-    if let Some(user_config_path) = DEFAULT_ANK_CONFIG_USER_FILE_PATH.as_deref() {
-        vec![user_config_path, DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH]
-    } else {
-        output_warn!(
-            "HOME environment variable not found, continue with searching only system config file at '{}'.",
-            DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH
-        );
-        vec![DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH]
-    }
+    vec![
+        DEFAULT_ANK_CONFIG_USER_FILE_PATH.as_str(),
+        DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH,
+    ]
 });
 
 fn get_default_response_timeout() -> u64 {
@@ -432,9 +426,18 @@ mod tests {
         assert!(ank_config.no_wait);
         assert!(!ank_config.insecure);
         assert_eq!(ank_config.server_url, TEST_SERVER_URL.to_string());
-        assert_eq!(ank_config.ca_pem, Some(fixtures::CA_PEM_PATH.to_string()));
-        assert_eq!(ank_config.crt_pem, Some(fixtures::CRT_PEM_PATH.to_string()));
-        assert_eq!(ank_config.key_pem, Some(fixtures::KEY_PEM_PATH.to_string()));
+        assert_eq!(
+            ank_config.ca_pem,
+            Some(fixtures::CA_PEM_PATH.to_string())
+        );
+        assert_eq!(
+            ank_config.crt_pem,
+            Some(fixtures::CRT_PEM_PATH.to_string())
+        );
+        assert_eq!(
+            ank_config.key_pem,
+            Some(fixtures::KEY_PEM_PATH.to_string())
+        );
         assert_eq!(
             ank_config.ca_pem_content,
             Some(fixtures::CA_PEM_CONTENT.to_string())
@@ -637,54 +640,5 @@ mod tests {
             ank_config.key_pem_content,
             Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
-    }
-
-    // [utest->swdd~cli-loads-config-file~2]
-    #[test]
-    fn utest_ank_config_with_home_env_variable() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
-
-        const USER_HOME_DIR: &str = "/tmp";
-        const USER_ANK_CONFIG_PATH: &str = "/tmp/.config/ankaios/ank.conf";
-
-        unsafe {
-            std::env::set_var("HOME", USER_HOME_DIR);
-        }
-
-        assert_eq!(std::env::var("HOME"), Ok(USER_HOME_DIR.to_string()));
-
-        let default_config_paths = super::DEFAULT_ANK_CONFIG_FILE_PATHS.clone();
-
-        assert_eq!(
-            default_config_paths.as_slice(),
-            &[
-                USER_ANK_CONFIG_PATH,
-                super::DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH
-            ]
-        );
-
-        unsafe {
-            std::env::remove_var("HOME");
-        }
-
-        assert!(std::env::var("HOME").is_err());
-    }
-
-    // [utest->swdd~cli-loads-config-file~2]
-    #[test]
-    fn utest_ank_config_without_home_env_variable() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
-
-        unsafe {
-            std::env::remove_var("HOME");
-        }
-
-        let default_config_paths = super::DEFAULT_ANK_CONFIG_FILE_PATHS.clone();
-
-        assert_eq!(
-            default_config_paths.as_slice(),
-            &[super::DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH]
-        );
-        assert!(std::env::var("HOME").is_err());
     }
 }

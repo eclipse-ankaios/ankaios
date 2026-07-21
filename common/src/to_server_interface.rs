@@ -16,7 +16,7 @@ use crate::commands::{self, AgentLoadStatus};
 use crate::message_size::process_log_entries_response;
 use ankaios_api::ank_base::{
     CompleteState, CompleteStateRequest, LogEntriesResponse,
-    LogsCancelRequest, LogsRequest, LogsStopResponse, Request, RequestContent, Tags,
+    LogsCancelRequest, LogsRequest, LogsStopResponse, Request, RequestContent, SignatureMetadata, Tags,
     UpdateStateRequest, WorkloadStateSpec, EventsCancelRequest
 };
 
@@ -65,6 +65,7 @@ pub trait ToServerInterface {
         request_id: String,
         new_state: CompleteState,
         update_mask: Vec<String>,
+        signature_metadata: Option<SignatureMetadata>,
     ) -> Result<(), ToServerError>;
     async fn update_workload_state(
         &self,
@@ -130,6 +131,7 @@ impl ToServerInterface for ToServerSender {
         request_id: String,
         new_state: CompleteState,
         update_mask: Vec<String>,
+        signature_metadata: Option<SignatureMetadata>,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::Request(Request {
@@ -138,6 +140,7 @@ impl ToServerInterface for ToServerSender {
                     UpdateStateRequest {
                         new_state: Some(new_state),
                         update_mask,
+                        signature_metadata,
                     },
                 ))),
             }))
@@ -348,7 +351,8 @@ mod tests {
             tx.update_state(
                 fixtures::REQUEST_ID.to_string(),
                 complete_state.clone(),
-                vec![FIELD_MASK.to_string()]
+                vec![FIELD_MASK.to_string()],
+                None
             )
             .await
             .is_ok()
@@ -361,7 +365,8 @@ mod tests {
                 request_content: Some(RequestContent::UpdateStateRequest(Box::new(
                     UpdateStateRequest {
                         new_state: Some(complete_state),
-                        update_mask: vec![FIELD_MASK.to_string()]
+                        update_mask: vec![FIELD_MASK.to_string()],
+                        signature_metadata: None,
                     },
                 ))),
             })

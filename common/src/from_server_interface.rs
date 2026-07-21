@@ -74,6 +74,7 @@ pub trait FromServerInterface {
         request_id: String,
         complete_state: CompleteState,
         altered_fields: Option<AlteredFields>,
+        signed_workload_requests: std::collections::HashMap<String, ankaios_api::ank_base::UpdateStateRequest>,
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_state_success(
         &self,
@@ -171,6 +172,7 @@ impl FromServerInterface for FromServerSender {
         request_id: String,
         complete_state: CompleteState,
         altered_fields: Option<AlteredFields>,
+        signed_workload_requests: std::collections::HashMap<String, ankaios_api::ank_base::UpdateStateRequest>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::Response(Response {
@@ -179,6 +181,7 @@ impl FromServerInterface for FromServerSender {
                     CompleteStateResponse {
                         complete_state: Some(complete_state),
                         altered_fields,
+                        signed_workload_requests,
                     },
                 ))
                 .into(),
@@ -399,7 +402,8 @@ mod tests {
             tx.complete_state(
                 fixtures::REQUEST_ID.to_string(),
                 complete_state.clone(),
-                None
+                None,
+                std::collections::HashMap::new()
             )
             .await
             .is_ok()
@@ -413,6 +417,7 @@ mod tests {
                     CompleteStateResponse {
                         complete_state: Some(complete_state.clone()),
                         altered_fields: Default::default(),
+                        signed_workload_requests: std::collections::HashMap::new(),
                     }
                 ))),
             })

@@ -13,20 +13,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::cycle_check;
-use super::hooks_registry::HooksRegistry;
-#[cfg(not(test))]
-use super::hooks_registry::update_effective_state;
 use super::rendered_workloads::RenderedWorkloads;
 
 use ankaios_api::ALLOWED_CHAR_SET;
 use ankaios_api::ank_base::{
     AgentMapSpec, CompleteState, CompleteStateRequest, CompleteStateSpec, DeletedWorkload,
-    StateSpec, WorkloadInstanceName, WorkloadMapSpec, WorkloadNamed, WorkloadStateSpec,
+    StateSpec, WorkloadInstanceName, WorkloadNamed, WorkloadStateSpec,
     WorkloadStatesMapSpec,
 };
 use common::state_manipulation::{Object, Path};
 use common::std_extensions::IllegalStateResult;
 
+use std::collections::HashMap;
 use std::fmt::Display;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -39,8 +37,11 @@ use mockall::automock;
 
 #[derive(Debug, Default)]
 pub struct StateGenerationResult {
+    pub old_desired_state: StateSpec,
     pub new_desired_state: StateSpec,
     pub new_agent_map: AgentMapSpec,
+    #[allow(dead_code)]
+    pub update_mask: Vec<String>,  // Update mask from the request (for signature-only updates)
 }
 
 fn extract_added_and_deleted_workloads(
@@ -94,8 +95,6 @@ pub enum UpdateStateError {
     FieldNotFound(String),
     ResultInvalid(String),
     CycleInDependencies(String),
-    MutatingHookError { hook: String, reason: String },
-    MutatingHookVeto { hook: String, reason: String },
 }
 
 impl Display for UpdateStateError {
@@ -113,16 +112,6 @@ impl Display for UpdateStateError {
                     "workload dependency '{workload_part_of_cycle}' is part of a cycle."
                 )
             }
-            UpdateStateError::MutatingHookError { hook, reason } => {
-                write!(f, "Mutating hook '{}' execution failed: '{}'", hook, reason)
-            }
-            UpdateStateError::MutatingHookVeto { hook, reason } => {
-                write!(
-                    f,
-                    "Mutating hook '{}' vetoed the state change: '{}'",
-                    hook, reason
-                )
-            }
         }
     }
 }
@@ -131,12 +120,12 @@ impl Display for UpdateStateError {
 pub struct ServerState {
     state: CompleteStateSpec,
     rendered_workloads: RenderedWorkloads,
-    pre_hook_rendered_workloads: RenderedWorkloads,
     delete_graph: DeleteGraph,
     config_renderer: ConfigRenderer,
+    signed_workload_requests: std::collections::HashMap<String, ankaios_api::ank_base::UpdateStateRequest>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AddedDeletedWorkloads {
     pub added_workloads: Vec<WorkloadNamed>,
     pub deleted_workloads: Vec<DeletedWorkload>,
@@ -181,29 +170,12 @@ fn include_both_state_and_substate_filters(filters: &mut Vec<String>) {
 #[cfg_attr(test, automock)]
 impl ServerState {
     const API_VERSION_FILTER_MASK: &'static str = "desiredState.apiVersion";
-    const EFFECTIVE_STATE_API_VERSION_FILTER_MASK: &'static str = "effectiveState.apiVersion";
     const DESIRED_STATE_FIELD_MASK_PART: &'static str = "desiredState";
-    const EFFECTIVE_STATE_FIELD_MASK_PART: &'static str = "effectiveState";
 
-    pub fn desired_state(&self) -> StateSpec {
-        self.state.desired_state.clone()
-    }
-
-    // [impl->swdd~server-provides-effective-state~1]
-    /// Builds the effective state from the current rendered workloads.
-    /// The effective state reflects workloads after config rendering and hook mutations.
-    pub fn build_effective_state(&self) -> StateSpec {
-        let workloads = self
-            .rendered_workloads
-            .iter()
-            .map(|(name, wl_named)| (name.clone(), wl_named.workload.clone()))
-            .collect();
-        StateSpec {
-            api_version: self.state.desired_state.api_version.clone(),
-            workloads: WorkloadMapSpec { workloads },
-            // [impl->swdd~server-effective-state-omits-configs~1]
-            ..Default::default()
-        }
+    // Used in ankaios_server.rs but not detected by dead code analysis
+    #[allow(dead_code)]
+    pub fn get_desired_state(&self) -> &StateSpec {
+        &self.state.desired_state
     }
 
     // [impl->swdd~server-provides-interface-get-complete-state~2]
@@ -218,8 +190,6 @@ impl ServerState {
             desired_state: self.state.desired_state.clone(),
             workload_states: workload_states_map.clone(),
             agents: agent_map.clone(),
-            // [impl->swdd~server-provides-effective-state~1]
-            effective_state: self.build_effective_state(),
         }
         .into();
 
@@ -230,13 +200,6 @@ impl ServerState {
                 .any(|filter| filter.starts_with(Self::DESIRED_STATE_FIELD_MASK_PART))
             {
                 filters.push(Self::API_VERSION_FILTER_MASK.to_owned());
-            }
-            // [impl->swdd~server-provides-effective-state~1]
-            if filters
-                .iter()
-                .any(|filter| filter.starts_with(Self::EFFECTIVE_STATE_FIELD_MASK_PART))
-            {
-                filters.push(Self::EFFECTIVE_STATE_API_VERSION_FILTER_MASK.to_owned());
             }
 
             // [impl->swdd~server-filters-get-complete-state-workload-state-substate~1]
@@ -263,7 +226,7 @@ impl ServerState {
                         field
                     );
                     continue;
-                }
+                };
             }
 
             return_state.try_into().map_err(|err: serde_yaml::Error| {
@@ -299,8 +262,18 @@ impl ServerState {
     pub fn update(
         &mut self,
         new_desired_state: StateSpec,
-        hooks_registry: &HooksRegistry,
+        signed_request: Option<ankaios_api::ank_base::UpdateStateRequest>,
     ) -> Result<Option<AddedDeletedWorkloads>, UpdateStateError> {
+        // Store original signed request if provided
+        if let Some(request) = signed_request {
+            // Extract workload name from the signed request
+            // For signed requests, we enforce exactly ONE workload per request
+            if let Some(workload_name) = extract_single_workload_from_request(&request) {
+                log::debug!("Storing signed request for workload '{}'", workload_name);
+                self.signed_workload_requests.insert(workload_name, request);
+            }
+        }
+
         // [impl->swdd~update-desired-state-with-update-mask~1]
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
@@ -320,25 +293,11 @@ impl ServerState {
             .validate()
             .map_err(UpdateStateError::ResultInvalid)?;
 
-        // [impl->swdd~server-state-compares-rendered-workloads~2]
-        let added_deleted_workloads = extract_added_and_deleted_workloads(
-            &self.pre_hook_rendered_workloads,
-            &new_rendered_workloads,
-        );
+        // [impl->swdd~server-state-compares-rendered-workloads~1]
+        let added_deleted_workloads =
+            extract_added_and_deleted_workloads(&self.rendered_workloads, &new_rendered_workloads);
 
         if let Some(mut added_deleted_workloads) = added_deleted_workloads {
-            let pre_hook_rendered_workloads = new_rendered_workloads.clone();
-            let mut new_rendered_workloads = new_rendered_workloads;
-            // [impl->swdd~server-applies-mutated-workloads-to-effective-state~1]
-            // [impl->swdd~server-removes-dropped-workloads-from-effective-state~1]
-            // [impl->swdd~server-restores-undeleted-workloads-in-effective-state~1]
-            update_effective_state(
-                hooks_registry,
-                &mut added_deleted_workloads,
-                &mut new_rendered_workloads,
-                &self.rendered_workloads,
-            )?;
-
             let added_workloads = &added_deleted_workloads.added_workloads;
 
             let start_nodes: Vec<&str> = added_workloads
@@ -369,7 +328,6 @@ impl ServerState {
                 .apply_delete_conditions_to(&mut added_deleted_workloads.deleted_workloads);
 
             self.set_desired_state(new_desired_state);
-            self.pre_hook_rendered_workloads = pre_hook_rendered_workloads;
             self.rendered_workloads = new_rendered_workloads;
             Ok(Some(added_deleted_workloads))
         } else {
@@ -380,9 +338,8 @@ impl ServerState {
         }
     }
 
-    // [impl->swdd~server-effective-state-read-only~1]
     pub fn generate_new_state(
-        &self,
+        &mut self,
         updated_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<StateGenerationResult, UpdateStateError> {
@@ -394,9 +351,12 @@ impl ServerState {
                         "Could not parse into CompleteState: '{err}'"
                     ))
                 })?;
+
             return Ok(StateGenerationResult {
+                old_desired_state: self.state.desired_state.clone(),
                 new_desired_state: new_complete_state.desired_state,
                 new_agent_map: new_complete_state.agents,
+                update_mask: vec![],  // Empty update mask
             });
         }
 
@@ -410,14 +370,33 @@ impl ServerState {
 
         let mut new_state = old_state.clone();
 
-        for field in update_mask {
+        for field in &update_mask {
             let field: Path = field.into();
             if let Some(field_from_update) = state_from_update.get(&field) {
                 if new_state.set(&field, field_from_update.to_owned()).is_err() {
                     return Err(UpdateStateError::FieldNotFound(field.into()));
                 }
-            } else if new_state.remove(&field).is_err() {
-                return Err(UpdateStateError::FieldNotFound(field.into()));
+            } else {
+                // Field not in update - this is a deletion request
+                log::info!("🗑️  Deleting field from state: {}", field);
+                match new_state.remove(&field) {
+                    Ok(removed_value) => {
+                        log::info!("✅ Successfully removed field: {}", field);
+                        if let Some(value) = removed_value {
+                            log::debug!("Removed value type: {:?}", value);
+                        }
+                        // Extra verification for workload deletions
+                        let field_str = field.to_string();
+                        if field_str.starts_with("desiredState.workloads.") {
+                            let workload_name = field_str.strip_prefix("desiredState.workloads.").unwrap_or("");
+                            log::info!("🗑️  Workload '{}' has been removed from new_state", workload_name);
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("❌ Failed to remove field '{}': {}", field, e);
+                        return Err(UpdateStateError::FieldNotFound(field.into()));
+                    }
+                }
             }
         }
 
@@ -429,8 +408,10 @@ impl ServerState {
             })?;
 
         Ok(StateGenerationResult {
+            old_desired_state: self.state.desired_state.clone(),
             new_desired_state: new_complete_state.desired_state,
             new_agent_map: new_complete_state.agents,
+            update_mask: update_mask.clone(),
         })
     }
 
@@ -441,8 +422,53 @@ impl ServerState {
             .remove_deleted_workloads_from_delete_graph(new_workload_states);
     }
 
+    /// Get original signed requests for specified workloads
+    // Used in event_handler.rs but not detected by dead code analysis
+    #[allow(dead_code)]
+    pub fn get_signed_requests_for_workloads(
+        &self,
+        workload_names: &[String],
+    ) -> HashMap<String, ankaios_api::ank_base::UpdateStateRequest> {
+        workload_names
+            .iter()
+            .filter_map(|name| {
+                self.signed_workload_requests
+                    .get(name)
+                    .map(|req| (name.clone(), req.clone()))
+            })
+            .collect()
+    }
+
     fn set_desired_state(&mut self, new_desired_state: StateSpec) {
         self.state.desired_state = new_desired_state;
+    }
+}
+
+/// Extract workload name from update_mask path like "desiredState.workloads.nginx"
+fn extract_workload_name_from_path(path: &str) -> Option<String> {
+    let parts: Vec<&str> = path.split('.').collect();
+    if parts.len() >= 3 && parts[0] == "desiredState" && parts[1] == "workloads" {
+        Some(parts[2].to_string())
+    } else {
+        None
+    }
+}
+
+/// Extract single workload name from UpdateStateRequest (for signed requests only)
+fn extract_single_workload_from_request(
+    request: &ankaios_api::ank_base::UpdateStateRequest,
+) -> Option<String> {
+    // Check update_mask contains exactly one workload path
+    let workload_names: Vec<String> = request
+        .update_mask
+        .iter()
+        .filter_map(|path| extract_workload_name_from_path(path))
+        .collect();
+
+    if workload_names.len() == 1 {
+        Some(workload_names[0].clone())
+    } else {
+        None
     }
 }
 
@@ -455,25 +481,6 @@ impl ServerState {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
-static UPDATE_EFFECTIVE_STATE_CALLED: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
-
-#[cfg(test)]
-fn update_effective_state(
-    _hooks_registry: &HooksRegistry,
-    added_deleted_workloads: &mut AddedDeletedWorkloads,
-    new_rendered_workloads: &mut RenderedWorkloads,
-    _old_rendered_workloads: &RenderedWorkloads,
-) -> Result<(), UpdateStateError> {
-    UPDATE_EFFECTIVE_STATE_CALLED.store(true, std::sync::atomic::Ordering::SeqCst);
-    for wl_named in &added_deleted_workloads.added_workloads {
-        let name = wl_named.instance_name.workload_name().to_owned();
-        new_rendered_workloads.insert(name, wl_named.clone());
-    }
-    Ok(())
-}
-
-#[cfg(test)]
 mod tests {
     use super::ServerState;
     use std::collections::HashMap;
@@ -481,16 +488,16 @@ mod tests {
     use crate::ankaios_server::{
         config_renderer::{ConfigRenderError, MockConfigRenderer},
         delete_graph::MockDeleteGraph,
-        hooks_registry::HooksRegistry,
         rendered_workloads::RenderedWorkloads,
         server_state::{
             AddedDeletedWorkloads, UpdateStateError, extract_added_and_deleted_workloads,
         },
     };
     use ankaios_api::ank_base::{
-        AgentMapSpec, CompleteState, CompleteStateRequest, CompleteStateSpec, DeletedWorkload,
-        State, StateSpec, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap,
-        WorkloadMapSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
+        AgentMapSpec, CompleteState, CompleteStateRequest,
+        CompleteStateSpec, DeletedWorkload, State, StateSpec, Workload, WorkloadInstanceName,
+        WorkloadInstanceNameSpec, WorkloadMap, WorkloadMapSpec, WorkloadNamed, WorkloadStateSpec,
+        WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_complete_state, generate_test_config_map,
@@ -629,7 +636,6 @@ mod tests {
             desired_state: None,
             workload_states: Some(expected_workload_states),
             agents: None,
-            effective_state: None,
         };
 
         assert_eq!(received_complete_state, expected_complete_state);
@@ -637,7 +643,6 @@ mod tests {
 
     // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-filters-get-complete-state-result~2]
-    // [utest->swdd~server-provides-effective-state~1]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_empty_mask() {
         let w1 = generate_test_workload_named_with_params(
@@ -683,7 +688,6 @@ mod tests {
         let mut expected_complete_state = server_state.state.clone();
         expected_complete_state.workload_states = workload_states_map;
         expected_complete_state.agents = agent_map;
-        expected_complete_state.effective_state = server_state.build_effective_state();
 
         let expected_complete_state = CompleteState::from(expected_complete_state);
         assert_eq!(received_complete_state, expected_complete_state);
@@ -727,7 +731,6 @@ mod tests {
             desired_state: Some(server_state.state.desired_state.clone().into()),
             workload_states: None,
             agents: None,
-            effective_state: None,
         };
         if let Some(expected_desired_state) = &mut expected_complete_state.desired_state {
             expected_desired_state.configs = None;
@@ -874,18 +877,6 @@ mod tests {
         assert_eq!(workloads.len(), 0);
     }
 
-    #[test]
-    fn utest_server_state_desired_state_returns_stored_state() {
-        let complete_state = generate_test_old_state();
-
-        let server_state = ServerState {
-            state: complete_state.clone(),
-            ..Default::default()
-        };
-
-        assert_eq!(server_state.desired_state(), complete_state.desired_state);
-    }
-
     // [utest->swdd~server-handles-logs-request-message~1]
     #[test]
     fn utest_desired_state_contains_instance_name() {
@@ -988,14 +979,12 @@ mod tests {
         let mut server_state = ServerState {
             state: old_state.clone(),
             rendered_workloads: generate_rendered_workloads_from_state(&old_state.desired_state),
-            pre_hook_rendered_workloads: generate_rendered_workloads_from_state(
-                &old_state.desired_state,
-            ),
             delete_graph: delete_graph_mock,
             config_renderer: mock_config_renderer,
-        };
+            signed_workload_requests: std::collections::HashMap::new(),
+                    };
 
-        let result = server_state.update(desired_state_spec, &HooksRegistry::default());
+        let result = server_state.update(desired_state_spec, None);
         assert_eq!(
             result,
             Err(UpdateStateError::CycleInDependencies(
@@ -1015,7 +1004,7 @@ mod tests {
         let update_state: CompleteState = generate_test_update_state().into();
         let update_mask = vec![];
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1057,7 +1046,7 @@ mod tests {
             .workloads
             .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), new_workload.clone());
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1098,7 +1087,7 @@ mod tests {
             .workloads
             .insert(fixtures::WORKLOAD_NAMES[3].into(), new_workload.clone());
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1123,7 +1112,7 @@ mod tests {
 
         let update_mask = vec!["desiredState".to_string()];
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1159,7 +1148,7 @@ mod tests {
             .remove(fixtures::WORKLOAD_NAMES[1])
             .unwrap();
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1184,7 +1173,7 @@ mod tests {
 
         let expected = &old_state;
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1207,7 +1196,7 @@ mod tests {
         let field_mask = "desiredState.workloads.non.existing";
         let update_mask = vec![field_mask.into()];
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1227,7 +1216,7 @@ mod tests {
         let update_state = generate_test_update_state();
         let update_mask = vec!["".into()];
 
-        let server_state = ServerState {
+        let mut server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
         };
@@ -1244,7 +1233,7 @@ mod tests {
     #[test]
     fn utest_server_state_generate_new_state_no_changes_on_equal_states() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
-        let server_state = ServerState::default(); // empty old state
+        let mut server_state = ServerState::default(); // empty old state
 
         let expected_complete_state = CompleteStateSpec::default();
         let new_complete_state: CompleteState = expected_complete_state.clone().into();
@@ -1281,9 +1270,7 @@ mod tests {
             ..Default::default()
         };
 
-        let added_deleted_workloads = server_state
-            .update(StateSpec::default(), &HooksRegistry::default())
-            .unwrap();
+        let added_deleted_workloads = server_state.update(StateSpec::default(), None).unwrap();
         assert!(added_deleted_workloads.is_none());
         assert_eq!(server_state.state, CompleteStateSpec::default());
     }
@@ -1314,10 +1301,7 @@ mod tests {
         };
 
         let added_deleted_workloads = server_state
-            .update(
-                new_state_with_configs.desired_state.clone(),
-                &HooksRegistry::default(),
-            )
+            .update(new_state_with_configs.desired_state.clone(), None)
             .unwrap();
         assert!(added_deleted_workloads.is_none());
         assert_eq!(server_state.state, new_state_with_configs);
@@ -1353,14 +1337,12 @@ mod tests {
         let mut server_state = ServerState {
             state: old_state.clone(),
             rendered_workloads: generate_rendered_workloads_from_state(&old_state.desired_state),
-            pre_hook_rendered_workloads: generate_rendered_workloads_from_state(
-                &old_state.desired_state,
-            ),
             delete_graph: delete_graph_mock,
             config_renderer: mock_config_renderer,
-        };
+            signed_workload_requests: std::collections::HashMap::new(),
+                    };
 
-        let result = server_state.update(updated_state.desired_state, &HooksRegistry::default());
+        let result = server_state.update(updated_state.desired_state, None);
         assert!(result.is_err());
         assert!(
             result
@@ -1373,7 +1355,7 @@ mod tests {
     }
 
     // [utest->swdd~server-detects-changed-workload~1]
-    // [utest->swdd~server-state-compares-rendered-workloads~2]
+    // [utest->swdd~server-state-compares-rendered-workloads~1]
     // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     #[test]
     fn utest_server_state_update_state_detects_changed_workloads() {
@@ -1401,20 +1383,18 @@ mod tests {
         // old and new state are identical but the workload has been changed after rendering
         let new_state = old_state.clone();
 
-        let old_rendered = RenderedWorkloads::from([
-            (
-                fixtures::WORKLOAD_NAMES[0].to_owned(),
-                rendered_workload.clone(),
-            ),
-            (
-                fixtures::WORKLOAD_NAMES[1].to_owned(),
-                unchanged_workload.clone(),
-            ),
-        ]);
         let mut server_state = ServerState {
             state: old_state,
-            pre_hook_rendered_workloads: old_rendered.clone(),
-            rendered_workloads: old_rendered,
+            rendered_workloads: RenderedWorkloads::from([
+                (
+                    fixtures::WORKLOAD_NAMES[0].to_owned(),
+                    rendered_workload.clone(),
+                ),
+                (
+                    fixtures::WORKLOAD_NAMES[1].to_owned(),
+                    unchanged_workload.clone(),
+                ),
+            ]),
             ..Default::default()
         };
 
@@ -1448,9 +1428,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let added_deleted_workloads = server_state
-            .update(new_state.desired_state, &HooksRegistry::default())
-            .unwrap();
+        let added_deleted_workloads = server_state.update(new_state.desired_state, None).unwrap();
 
         assert_eq!(
             Some(AddedDeletedWorkloads {
@@ -1465,7 +1443,7 @@ mod tests {
     }
 
     // [utest->swdd~server-detects-new-workload~1]
-    // [utest->swdd~server-state-compares-rendered-workloads~2]
+    // [utest->swdd~server-state-compares-rendered-workloads~1]
     #[test]
     fn utest_server_state_extract_added_and_deleted_workloads_new_workloads() {
         let current_rendered_workloads = RenderedWorkloads::default();
@@ -1510,7 +1488,7 @@ mod tests {
     }
 
     // [utest->swdd~server-detects-deleted-workload~1]
-    // [utest->swdd~server-state-compares-rendered-workloads~2]
+    // [utest->swdd~server-state-compares-rendered-workloads~1]
     #[test]
     fn utest_server_state_extract_added_and_deleted_workloads_deleted_workloads() {
         let current_complete_state = generate_test_old_state();
@@ -1597,7 +1575,7 @@ mod tests {
                 },
                 ..Default::default()
             },
-            &HooksRegistry::default(),
+            None,
         );
 
         assert!(matches!(result, Err(UpdateStateError::ResultInvalid(_))));
@@ -1676,16 +1654,14 @@ mod tests {
             rendered_workloads: generate_rendered_workloads_from_state(
                 &current_complete_state.desired_state,
             ),
-            pre_hook_rendered_workloads: generate_rendered_workloads_from_state(
-                &current_complete_state.desired_state,
-            ),
             state: current_complete_state,
             delete_graph: delete_graph_mock,
             config_renderer: mock_config_renderer,
-        };
+            signed_workload_requests: std::collections::HashMap::new(),
+                    };
 
         let added_deleted_workloads = server_state
-            .update(new_complete_state.desired_state, &HooksRegistry::default())
+            .update(new_complete_state.desired_state, None)
             .unwrap();
         assert!(added_deleted_workloads.is_some());
     }
@@ -1707,225 +1683,6 @@ mod tests {
         let workload_states = vec![];
 
         server_state.cleanup_state(&workload_states);
-    }
-
-    // [utest->swdd~server-effective-state-read-only~1]
-    #[test]
-    fn utest_effective_state_ignored_on_generate_new_state() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
-        let old_state = generate_test_old_state();
-
-        // Create an update that includes an effectiveState with different workloads
-        let mut update_state: CompleteState = generate_test_update_state().into();
-
-        // Set effective_state to a copy of desired state — simulating a user sending it back
-        update_state.effective_state = update_state.desired_state.clone();
-
-        let update_mask = vec![];
-
-        let server_state = ServerState {
-            state: old_state.clone(),
-            ..Default::default()
-        };
-
-        let result = server_state
-            .generate_new_state(update_state.clone(), update_mask)
-            .unwrap();
-
-        // The result should only reflect the desiredState, not the effectiveState
-        let expected: StateSpec = update_state.desired_state.unwrap().try_into().unwrap();
-        assert_eq!(result.new_desired_state, expected);
-    }
-
-    // [utest->swdd~server-effective-state-read-only~1]
-    #[test]
-    fn utest_effective_state_ignored_on_generate_new_state_with_update_mask() {
-        let old_state = generate_test_old_state();
-
-        let mut update_state: CompleteState = old_state.clone().into();
-        // Set effective_state to something non-None
-        update_state.effective_state = update_state.desired_state.clone();
-
-        // Use update mask targeting effectiveState — should have no effect on desired state
-        let update_mask = vec![format!(
-            "effectiveState.workloads.{}",
-            fixtures::WORKLOAD_NAMES[0]
-        )];
-
-        let server_state = ServerState {
-            state: old_state.clone(),
-            ..Default::default()
-        };
-
-        let result = server_state
-            .generate_new_state(update_state, update_mask)
-            .unwrap();
-
-        // Desired state should remain unchanged — effectiveState writes are ignored
-        assert_eq!(result.new_desired_state, old_state.desired_state);
-    }
-
-    // [utest->swdd~server-effective-state-omits-configs~1]
-    #[test]
-    fn utest_effective_state_omits_configs_map() {
-        let mut complete_state = generate_test_old_state();
-        complete_state.desired_state.configs = generate_test_config_map();
-
-        let server_state = ServerState {
-            state: complete_state.clone(),
-            rendered_workloads: generate_rendered_workloads_from_state(
-                &complete_state.desired_state,
-            ),
-            ..Default::default()
-        };
-
-        let effective_state = server_state.build_effective_state();
-
-        assert!(
-            effective_state.configs.configs.is_empty(),
-            "effectiveState.configs shall be empty"
-        );
-    }
-
-    // [utest->swdd~server-applies-mutated-workloads-to-effective-state~1]
-    #[test]
-    fn utest_server_state_update_state_calls_update_effective_state() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
-        super::UPDATE_EFFECTIVE_STATE_CALLED.store(false, std::sync::atomic::Ordering::SeqCst);
-
-        let w1 = generate_test_workload_named_with_params(
-            fixtures::WORKLOAD_NAMES[0],
-            fixtures::AGENT_NAMES[0],
-            fixtures::RUNTIME_NAMES[0],
-        );
-        let mut w2 = generate_test_workload_named_with_params(
-            fixtures::WORKLOAD_NAMES[1],
-            fixtures::AGENT_NAMES[0],
-            fixtures::RUNTIME_NAMES[0],
-        );
-        w2.workload.dependencies.dependencies.clear();
-
-        let old_state = generate_test_complete_state(vec![w1.clone()]);
-        let new_state = generate_test_state_from_workloads(vec![w1.clone(), w2.clone()]);
-
-        let new_rendered = RenderedWorkloads::from([
-            (fixtures::WORKLOAD_NAMES[0].to_owned(), w1.clone()),
-            (fixtures::WORKLOAD_NAMES[1].to_owned(), w2.clone()),
-        ]);
-
-        let mut mock_config_renderer = MockConfigRenderer::new();
-        mock_config_renderer
-            .expect_render_workloads()
-            .once()
-            .return_once(move |_, _| Ok(new_rendered));
-
-        let mut delete_graph_mock = MockDeleteGraph::new();
-        delete_graph_mock.expect_insert().once().return_const(());
-        delete_graph_mock
-            .expect_apply_delete_conditions_to()
-            .once()
-            .return_const(());
-
-        let mut server_state = ServerState {
-            state: old_state.clone(),
-            rendered_workloads: generate_rendered_workloads_from_state(&old_state.desired_state),
-            pre_hook_rendered_workloads: generate_rendered_workloads_from_state(
-                &old_state.desired_state,
-            ),
-            config_renderer: mock_config_renderer,
-            delete_graph: delete_graph_mock,
-        };
-
-        let result = server_state.update(new_state, &HooksRegistry::default());
-        assert!(result.is_ok());
-        assert!(
-            super::UPDATE_EFFECTIVE_STATE_CALLED.load(std::sync::atomic::Ordering::SeqCst),
-            "update_effective_state must be called during ServerState::update"
-        );
-    }
-
-    // [utest->swdd~server-state-compares-rendered-workloads~2]
-    #[test]
-    fn utest_server_state_reapply_after_hook_mutation_no_update() {
-        // Scenario: A manifest was applied and the hook mutated the workload
-        // (e.g. changed runtime_config). Reapplying the same manifest should detect
-        // no change because pre_hook_rendered_workloads stores the pre-mutation state.
-        super::UPDATE_EFFECTIVE_STATE_CALLED.store(false, std::sync::atomic::Ordering::SeqCst);
-
-        let original_runtime_config = "original_config".to_owned();
-        let mutated_runtime_config = "mutated_by_hook_config".to_owned();
-
-        let pre_hook_workload = generate_test_workload_named_with_runtime_config(
-            fixtures::WORKLOAD_NAMES[0],
-            fixtures::AGENT_NAMES[0],
-            fixtures::RUNTIME_NAMES[0],
-            original_runtime_config.clone(),
-        );
-
-        let mut post_hook_workload = pre_hook_workload.clone();
-        post_hook_workload.workload.runtime_config = mutated_runtime_config;
-
-        // The server state after the first apply:
-        // - pre_hook_rendered_workloads has the original (pre-mutation) workload
-        // - rendered_workloads has the mutated (post-hook) workload
-        let pre_hook_rendered = RenderedWorkloads::from([(
-            fixtures::WORKLOAD_NAMES[0].to_owned(),
-            pre_hook_workload.clone(),
-        )]);
-        let post_hook_rendered = RenderedWorkloads::from([(
-            fixtures::WORKLOAD_NAMES[0].to_owned(),
-            post_hook_workload.clone(),
-        )]);
-
-        let state = CompleteStateSpec {
-            desired_state: StateSpec {
-                workloads: WorkloadMapSpec {
-                    workloads: HashMap::from([(
-                        fixtures::WORKLOAD_NAMES[0].to_owned(),
-                        pre_hook_workload.workload.clone(),
-                    )]),
-                },
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        let mut mock_config_renderer = MockConfigRenderer::new();
-        // Reapply produces the same pre-hook rendered workload
-        let cloned_pre_hook = pre_hook_rendered.clone();
-        mock_config_renderer
-            .expect_render_workloads()
-            .once()
-            .return_once(move |_, _| Ok(cloned_pre_hook));
-
-        let mut delete_graph_mock = MockDeleteGraph::new();
-        // No workload changes expected, so insert/apply should never be called
-        delete_graph_mock.expect_insert().never();
-        delete_graph_mock
-            .expect_apply_delete_conditions_to()
-            .never();
-
-        let mut server_state = ServerState {
-            state: state.clone(),
-            pre_hook_rendered_workloads: pre_hook_rendered,
-            rendered_workloads: post_hook_rendered,
-            config_renderer: mock_config_renderer,
-            delete_graph: delete_graph_mock,
-        };
-
-        // Reapply the same desired state
-        let result = server_state.update(state.desired_state.clone(), &HooksRegistry::default());
-
-        // No workload update should be triggered
-        assert!(result.is_ok());
-        assert!(
-            result.unwrap().is_none(),
-            "Reapplying a manifest after hook mutation shall not trigger a workload update"
-        );
-        assert!(
-            !super::UPDATE_EFFECTIVE_STATE_CALLED.load(std::sync::atomic::Ordering::SeqCst),
-            "update_effective_state must not be called when no workload change is detected"
-        );
     }
 
     fn generate_test_old_state() -> CompleteStateSpec {

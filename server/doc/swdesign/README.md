@@ -49,30 +49,6 @@ Considered alternatives:
 - Askama: does not support rendering templates at runtime, mainly used for generating code based on templates
 - Tera: Jinja2 template engine contains too many features beyond the use case
 
-#### Mutating hook response optimization via byte comparison
-`swdd~server-mutating-hook-skip-unchanged-response~1`
-
-Status: approved
-
-When a mutating hook returns its response, the server compares the raw protobuf output bytes against the input bytes. If they are identical, the server skips decoding and conversion entirely.
-
-Rationale:
-
-Even though protobuf does not guarantee canonical deterministic encoding in all contexts, identical serialized bytes represent the same message. A byte-level comparison (`memcmp`) is extremely cheap and avoids unnecessary protobuf decoding, object allocation, and type conversion when a hook approves the workloads without modifying them. This is the expected common case, as most hooks will only validate or reject, not mutate.
-
-Needs:
-- impl
-
-Assumptions:
-
-Up to 10 mutating hooks may be chained. The performance bottleneck is process spawning (~1–5ms per hook), not data serialization or pipe I/O.
-
-Considered alternatives:
-
-- **No optimization**: Always decode and convert the response. Simple, but performs redundant work in the common non-mutating case. The decoding and conversion cost is small but unnecessary.
-- **Lightweight mutating result message**: The hook returns a small response carrying only workload names and an "admitted" flag when no mutation occurred. This would save a few KB of pipe I/O per hook but adds significant complexity: a new protobuf message type, a framing mechanism for the server to distinguish response formats, two code paths for response handling, and additional burden on hook authors. The pipe I/O savings (~10–50 microseconds total across 10 hooks) are negligible compared to process spawning costs (~10–50 milliseconds), making the trade-off unjustified.
-- **Per-workload hash tracking**: Track individual workload mutations via content hashes to selectively skip conversion of unchanged workloads. Adds protocol complexity and statefulness without meaningful gain, since the entire message must still be transferred and decoded to extract the hashes.
-
 ## Structural view
 
 The following diagram shows the structural view of the Ankaios Server:
@@ -115,13 +91,219 @@ In the following a workload requesting logs is sometimes also called log collect
 
 The EventHandler holds metadata about the event subscribers and their subscribed field masks. It is responsible for sending out events to the corresponding event subscribers.
 
-### HooksRegistry
-
-The HooksRegistry holds the list of configured mutating hooks sorted by priority. It is responsible for executing mutating hooks as child processes, feeding them the serialized workload update via stdin and reading back the (potentially mutated) result from stdout. The registry is initialized at server startup from the server configuration.
-
 ### StateComparator
 
 The StateComparator compares the current with the new state to determine state differences for events.
+
+### SignatureValidator
+
+The SignatureValidator provides cryptographic verification of workload manifests using Ed25519 signatures. It validates signatures on UpdateStateRequest messages, prevents replay attacks using monotonic counters, and ensures manifest integrity through constant-time verification operations.
+
+#### Server validates signed workload manifests
+`swdd~server-signature-validation~1`
+
+Status: approved
+
+The server shall verify Ed25519 signatures on UpdateStateRequest messages when signature_metadata is present.
+
+Comment:
+Signature verification ensures workload manifests are cryptographically authenticated and have not been tampered with during transmission.
+
+Rationale:
+Cryptographic verification prevents unauthorized workload deployment and ensures manifest integrity in multi-tenant or security-critical environments.
+
+Tags:
+- SignatureValidator
+- Security
+
+Needs:
+- impl
+- utest
+- itest
+
+#### Server verifies canonicalized protobuf
+`swdd~server-signature-canonical-protobuf~1`
+
+Status: approved
+
+The server shall compute signatures on canonicalized protobuf representations of State messages, not raw YAML text.
+
+Comment:
+Protobuf is the single source of truth. Signing canonical protobuf prevents attacks where valid YAML signatures are paired with malicious protobuf data.
+
+Rationale:
+Eliminates YAML/protobuf mismatch attack vector identified in security review.
+
+Tags:
+- SignatureValidator
+- Canonicalization
+
+Needs:
+- impl
+- utest
+
+#### Server includes counter and timestamp in signed payload
+`swdd~server-signature-includes-counter-timestamp~1`
+
+Status: approved
+
+The server shall verify that counter and timestamp values are cryptographically included in the Ed25519 signature payload.
+
+Comment:
+The SignedPayload structure containing {counter, timestamp, canonical_bytes} is what gets signed and verified.
+
+Rationale:
+Including counter/timestamp in the signature prevents attackers from modifying replay protection metadata.
+
+Tags:
+- SignatureValidator
+- ReplayProtection
+
+Needs:
+- impl
+- utest
+
+#### Server prevents replay attacks using monotonic counters
+`swdd~server-signature-replay-protection~1`
+
+Status: approved
+
+The server shall maintain per-key and per-source monotonic counters and reject manifests with counter values less than or equal to previously seen values.
+
+Comment:
+Counter state is persisted to disk and survives server restarts.
+
+Rationale:
+Prevents replay attacks where old valid signed manifests are resubmitted.
+
+Tags:
+- SignatureValidator
+- ReplayProtection
+
+Needs:
+- impl
+- utest
+- itest
+
+#### Server uses constant-time signature verification
+`swdd~server-signature-constant-time~1`
+
+Status: approved
+
+The server shall use constant-time operations for key lookup and signature verification to prevent timing attacks.
+
+Comment:
+Prevents key enumeration via timing side-channels.
+
+Rationale:
+Timing attacks could allow attackers to determine which keys are configured without having valid signatures.
+
+Tags:
+- SignatureValidator
+- Security
+
+Needs:
+- impl
+
+#### Security Model for Signature Validation
+`swdd~server-signature-security-model~1`
+
+Status: approved
+
+The signature validation system implements defense-in-depth security with the following properties:
+
+**Threat Model:**
+- Attackers can intercept and replay old signed manifests (network-level replay)
+- Attackers can tamper with counter state files on disk (filesystem access)
+- Attackers can attempt timing attacks to enumerate valid key IDs
+- Attackers can submit manifests signed with compromised or unauthorized keys
+- Attackers can craft malicious request_ids to bypass restoration exemption checks (request_id injection)
+
+**Trust Assumptions:**
+- Ed25519 private keys are kept secure by authorized signers
+- Server filesystem is protected but may be compromised (defense-in-depth)
+- Network connections to server may be untrusted
+- Server restarts do not compromise security (counter state persists)
+
+**Attack Mitigations:**
+- **Replay protection**: Monotonic counters per key_id and per source
+- **Counter tampering**: Fail-closed on corrupted counter files, backup for forensics
+- **Timing attacks**: Constant-time key lookup and signature verification
+- **Unauthorized keys**: Allowlist-based key_id filtering via policy
+- **TOCTOU races**: Atomic counter state writes via temp file + rename
+- **Restoration exemption**: Startup workload restoration allowed with same counter, validated via authenticated identity chain parsing (not substring matching) to prevent request_id injection attacks
+- **Request_id injection**: Source format "request:{agent}@{workload}@{client_request_id}" parsed to validate workload name against allowed_restoration_plugins allowlist
+
+**Fail-Closed Behavior:**
+- Corrupted counter file → Refuse to start server
+- Invalid signature → Reject manifest
+- Counter rollback detected → Reject manifest
+- Unknown key_id (when allowlist configured) → Reject manifest
+
+Tags:
+- SignatureValidator
+- Security
+- ThreatModel
+
+Needs:
+- doc
+
+#### CLI signs workload manifests
+`swdd~cli-sign-workload-manifests~1`
+
+Status: approved
+
+The ank CLI shall provide a `sign` command that signs workload manifests using Ed25519 private keys.
+
+Comment:
+Signing produces UpdateStateRequest protobuf messages with signature_metadata populated.
+
+Rationale:
+Users need a convenient tool to cryptographically sign workloads before deployment.
+
+Tags:
+- Ank
+- SigningTool
+
+Needs:
+- impl
+- utest
+
+#### CLI generates Ed25519 keypairs
+`swdd~cli-generate-keypairs~1`
+
+Status: approved
+
+The ank CLI shall provide a `keygen` command that generates Ed25519 keypair in PEM format.
+
+Tags:
+- Ank
+- KeyManagement
+
+Needs:
+- impl
+- utest
+
+#### State canonicalization is deterministic
+`swdd~common-state-canonicalization~1`
+
+Status: approved
+
+The common crate shall provide deterministic canonical serialization of State and Workload protobuf messages.
+
+Comment:
+Canonicalization ensures identical logical states produce identical byte sequences regardless of map ordering or formatting.
+
+Rationale:
+Signature verification requires byte-for-byte reproducibility of signed data.
+
+Tags:
+- Canonicalization
+- Common
+
+Needs:
+- impl
+- utest
 
 ## Behavioral view
 
@@ -785,225 +967,6 @@ Needs:
 - impl
 - stest
 
-### Mutating Hooks
-
-> [!Note]
->The mutating hooks feature is still in beta.
-> Both configuration format and the communication protocol between the server and hooks, is unstable and may change at any time.
-
-Mutating hooks allow external programs to validate, reject, or mutate workload changes before they are applied.
-
-#### Server config supports mutating hooks
-`swdd~server-config-supports-mutating-hooks~1`
-
-Status: approved
-
-The Ankaios server shall support configuring mutating hooks in the server configuration file with the following attributes per hook:
-
-- `name` — the hook executable name (required)
-- `prio` — execution priority as an unsigned 8-bit integer (`0`–`255`, optional, default `0`)
-- `path` — directory containing the hook executable (optional, default `/usr/libexec/ankaios/hooks`)
-
-Rationale:
-Mutating hooks need to be declaratively configured so that administrators can control which hooks run and in what order.
-
-Comment:
-Mutating hooks are currently a beta feature. The interface to this feature, including both configuration and the communication protocol between the server and hooks, is unstable and may change at any time.
-
-Tags:
-- AnkaiosServer
-
-Needs:
-- impl
-- utest
-
-#### Server sorts mutating hooks by priority
-`swdd~server-sorts-mutating-hooks-by-priority~1`
-
-Status: approved
-
-The Ankaios server shall sort mutating hooks by their configured priority in ascending order before executing them, where hooks with equal priority maintain their declaration order (stable sort).
-
-Rationale:
-Priority ordering allows administrators to ensure validation hooks run before mutation hooks.
-
-Tags:
-- HooksRegistry
-
-Needs:
-- impl
-- utest
-
-#### Server executes mutating hooks as child processes
-`swdd~server-executes-mutating-hooks-as-subprocess~1`
-
-Status: approved
-
-When the server state changes, the Ankaios server shall execute each configured mutating hook as a child process by performing the following actions in order:
-
-1. Serialize the added and deleted workloads as a protobuf `UpdateWorkload` message
-2. Write the serialized message to the hook's stdin
-3. Read the hook's stdout as the potentially mutated protobuf response
-
-Rationale:
-Using child processes with protobuf serialization provides a language-agnostic, sandboxed interface for mutating hooks.
-
-Comment:
-Mutating hooks are currently a beta feature. The interface to this feature, including both configuration and the communication protocol between the server and hooks, is unstable and may change at any time.
-
-Tags:
-- HooksRegistry
-
-Needs:
-- impl
-- utest
-
-#### Mutating hook can veto state changes
-`swdd~server-mutating-hook-veto~1`
-
-Status: approved
-
-When a mutating hook exits with a non-zero exit code, the Ankaios server shall reject the entire state update and return an error containing the hook name and its stderr output.
-
-Rationale:
-Mutating hooks need to be able to enforce policies by rejecting invalid or unauthorized workload changes.
-
-Tags:
-- HooksRegistry
-- AnkaiosServer
-
-Needs:
-- impl
-- utest
-
-#### Server traces mutating hook stderr
-`swdd~server-traces-mutating-hook-stderr~1`
-
-Status: approved
-
-When a mutating hook finishes, the Ankaios server shall trace the hook's stderr output for debugging reasons.
-
-Rationale:
-Mutating hooks are external executables and their diagnostics are written to stderr. Tracing stderr output supports debugging hook behavior in both successful and rejected update paths.
-
-Tags:
-- HooksRegistry
-
-Needs:
-- impl
-
-#### Server applies mutated workloads to effective state
-`swdd~server-applies-mutated-workloads-to-effective-state~1`
-
-Status: approved
-
-After running mutating hooks, the Ankaios server shall apply the mutated added workloads to the effective state.
-
-Rationale:
-The effective state must reflect the workload configurations that are actually sent to agents after hook mutations.
-
-Tags:
-- HooksRegistry
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### Server removes dropped workloads from effective state
-`swdd~server-removes-dropped-workloads-from-effective-state~1`
-
-Status: approved
-
-When a mutating hook removes a workload from the added workloads list, the Ankaios server shall remove that workload from the effective state.
-
-Rationale:
-If a hook drops a workload from the added list, the effective state must not contain a workload that will not be deployed.
-
-Tags:
-- HooksRegistry
-
-Needs:
-- impl
-- utest
-
-#### Server restores undeleted workloads in effective state
-`swdd~server-restores-undeleted-workloads-in-effective-state~1`
-
-Status: approved
-
-When a mutating hook removes a workload from the deleted workloads list, the Ankaios server shall restore that workload in the effective state from the previous rendered workloads.
-
-Rationale:
-If a hook prevents a workload from being deleted, the effective state must continue to contain that workload.
-
-Tags:
-- HooksRegistry
-
-Needs:
-- impl
-- utest
-
-#### Server provides effective state in CompleteState response
-`swdd~server-provides-effective-state~1`
-
-Status: approved
-
-The Ankaios server shall include the effective state containing the rendered workload configurations as a field in the CompleteState response.
-
-Comment:
-The effective state supports field mask filtering and automatic inclusion of the apiVersion, consistent with the existing desiredState filtering behavior. The configs field is currently not filled in the effective state as configs have already been applied (rendered) into the workload configurations.
-
-Rationale:
-Users and workloads need visibility into the actual workload configurations sent to agents, which may differ from the desired state due to mutating hook mutations.
-
-Tags:
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### Effective state omits configs map
-`swdd~server-effective-state-omits-configs~1`
-
-Status: approved
-
-When building the effective state, the Ankaios server shall leave the `effectiveState.configs` map empty.
-
-Comment:
-The effective state is based on the state object, but contains rendered workload configurations, where config references are already resolved into workload fields.
-
-Rationale:
-Duplicating the original config map in the effective state would add redundant data and can imply that unresolved config references are still part of the effective workload representation. Adding a new object for the effective state would increase the complexity especially if other attributes are added to the state later.
-
-Tags:
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### Effective state is read-only
-`swdd~server-effective-state-read-only~1`
-
-Status: approved
-
-The Ankaios server shall ignore the `effectiveState` field when processing state updates.
-
-Comment:
-The effective state is computed internally from rendered workloads and mutating hook results. It is never set by external clients.
-
-Rationale:
-Allowing external writes to the effective state would break its consistency with the actual hook processing pipeline.
-
-Tags:
-- ServerState
-
-Needs:
-- impl
-- utest
-
 ### Update Server State
 
 The behavioral diagram of updating the desired state is shown in the chapter "UpdateState interface".
@@ -1058,14 +1021,14 @@ Needs:
 - itest
 
 #### ServerState compares rendered workload configurations
-`swdd~server-state-compares-rendered-workloads~2`
+`swdd~server-state-compares-rendered-workloads~1`
 
 Status: approved
 
-When the ServerState determines changes in its State, the ServerState shall compare the rendered workload configurations of its new DesiredState against the pre-mutating-hook rendered workloads of the current DesiredState.
+When the ServerState determines changes in its State, the ServerState shall compare the rendered workload configurations of its current and new DesiredState.
 
 Rationale:
-This ensures that the system recognizes a workload as changed when a configuration item referenced by that workload is updated, while avoiding unnecessary updates when reapplying a manifest that was previously mutated by mutating hooks.
+This ensures that the system recognizes a workload as changed when a configuration item referenced by that workload is updated.
 
 Tags:
 - ServerState

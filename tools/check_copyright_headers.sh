@@ -10,7 +10,7 @@ FILE_EXT=(
 )
 # Exclude paths from search
 EXCLUDE_PATHS=(
-    "*/target/*"
+    "$SEARCH_DIR/target/*"
     "$SEARCH_DIR/vendor/*"
 )
 

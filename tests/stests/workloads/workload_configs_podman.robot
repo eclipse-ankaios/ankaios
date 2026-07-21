@@ -26,7 +26,7 @@ ${new_state_yaml_file}          ${EMPTY}
 
 
 *** Test Cases ***
-# [stest->swdd~server-state-compares-rendered-workloads~2]
+# [stest->swdd~server-state-compares-rendered-workloads~1]
 Test Ankaios start up with templated Ankaios manifest and update state with updated config item
     [Setup]    Run Keywords    Setup Ankaios
     ...    AND    Set Global Variable    ${start_up_yaml_file}    ${CONFIGS_DIR}/manifest_with_configs.yaml

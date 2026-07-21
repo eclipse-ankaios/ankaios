@@ -46,14 +46,16 @@ pub fn dfs(state: &StateSpec, start_nodes: Option<Vec<&str>>) -> Option<String> 
     let mut path: VecDeque<&str> = VecDeque::with_capacity(state.workloads.workloads.len());
 
     // start visiting workloads in the graph only for a subset of workloads (e.g. in case of a an update) or for all
-    let mut workloads_to_visit: Vec<&str> = start_nodes.unwrap_or_else(|| {
+    let mut workloads_to_visit: Vec<&str> = if let Some(nodes) = start_nodes {
+        nodes
+    } else {
         state
             .workloads
             .workloads
             .keys()
             .map(|workload_names| workload_names.as_str())
             .collect()
-    });
+    };
     /* sort the keys of the map to have an constant equal outcome
     because the current data structure is randomly ordered because of HashMap's random seed */
     workloads_to_visit.sort();
@@ -67,35 +69,35 @@ pub fn dfs(state: &StateSpec, start_nodes: Option<Vec<&str>>) -> Option<String> 
         log::trace!("searching for workload = '{workload_name}'");
         stack.push_front(workload_name);
         while let Some(head) = stack.front() {
-            let Some(workload) = state.workloads.workloads.get(*head) else {
+            if let Some(workload) = state.workloads.workloads.get(*head) {
+                if !visited.contains(head) {
+                    log::trace!("visit '{head}'");
+                    visited.insert(head);
+                    path.push_back(head);
+                } else {
+                    log::trace!("remove '{head}' from path");
+                    path.pop_back();
+                    stack.pop_front();
+                }
+
+                // sort the map to have an constant equal outcome
+                let mut dependencies: Vec<&String> =
+                    workload.dependencies.dependencies.keys().collect();
+                dependencies.sort();
+
+                for dependency in dependencies {
+                    if !visited.contains(dependency.as_str()) {
+                        stack.push_front(dependency);
+                    } else if path.contains(&dependency.as_str()) {
+                        // [impl->swdd~cycle-detection-stops-on-the-first-cycle~1]
+                        log::debug!("workload '{dependency}' is part of a cycle.");
+                        return Some(dependency.to_string());
+                    }
+                }
+            } else {
                 // [impl->swdd~cycle-detection-ignores-non-existing-workloads~1]
                 log::trace!("workload '{head}' is skipped because it is not part of the state.");
                 stack.pop_front();
-                continue;
-            };
-
-            if !visited.contains(head) {
-                log::trace!("visit '{head}'");
-                visited.insert(head);
-                path.push_back(head);
-            } else {
-                log::trace!("remove '{head}' from path");
-                path.pop_back();
-                stack.pop_front();
-            }
-
-            // sort the map to have an constant equal outcome
-            let mut dependencies: Vec<&String> =
-                workload.dependencies.dependencies.keys().collect();
-            dependencies.sort();
-
-            // [impl->swdd~cycle-detection-stops-on-the-first-cycle~1]
-            if let Some(dep) = dependencies.iter().find(|dep| path.contains(&dep.as_str())) {
-                log::debug!("workload '{dep}' is part of a cycle.");
-                return Some(dep.to_string());
-            }
-            for dep in dependencies.iter().filter(|dep| !visited.contains(dep.as_str())) {
-                stack.push_front(*dep);
             }
         }
     }

@@ -16,3 +16,9 @@
 
 mod agent_name;
 pub use agent_name::AgentName;
+
+pub mod canonical;
+pub use canonical::Canonical;
+
+pub mod signed_payload;
+pub use signed_payload::SignedPayload;

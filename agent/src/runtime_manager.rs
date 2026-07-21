@@ -206,10 +206,16 @@ impl RuntimeManager {
         // create a list per runtime
         let mut added_workloads_per_runtime: HashMap<String, Vec<WorkloadNamed>> = HashMap::new();
         for workload_named in added_workloads {
-            added_workloads_per_runtime
-                .entry(workload_named.workload.runtime.clone())
-                .or_default()
-                .push(workload_named);
+            if let Some(workload_vec) =
+                added_workloads_per_runtime.get_mut(&workload_named.workload.runtime)
+            {
+                workload_vec.push(workload_named);
+            } else {
+                added_workloads_per_runtime.insert(
+                    workload_named.workload.runtime.clone(),
+                    vec![workload_named],
+                );
+            }
         }
 
         let mut new_added_workloads = Vec::new();
@@ -642,7 +648,7 @@ impl RuntimeManager {
                     instance_name.workload_name(),
                     err
                 ),
-            }
+            };
         }
 
         res
@@ -683,10 +689,11 @@ mod tests {
         WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
-        fixtures, generate_test_complete_state, generate_test_control_interface_access,
-        generate_test_deleted_workload_with_dependencies,
-        generate_test_deleted_workload_with_params, generate_test_workload_instance_name_with_name,
-        generate_test_workload_named, generate_test_workload_named_with_params,
+        fixtures, generate_test_agent_tags, generate_test_complete_state,
+        generate_test_control_interface_access, generate_test_deleted_workload_with_dependencies,
+        generate_test_deleted_workload_with_params, generate_test_proto_complete_state,
+        generate_test_workload_instance_name_with_name, generate_test_workload_named,
+        generate_test_workload_named_with_params, generate_test_workload_with_params,
     };
     use common::to_server_interface::ToServerReceiver;
 
@@ -2317,7 +2324,59 @@ mod tests {
                 )
                 .build();
         let request_id: String = fixtures::REQUEST_ID.to_string();
+        let workloads = [(
+            fixtures::WORKLOAD_NAMES[0],
+            generate_test_workload_with_params(
+                fixtures::AGENT_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
+            )
+            .into(),
+        )];
+        let mut complete_state = generate_test_proto_complete_state(&workloads);
+        complete_state.workload_states = Some(ank_base::WorkloadStatesMap {
+            agent_state_map: HashMap::from([(
+                fixtures::AGENT_NAMES[0].to_string(),
+                ank_base::ExecutionsStatesOfWorkload {
+                    wl_name_state_map: HashMap::from([(
+                        fixtures::WORKLOAD_NAMES[0].to_string(),
+                        ank_base::ExecutionsStatesForId {
+                            id_state_map: HashMap::from([(
+                                fixtures::WORKLOAD_IDS[0].to_string(),
+                                ank_base::ExecutionState {
+                                    additional_info: Some("".to_string()),
+                                    execution_state_enum: Some(
+                                        ank_base::execution_state::ExecutionStateEnum::Running(0),
+                                    ),
+                                },
+                            )]),
+                        },
+                    )]),
+                },
+            )]),
+        });
 
+        complete_state.agents = Some(ank_base::AgentMap {
+            agents: HashMap::from([(
+                fixtures::AGENT_NAMES[0].to_owned(),
+                ank_base::AgentAttributes {
+                    status: Some(ank_base::AgentStatus {
+                        cpu_usage: Some(ank_base::CpuUsage::from(fixtures::CPU_USAGE_SPEC)),
+                        free_memory: Some(ank_base::FreeMemory::from(fixtures::FREE_MEMORY_SPEC)),
+                    }),
+                    tags: Some(generate_test_agent_tags().into()),
+                },
+            )]),
+        });
+
+        let expected_response = Response {
+            request_id,
+            response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                ank_base::CompleteStateResponse {
+                    complete_state: Some(complete_state),
+                    ..Default::default()
+                },
+            ))),
+        };
         let forwarded_response = Response {
             request_id: format!("{}@{}", fixtures::WORKLOAD_NAMES[0], fixtures::REQUEST_ID),
             response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
@@ -2337,9 +2396,6 @@ mod tests {
             ))),
         };
 
-        let mut expected_response = forwarded_response.clone();
-        expected_response.request_id = request_id;
-
         let mut mock_workload = MockWorkload::default();
         mock_workload
             .expect_forward_response()
@@ -2355,6 +2411,19 @@ mod tests {
             .workloads
             .insert(fixtures::WORKLOAD_NAMES[0].to_string(), mock_workload);
 
+        // runtime_manager
+        //     .forward_response(ank_base::Response {
+        //         request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
+        //         response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+        //             generate_test_complete_state(vec![generate_test_workload_spec_with_param(
+        //                 AGENT_NAME.to_string(),
+        //                 WORKLOAD_1_NAME.to_string(),
+        //                 RUNTIME_NAME.to_string(),
+        //             )])
+        //             .into(),
+        //         ))),
+        //     })
+        //     .await;
         runtime_manager.forward_response(forwarded_response).await;
     }
 

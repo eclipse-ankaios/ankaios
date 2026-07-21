@@ -58,8 +58,6 @@ fn setup_spec_state(builder: Builder) -> Builder {
         .field_attribute("CompleteState.workloadStates", "#[spec_field_attr(#[serde(default)])]")
         .field_attribute("CompleteState.agents", "#[spec_default]")
         .field_attribute("CompleteState.agents", "#[spec_field_attr(#[serde(default)])]")
-        .field_attribute("CompleteState.effectiveState", "#[spec_default]")
-        .field_attribute("CompleteState.effectiveState", "#[spec_field_attr(#[serde(default)])]")
 
         .message_attribute(
             "State",

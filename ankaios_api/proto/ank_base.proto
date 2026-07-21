@@ -136,6 +136,17 @@ message CompleteStateRequest {
 }
 
 /*
+ * Cryptographic signature metadata for workload manifest verification.
+ * The signature is computed on a SignedPayload containing {counter, timestamp, canonical_bytes}.
+ */
+message SignatureMetadata {
+    bytes signature = 1; // Ed25519 signature of the signed payload
+    string key_id = 2; // Identifier for the public key used to verify the signature
+    uint64 counter = 3; // Monotonic counter for replay attack prevention (included in signed payload)
+    uint64 timestamp = 4; // Unix timestamp in seconds (included in signed payload)
+}
+
+/*
  * A message containing a request to update the state of the Ankaios system.
  * The new state is provided as state object.
  * To specify which part(s) of the new state object should be updated
@@ -144,6 +155,7 @@ message CompleteStateRequest {
 message UpdateStateRequest {
     CompleteState newState = 1; // The new state of the Ankaios system.
     repeated string updateMask = 2; // A list of symbolic field paths within the state message structure, e.g., 'desiredState.workloads.nginx' to specify what to be updated.
+    optional SignatureMetadata signature_metadata = 3; // Cryptographic signature for workload manifest verification. When present, the server verifies the Ed25519 signature on canonical protobuf representation.
 }
 
 /*
@@ -162,6 +174,7 @@ message UpdateStateSuccess {
 message CompleteStateResponse {
     CompleteState completeState = 1; // The complete state of the Ankaios system.
     AlteredFields alteredFields = 2; // The fields that were added, updated, or removed in the state compared to the previous state.
+    map<string, UpdateStateRequest> signed_workload_requests = 3; // Complete original signed UpdateStateRequest for each workload (workload_name -> signed request)
 }
 
 /*
@@ -181,7 +194,6 @@ message CompleteState {
     State desiredState = 1; // The state the user wants to reach.
     WorkloadStatesMap workloadStates = 2; // The current execution states of the workloads.
     AgentMap agents = 3; // The agents currently connected to the Ankaios cluster.
-    State effectiveState = 4; // The rendered state with expanded templates after hooks mutations. Reflects the actual workload configurations sent to agents. Configs not filled as already applied.
 }
 
 
