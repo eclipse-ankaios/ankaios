@@ -1,0 +1,8 @@
+apiVersion: v1
+workloads:
+  test-workload:
+    runtime: podman
+    agent: agent_A
+    runtimeConfig: |
+      image: alpine:latest
+      commandOptions: ["sleep", "infinity"]
