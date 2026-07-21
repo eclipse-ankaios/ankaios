@@ -1,0 +1,136 @@
+name: Signature E2E Tests
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  robot-framework-e2e:
+    name: Robot Framework E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip3 install --upgrade pip
+          pip3 install robotframework cryptography pyyaml
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Ankaios binaries
+        run: |
+          cargo build --release --target x86_64-unknown-linux-gnu --bin ank-server
+          cargo build --release --target x86_64-unknown-linux-gnu --bin ank-agent
+          cargo build --release --target x86_64-unknown-linux-gnu --bin ank
+
+      - name: Add binaries to PATH
+        run: |
+          echo "${{ github.workspace }}/target/x86_64-unknown-linux-gnu/release" >> $GITHUB_PATH
+
+      - name: Verify binaries are available
+        run: |
+          which ank-server
+          which ank-agent
+          which ank
+          ank-server --version || true
+
+      - name: Run Robot Framework E2E tests
+        run: |
+          robot --outputdir test-results \
+                --loglevel DEBUG \
+                --report signature_e2e_report.html \
+                --log signature_e2e_log.html \
+                tests/stests/signature_e2e/
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-test-results
+          path: test-results/
+          retention-days: 30
+
+      - name: Upload server logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: |
+            /tmp/ankaios-server.log
+            /tmp/ank-persist.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Display test summary
+        if: always()
+        run: |
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ -f test-results/output.xml ]; then
+            python3 -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('test-results/output.xml')
+          root = tree.getroot()
+          stats = root.find('.//statistics/total/stat')
+          if stats is not None:
+              pass_count = stats.get('pass', '0')
+              fail_count = stats.get('fail', '0')
+              print(f'Passed: {pass_count}')
+              print(f'Failed: {fail_count}')
+            "
+          fi
+
+  test-coverage-report:
+    name: Generate Test Coverage Report
+    runs-on: ubuntu-latest
+    needs: [robot-framework-e2e]
+    if: always()
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Robot test results
+        uses: actions/download-artifact@v4
+        with:
+          name: robot-test-results
+          path: test-results/
+
+      - name: Generate coverage summary
+        run: |
+          echo "## Signature E2E Test Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Scenarios" >> $GITHUB_STEP_SUMMARY
+          echo "- Signed manifest persistence with signature block" >> $GITHUB_STEP_SUMMARY
+          echo "- Server restart state restoration" >> $GITHUB_STEP_SUMMARY
+          echo "- Tampered file rejection" >> $GITHUB_STEP_SUMMARY
+          echo "- Unsigned manifest policy enforcement" >> $GITHUB_STEP_SUMMARY
+          echo "- Counter rollback prevention" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Coverage Areas" >> $GITHUB_STEP_SUMMARY
+          echo "- UpdateStateRequest signature verification" >> $GITHUB_STEP_SUMMARY
+          echo "- ServerState signed_yaml storage" >> $GITHUB_STEP_SUMMARY
+          echo "- GetStateRequest signed_yaml response" >> $GITHUB_STEP_SUMMARY
+          echo "- Events API signed_yaml preservation" >> $GITHUB_STEP_SUMMARY
+          echo "- Persistence plugin signed YAML handling" >> $GITHUB_STEP_SUMMARY
+          echo "- Signature re-verification on restore" >> $GITHUB_STEP_SUMMARY

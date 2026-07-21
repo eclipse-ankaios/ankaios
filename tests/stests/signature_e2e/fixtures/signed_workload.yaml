@@ -1,0 +1,10 @@
+apiVersion: v1
+workloads:
+  nginx-persistent:
+    runtime: podman
+    agent: agent_A
+    tags:
+      persist: ALWAYS
+    runtimeConfig: |
+      image: nginx:latest
+      commandOptions: ["-p", "8080:80"]
