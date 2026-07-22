@@ -973,7 +973,7 @@ mod tests {
 
     const SECOND_REQUEST_ID: &str = "request_id_2";
     const MESSAGE: &str = "message";
-    const COMMAND_CONNECTION_NAME: &str = "cli-conn-1234";
+    const COMMAND_CONNECTION_NAME: &str = "commander-conn-1234";
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-fails-on-invalid-startup-state~1]
@@ -3338,14 +3338,14 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let cli_request_id = format!("{COMMAND_CONNECTION_NAME}@cli-request-id-1");
+        let command_request_id = format!("{COMMAND_CONNECTION_NAME}@command-request-id-1");
         let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
         server
             .log_campaign_store
             .expect_remove_command_log_campaign_entry()
             .with(mockall::predicate::eq(COMMAND_CONNECTION_NAME.to_owned()))
             .once()
-            .return_const(HashSet::from([cli_request_id.clone()]));
+            .return_const(HashSet::from([command_request_id.clone()]));
         server
             .event_handler
             .expect_remove_command_subscriber()
@@ -3360,7 +3360,7 @@ mod tests {
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            FromServer::LogsCancelRequest(cli_request_id),
+            FromServer::LogsCancelRequest(command_request_id),
             from_server_command
         );
 
