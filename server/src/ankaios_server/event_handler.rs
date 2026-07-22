@@ -450,9 +450,9 @@ mod tests {
     const AGENT_A_REQUEST_ID_1: &str = "agent_A@workload_1@1234";
     const AGENT_B_REQUEST_ID_1: &str = "agent_B@workload_2@5678";
     const AGENT_A_REQUEST_ID_2: &str = "agent_A@workload_3@9876";
-    const CLI_CONN_1_REQUEST_ID_1: &str = "cli-conn-1@cli_request_id_1";
-    const CLI_CONN_1_REQUEST_ID_2: &str = "cli-conn-1@cli_request_id_2";
-    const CLI_CONN_2_REQUEST_ID_1: &str = "cli-conn-2@cli_request_id_2";
+    const COMMAND_CONN_1_REQUEST_ID_1: &str = "commander-conn-1@command_request_id_1";
+    const COMMAND_CONN_1_REQUEST_ID_2: &str = "commander-conn-1@command_request_id_2";
+    const COMMAND_CONN_2_REQUEST_ID_1: &str = "commander-conn-2@command_request_id_2";
 
     // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
     #[test]
@@ -473,14 +473,14 @@ mod tests {
         );
         let subscriber_2_field_masks = vec!["another.path".into(), "more.paths".into()];
         event_handler.add_subscriber(
-            CLI_CONN_1_REQUEST_ID_1.to_owned(),
+            COMMAND_CONN_1_REQUEST_ID_1.to_owned(),
             subscriber_2_field_masks.clone(),
         );
         assert_eq!(event_handler.subscriber_store.len(), 2);
         assert_eq!(
             event_handler
                 .subscriber_store
-                .get(&CLI_CONN_1_REQUEST_ID_1.into()),
+                .get(&COMMAND_CONN_1_REQUEST_ID_1.into()),
             Some(&subscriber_2_field_masks)
         );
     }
@@ -524,7 +524,7 @@ mod tests {
                 (AGENT_A_REQUEST_ID_1.into(), vec!["path.to.field".into()]),
                 (AGENT_B_REQUEST_ID_1.into(), vec!["more.paths".into()]),
                 (AGENT_A_REQUEST_ID_2.into(), vec!["another.path".into()]),
-                (CLI_CONN_1_REQUEST_ID_1.into(), vec!["cli.path".into()]),
+                (COMMAND_CONN_1_REQUEST_ID_1.into(), vec!["cli.path".into()]),
             ]),
         };
 
@@ -539,34 +539,34 @@ mod tests {
         assert!(
             event_handler
                 .subscriber_store
-                .contains_key(&CLI_CONN_1_REQUEST_ID_1.into())
+                .contains_key(&COMMAND_CONN_1_REQUEST_ID_1.into())
         );
     }
 
     // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
     #[test]
-    fn utest_event_handler_removes_cli_subscriber() {
+    fn utest_event_handler_removes_command_subscriber() {
         let mut event_handler = EventHandler {
             subscriber_store: HashMap::from([
-                (CLI_CONN_1_REQUEST_ID_1.into(), vec!["cli.path".into()]),
+                (COMMAND_CONN_1_REQUEST_ID_1.into(), vec!["cli.path".into()]),
                 (
-                    CLI_CONN_1_REQUEST_ID_2.into(),
+                    COMMAND_CONN_1_REQUEST_ID_2.into(),
                     vec!["another.cli.path".into()],
                 ),
                 (
-                    CLI_CONN_2_REQUEST_ID_1.into(),
+                    COMMAND_CONN_2_REQUEST_ID_1.into(),
                     vec!["different.cli.path".into()],
                 ),
                 (AGENT_A_REQUEST_ID_1.into(), vec!["another.path".into()]),
             ]),
         };
 
-        event_handler.remove_command_subscriber(&"cli-conn-1".to_owned());
+        event_handler.remove_command_subscriber(&"commander-conn-1".to_owned());
         assert_eq!(event_handler.subscriber_store.len(), 2);
         assert!(
             event_handler
                 .subscriber_store
-                .contains_key(&CLI_CONN_2_REQUEST_ID_1.into())
+                .contains_key(&COMMAND_CONN_2_REQUEST_ID_1.into())
         );
         assert!(
             event_handler
@@ -581,7 +581,7 @@ mod tests {
         let agent_a_request_id_3 = "agent_B@workload_1@19234";
         let mut event_handler = EventHandler {
             subscriber_store: HashMap::from([
-                (CLI_CONN_1_REQUEST_ID_1.into(), vec!["cli.path".into()]),
+                (COMMAND_CONN_1_REQUEST_ID_1.into(), vec!["cli.path".into()]),
                 (AGENT_A_REQUEST_ID_1.into(), vec!["another.path".into()]),
                 (agent_a_request_id_3.into(), vec!["more.paths".into()]),
                 (AGENT_B_REQUEST_ID_1.into(), vec!["different.path".into()]),
