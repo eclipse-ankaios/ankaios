@@ -1,0 +1,34 @@
+apiVersion: v1
+workloads:
+  basic_persistency:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: ALWAYS
+
+    tags:
+      plugin: persistency
+      version: "0.1"
+
+    controlInterfaceAccess:
+      allowRules:
+        # Read workload states (for event subscription triggers)
+        - type: StateRule
+          operation: Read
+          filterMasks:
+            - "workloadStates.*.*.*.state"
+
+        # Read/Write desired state (for workload tags, configs, and restore)
+        - type: StateRule
+          operation: ReadWrite
+          filterMasks:
+            - "desiredState.workloads.*"
+            - "desiredState.configs"
+
+    runtimeConfig: |
+      image: basic_persistency:0.1
+      commandOptions:
+        - "--volume"
+        - "/var/lib/ankaios:/var/lib/ankaios:rw"
+      env:
+        - PERSISTENCE_FILE_PATH=/var/lib/ankaios/runtime_state.yaml
+        - RUST_LOG=info

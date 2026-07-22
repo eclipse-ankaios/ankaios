@@ -1,0 +1,47 @@
+FROM docker.io/alpine:3.18.4 AS builder
+
+RUN apk update && apk add musl-dev gcc g++ curl bash make protobuf-dev
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN rustup target add x86_64-unknown-linux-musl
+
+# Set linker for musl target
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=gcc
+
+WORKDIR /build
+
+# Copy only what's needed for the build (not the entire workspace)
+# 1. Workspace Cargo files
+COPY Cargo.toml Cargo.lock ./
+
+# 2. Plugin source
+COPY examples/plugins/basic_persistency/ ./examples/plugins/basic_persistency/
+
+# 3. Workspace dependencies
+COPY ankaios_api/ ./ankaios_api/
+COPY spec_macros/ ./spec_macros/
+COPY common/ ./common/
+
+# Set Ankaios version for build
+ENV ANKAIOS_VERSION=1.0.0
+
+# Build the plugin (statically linked for musl)
+# Use CARGO_TARGET_DIR to keep binary in workspace target directory
+ENV CARGO_TARGET_DIR=/build/target
+RUN cargo build --release --target x86_64-unknown-linux-musl --manifest-path examples/plugins/basic_persistency/Cargo.toml
+
+# Runtime stage
+FROM docker.io/alpine:3.18.4
+
+WORKDIR /app
+
+# Copy the compiled binary from builder (built in workspace context)
+COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/basic_persistency /app/basic_persistency
+
+# Environment defaults
+ENV PERSISTENCE_FILE_PATH=/var/lib/ankaios/runtime_state.yaml
+ENV RUST_LOG=debug
+
+CMD ["/app/basic_persistency"]
