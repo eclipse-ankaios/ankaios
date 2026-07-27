@@ -31,33 +31,43 @@ pub struct SystemdCli {}
 #[allow(dead_code)]
 impl SystemdCli {
     const SYSTEMCTL_CMD: &str = "systemctl";
+    /// Global systemctl options applied to every invocation.
+    /// `--no-ask-password` disables interactive authentication prompts so that
+    /// privileged operations fail with an error instead of blocking on a prompt.
+    /// `--no-pager` prevents systemctl from piping output through a pager.
+    const SYSTEMCTL_GLOBAL_ARGS: &[&str] = &["--no-ask-password", "--no-pager"];
+
+    /// Add explicit lifetime as automock prevents the compiler from inferring it.
+    async fn exec_systemctl<'a>(args: &'a[&'a str]) -> Result<String, String> {
+        let full_args: Vec<&str> = Self::SYSTEMCTL_GLOBAL_ARGS
+            .iter()
+            .copied()
+            .chain(args.iter().copied())
+            .collect();
+        CliCommand::new(Self::SYSTEMCTL_CMD)
+            .args(&full_args)
+            .exec()
+            .await
+    }
+
     /// Start a systemd unit
     pub async fn start_unit(unit_name: &str) -> Result<(), String> {
         log::debug!("Starting systemd unit: {}", unit_name);
-        CliCommand::new(Self::SYSTEMCTL_CMD)
-            .args(&["start", unit_name])
-            .exec()
-            .await?;
+        Self::exec_systemctl(&["start", unit_name]).await?;
         Ok(())
     }
 
     /// Stop a systemd unit
     pub async fn stop_unit(unit_name: &str) -> Result<(), String> {
         log::debug!("Stopping systemd unit: {}", unit_name);
-        CliCommand::new(Self::SYSTEMCTL_CMD)
-            .args(&["stop", unit_name])
-            .exec()
-            .await?;
+        Self::exec_systemctl(&["stop", unit_name]).await?;
         Ok(())
     }
 
     /// Restart a systemd unit
     pub async fn restart_unit(unit_name: &str) -> Result<(), String> {
         log::debug!("Restarting systemd unit: {}", unit_name);
-        CliCommand::new(Self::SYSTEMCTL_CMD)
-            .args(&["restart", unit_name])
-            .exec()
-            .await?;
+        Self::exec_systemctl(&["restart", unit_name]).await?;
         Ok(())
     }
 
@@ -65,14 +75,12 @@ impl SystemdCli {
     pub async fn get_unit_state(unit_name: &str) -> Result<SystemdUnitState, String> {
         log::trace!("Getting state for systemd unit: {}", unit_name);
 
-        let output = CliCommand::new(Self::SYSTEMCTL_CMD)
-            .args(&[
-                "show",
-                unit_name,
-                "--property=ActiveState,SubState,ExecMainStatus",
-            ])
-            .exec()
-            .await?;
+        let output = Self::exec_systemctl(&[
+            "show",
+            unit_name,
+            "--property=ActiveState,SubState,ExecMainStatus",
+        ])
+        .await?;
 
         Self::parse_unit_state(&output)
     }
@@ -82,14 +90,12 @@ impl SystemdCli {
     pub async fn get_unit_uptime_seconds(unit_name: &str) -> Result<Option<u64>, String> {
         log::trace!("Getting uptime for systemd unit: {}", unit_name);
 
-        let systemctl_output = CliCommand::new(Self::SYSTEMCTL_CMD)
-            .args(&[
-                "show",
-                unit_name,
-                "--property=ActiveEnterTimestampMonotonic,ActiveState",
-            ])
-            .exec()
-            .await?;
+        let systemctl_output = Self::exec_systemctl(&[
+            "show",
+            unit_name,
+            "--property=ActiveEnterTimestampMonotonic,ActiveState",
+        ])
+        .await?;
 
         // Parse systemctl output
         let mut active_enter_monotonic: Option<u64> = None;
@@ -115,9 +121,12 @@ impl SystemdCli {
                 .map_err(|e| format!("Failed to read /proc/uptime: {}", e))?;
 
             // /proc/uptime gives system uptime in seconds (first field)
-            let uptime_str = uptime_output.split_whitespace().next()
+            let uptime_str = uptime_output
+                .split_whitespace()
+                .next()
                 .ok_or_else(|| "Failed to parse /proc/uptime".to_string())?;
-            let system_uptime_secs: f64 = uptime_str.parse()
+            let system_uptime_secs: f64 = uptime_str
+                .parse()
                 .map_err(|_| "Invalid uptime format".to_string())?;
             let system_uptime_us = (system_uptime_secs * 1_000_000.0) as u64;
 
@@ -205,5 +214,4 @@ mod tests {
 
         assert!(result.is_err());
     }
-
 }
