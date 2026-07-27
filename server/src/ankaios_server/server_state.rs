@@ -290,6 +290,11 @@ impl ServerState {
         self.rendered_workloads
             .iter()
             .filter(|(_, workload)| workload.instance_name.agent_name().eq(agent_name))
+            // Transient restart workloads are one-time actions and must not be (re-)sent to an
+            // agent when it connects. Otherwise the restart would be re-triggered on every
+            // reconnect, which could result in an infinite restart loop when the restart targets
+            // the agent itself.
+            .filter(|(_, workload)| !is_transient_restart_workload(workload))
             .map(|(_, workload)| workload.clone())
             .collect()
     }
@@ -381,18 +386,6 @@ impl ServerState {
 
             self.set_desired_state(new_desired_state);
             self.pre_hook_rendered_workloads = pre_hook_rendered_workloads;
-
-            // Filter out transient restart workloads — they are one-time actions, not persistent state
-            new_rendered_workloads.retain(|_, workload| {
-                let transient = is_transient_restart_workload(workload);
-                if transient {
-                    log::debug!(
-                        "Removing transient restart workload '{}' from rendered_workloads",
-                        workload.instance_name.workload_name()
-                    );
-                }
-                !transient
-            });
 
             self.rendered_workloads = new_rendered_workloads;
             Ok(Some(added_deleted_workloads))
@@ -2047,7 +2040,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_update_filters_transient_restart_workload() {
+    fn utest_update_keeps_transient_restart_workload_in_rendered_workloads() {
         let mut restart_workload = generate_test_workload_named_with_params(
             "restart_wl",
             fixtures::AGENT_NAMES[0],
@@ -2100,13 +2093,62 @@ mod tests {
         let result = server_state.update(new_state, &hooks_registry);
         assert!(result.is_ok());
 
+        // The transient restart workload stays in the rendered workloads so that it remains
+        // part of the effective state, log requests and change detection.
         assert!(
-            !server_state.rendered_workloads.contains_key("restart_wl"),
-            "Transient restart workload should be filtered from rendered_workloads"
+            server_state.rendered_workloads.contains_key("restart_wl"),
+            "Transient restart workload should be kept in rendered_workloads"
         );
         assert!(
             server_state.rendered_workloads.contains_key("normal_wl"),
             "Non-restart workload should be kept in rendered_workloads"
+        );
+    }
+
+    // [utest->swdd~agent-from-agent-field~1]
+    #[test]
+    fn utest_get_workloads_for_agent_filters_transient_restart_workload() {
+        let mut restart_workload = generate_test_workload_named_with_params(
+            "restart_wl",
+            fixtures::AGENT_NAMES[0],
+            "systemd",
+        );
+        restart_workload.workload.runtime_config =
+            "serviceName: test.service\ndesiredState: restarted\n".to_string();
+        restart_workload.workload.dependencies.dependencies.clear();
+
+        let mut normal_workload = generate_test_workload_named_with_params(
+            "normal_wl",
+            fixtures::AGENT_NAMES[0],
+            "systemd",
+        );
+        normal_workload.workload.runtime_config =
+            "serviceName: other.service\ndesiredState: running\n".to_string();
+        normal_workload.workload.dependencies.dependencies.clear();
+
+        let rendered = RenderedWorkloads::from([
+            ("restart_wl".to_string(), restart_workload.clone()),
+            ("normal_wl".to_string(), normal_workload.clone()),
+        ]);
+
+        let server_state = ServerState {
+            rendered_workloads: rendered,
+            ..Default::default()
+        };
+
+        let workloads = server_state.get_workloads_for_agent(fixtures::AGENT_NAMES[0]);
+        let workload_names: Vec<&str> = workloads
+            .iter()
+            .map(|w| w.instance_name.workload_name())
+            .collect();
+
+        assert!(
+            !workload_names.contains(&"restart_wl"),
+            "Transient restart workload must not be sent to a (re)connecting agent"
+        );
+        assert!(
+            workload_names.contains(&"normal_wl"),
+            "Non-restart workload must be sent to a (re)connecting agent"
         );
     }
 }
