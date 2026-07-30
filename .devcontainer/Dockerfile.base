@@ -132,7 +132,7 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
         exit 1; \
     fi; \
     curl -sL https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_${ITEMARCH}.tar.gz | \
-    tar xz --directory=/usr/local/bin grpcurl
+    tar xz --no-same-owner --directory=/usr/local/bin grpcurl
 
 # OpenFastTrace
 RUN curl -sL https://github.com/itsallcode/openfasttrace/releases/download/4.7.0/openfasttrace-4.7.0.jar -o /usr/local/bin/openfasttrace.jar
