@@ -24,7 +24,10 @@ use std::{
     collections::HashMap,
     ops::Deref,
     path::PathBuf,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
     time::{Duration, Instant},
 };
 use tokio::sync::Mutex;
@@ -108,52 +111,126 @@ impl From<PodmanContainerInfo> for ExecutionStateSpec {
 
 struct PodmanPsCache {
     last_update: Instant,
+    // Epoch at which this snapshot's `podman ps` was launched. Only valid for a
+    // reader whose required epoch is <= this value, which guarantees the snapshot
+    // was taken after every workload creation the reader depends on.
+    produced_epoch: u64,
     cache: Arc<PodmanPsResult>,
 }
 
-struct TimedPodmanPsResult(Mutex<Option<PodmanPsCache>>);
+struct TimedPodmanPsResult {
+    cache: Mutex<Option<PodmanPsCache>>,
+    // Bumped on every reset (after each workload create). A reader captures this
+    // on entry as its required epoch.
+    needed_epoch: AtomicU64,
+    // Serializes refreshers so at most one `podman ps` runs at a time.
+    refresh_gate: Mutex<()>,
+}
 
 impl TimedPodmanPsResult {
+    // [impl->swdd~podmancli-container-state-cache-refresh~1]
     async fn reset(&self) {
-        *self.lock().await = None;
+        perf!("PERF ps_cache.reset");
+        self.needed_epoch.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn cache_hit(cache: &Option<PodmanPsCache>, required: u64) -> Option<Arc<PodmanPsResult>> {
+        let entry = cache.as_ref()?;
+        if entry.produced_epoch >= required && entry.last_update.elapsed() < PODMAN_PS_CACHE_MAX_AGE
+        {
+            Some(entry.cache.clone())
+        } else {
+            None
+        }
     }
 
     // [impl->swdd~podmancli-container-state-cache-refresh~1]
     async fn get(&self) -> Arc<PodmanPsResult> {
-        let mut guard = self.lock().await;
+        #[cfg(feature = "perf-metrics")]
+        let started = Instant::now();
 
-        if let Some(value) = &mut *guard {
-            if value.last_update.elapsed() > PODMAN_PS_CACHE_MAX_AGE {
-                *value = Self::new_inner().await;
+        // Fast path: reuse a fresh snapshot taken at or after our required epoch.
+        let required = {
+            let guard = self.cache.lock().await;
+            #[cfg(feature = "perf-metrics")]
+            let lock_wait_ms = started.elapsed().as_millis();
+            let required = self.needed_epoch.load(Ordering::SeqCst);
+            if let Some(hit) = Self::cache_hit(&guard, required) {
+                perf!(
+                    "PERF ps_cache.get lock_wait_ms={} refreshed=false hold_ms={}",
+                    lock_wait_ms,
+                    started.elapsed().as_millis()
+                );
+                return hit;
             }
-            value.cache.clone()
-        } else {
-            let ps_result = Self::new_inner().await;
-            let result = ps_result.cache.clone();
-            *guard = Some(ps_result);
-            result
-        }
+            required
+        };
+
+        // Single-flight: only one task runs `podman ps` at a time. Waiters queue on the
+        // gate, then re-check and reuse the refreshed snapshot instead of each running
+        // its own `podman ps`.
+        let _refresh_permit = self.refresh_gate.lock().await;
+
+        let start_epoch = {
+            let guard = self.cache.lock().await;
+            if let Some(hit) = Self::cache_hit(&guard, required) {
+                perf!(
+                    "PERF ps_cache.get lock_wait_ms={} refreshed=false hold_ms={}",
+                    started.elapsed().as_millis(),
+                    started.elapsed().as_millis()
+                );
+                return hit;
+            }
+            self.needed_epoch.load(Ordering::SeqCst)
+        };
+
+        // `podman ps` runs WITHOUT holding the cache lock, so it never blocks other readers.
+        let new_cache = Self::new_inner(start_epoch).await;
+        let result = new_cache.cache.clone();
+        *self.cache.lock().await = Some(new_cache);
+
+        perf!(
+            "PERF ps_cache.get lock_wait_ms=0 refreshed=true hold_ms={}",
+            started.elapsed().as_millis()
+        );
+        result
     }
 
-    async fn new_inner() -> PodmanPsCache {
+    async fn new_inner(produced_epoch: u64) -> PodmanPsCache {
+        #[cfg(feature = "perf-metrics")]
+        let ps_start = Instant::now();
         let mut res = PodmanCli::list_states_internal().await;
+        #[cfg(feature = "perf-metrics")]
+        let mut retried = false;
         if res.is_err() {
             // This is a workaround for the known issue in podman (podman ps sometimes fails).
             log::trace!("'podman ps' has returned error - let's retry it.");
+            #[cfg(feature = "perf-metrics")]
+            {
+                retried = true;
+            }
             res = PodmanCli::list_states_internal().await;
         }
+        perf!(
+            "PERF podman_ps duration_ms={} retried={} ok={}",
+            ps_start.elapsed().as_millis(),
+            retried,
+            res.is_ok()
+        );
         PodmanPsCache {
             last_update: Instant::now(),
+            produced_epoch,
             cache: Arc::new(res.into()),
         }
     }
 }
 
+// Deref exposes the inner cache mutex so unit tests can seed/clear it directly.
 impl Deref for TimedPodmanPsResult {
     type Target = Mutex<Option<PodmanPsCache>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.cache
     }
 }
 
@@ -192,7 +269,11 @@ impl From<Result<Vec<PodmanContainerInfo>, String>> for PodmanPsResult {
     }
 }
 
-static LAST_PS_RESULT: TimedPodmanPsResult = TimedPodmanPsResult(Mutex::const_new(Option::None));
+static LAST_PS_RESULT: TimedPodmanPsResult = TimedPodmanPsResult {
+    cache: Mutex::const_new(Option::None),
+    needed_epoch: AtomicU64::new(0),
+    refresh_gate: Mutex::const_new(()),
+};
 
 pub struct PodmanCli {}
 
@@ -366,12 +447,19 @@ impl PodmanCli {
         args.append(&mut run_config.command_args);
 
         log::debug!("The args are: '{args:?}'");
+        #[cfg(feature = "perf-metrics")]
+        let run_start = Instant::now();
         let id = CliCommand::new(PODMAN_CMD)
             .args(&args.iter().map(|x| &**x).collect::<Vec<&str>>())
             .exec()
             .await?
             .trim()
             .to_string();
+        perf!(
+            "PERF podman_run workload='{}' duration_ms={}",
+            instance_name,
+            run_start.elapsed().as_millis()
+        );
         Ok(id)
     }
 
@@ -1519,6 +1607,7 @@ mod tests {
 
         *super::LAST_PS_RESULT.lock().await = Some(PodmanPsCache {
             last_update: time::Instant::now(),
+            produced_epoch: super::LAST_PS_RESULT.needed_epoch.load(std::sync::atomic::Ordering::SeqCst),
             cache: Arc::new(super::PodmanPsResult {
                 container_states: Ok([("test_id".into(), ExecutionStateSpec::running())]
                     .into_iter()
@@ -1526,6 +1615,45 @@ mod tests {
                 pod_states: Err("".into()),
             }),
         });
+
+        let res = PodmanCli::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::running())));
+    }
+
+    // Regression: after a workload create, the cache is bumped to a new epoch. A read
+    // must NOT reuse a fresh-but-pre-create snapshot (which lacks the new container and
+    // would be reported as Lost); it must run a fresh `podman ps`.
+    // [utest->swdd~podmancli-container-state-cache-refresh~1]
+    #[tokio::test]
+    async fn utest_list_states_by_id_reset_rejects_pre_create_snapshot() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        CliCommand::reset();
+
+        // Fresh snapshot taken BEFORE the container existed (does not contain "test_id").
+        *super::LAST_PS_RESULT.lock().await = Some(PodmanPsCache {
+            last_update: time::Instant::now(),
+            produced_epoch: super::LAST_PS_RESULT.needed_epoch.load(std::sync::atomic::Ordering::SeqCst),
+            cache: Arc::new(super::PodmanPsResult {
+                container_states: Ok(HashMap::new()),
+                pod_states: Err("".into()),
+            }),
+        });
+
+        // A create happened -> the cache is invalidated for the new container.
+        PodmanCli::reset_ps_cache().await;
+
+        // The next read must trigger a fresh `podman ps` that now sees the container.
+        CliCommand::new_expect(
+            "podman",
+            CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "running",
+                    ..Default::default()
+                }]
+                .to_json())),
+        );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
         assert_eq!(res, Ok(Some(ExecutionStateSpec::running())));
@@ -1541,6 +1669,7 @@ mod tests {
 
         *super::LAST_PS_RESULT.lock().await = Some(PodmanPsCache {
             last_update: old_time_stamp,
+            produced_epoch: super::LAST_PS_RESULT.needed_epoch.load(std::sync::atomic::Ordering::SeqCst),
             cache: Arc::new(super::PodmanPsResult {
                 container_states: Ok([(
                     "test_id".into(),

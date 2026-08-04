@@ -35,6 +35,8 @@ use async_trait::async_trait;
 #[cfg(test)]
 use mockall_double::double;
 use std::{collections::HashMap, path::PathBuf};
+#[cfg(feature = "perf-metrics")]
+use std::time::Instant;
 
 pub const PODMAN_RUNTIME_NAME: &str = "podman";
 
@@ -146,6 +148,8 @@ impl RuntimeConnector for PodmanRuntime {
         let workload_cfg = PodmanRuntimeConfig::try_from(&workload_named.workload)
             .map_err(RuntimeError::Unsupported)?;
 
+        #[cfg(feature = "perf-metrics")]
+        let create_start = Instant::now();
         let cli_result = match reusable_workload_id {
             Some(workload_id) => {
                 let start_config = PodmanStartConfig {
@@ -178,6 +182,11 @@ impl RuntimeConnector for PodmanRuntime {
                 let state_checker = self
                     .start_checker(&podman_workload_id, workload_named, update_state_tx)
                     .await?;
+
+                perf!(
+                    "PERF create_workload total_ms={}",
+                    create_start.elapsed().as_millis()
+                );
 
                 // [impl->swdd~podman-create-workload-returns-workload-id~1]
                 Ok((podman_workload_id, state_checker))
