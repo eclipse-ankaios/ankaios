@@ -20,10 +20,10 @@ use std::{
     collections::HashMap,
     ops::Deref,
     path::PathBuf,
-    sync::Arc,
+    sync::{Arc, LazyLock},
     time::{Duration, Instant},
 };
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_connectors::cli_command::CliCommand;
@@ -31,6 +31,22 @@ use crate::runtime_connectors::cli_command::CliCommand;
 const NERDCTL_CMD: &str = "nerdctl";
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
 const NERDCTL_PS_CACHE_MAX_AGE: Duration = Duration::from_millis(1000);
+const MAX_CONCURRENT_CREATES_ENV_KEY: &str = "ANKAIOS_CONTAINERD_MAX_CONCURRENT_CREATES";
+const DEFAULT_MAX_CONCURRENT_CREATES: usize = 4;
+
+// [impl->swdd~containerd-nerdctlcli-limits-concurrent-creation~1]
+fn parse_max_concurrent_creates(raw: Option<String>) -> usize {
+    raw.and_then(|value| value.trim().parse::<usize>().ok())
+        .map(|value| value.max(1))
+        .unwrap_or(DEFAULT_MAX_CONCURRENT_CREATES)
+}
+
+// [impl->swdd~containerd-nerdctlcli-limits-concurrent-creation~1]
+static CREATE_SEMAPHORE: LazyLock<Semaphore> = LazyLock::new(|| {
+    Semaphore::new(parse_max_concurrent_creates(
+        std::env::var(MAX_CONCURRENT_CREATES_ENV_KEY).ok(),
+    ))
+});
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct NerdctlRunConfig {
@@ -264,6 +280,9 @@ impl NerdctlCli {
 
         args.append(&mut run_config.command_args);
 
+        // [impl->swdd~containerd-nerdctlcli-limits-concurrent-creation~1]
+        let _permit = CREATE_SEMAPHORE.acquire().await.ok();
+
         log::debug!("The args are: '{args:?}'");
         let id = CliCommand::new(NERDCTL_CMD)
             .args(&args.iter().map(|x| &**x).collect::<Vec<&str>>())
@@ -289,6 +308,9 @@ impl NerdctlCli {
         args.push("start".into());
 
         args.push(start_config.container_id);
+
+        // [impl->swdd~containerd-nerdctlcli-limits-concurrent-creation~1]
+        let _permit = CREATE_SEMAPHORE.acquire().await.ok();
 
         let id = CliCommand::new(NERDCTL_CMD)
             .args(&args.iter().map(|x| &**x).collect::<Vec<&str>>())
@@ -463,6 +485,26 @@ mod tests {
     use std::time::{self, Duration};
 
     const SAMPLE_ERROR_MESSAGE: &str = "error message";
+
+    // [utest->swdd~containerd-nerdctlcli-limits-concurrent-creation~1]
+    #[test]
+    fn utest_parse_max_concurrent_creates() {
+        use super::{DEFAULT_MAX_CONCURRENT_CREATES, parse_max_concurrent_creates};
+
+        assert_eq!(parse_max_concurrent_creates(Some("8".into())), 8);
+        assert_eq!(parse_max_concurrent_creates(Some("  3 ".into())), 3);
+        // values below 1 are clamped to 1
+        assert_eq!(parse_max_concurrent_creates(Some("0".into())), 1);
+        // invalid and missing values fall back to the default
+        assert_eq!(
+            parse_max_concurrent_creates(Some("not-a-number".into())),
+            DEFAULT_MAX_CONCURRENT_CREATES
+        );
+        assert_eq!(
+            parse_max_concurrent_creates(None),
+            DEFAULT_MAX_CONCURRENT_CREATES
+        );
+    }
 
     // [utest->swdd~containerd-nerdctlcli-lists-workloads-by-label~1]
     #[tokio::test]

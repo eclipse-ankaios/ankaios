@@ -2918,6 +2918,26 @@ Tags:
 
 Needs:
 - impl
+
+#### Containerd nerdctlcli limits concurrent workload creation
+`swdd~containerd-nerdctlcli-limits-concurrent-creation~1`
+
+Status: approved
+
+When the NerdctlCli is called to run or start a container, the NerdctlCli shall limit the number of concurrently executed container run and start operations to a configurable maximum.
+
+Comment:
+The maximum is read from the environment variable `ANKAIOS_CONTAINERD_MAX_CONCURRENT_CREATES` and defaults to 4 when unset or invalid. Values below 1 are clamped to 1.
+
+Rationale:
+Creating many workloads at once spawns one `nerdctl` process per workload. On resource constrained devices with slow storage this process and I/O storm significantly slows down workload creation, so limiting the concurrency avoids the contention.
+
+Tags:
+- NerdctlCli
+
+Needs:
+- impl
+- utest
 - utest
 
 ### Getting workload states
