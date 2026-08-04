@@ -8,6 +8,10 @@ documentation = "https://eclipse-ankaios.github.io/ankaios"
 authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
 repository = "https://github.com/eclipse-ankaios/ankaios"
 
+[features]
+# Enables `perf!` performance instrumentation logging to the `perf` log target.
+perf-metrics = []
+
 [dependencies]
 ankaios-api = { path = "../ankaios_api" }
 common = { path = "../common" }

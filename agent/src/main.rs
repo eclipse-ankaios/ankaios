@@ -12,6 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+#[macro_use]
+mod perf;
+
 mod agent_config;
 mod agent_manager;
 mod cli;
