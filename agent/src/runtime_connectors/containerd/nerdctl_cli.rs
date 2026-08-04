@@ -20,7 +20,10 @@ use std::{
     collections::HashMap,
     ops::Deref,
     path::PathBuf,
-    sync::{Arc, LazyLock},
+    sync::{
+        Arc, LazyLock,
+        atomic::{AtomicU64, Ordering},
+    },
     time::{Duration, Instant},
 };
 use tokio::sync::{Mutex, Semaphore};
@@ -88,53 +91,128 @@ impl From<NerdctlContainerInfo> for ExecutionStateSpec {
 
 struct NerdctlPsCache {
     last_update: Instant,
+    // Epoch at which this snapshot's `nerdctl ps` was launched. Only valid for a
+    // reader whose required epoch is <= this value, which guarantees the snapshot
+    // was taken after every workload creation the reader depends on.
+    produced_epoch: u64,
     cache: Arc<NerdctlPsResult>,
 }
 
-struct TimedNerdctlPsResult(Mutex<Option<NerdctlPsCache>>);
+struct TimedNerdctlPsResult {
+    cache: Mutex<Option<NerdctlPsCache>>,
+    // Bumped on every reset (after each workload create). A reader captures this
+    // on entry as its required epoch.
+    needed_epoch: AtomicU64,
+    // Serializes refreshers so at most one `nerdctl ps` runs at a time.
+    refresh_gate: Mutex<()>,
+}
 
 impl TimedNerdctlPsResult {
+    // [impl->swdd~containerd-container-state-cache-refresh~1]
     async fn reset(&self) {
-        *self.lock().await = None;
+        perf!("PERF ps_cache.reset");
+        self.needed_epoch.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn cache_hit(cache: &Option<NerdctlPsCache>, required: u64) -> Option<Arc<NerdctlPsResult>> {
+        let entry = cache.as_ref()?;
+        if entry.produced_epoch >= required
+            && entry.last_update.elapsed() < NERDCTL_PS_CACHE_MAX_AGE
+        {
+            Some(entry.cache.clone())
+        } else {
+            None
+        }
     }
 
     // [impl->swdd~containerd-container-state-cache-refresh~1]
     async fn get(&self) -> Arc<NerdctlPsResult> {
-        let mut guard = self.lock().await;
+        #[cfg(feature = "perf-metrics")]
+        let started = Instant::now();
 
-        if let Some(value) = &mut *guard {
-            if value.last_update.elapsed() > NERDCTL_PS_CACHE_MAX_AGE {
-                *value = Self::new_inner().await;
+        // Fast path: reuse a fresh snapshot taken at or after our required epoch.
+        let required = {
+            let guard = self.cache.lock().await;
+            #[cfg(feature = "perf-metrics")]
+            let lock_wait_ms = started.elapsed().as_millis();
+            let required = self.needed_epoch.load(Ordering::SeqCst);
+            if let Some(hit) = Self::cache_hit(&guard, required) {
+                perf!(
+                    "PERF ps_cache.get lock_wait_ms={} refreshed=false hold_ms={}",
+                    lock_wait_ms,
+                    started.elapsed().as_millis()
+                );
+                return hit;
             }
-            value.cache.clone()
-        } else {
-            let ps_result = Self::new_inner().await;
-            let result = ps_result.cache.clone();
-            *guard = Some(ps_result);
-            result
-        }
+            required
+        };
+
+        // Single-flight: only one task runs `nerdctl ps` at a time. Waiters queue on the
+        // gate, then re-check and reuse the refreshed snapshot instead of each running
+        // its own `nerdctl ps`.
+        let _refresh_permit = self.refresh_gate.lock().await;
+
+        let start_epoch = {
+            let guard = self.cache.lock().await;
+            if let Some(hit) = Self::cache_hit(&guard, required) {
+                perf!(
+                    "PERF ps_cache.get lock_wait_ms={} refreshed=false hold_ms={}",
+                    started.elapsed().as_millis(),
+                    started.elapsed().as_millis()
+                );
+                return hit;
+            }
+            self.needed_epoch.load(Ordering::SeqCst)
+        };
+
+        // `nerdctl ps` runs WITHOUT holding the cache lock, so it never blocks other readers.
+        let new_cache = Self::new_inner(start_epoch).await;
+        let result = new_cache.cache.clone();
+        *self.cache.lock().await = Some(new_cache);
+
+        perf!(
+            "PERF ps_cache.get lock_wait_ms=0 refreshed=true hold_ms={}",
+            started.elapsed().as_millis()
+        );
+        result
     }
 
-    async fn new_inner() -> NerdctlPsCache {
+    async fn new_inner(produced_epoch: u64) -> NerdctlPsCache {
+        #[cfg(feature = "perf-metrics")]
+        let ps_start = Instant::now();
         let mut res = NerdctlCli::list_states_internal().await;
+        #[cfg(feature = "perf-metrics")]
+        let mut retried = false;
 
         if res.is_err() {
             // This is a workaround for the known issue in nerdctl (nerdctl ps sometimes fails).
             log::trace!("'nerdctl ps' has returned error - let's retry it.");
+            #[cfg(feature = "perf-metrics")]
+            {
+                retried = true;
+            }
             res = NerdctlCli::list_states_internal().await;
         }
+        perf!(
+            "PERF nerdctl_ps duration_ms={} retried={} ok={}",
+            ps_start.elapsed().as_millis(),
+            retried,
+            res.is_ok()
+        );
         NerdctlPsCache {
             last_update: Instant::now(),
+            produced_epoch,
             cache: Arc::new(res.into()),
         }
     }
 }
 
+// Deref exposes the inner cache mutex so unit tests can seed/clear it directly.
 impl Deref for TimedNerdctlPsResult {
     type Target = Mutex<Option<NerdctlPsCache>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.cache
     }
 }
 
@@ -167,7 +245,11 @@ impl From<Result<Vec<NerdctlContainerInfo>, String>> for NerdctlPsResult {
     }
 }
 
-static LAST_PS_RESULT: TimedNerdctlPsResult = TimedNerdctlPsResult(Mutex::const_new(Option::None));
+static LAST_PS_RESULT: TimedNerdctlPsResult = TimedNerdctlPsResult {
+    cache: Mutex::const_new(Option::None),
+    needed_epoch: AtomicU64::new(0),
+    refresh_gate: Mutex::const_new(()),
+};
 
 pub struct NerdctlCli {}
 
@@ -284,12 +366,19 @@ impl NerdctlCli {
         let _permit = CREATE_SEMAPHORE.acquire().await.ok();
 
         log::debug!("The args are: '{args:?}'");
+        #[cfg(feature = "perf-metrics")]
+        let run_start = Instant::now();
         let id = CliCommand::new(NERDCTL_CMD)
             .args(&args.iter().map(|x| &**x).collect::<Vec<&str>>())
             .exec()
             .await?
             .trim()
             .to_string();
+        perf!(
+            "PERF nerdctl_run workload='{}' duration_ms={}",
+            instance_name,
+            run_start.elapsed().as_millis()
+        );
         Ok(id)
     }
 
@@ -1273,6 +1362,9 @@ mod tests {
 
         *super::LAST_PS_RESULT.lock().await = Some(NerdctlPsCache {
             last_update: old_time_stamp,
+            produced_epoch: super::LAST_PS_RESULT
+                .needed_epoch
+                .load(std::sync::atomic::Ordering::SeqCst),
             cache: Arc::new(super::NerdctlPsResult {
                 container_states: Ok([(
                     fixtures::WORKLOAD_IDS[0].into(),
@@ -1282,6 +1374,83 @@ mod tests {
                 .collect()),
             }),
         });
+
+        let container_id = TestNerdctlContainerId {
+            id: fixtures::WORKLOAD_IDS[0].to_owned(),
+        };
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", fixtures::WORKLOAD_IDS[0]])
+                .exec_returns(Ok([TestNerdctlContainerInfo {
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "running".to_owned(),
+                        ..Default::default()
+                    },
+                }]
+                .to_json())),
+        );
+
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::running())));
+    }
+
+    // [utest->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
+    #[tokio::test]
+    async fn utest_list_states_by_id_nerdctl_use_existing_ps_result() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        *super::LAST_PS_RESULT.lock().await = Some(NerdctlPsCache {
+            last_update: time::Instant::now(),
+            produced_epoch: super::LAST_PS_RESULT
+                .needed_epoch
+                .load(std::sync::atomic::Ordering::SeqCst),
+            cache: Arc::new(super::NerdctlPsResult {
+                container_states: Ok([(
+                    fixtures::WORKLOAD_IDS[0].into(),
+                    ExecutionStateSpec::running(),
+                )]
+                .into_iter()
+                .collect()),
+            }),
+        });
+
+        let res = NerdctlCli::list_states_by_id(fixtures::WORKLOAD_IDS[0]).await;
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::running())));
+    }
+
+    // Regression: after a workload create, the cache is bumped to a new epoch. A read
+    // must NOT reuse a fresh-but-pre-create snapshot (which lacks the new container and
+    // would be reported as Lost); it must run a fresh `nerdctl ps`.
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
+    #[tokio::test]
+    async fn utest_list_states_by_id_reset_rejects_pre_create_snapshot() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        // Fresh snapshot taken BEFORE the container existed (does not contain the id).
+        *super::LAST_PS_RESULT.lock().await = Some(NerdctlPsCache {
+            last_update: time::Instant::now(),
+            produced_epoch: super::LAST_PS_RESULT
+                .needed_epoch
+                .load(std::sync::atomic::Ordering::SeqCst),
+            cache: Arc::new(super::NerdctlPsResult {
+                container_states: Ok(HashMap::new()),
+            }),
+        });
+
+        // A create happened -> the cache is invalidated for the new container.
+        NerdctlCli::reset_ps_cache().await;
 
         let container_id = TestNerdctlContainerId {
             id: fixtures::WORKLOAD_IDS[0].to_owned(),

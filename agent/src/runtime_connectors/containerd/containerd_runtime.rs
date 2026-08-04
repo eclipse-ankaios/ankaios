@@ -31,6 +31,8 @@ use async_trait::async_trait;
 #[cfg(test)]
 use mockall_double::double;
 use std::{collections::HashMap, path::PathBuf};
+#[cfg(feature = "perf-metrics")]
+use std::time::Instant;
 
 // [impl->swdd~containerd-uses-nerdctl-cli~1]
 use super::containerd_runtime_config::ContainerdRuntimeConfig;
@@ -148,6 +150,8 @@ impl RuntimeConnector for ContainerdRuntime {
         let workload_cfg = ContainerdRuntimeConfig::try_from(&workload_named.workload)
             .map_err(RuntimeError::Unsupported)?;
 
+        #[cfg(feature = "perf-metrics")]
+        let create_start = Instant::now();
         let cli_result = match reusable_workload_id {
             Some(workload_id) => {
                 let start_config = NerdctlStartConfig {
@@ -180,6 +184,11 @@ impl RuntimeConnector for ContainerdRuntime {
                 let state_checker = self
                     .start_checker(&nerdctl_workload_id, workload_named, update_state_tx)
                     .await?;
+
+                perf!(
+                    "PERF create_workload total_ms={}",
+                    create_start.elapsed().as_millis()
+                );
 
                 // [impl->swdd~containerd-create-workload-returns-workload-id~1]
                 Ok((nerdctl_workload_id, state_checker))
