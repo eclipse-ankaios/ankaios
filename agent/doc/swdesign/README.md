@@ -3031,6 +3031,26 @@ Needs:
 - impl
 - utest
 
+#### PodmanCli limits concurrent workload creation
+`swdd~podmancli-limits-concurrent-creation~1`
+
+Status: approved
+
+When the PodmanCli is called to run or start a container, the PodmanCli shall limit the number of concurrently executed container run and start operations to a configurable maximum.
+
+Comment:
+The maximum is read from the environment variable `ANKAIOS_PODMAN_MAX_CONCURRENT_CREATES` and defaults to 4 when unset or invalid. Values below 1 are clamped to 1.
+
+Rationale:
+Creating many workloads at once spawns one `podman` process per workload. On resource constrained devices with slow storage this process and I/O storm significantly slows down workload creation, so limiting the concurrency avoids the contention.
+
+Tags:
+- PodmanCli
+
+Needs:
+- impl
+- utest
+
 #### PodmanCli container state cache
 
 ##### PodmanCli container state cache contains all containers

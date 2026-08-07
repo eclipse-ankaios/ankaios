@@ -25,16 +25,32 @@ use std::{
     ops::Deref,
     path::PathBuf,
     sync::{
-        Arc,
+        Arc, LazyLock,
         atomic::{AtomicU64, Ordering},
     },
     time::{Duration, Instant},
 };
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 
 const PODMAN_CMD: &str = "podman";
 const PODMAN_PS_CACHE_MAX_AGE: Duration = Duration::from_millis(1000);
 pub const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
+const MAX_CONCURRENT_CREATES_ENV_KEY: &str = "ANKAIOS_PODMAN_MAX_CONCURRENT_CREATES";
+const DEFAULT_MAX_CONCURRENT_CREATES: usize = 4;
+
+// [impl->swdd~podmancli-limits-concurrent-creation~1]
+fn parse_max_concurrent_creates(raw: Option<String>) -> usize {
+    raw.and_then(|value| value.trim().parse::<usize>().ok())
+        .map(|value| value.max(1))
+        .unwrap_or(DEFAULT_MAX_CONCURRENT_CREATES)
+}
+
+// [impl->swdd~podmancli-limits-concurrent-creation~1]
+static CREATE_SEMAPHORE: LazyLock<Semaphore> = LazyLock::new(|| {
+    Semaphore::new(parse_max_concurrent_creates(
+        std::env::var(MAX_CONCURRENT_CREATES_ENV_KEY).ok(),
+    ))
+});
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ContainerState {
@@ -446,6 +462,9 @@ impl PodmanCli {
 
         args.append(&mut run_config.command_args);
 
+        // [impl->swdd~podmancli-limits-concurrent-creation~1]
+        let _permit = CREATE_SEMAPHORE.acquire().await.ok();
+
         log::debug!("The args are: '{args:?}'");
         #[cfg(feature = "perf-metrics")]
         let run_start = Instant::now();
@@ -478,6 +497,9 @@ impl PodmanCli {
         args.push("start".into());
 
         args.push(start_config.container_id);
+
+        // [impl->swdd~podmancli-limits-concurrent-creation~1]
+        let _permit = CREATE_SEMAPHORE.acquire().await.ok();
 
         let id = CliCommand::new(PODMAN_CMD)
             .args(&args.iter().map(|x| &**x).collect::<Vec<&str>>())
@@ -660,6 +682,26 @@ mod tests {
     use std::time::{self, Duration};
 
     const SAMPLE_ERROR_MESSAGE: &str = "error message";
+
+    // [utest->swdd~podmancli-limits-concurrent-creation~1]
+    #[test]
+    fn utest_parse_max_concurrent_creates() {
+        use super::{DEFAULT_MAX_CONCURRENT_CREATES, parse_max_concurrent_creates};
+
+        assert_eq!(parse_max_concurrent_creates(Some("8".into())), 8);
+        assert_eq!(parse_max_concurrent_creates(Some("  3 ".into())), 3);
+        // values below 1 are clamped to 1
+        assert_eq!(parse_max_concurrent_creates(Some("0".into())), 1);
+        // invalid and missing values fall back to the default
+        assert_eq!(
+            parse_max_concurrent_creates(Some("not-a-number".into())),
+            DEFAULT_MAX_CONCURRENT_CREATES
+        );
+        assert_eq!(
+            parse_max_concurrent_creates(None),
+            DEFAULT_MAX_CONCURRENT_CREATES
+        );
+    }
 
     #[test]
     fn utest_container_state_from_podman_container_info_created() {
