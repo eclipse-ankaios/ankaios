@@ -3,7 +3,7 @@ site_url: https://eclipse-ankaios.github.io/ankaios
 repo_url: https://github.com/eclipse-ankaios/ankaios
 repo_name: eclipse-ankaios/ankaios
 edit_uri: edit/main/doc/docs/
-copyright: Copyright &copy; 2023-2025 Elektrobit Automotive GmbH and others
+copyright: Copyright &copy; 2023-2026 Elektrobit Automotive GmbH and others
 
 theme:
   name: material
