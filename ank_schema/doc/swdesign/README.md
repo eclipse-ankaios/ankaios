@@ -69,6 +69,30 @@ Needs:
 - impl
 - utest
 
+#### Ankaios Schema crate scopes validation errors to the relevant schema branch
+`swdd~ank-schema-scopes-validation-errors~1`
+
+Status: approved
+
+When validating a manifest, the manifest validator shall report only the validation errors of the schema branch selected by the actual data by performing the following actions:
+
+1. rewrite each internally tagged enum `oneOf` into a discriminator check plus one conditional branch per variant, so that only the variant matching the discriminator value contributes errors
+2. rewrite each nullable `anyOf`/`oneOf` wrapper into a conditional that accepts `null` without emitting a "not of type null" error when the concrete branch fails
+3. collect the resulting errors using the validator's per-error iteration.
+
+Comment:
+The per-error iteration is used instead of the structured evaluation output because the latter does not reliably report `required` violations when the same schema object also declares `properties`, which would otherwise hide the actual cause of a validation failure.
+
+Rationale:
+Internally tagged enums and optional fields generate `oneOf`/`anyOf` constructs whose default error reporting lists violations of every branch, producing misleading messages that reference unrelated variants (e.g. a `LogRule` error for a mistyped `StateRule` field).
+
+Tags:
+- ManifestValidator
+
+Needs:
+- impl
+- utest
+
 ## Data view
 
 ## Error management view
