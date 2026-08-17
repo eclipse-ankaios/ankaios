@@ -14,6 +14,14 @@ Ankaios works with most Linux distributions and has been tested with Ubuntu 22.0
 
 Detailed installation steps, including instructions on setting up container runtimes, choosing an installation method, and installing specific Ankaios versions, are provided below.
 
+!!! Warning
+
+    The express installation does not enable any authentication for access to
+    the Ankaios server (see [Setting up Ankaios with mTLS](mtls-setup.md)).
+    Since the server is typically run as root (e.g. via `sudo systemctl`),
+    any client that can reach it could start workloads with root privileges.
+    For this reason, only use this setup for development purposes.
+
 ## System requirements
 
 Ankaios currently requires a Linux OS and is available for x86_64 and arm64
