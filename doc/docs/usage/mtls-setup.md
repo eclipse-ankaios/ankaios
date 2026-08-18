@@ -231,3 +231,6 @@ Alternatively, you can pass the mTLS certificates as command line arguments:
 ```shell
 ank --ca_pem=/etc/ankaios/certs/ca.pem --crt_pem="${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank.pem" --key_pem="${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank-key.pem" get workloads
 ```
+
+Or you can also configure the mTLS certificates in the CLI configuration file `~/.config/ankaios/ank.conf`.
+In any case you should set `insecure = false` in there to prevent a warning when mTLS certificates are provided.
