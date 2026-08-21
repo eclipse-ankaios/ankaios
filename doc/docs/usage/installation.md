@@ -158,9 +158,14 @@ The `ankaios` meta-package installs all components. Individual packages can be i
 | `ank-agent` | Ankaios agent |
 | `ank` | Ankaios CLI |
 
-!!! note
+!!! Warning
 
-    The `ank-server` and `ank-agent` systemd services are started automatically after installation.
+    The APT package installation does not enable any authentication for access to
+    the Ankaios server (see [Setting up Ankaios with mTLS](mtls-setup.md)).
+    Since the  `ank-server` and `ank-agent` systemd services are started
+    automatically after installation, any client that can reach the `ank-server`
+    could start workloads with root privileges. For this reason, only use this
+    setup for development purposes.
 
 The packages are compatible with Ubuntu 22.04+, Debian 12+ and other distributions based on glibc 2.35 or later.
 
