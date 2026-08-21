@@ -25,3 +25,7 @@ __pycache__
 
 # ignore nohup file for postStartCommand
 nohup.out
+
+# Claude local config
+.claude/settings.local.json
+
