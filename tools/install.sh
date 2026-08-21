@@ -275,4 +275,32 @@ EOF
 ${BIN_SUDO} chmod +x "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}"
 echo "Created uninstall script ${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}."
 
+
+if [ -t 1 ]; then
+    WARN_COLOR="$(printf '\033[1;33m')"
+    RESET_COLOR="$(printf '\033[0m')"
+else
+    WARN_COLOR=""
+    RESET_COLOR=""
+fi
+
+cat << EOF
+
+${WARN_COLOR}!!!!!!!!!!!!!!!!!!!!!!!!!!!! SECURITY WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  The install script does NOT enable any authentication for access to the
+  Ankaios server.
+
+  Since the server is typically run as root (e.g. via "sudo systemctl"), any
+  client that can reach it could start workloads with root privileges.
+
+  To secure your setup, see "Setting up Ankaios with mTLS" in the docs:
+  https://eclipse-ankaios.github.io/ankaios/latest/usage/mtls-setup/
+
+  ==> Only use this setup for development purposes. <==
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${RESET_COLOR}
+
+EOF
+
 echo "Installation has finished."
