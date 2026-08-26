@@ -12,6 +12,10 @@ Ankaios works with most Linux distributions and has been tested with Ubuntu 22.0
 
 Detailed installation steps, including instructions on setting up container runtimes, choosing an installation method, and installing specific Ankaios versions, are provided below.
 
+Warning
+
+The express installation does not enable any authentication for access to the Ankaios server (see [Setting up Ankaios with mTLS](https://eclipse-ankaios.github.io/ankaios/main/usage/mtls-setup/index.md)). Since the server is typically run as root (e.g. via `sudo systemctl`), any client that can reach it could start workloads with root privileges. For this reason, only use this setup for development purposes.
+
 ## System requirements
 
 Ankaios currently requires a Linux OS and is available for x86_64 and arm64 targets.
@@ -135,9 +139,9 @@ The `ankaios` meta-package installs all components. Individual packages can be i
 | `ank-agent`  | Ankaios agent                                               |
 | `ank`        | Ankaios CLI                                                 |
 
-Note
+Warning
 
-The `ank-server` and `ank-agent` systemd services are started automatically after installation.
+The APT package installation does not enable any authentication for access to the Ankaios server (see [Setting up Ankaios with mTLS](https://eclipse-ankaios.github.io/ankaios/main/usage/mtls-setup/index.md)). Since the `ank-server` and `ank-agent` systemd services are started automatically after installation, any client that can reach the `ank-server` could start workloads with root privileges. For this reason, only use this setup for development purposes.
 
 The packages are compatible with Ubuntu 22.04+, Debian 12+ and other distributions based on glibc 2.35 or later.
 
@@ -199,6 +203,10 @@ Note
 If `ankaios-server` and `ankaios-agent` are installed, you can enable and start the services with:
 
 `sudo systemctl enable --now ank-server ank-agent`
+
+Warning
+
+The AUR package installation does not enable any authentication for access to the Ankaios server (see [Setting up Ankaios with mTLS](https://eclipse-ankaios.github.io/ankaios/main/usage/mtls-setup/index.md)). After starting the `ank-server` and `ank-agent` systemd services, any client that can reach the `ank-server` could start workloads with root privileges. For this reason, only use this setup for development purposes.
 
 #### Uninstall
 

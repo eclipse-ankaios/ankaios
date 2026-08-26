@@ -2414,6 +2414,14 @@
 </code></pre></div>
 <p>Ankaios works with most Linux distributions and has been tested with Ubuntu 22.04, 24.04 and 26.04.</p>
 <p>Detailed installation steps, including instructions on setting up container runtimes, choosing an installation method, and installing specific Ankaios versions, are provided below.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The express installation does not enable any authentication for access to
+the Ankaios server (see <a href="../mtls-setup/">Setting up Ankaios with mTLS</a>).
+Since the server is typically run as root (e.g. via <code>sudo systemctl</code>),
+any client that can reach it could start workloads with root privileges.
+For this reason, only use this setup for development purposes.</p>
+</div>
 <h2 id="system-requirements">System requirements<a class="headerlink" href="#system-requirements" title="Permanent link">&para;</a></h2>
 <p>Ankaios currently requires a Linux OS and is available for x86_64 and arm64
 targets.</p>
@@ -2553,9 +2561,14 @@ file generation if required.</p>
 </tr>
 </tbody>
 </table>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The <code>ank-server</code> and <code>ank-agent</code> systemd services are started automatically after installation.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The APT package installation does not enable any authentication for access to
+the Ankaios server (see <a href="../mtls-setup/">Setting up Ankaios with mTLS</a>).
+Since the  <code>ank-server</code> and <code>ank-agent</code> systemd services are started
+automatically after installation, any client that can reach the <code>ank-server</code>
+could start workloads with root privileges. For this reason, only use this
+setup for development purposes.</p>
 </div>
 <p>The packages are compatible with Ubuntu 22.04+, Debian 12+ and other distributions based on glibc 2.35 or later.</p>
 <h4 id="uninstall_1">Uninstall<a class="headerlink" href="#uninstall_1" title="Permanent link">&para;</a></h4>
@@ -2634,6 +2647,14 @@ This is expected because the <code>ankaios</code> meta-package builds and instal
 <p class="admonition-title">Note</p>
 <p>If <code>ankaios-server</code> and <code>ankaios-agent</code> are installed, you can enable and start the services with:</p>
 <p><code>sudo systemctl enable --now ank-server ank-agent</code></p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The AUR package installation does not enable any authentication for access to the Ankaios server
+(see <a href="../mtls-setup/">Setting up Ankaios with mTLS</a>).
+After starting the <code>ank-server</code> and <code>ank-agent</code> systemd services,
+any client that can reach the <code>ank-server</code> could start workloads with root privileges.
+For this reason, only use this setup for development purposes.</p>
 </div>
 <h4 id="uninstall_2">Uninstall<a class="headerlink" href="#uninstall_2" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>sudo<span class="w"> </span>pacman<span class="w"> </span>-Rns<span class="w"> </span>ankaios
