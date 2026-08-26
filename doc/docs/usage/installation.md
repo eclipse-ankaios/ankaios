@@ -230,6 +230,14 @@ You can also install:
 
     `sudo systemctl enable --now ank-server ank-agent`
 
+!!! Warning
+
+    The AUR package installation does not enable any authentication for access to the Ankaios server
+    (see [Setting up Ankaios with mTLS](mtls-setup.md)).
+    After starting the `ank-server` and `ank-agent` systemd services,
+    any client that can reach the `ank-server` could start workloads with root privileges.
+    For this reason, only use this setup for development purposes.
+
 #### Uninstall
 
 ```shell
