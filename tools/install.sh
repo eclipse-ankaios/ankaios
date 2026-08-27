@@ -11,6 +11,8 @@ HOME_CONFIG_DEST="${HOME}/.config/ankaios/"
 FILE_STARTUP_STATE="${CONFIG_DEST}/state.yaml"
 INSTALL_TYPE="both"
 SERVICE_DEST=/etc/systemd/system
+ANK_SERVER_RUNTIME_DIR="/run/ankaios"
+ANK_SYSTEM_GROUP="ankaios"
 
 ANK_SERVER_SERVICE="ank-server"
 FILE_ANK_SERVER_SERVICE="${SERVICE_DEST}/${ANK_SERVER_SERVICE}.service"
@@ -61,6 +63,18 @@ fail() {
 download_release() {
     if ! curl -sfLO "$1"; then
         fail "Error: download failed. No resource under '$1'"
+    fi
+}
+
+create_ankaios_system_group() {
+    local group_mgmt_sudo="sudo"
+    if [ -w "/etc" ]; then
+        group_mgmt_sudo=""
+    fi
+
+    if ! getent group "${ANK_SYSTEM_GROUP}" >/dev/null; then
+        echo "Creating system group '${ANK_SYSTEM_GROUP}'"
+        ${group_mgmt_sudo} groupadd --system "${ANK_SYSTEM_GROUP}"
     fi
 }
 
@@ -146,8 +160,17 @@ if [ -w "${BIN_DESTINATION}" ]; then
     BIN_SUDO=""
 fi
 
+RUNTIME_SUDO="sudo"
+if [ -w "/run" ]; then
+    RUNTIME_SUDO=""
+fi
+
 echo "Extracting the binaries into install folder: '${BIN_DESTINATION}'"
 ${BIN_SUDO} tar -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}/"
+
+if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
+    create_ankaios_system_group
+fi
 
 # Install systemd unit files
 if [ -d "$SERVICE_DEST" ]; then
@@ -165,6 +188,9 @@ Wants=network.target
 
 [Service]
 Environment="RUST_LOG=${INSTALL_ANK_SERVER_RUST_LOG}"
+ExecStartPre=/usr/bin/mkdir -p /run/ankaios
+ExecStartPre=/usr/bin/chgrp ${ANK_SYSTEM_GROUP} /run/ankaios
+ExecStartPre=/usr/bin/chmod 0750 /run/ankaios
 ExecStart=${BIN_DESTINATION}/ank-server
 
 [Install]
@@ -192,6 +218,13 @@ EOF
 
 else
     echo "$$SERVICE_DEST not found. Skipping installation of systemd unit files for Ankaios"
+fi
+
+if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
+    echo "Preparing server runtime directory: '${ANK_SERVER_RUNTIME_DIR}'"
+    $RUNTIME_SUDO mkdir -p "${ANK_SERVER_RUNTIME_DIR}"
+    $RUNTIME_SUDO chown "root:${ANK_SYSTEM_GROUP}" "${ANK_SERVER_RUNTIME_DIR}"
+    $RUNTIME_SUDO chmod 0750 "${ANK_SERVER_RUNTIME_DIR}"
 fi
 
 # Write sample state startup config
@@ -275,32 +308,5 @@ EOF
 ${BIN_SUDO} chmod +x "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}"
 echo "Created uninstall script ${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}."
 
-
-if [ -t 1 ]; then
-    WARN_COLOR="$(printf '\033[1;33m')"
-    RESET_COLOR="$(printf '\033[0m')"
-else
-    WARN_COLOR=""
-    RESET_COLOR=""
-fi
-
-cat << EOF
-
-${WARN_COLOR}!!!!!!!!!!!!!!!!!!!!!!!!!!!! SECURITY WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  The install script does NOT enable any authentication for access to the
-  Ankaios server.
-
-  Since the server is typically run as root (e.g. via "sudo systemctl"), any
-  client that can reach it could start workloads with root privileges.
-
-  To secure your setup, see "Setting up Ankaios with mTLS" in the docs:
-  https://eclipse-ankaios.github.io/ankaios/latest/usage/mtls-setup/
-
-  ==> Only use this setup for development purposes. <==
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${RESET_COLOR}
-
-EOF
 
 echo "Installation has finished."
