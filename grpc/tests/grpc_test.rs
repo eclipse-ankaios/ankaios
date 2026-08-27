@@ -14,40 +14,40 @@
 
 #[cfg(test)]
 mod grpc_tests {
-    use ankaios_api::ank_base::{
-        CompleteState, CompleteStateRequest, Request, RequestContent
-    };
+    use ankaios_api::ank_base::{CompleteState, CompleteStateRequest, Request, RequestContent};
     use common::{
         commands::{self},
         communications_client::CommunicationsClient,
         communications_error::CommunicationMiddlewareError,
-        communications_server::CommunicationsServer,
+        communications_server::{CommunicationsServer, ServerConnection},
         from_server_interface::{FromServer, FromServerSender},
         to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender},
     };
     use grpc::{
+        CommanderHello, Goodbye, ToServer as ProtoToServer,
         client::GRPCCommunicationsClient,
         command_connection_client::CommandConnectionClient,
-        security::{self, TLSConfig, read_pem_file, PemFileType},
+        security::{self, PemFileType, TLSConfig, read_pem_file},
         server::GRPCCommunicationsServer,
         to_server::ToServerEnum,
-        CommanderHello, Goodbye, ToServer as ProtoToServer,
     };
 
     use std::{
         collections::HashMap,
         fs::File,
         io::{self, Write},
-        net::SocketAddr,
         os::unix::fs::PermissionsExt,
         path::PathBuf,
         time::Duration,
     };
 
+    use hyper_util::rt::TokioIo;
     use tempfile::TempDir;
+    use tokio::net::UnixStream;
     use tokio::{sync::mpsc, task::JoinHandle, time::timeout};
     use tokio_stream::wrappers::ReceiverStream;
-    use tonic::transport::Channel;
+    use tonic::transport::{Channel, Endpoint};
+    use tower::service_fn;
 
     /* 10 years validity issued at 08/16/2024 check validity if tests are failing */
     static TEST_CA_PEM_CONTENT: &str = r#"-----BEGIN CERTIFICATE-----
@@ -183,22 +183,27 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         pub fn get_server_tls_config(&self) -> TLSConfig {
             TLSConfig {
                 ca_pem: read_pem_file(&self.ca_pem_file_path, PemFileType::Certificate).unwrap(),
-                crt_pem: read_pem_file(&self.server_pem_file_path, PemFileType::Certificate).unwrap(),
-                key_pem: read_pem_file(&self.server_key_pem_file_path, PemFileType::PrivateKey).unwrap(),
+                crt_pem: read_pem_file(&self.server_pem_file_path, PemFileType::Certificate)
+                    .unwrap(),
+                key_pem: read_pem_file(&self.server_key_pem_file_path, PemFileType::PrivateKey)
+                    .unwrap(),
             }
         }
         pub fn get_agent_tls_config(&self) -> TLSConfig {
             TLSConfig {
                 ca_pem: read_pem_file(&self.ca_pem_file_path, PemFileType::Certificate).unwrap(),
-                crt_pem: read_pem_file(&self.agent_pem_file_path, PemFileType::Certificate).unwrap(),
-                key_pem: read_pem_file(&self.agent_key_pem_file_path, PemFileType::PrivateKey).unwrap(),
+                crt_pem: read_pem_file(&self.agent_pem_file_path, PemFileType::Certificate)
+                    .unwrap(),
+                key_pem: read_pem_file(&self.agent_key_pem_file_path, PemFileType::PrivateKey)
+                    .unwrap(),
             }
         }
         pub fn get_cli_tls_config(&self) -> TLSConfig {
             TLSConfig {
                 ca_pem: read_pem_file(&self.ca_pem_file_path, PemFileType::Certificate).unwrap(),
                 crt_pem: read_pem_file(&self.cli_pem_file_path, PemFileType::Certificate).unwrap(),
-                key_pem: read_pem_file(&self.cli_key_pem_file_path, PemFileType::PrivateKey).unwrap(),
+                key_pem: read_pem_file(&self.cli_key_pem_file_path, PemFileType::PrivateKey)
+                    .unwrap(),
             }
         }
     }
@@ -281,7 +286,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         // create communication server
         let mut communications_server = GRPCCommunicationsServer::new(to_server, server_tls_config);
 
-        let socket_addr: SocketAddr = server_addr.parse().unwrap();
+        let socket_addr = ServerConnection::Tcp(server_addr.parse().unwrap());
 
         let grpc_server_task = tokio::spawn(async move {
             communications_server
@@ -505,7 +510,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let (to_server, server_receiver) = mpsc::channel::<ToServer>(20);
 
         let mut communications_server = GRPCCommunicationsServer::new(to_server, None);
-        let socket_addr: SocketAddr = server_addr.parse().unwrap();
+        let socket_addr = ServerConnection::Tcp(server_addr.parse().unwrap());
 
         let grpc_server_task = tokio::spawn(async move {
             communications_server
@@ -528,9 +533,6 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         panic!("Could not connect to the test gRPC server on '{url}'.");
     }
 
-    // [itest->swdd~grpc-server-creates-commander-connection~1]
-    // [itest->swdd~grpc-server-provides-endpoint-for-commander-connection-handling~1]
-    // [itest->swdd~grpc-client-connects-with-unique-commander-connection-name~1]
     // [itest->swdd~grpc-commander-connection-creates-from-server-channel~1]
     // [itest->swdd~grpc-commander-connection-checks-version-compatibility~1]
     // [itest->swdd~grpc-commander-connection-stores-from-server-channel-tx~1]
@@ -553,7 +555,8 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
             .await
             .unwrap();
 
-        let mut client = connect_command_client_with_retry("http://127.0.0.1:50055".to_owned()).await;
+        let mut client =
+            connect_command_client_with_retry("http://127.0.0.1:50055".to_owned()).await;
         let _response_stream = client
             .connect_command(ReceiverStream::new(grpc_client_receiver))
             .await
@@ -608,7 +611,8 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
             .await
             .unwrap();
 
-        let mut client = connect_command_client_with_retry("http://127.0.0.1:50056".to_owned()).await;
+        let mut client =
+            connect_command_client_with_retry("http://127.0.0.1:50056".to_owned()).await;
         let result = client
             .connect_command(ReceiverStream::new(grpc_client_receiver))
             .await;
@@ -631,11 +635,105 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
             .await
             .unwrap();
 
-        let mut client = connect_command_client_with_retry("http://127.0.0.1:50057".to_owned()).await;
+        let mut client =
+            connect_command_client_with_retry("http://127.0.0.1:50057".to_owned()).await;
         let result = client
             .connect_command(ReceiverStream::new(grpc_client_receiver))
             .await;
 
         assert_eq!(result.unwrap_err().code(), tonic::Code::InvalidArgument);
+    }
+
+    async fn connect_command_client_with_retry_unix_socket(
+        socket_path: PathBuf,
+    ) -> CommandConnectionClient<Channel> {
+        for _ in 0..50 {
+            let path = socket_path.clone();
+            let connect_result = Endpoint::try_from("http://[::]:50061")
+                .unwrap()
+                .connect_with_connector(service_fn(move |_| {
+                    let path = path.clone();
+                    async move { UnixStream::connect(path).await.map(TokioIo::new) }
+                }))
+                .await;
+
+            if let Ok(channel) = connect_result {
+                return CommandConnectionClient::new(channel);
+            }
+
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+
+        panic!(
+            "Could not connect to the test gRPC unix socket server on '{}'.",
+            socket_path.display()
+        );
+    }
+
+    // [itest->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
+    // [itest->swdd~server-supports-unix-domain-socket-endpoints~1]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn itest_grpc_communication_command_connection_over_unix_domain_socket() {
+        let test_request_id = "test_request_id";
+        let tempdir = TempDir::new().unwrap();
+        let socket_path = tempdir.path().join("ankaios-grpc.sock");
+
+        let (to_grpc_server, grpc_server_receiver) = mpsc::channel::<FromServer>(20);
+        let (to_server, mut server_receiver) = mpsc::channel::<ToServer>(20);
+
+        let mut communications_server = GRPCCommunicationsServer::new(to_server, None);
+
+        let socket_endpoint = ServerConnection::Unix(socket_path.clone());
+        let _grpc_server_task = tokio::spawn(async move {
+            communications_server
+                .start(grpc_server_receiver, socket_endpoint)
+                .await
+        });
+
+        let (client_to_server_tx, grpc_client_receiver) = mpsc::channel::<ProtoToServer>(20);
+
+        client_to_server_tx
+            .send(ProtoToServer {
+                to_server_enum: Some(ToServerEnum::CommanderHello(CommanderHello::new())),
+            })
+            .await
+            .unwrap();
+
+        let mut client = connect_command_client_with_retry_unix_socket(socket_path).await;
+        let _response_stream = client
+            .connect_command(ReceiverStream::new(grpc_client_receiver))
+            .await
+            .unwrap()
+            .into_inner();
+
+        client_to_server_tx
+            .send(ProtoToServer {
+                to_server_enum: Some(ToServerEnum::Request(Request {
+                    request_id: test_request_id.to_owned(),
+                    request_content: Some(RequestContent::CompleteStateRequest(
+                        CompleteStateRequest {
+                            field_mask: vec![],
+                            subscribe_for_events: false,
+                        },
+                    )),
+                })),
+            })
+            .await
+            .unwrap();
+
+        let result = timeout(Duration::from_secs(10), server_receiver.recv()).await;
+
+        drop(to_grpc_server);
+
+        assert!(matches!(
+            result,
+            Ok(Some(ToServer::Request(Request {
+                request_id,
+                request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
+                    field_mask,
+                    subscribe_for_events,
+                })),
+            }))) if request_id.contains(test_request_id) && field_mask.is_empty() && !subscribe_for_events
+        ));
     }
 }

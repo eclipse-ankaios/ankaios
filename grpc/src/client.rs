@@ -29,12 +29,16 @@ use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::ToServerReceiver;
 
 use async_trait::async_trait;
+use hyper_util::rt::TokioIo;
 use regex::Regex;
 use std::collections::HashMap;
+use std::path::PathBuf;
+use tokio::net::UnixStream;
 use tokio::select;
 use tokio::sync::mpsc::{self, Receiver};
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint, Identity};
+use tower::service_fn;
 
 const RECONNECT_TIMEOUT_SECONDS: u64 = 1;
 
@@ -43,9 +47,14 @@ enum ConnectionType {
     Cli,
 }
 
+enum ServerEndpoint {
+    Tcp(String),
+    Unix(PathBuf),
+}
+
 pub struct GRPCCommunicationsClient {
     name: String,
-    server_address: String,
+    server_endpoint: ServerEndpoint,
     connection_type: ConnectionType,
     tags: HashMap<String, String>,
     tls_config: Option<TLSConfig>,
@@ -59,14 +68,36 @@ fn get_server_url(server_address: &str, tls_config: &Option<TLSConfig>) -> Strin
     }
 }
 
-fn verify_address_format(server_address: &String) -> Result<(), CommunicationMiddlewareError> {
+fn parse_server_endpoint(
+    server_address: &String,
+    tls_config: &Option<TLSConfig>,
+) -> Result<ServerEndpoint, CommunicationMiddlewareError> {
+    if let Some(path) = server_address.strip_prefix("unix://") {
+        if path.is_empty() {
+            return Err(CommunicationMiddlewareError(
+                "Wrong server address format: empty unix socket path.".to_string(),
+            ));
+        }
+        if tls_config.is_some() {
+            return Err(CommunicationMiddlewareError(
+                "Invalid server address and TLS configuration: unix:// endpoints do not support TLS settings."
+                    .to_string(),
+            ));
+        }
+        return Ok(ServerEndpoint::Unix(PathBuf::from(path)));
+    }
+
     let re = Regex::new(r"^https?:\/\/.+").unwrap_or_illegal_state();
     if !re.is_match(server_address) {
         return Err(CommunicationMiddlewareError(format!(
             "Wrong server address format: '{server_address}'."
         )));
     }
-    Ok(())
+
+    Ok(ServerEndpoint::Tcp(get_server_url(
+        server_address,
+        tls_config,
+    )))
 }
 
 impl GRPCCommunicationsClient {
@@ -76,11 +107,11 @@ impl GRPCCommunicationsClient {
         tags: HashMap<String, String>,
         tls_config: Option<TLSConfig>,
     ) -> Result<Self, CommunicationMiddlewareError> {
-        verify_address_format(&server_address)?;
+        let server_endpoint = parse_server_endpoint(&server_address, &tls_config)?;
 
         Ok(Self {
             name,
-            server_address: get_server_url(&server_address, &tls_config),
+            server_endpoint,
             connection_type: ConnectionType::Agent,
             tags,
             tls_config,
@@ -92,11 +123,11 @@ impl GRPCCommunicationsClient {
         server_address: String,
         tls_config: Option<TLSConfig>,
     ) -> Result<Self, CommunicationMiddlewareError> {
-        verify_address_format(&server_address)?;
+        let server_endpoint = parse_server_endpoint(&server_address, &tls_config)?;
 
         Ok(Self {
             name,
-            server_address: get_server_url(&server_address, &tls_config),
+            server_endpoint,
             connection_type: ConnectionType::Cli,
             tags: HashMap::new(),
             tls_config,
@@ -138,7 +169,7 @@ impl CommunicationsClient for GRPCCommunicationsClient {
                             log::debug!("No connection to the server: '{err}'");
                             return Err(CommunicationMiddlewareError(format!(
                                 "Could not connect to Ankaios server on '{}'.",
-                                self.server_address
+                                self.server_endpoint
                             )));
                         }
                         // [impl->swdd~grpc-client-outputs-error-server-connection-loss-for-cli-connection~1]
@@ -247,7 +278,16 @@ impl GRPCCommunicationsClient {
                         .ca_certificate(ca)
                         .identity(client_identity);
 
-                    let channel = Channel::from_shared(self.server_address.to_string())
+                    let tcp_endpoint = match &self.server_endpoint {
+                        ServerEndpoint::Tcp(endpoint) => endpoint,
+                        ServerEndpoint::Unix(_) => {
+                            return Err(GrpcMiddlewareError::ConnectionInterrupted(
+                                "TLS is not supported for unix:// endpoints".to_string(),
+                            ));
+                        }
+                    };
+
+                    let channel = Channel::from_shared(tcp_endpoint.to_string())
                         .map_err(|err| GrpcMiddlewareError::TLSError(err.to_string()))?
                         .tls_config(tls)?
                         .connect()
@@ -262,8 +302,24 @@ impl GRPCCommunicationsClient {
                 }
                 // [impl->swdd~grpc-agent-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
                 None => {
-                    let mut client =
-                        AgentConnectionClient::connect(self.server_address.to_string()).await?;
+                    let mut client = match &self.server_endpoint {
+                        ServerEndpoint::Tcp(endpoint) => {
+                            AgentConnectionClient::connect(endpoint.to_string()).await?
+                        }
+                        ServerEndpoint::Unix(path) => {
+                            let path = path.clone();
+                            let channel = Endpoint::try_from("http://[::]:50061")
+                                .map_err(|err| {
+                                    GrpcMiddlewareError::ConnectionInterrupted(err.to_string())
+                                })?
+                                .connect_with_connector(service_fn(move |_| {
+                                    let path = path.clone();
+                                    async move { UnixStream::connect(path).await.map(TokioIo::new) }
+                                }))
+                                .await?;
+                            AgentConnectionClient::new(channel)
+                        }
+                    };
 
                     let res = client
                         .connect_agent(ReceiverStream::new(grpc_rx))
@@ -289,7 +345,16 @@ impl GRPCCommunicationsClient {
                         .ca_certificate(ca)
                         .identity(client_identity);
 
-                    let channel = Channel::from_shared(self.server_address.to_string())
+                    let tcp_endpoint = match &self.server_endpoint {
+                        ServerEndpoint::Tcp(endpoint) => endpoint,
+                        ServerEndpoint::Unix(_) => {
+                            return Err(GrpcMiddlewareError::ConnectionInterrupted(
+                                "TLS is not supported for unix:// endpoints".to_string(),
+                            ));
+                        }
+                    };
+
+                    let channel = Channel::from_shared(tcp_endpoint.to_string())
                         .map_err(|err| GrpcMiddlewareError::TLSError(err.to_string()))?
                         .tls_config(tls)?
                         .connect()
@@ -305,8 +370,24 @@ impl GRPCCommunicationsClient {
                 }
                 // [impl->swdd~grpc-cli-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
                 None => {
-                    let mut client =
-                        CliConnectionClient::connect(self.server_address.to_string()).await?;
+                    let mut client = match &self.server_endpoint {
+                        ServerEndpoint::Tcp(endpoint) => {
+                            CliConnectionClient::connect(endpoint.to_string()).await?
+                        }
+                        ServerEndpoint::Unix(path) => {
+                            let path = path.clone();
+                            let channel = Endpoint::try_from("http://[::]:50061")
+                                .map_err(|err| {
+                                    GrpcMiddlewareError::ConnectionInterrupted(err.to_string())
+                                })?
+                                .connect_with_connector(service_fn(move |_| {
+                                    let path = path.clone();
+                                    async move { UnixStream::connect(path).await.map(TokioIo::new) }
+                                }))
+                                .await?;
+                            CliConnectionClient::new(channel)
+                        }
+                    };
 
                     #[allow(deprecated)]
                     let res = client
@@ -316,6 +397,15 @@ impl GRPCCommunicationsClient {
                     Ok(res)
                 }
             },
+        }
+    }
+}
+
+impl std::fmt::Display for ServerEndpoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ServerEndpoint::Tcp(address) => write!(f, "{address}"),
+            ServerEndpoint::Unix(path) => write!(f, "unix://{}", path.display()),
         }
     }
 }
