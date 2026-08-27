@@ -41,6 +41,7 @@ BASE_DIR="$SCRIPT_DIR/../.."
 MAINTAINER="Eclipse Ankaios <ankaios-dev@eclipse.org>"
 LOG_LEVEL="info"
 RELEASE_URL="https://github.com/eclipse-ankaios/ankaios/releases/tag/v$ANKAIOS_VERSION"
+ANK_SYSTEM_GROUP="ankaios"
 
 write_control() {
     cat > "$BASE_DIR/debian/control" <<'EOF'
@@ -110,6 +111,9 @@ Wants=network.target
 
 [Service]
 Environment="RUST_LOG=${LOG_LEVEL}"
+ExecStartPre=/usr/bin/mkdir -p /run/ankaios
+ExecStartPre=/usr/bin/chgrp ${ANK_SYSTEM_GROUP} /run/ankaios
+ExecStartPre=/usr/bin/chmod 0750 /run/ankaios
 ExecStart=/usr/bin/ank-server
 
 [Install]
@@ -130,6 +134,21 @@ ExecStart=/usr/bin/ank-agent
 WantedBy=default.target
 EOF
 
+}
+
+write_postinst() {
+    cat > "$BASE_DIR/debian/ank-server.postinst" <<EOF
+#!/bin/sh
+
+set -e
+
+if ! getent group ${ANK_SYSTEM_GROUP} >/dev/null; then
+    addgroup --system ${ANK_SYSTEM_GROUP}
+fi
+
+exit 0
+EOF
+    chmod +x "$BASE_DIR/debian/ank-server.postinst"
 }
 
 write_copyright() {
@@ -267,6 +286,7 @@ write_control
 write_format_and_options
 write_copyright
 write_services
+write_postinst
 write_rules
 write_changelog
 
