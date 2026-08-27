@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{ArgAction, Parser};
-use std::{env, net::SocketAddr};
+use std::env;
 
 pub fn parse() -> Arguments {
     Arguments::parse()
@@ -39,9 +39,14 @@ pub struct Arguments {
     /// The path to the server config file.
     /// The default path is /etc/ankaios/ank-server.conf
     pub config_path: Option<String>,
-    #[arg(required = false, short = 'a', long = "address")]
-    /// The address, including the port, the server shall listen at [default: 127.0.0.1:25551].
-    pub addr: Option<SocketAddr>,
+    #[arg(required = false, short = 'a', long = "address", env = "ANKSERVER_SERVER_URL")]
+    /// The endpoint the server shall listen at [default: 127.0.0.1:25551].
+    /// Supported values are host:port (TCP) and unix:///path/to/socket (Unix domain socket).
+    pub addr: Option<String>,
+    #[arg(long = "socket-group", env = "ANKSERVER_SOCKET_GROUP")]
+    /// Group name assigned to the Unix domain socket file.
+    /// This option is only valid with unix:// server addresses.
+    pub socket_group: Option<String>,
     #[arg(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANKSERVER_INSECURE")]
     /// Flag to disable TLS communication between Ankaios server, agent and ank CLI.
     pub insecure: Option<bool>,
