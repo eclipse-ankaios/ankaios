@@ -17,7 +17,24 @@ use crate::{
 };
 
 use async_trait::async_trait;
+use std::fmt;
 use std::net::SocketAddr;
+use std::path::PathBuf;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ServerConnection {
+    Tcp(SocketAddr),
+    Unix(PathBuf),
+}
+
+impl fmt::Display for ServerConnection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ServerConnection::Tcp(addr) => write!(f, "{addr}"),
+            ServerConnection::Unix(path) => write!(f, "unix://{}", path.display()),
+        }
+    }
+}
 
 // [impl->swdd~common-interface-definitions~1]
 #[async_trait]
@@ -25,6 +42,6 @@ pub trait CommunicationsServer {
     async fn start(
         &mut self,
         mut receiver: FromServerReceiver,
-        addr: SocketAddr,
+        addr: ServerConnection,
     ) -> Result<(), CommunicationMiddlewareError>;
 }
