@@ -53,35 +53,39 @@ async fn main() {
         ank_config
     );
 
-    if let Err(err_message) = TLSConfig::is_config_conflicting(
-        ank_config.insecure,
-        &ank_config.ca_pem_content,
-        &ank_config.crt_pem_content,
-        &ank_config.key_pem_content,
-    ) {
-        output_warn!("{}", err_message);
-    }
+    let tls_config = if ank_config.address.starts_with("unix://") {
+        None
+    } else {
+        if let Err(err_message) = TLSConfig::is_config_conflicting(
+            ank_config.insecure,
+            &ank_config.ca_pem_content,
+            &ank_config.crt_pem_content,
+            &ank_config.key_pem_content,
+        ) {
+            output_warn!("{}", err_message);
+        }
 
-    // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
-    // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
-    // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-    let tls_config = TLSConfig::new(
-        ank_config.insecure,
-        ank_config.ca_pem_content.clone(),
-        ank_config.crt_pem_content.clone(),
-        ank_config.key_pem_content.clone(),
-    );
+        // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
+        // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
+        // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+        TLSConfig::new(
+            ank_config.insecure,
+            ank_config.ca_pem_content.clone(),
+            ank_config.crt_pem_content.clone(),
+            ank_config.key_pem_content.clone(),
+        )
+        .unwrap_or_exit_func(
+            |err| output_and_error!("Missing certificate files: {}", err),
+            -1,
+        )
+    };
 
     let mut cmd = CliCommands::init(
         ank_config.response_timeout,
         cli_name.to_string(),
-        ank_config.server_url.clone(),
+        ank_config.address.clone(),
         ank_config.no_wait,
-        // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-        tls_config.unwrap_or_exit_func(
-            |err| output_and_error!("Missing certificate files: {}", err),
-            -1,
-        ),
+        tls_config,
     )
     .unwrap_or_else(|err| {
         output_and_error!("Cannot connect to server: '{}'", err);
