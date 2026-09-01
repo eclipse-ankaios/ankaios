@@ -24,10 +24,6 @@ use tokio::process::{Child, Command};
 #[derive(Debug)]
 pub struct SystemdLogFetcher {
     child: Option<Child>,
-    #[cfg(test)]
-    pub stdout: Option<Box<dyn StreamTrait>>,
-    #[cfg(test)]
-    pub stderr: Option<Box<dyn StreamTrait>>,
 }
 
 impl SystemdLogFetcher {
@@ -58,33 +54,20 @@ impl SystemdLogFetcher {
             args.push(&tail_string);
         }
 
-        let cmd = Command::new("journalctl")
-            .args(args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn();
+        let child = Some(
+            Command::new("journalctl")
+                .args(args)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|err| {
+                    log::warn!("Cannot collect logs for '{}': '{}'", workload_id, err);
+                    RuntimeError::CollectLog(format!("Failed to spawn journalctl: {}", err))
+                })?,
+        );
 
-        let cmd = match cmd {
-            Ok(cmd) => Some(cmd),
-            Err(err) => {
-                log::warn!("Cannot collect logs for '{}': '{}'", workload_id, err);
-                return Err(RuntimeError::CollectLog(format!(
-                    "Failed to spawn journalctl: {}",
-                    err
-                )));
-            }
-        };
-
-        #[cfg(not(test))]
-        return Ok(Self { child: cmd });
-        #[cfg(test)]
-        Ok(Self {
-            child: cmd,
-            stdout: None,
-            stderr: None,
-        })
+        Ok(Self { child })
     }
-
 }
 
 impl Drop for SystemdLogFetcher {
@@ -116,10 +99,8 @@ impl GetOutputStreams for SystemdLogFetcher {
                         .map(|stderr| Box::new(stderr) as Box<dyn StreamTrait>),
                 );
             }
-            (None, None)
         }
-        #[cfg(test)]
-        return (self.stdout.take(), self.stderr.take());
+        (None, None)
     }
 }
 
@@ -139,7 +120,6 @@ mod tests {
     };
 
     use std::{process::Stdio, sync::Mutex};
-    use tokio::io::Empty;
 
     static CAN_SPAWN: Mutex<bool> = Mutex::new(true);
     static CAN_KILL: Mutex<bool> = Mutex::new(true);
@@ -148,7 +128,6 @@ mod tests {
 
     #[derive(Debug)]
     pub struct MockChild {
-        pub _stdout: Option<Empty>,
         cmd: String,
         args: Vec<String>,
         stdout_option: Option<Stdio>,
@@ -199,7 +178,6 @@ mod tests {
         pub(crate) fn spawn(&mut self) -> Result<MockChild, String> {
             if *CAN_SPAWN.lock().unwrap() {
                 Ok(MockChild {
-                    _stdout: None,
                     cmd: self.cmd.clone(),
                     args: self.args.clone(),
                     stdout_option: self.stdout.take(),
@@ -229,12 +207,10 @@ mod tests {
         assert!(matches!(
             &log_fetcher.child,
             Some(MockChild {
-                _stdout: _,
                 cmd,
                 args,
                 stdout_option: Some(_),
-                stderr_option: Some(_)
-
+                stderr_option: Some(_),
             }) if cmd == "journalctl" && *args == vec!["-u".to_string(), "test.service".to_string()]
         ));
         let (child_stdout, child_stderr) = log_fetcher.get_output_streams();
@@ -260,7 +236,6 @@ mod tests {
         assert!(matches!(
             &log_fetcher.child,
             Some(MockChild {
-                _stdout: _,
                 cmd,
                 args,
                 stdout_option: Some(_),

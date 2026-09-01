@@ -50,28 +50,24 @@ impl SystemdCli {
             .await
     }
 
-    /// Start a systemd unit
     pub async fn start_unit(unit_name: &str) -> Result<(), String> {
         log::debug!("Starting systemd unit: {}", unit_name);
         Self::exec_systemctl(&["start", unit_name]).await?;
         Ok(())
     }
 
-    /// Stop a systemd unit
     pub async fn stop_unit(unit_name: &str) -> Result<(), String> {
         log::debug!("Stopping systemd unit: {}", unit_name);
         Self::exec_systemctl(&["stop", unit_name]).await?;
         Ok(())
     }
 
-    /// Restart a systemd unit
     pub async fn restart_unit(unit_name: &str) -> Result<(), String> {
         log::debug!("Restarting systemd unit: {}", unit_name);
         Self::exec_systemctl(&["restart", unit_name]).await?;
         Ok(())
     }
 
-    /// Get the state of a systemd unit
     pub async fn get_unit_state(unit_name: &str) -> Result<SystemdUnitState, String> {
         log::trace!("Getting state for systemd unit: {}", unit_name);
 
@@ -85,8 +81,6 @@ impl SystemdCli {
         Self::parse_unit_state(&output)
     }
 
-    /// Get the uptime of a systemd unit in seconds
-    /// Returns None if the service is not active or timestamp cannot be parsed
     pub async fn get_unit_uptime_seconds(unit_name: &str) -> Result<Option<u64>, String> {
         log::trace!("Getting uptime for systemd unit: {}", unit_name);
 
@@ -97,14 +91,12 @@ impl SystemdCli {
         ])
         .await?;
 
-        // Parse systemctl output
         let mut active_enter_monotonic: Option<u64> = None;
         let mut is_active = false;
 
         for line in systemctl_output.lines() {
             let line = line.trim();
             if let Some(value) = line.strip_prefix("ActiveEnterTimestampMonotonic=") {
-                // Monotonic timestamp is in microseconds
                 active_enter_monotonic = value.parse().ok();
             } else if let Some(value) = line.strip_prefix("ActiveState=") {
                 is_active = value == "active";
@@ -115,32 +107,29 @@ impl SystemdCli {
             return Ok(None);
         }
 
-        if let Some(enter_us) = active_enter_monotonic {
-            let uptime_output = tokio::fs::read_to_string("/proc/uptime")
-                .await
-                .map_err(|e| format!("Failed to read /proc/uptime: {}", e))?;
-
-            // /proc/uptime gives system uptime in seconds (first field)
-            let uptime_str = uptime_output
-                .split_whitespace()
-                .next()
-                .ok_or_else(|| "Failed to parse /proc/uptime".to_string())?;
-            let system_uptime_secs: f64 = uptime_str
-                .parse()
-                .map_err(|_| "Invalid uptime format".to_string())?;
-            let system_uptime_us = (system_uptime_secs * 1_000_000.0) as u64;
-
-            // Calculate service uptime
-            let service_uptime_us = system_uptime_us.saturating_sub(enter_us);
-            let service_uptime_secs = service_uptime_us / 1_000_000;
-
+        if let Some(enter_monotonic_us) = active_enter_monotonic {
+            let system_uptime_secs = Self::get_system_uptime_secs().await?;
+            let enter_secs = enter_monotonic_us / 1_000_000;
+            let service_uptime_secs = system_uptime_secs.saturating_sub(enter_secs);
             Ok(Some(service_uptime_secs))
         } else {
             Ok(None)
         }
     }
 
-    /// Parse systemctl show output into SystemdUnitState
+    async fn get_system_uptime_secs() -> Result<u64, String> {
+        let content = tokio::fs::read_to_string("/proc/uptime")
+            .await
+            .map_err(|e| format!("Failed to read /proc/uptime: {}", e))?;
+        let secs: f64 = content
+            .split_whitespace()
+            .next()
+            .ok_or_else(|| "Failed to parse /proc/uptime".to_string())?
+            .parse()
+            .map_err(|_| "Invalid uptime format".to_string())?;
+        Ok(secs as u64)
+    }
+
     fn parse_unit_state(output: &str) -> Result<SystemdUnitState, String> {
         let mut active_state = None;
         let mut sub_state = None;
