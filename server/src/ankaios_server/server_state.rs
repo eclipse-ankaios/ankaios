@@ -43,8 +43,10 @@ pub struct StateGenerationResult {
     pub new_agent_map: AgentMapSpec,
 }
 
+const SYSTEMD_RUNTIME: &str = "systemd";
+
 fn is_transient_restart_workload(workload: &WorkloadNamed) -> bool {
-    if workload.workload.runtime != "systemd" {
+    if workload.workload.runtime != SYSTEMD_RUNTIME {
         return false;
     }
     serde_yaml::from_str::<serde_yaml::Value>(&workload.workload.runtime_config)

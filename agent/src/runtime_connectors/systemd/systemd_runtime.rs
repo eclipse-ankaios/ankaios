@@ -77,6 +77,8 @@ fn map_systemd_state_to_execution_state(
 ) -> ExecutionStateSpec {
     match state.active_state.as_str() {
         "active" if state.sub_state == "running" => ExecutionStateSpec::running(),
+        "active" if state.sub_state == "exited" => ExecutionStateSpec::succeeded(),
+        "active" => ExecutionStateSpec::running(),
         "inactive" if state.sub_state == "dead" => {
             // Check exit code to determine success or failure
             match state.exit_code {
@@ -511,6 +513,32 @@ mod tests {
         assert_eq!(
             map_systemd_state_to_execution_state(state),
             ExecutionStateSpec::failed("Exit code: 1")
+        );
+    }
+
+    #[test]
+    fn utest_map_state_active_exited() {
+        let state = SystemdUnitState {
+            active_state: "active".to_string(),
+            sub_state: "exited".to_string(),
+            exit_code: Some(0),
+        };
+        assert_eq!(
+            map_systemd_state_to_execution_state(state),
+            ExecutionStateSpec::succeeded()
+        );
+    }
+
+    #[test]
+    fn utest_map_state_active_other_substate() {
+        let state = SystemdUnitState {
+            active_state: "active".to_string(),
+            sub_state: "waiting".to_string(),
+            exit_code: None,
+        };
+        assert_eq!(
+            map_systemd_state_to_execution_state(state),
+            ExecutionStateSpec::running()
         );
     }
 

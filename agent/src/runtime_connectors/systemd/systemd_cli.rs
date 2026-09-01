@@ -38,7 +38,7 @@ impl SystemdCli {
     const SYSTEMCTL_GLOBAL_ARGS: &[&str] = &["--no-ask-password", "--no-pager"];
 
     /// Add explicit lifetime as automock prevents the compiler from inferring it.
-    async fn exec_systemctl<'a>(args: &'a[&'a str]) -> Result<String, String> {
+    async fn exec_systemctl<'a>(args: &'a [&'a str]) -> Result<String, String> {
         let full_args: Vec<&str> = Self::SYSTEMCTL_GLOBAL_ARGS
             .iter()
             .copied()
