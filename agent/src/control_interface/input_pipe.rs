@@ -22,6 +22,9 @@ use tokio::{
     net::unix::pipe::{OpenOptions, Receiver},
 };
 
+/// Maximum allowed size for a control interface message towards the agent.
+pub const MAX_MESSAGE_SIZE: usize = 4 * 1024 * 1024 - 256;
+
 #[derive(Debug)]
 pub struct InputPipe {
     path: PathBuf,
@@ -60,10 +63,22 @@ impl InputPipe {
         let varint_data = Self::try_read_varint_data(file).await?;
         let mut varint_data = Box::new(&varint_data[..]);
 
-        let size = prost::encoding::decode_varint(&mut varint_data)? as usize;
+        let size = prost::encoding::decode_varint(&mut varint_data)?;
 
-        let mut buf = vec![0; size];
+        // [impl->swdd~agent-rejects-oversized-control-interface-messages~1]
+        if size > MAX_MESSAGE_SIZE as u64 {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!(
+                    "Control Interface message size {size} exceeds the maximum of {} bytes",
+                    MAX_MESSAGE_SIZE
+                ),
+            ));
+        }
+
+        let mut buf = vec![0; size as usize];
         file.read_exact(&mut buf[..]).await?;
+
         Ok(buf)
     }
 
@@ -246,6 +261,47 @@ mod tests {
         }
 
         reading_task.await.unwrap();
+    }
+
+    // [utest->swdd~agent-rejects-oversized-control-interface-messages~1]
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_rejects_oversized_message_before_reading_payload() {
+        let tmpdir = tempfile::tempdir().unwrap();
+        let fifo = tmpdir.path().join("fifo");
+        mkfifo(&fifo, Mode::S_IRWXU).unwrap();
+        let mut reading_side = super::InputPipe::open(&fifo);
+
+        let reading_task = tokio::spawn(async move { reading_side.read_protobuf_data().await });
+
+        let mut writing_side = super::OpenOptions::new().open_sender(&fifo).unwrap();
+        let mut varint = Vec::new();
+        prost::encoding::encode_varint(super::MAX_MESSAGE_SIZE as u64 + 1, &mut varint);
+        writing_side.write_all(&varint).await.unwrap();
+        writing_side.flush().await.unwrap();
+
+        let error = reading_task.await.unwrap().unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::InvalidData);
+    }
+
+    // [utest->swdd~agent-rejects-oversized-control-interface-messages~1]
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_reads_message_at_maximum_size() {
+        let tmpdir = tempfile::tempdir().unwrap();
+        let fifo = tmpdir.path().join("fifo");
+        mkfifo(&fifo, Mode::S_IRWXU).unwrap();
+        let mut reading_side = super::InputPipe::open(&fifo);
+
+        let reading_task = tokio::spawn(async move { reading_side.read_protobuf_data().await });
+
+        let mut writing_side = super::OpenOptions::new().open_sender(&fifo).unwrap();
+        let payload = vec![17; super::MAX_MESSAGE_SIZE];
+        let mut data = Vec::new();
+        prost::encoding::encode_varint(super::MAX_MESSAGE_SIZE as u64, &mut data);
+        data.extend_from_slice(&payload);
+        writing_side.write_all(&data).await.unwrap();
+        writing_side.flush().await.unwrap();
+
+        assert_eq!(reading_task.await.unwrap().unwrap(), payload);
     }
 
     #[tokio::test(flavor = "multi_thread")]

@@ -82,8 +82,7 @@ impl ControlInterfaceTask {
     async fn check_initial_hello(&mut self) -> Result<(), String> {
         let to_ankaios =
             decode_to_server(self.input_stream.read_protobuf_data().await).map_err(|err| {
-                log::debug!("{PROTOBUF_DECODE_ERROR_MSG}: '{err:?}'");
-                PROTOBUF_DECODE_ERROR_MSG.to_string()
+                format!("{PROTOBUF_DECODE_ERROR_MSG}: '{err:?}'")
             })?;
         match to_ankaios.try_into() {
             Ok(ToAnkaios::Hello(Hello { protocol_version })) => {
@@ -139,47 +138,50 @@ impl ControlInterfaceTask {
                 }
                 // [impl->swdd~agent-listens-for-requests-from-pipe~1]
                 to_ankaios_binary = self.input_stream.read_protobuf_data() => {
-                    if let Ok(to_ankaios) = decode_to_server(to_ankaios_binary) {
-                        // [impl->swdd~agent-converts-control-interface-message-to-ankaios-object~1]
-                        match to_ankaios.try_into() {
-                            Ok(ToAnkaios::Request(mut request)) => {
-                                // [impl->swdd~agent-checks-request-for-authorization~1]
-                                if self.authorizer.authorize(&request) {
-                                    // [impl->swdd~agent-forward-request-from-control-interface-pipe-to-server~2]
-                                    log::debug!("Allowing request '{:?}' from authorizer '{:?}'", request, self.authorizer);
-                                    request.prefix_request_id(&self.request_id_prefix);
-                                    let _ = self.to_server_sender.send(ToServer::Request(request)).await;
-                                } else {
-                                    log::info!("Denying request '{:?}' from authorizer '{:?}'", request, self.authorizer);
-                                    // [impl->swdd~agent-responses-to-denied-request-from-control-interface~1]
-                                    // [impl->swdd~agent-responses-to-denied-request-from-control-interface-contains-request-id~1]
-                                    let error = ank_base::Response {
-                                        request_id: request.request_id,
-                                        response_content: Some(ank_base::response::ResponseContent::Error(ank_base::Error {
-                                            message: "Access denied".into(),
-                                        })),
-                                    };
-                                    let _ = self.forward_from_server(error).await;
-                                };
-                            },
-                            Ok(ToAnkaios::Hello(Hello{protocol_version})) => {
-                                log::warn!("Received yet another Hello with protocol version '{protocol_version}'");
-                                if let Err(message) = check_version_compatibility(protocol_version) {
-                                    log::warn!("{message}");
-                                    let _ = self.send_connection_closed(message).await;
-                                    return;
+                    match decode_to_server(to_ankaios_binary) {
+                        Ok(to_ankaios) => {
+                            // [impl->swdd~agent-converts-control-interface-message-to-ankaios-object~1]
+                            match to_ankaios.try_into() {
+                                Ok(ToAnkaios::Request(mut request)) => {
+                                    // [impl->swdd~agent-checks-request-for-authorization~1]
+                                    if self.authorizer.authorize(&request) {
+                                        // [impl->swdd~agent-forward-request-from-control-interface-pipe-to-server~2]
+                                        log::debug!("Allowing request '{:?}' from authorizer '{:?}'", request, self.authorizer);
+                                        request.prefix_request_id(&self.request_id_prefix);
+                                        let _ = self.to_server_sender.send(ToServer::Request(request)).await;
+                                    } else {
+                                        log::info!("Denying request '{:?}' from authorizer '{:?}'", request, self.authorizer);
+                                        // [impl->swdd~agent-responses-to-denied-request-from-control-interface~1]
+                                        // [impl->swdd~agent-responses-to-denied-request-from-control-interface-contains-request-id~1]
+                                        let error = ank_base::Response {
+                                            request_id: request.request_id,
+                                            response_content: Some(ank_base::response::ResponseContent::Error(ank_base::Error {
+                                                message: "Access denied".into(),
+                                            })),
+                                        };
+                                        let _ = self.forward_from_server(error).await;
+                                    }
+                                },
+                                Ok(ToAnkaios::Hello(Hello{protocol_version})) => {
+                                    log::warn!("Received yet another Hello with protocol version '{protocol_version}'");
+                                    if let Err(message) = check_version_compatibility(protocol_version) {
+                                        log::warn!("{message}");
+                                        let _ = self.send_connection_closed(message).await;
+                                        return;
+                                    }
+                                }
+                                Err(error) => {
+                                    log::warn!("Could not convert protobuf in internal data structure: '{error}'");
                                 }
                             }
-                            Err(error) => {
-                                log::warn!("Could not convert protobuf in internal data structure: '{error}'");
-                            }
                         }
-                    } else {
-                        log::warn!("Could not decode to Ankaios data.");
-                        // Beware! There be dragons! This part is needed to test the workloop of the control interface.
-                        // There is no other (proper) possibility to get out of the loop as mockall does not work properly with tasks.
-                        #[cfg(test)]
-                        return;
+                        Err(error) => {
+                            log::warn!("Could not decode to Ankaios data: '{error}'");
+                            // Beware! There be dragons! This part is needed to test the workloop of the control interface.
+                            // There is no other (proper) possibility to get out of the loop as mockall does not work properly with tasks.
+                            #[cfg(test)]
+                            return;
+                        }
                     }
                 }
             }

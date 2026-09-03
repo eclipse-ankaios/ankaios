@@ -3686,6 +3686,26 @@ Needs:
 - impl
 - utest
 
+#### Agent rejects oversized Control Interface messages
+`swdd~agent-rejects-oversized-control-interface-messages~1`
+
+Status: approved
+
+The Ankaios Agent shall reject Control Interface messages with a declared protobuf payload size greater than 4 MiB minus 256 bytes before allocating the payload buffer.
+
+Comment:
+The 256-byte reserve accounts for the message-dependent protobuf envelope and request ID prefixes added when forwarding a Control Interface request via gRPC, whose default receive limit is 4 MiB.
+
+Rationale:
+The payload size is supplied by a workload and must not cause unbounded memory allocation in the Ankaios Agent.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+
 #### Agent listens for Control Interface requests from the output pipe
 `swdd~agent-listens-for-requests-from-pipe~1`
 
