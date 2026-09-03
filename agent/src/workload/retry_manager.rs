@@ -15,7 +15,7 @@
 #[cfg(test)]
 use mockall::mock;
 #[cfg(not(test))]
-use rand::Rng;
+use rand::RngExt;
 use std::time::Duration;
 use std::{cmp::min, future::Future};
 
