@@ -73,6 +73,28 @@ Considered alternatives:
 - **Lightweight mutating result message**: The hook returns a small response carrying only workload names and an "admitted" flag when no mutation occurred. This would save a few KB of pipe I/O per hook but adds significant complexity: a new protobuf message type, a framing mechanism for the server to distinguish response formats, two code paths for response handling, and additional burden on hook authors. The pipe I/O savings (~10–50 microseconds total across 10 hooks) are negligible compared to process spawning costs (~10–50 milliseconds), making the trade-off unjustified.
 - **Per-workload hash tracking**: Track individual workload mutations via content hashes to selectively skip conversion of unchanged workloads. Adds protocol complexity and statefulness without meaningful gain, since the entire message must still be transferred and decoded to extract the hashes.
 
+#### Server uses a single communication listen endpoint
+`swdd~server-uses-single-communication-listen-endpoint~1`
+
+Status: approved
+
+The Ankaios server shall allow configuring exactly one communication middleware listen endpoint.
+
+Rationale:
+Keeping a single active endpoint keeps configuration and operations simple.
+
+Needs:
+- impl
+
+Assumptions:
+
+- Standard deployments use an IP endpoint with mTLS expected.
+- Unix domain sockets are mainly used for local development, and access shall be limited to selected users or groups on the same system.
+
+Considered alternatives:
+
+- **Support multiple endpoint types and multiple simultaneous listeners:** Rejected to avoid additional validation, runtime complexity, and maintenance cost.
+
 ## Structural view
 
 The following diagram shows the structural view of the Ankaios Server:
@@ -324,6 +346,82 @@ Tags:
 Needs:
 - impl
 - itest
+
+#### Server supports unix domain socket endpoints
+`swdd~server-supports-unix-domain-socket-endpoints~1`
+
+Status: approved
+
+The Ankaios server shall support configuring the gRPC communication middleware to listen on either a TCP socket endpoint (`<host>:<port>`) or a Unix domain socket endpoint (`unix://<absolute-path>`).
+
+Rationale:
+Unix domain sockets can be used for local inter-process communication with filesystem-based user and group access control.
+
+Tags:
+- AnkaiosServer
+- Communication Middleware
+
+Needs:
+- impl
+- utest
+- itest
+
+#### Server validates unix domain socket configuration
+`swdd~server-validates-unix-domain-socket-configuration~1`
+
+Status: approved
+
+When the Ankaios server is configured with a Unix domain socket endpoint (`unix://`), the server shall reject startup configuration that:
+
+- enables `insecure`
+- sets TLS certificate paths or TLS certificate content fields
+
+Rationale:
+Unix domain socket communication uses local filesystem permissions and does not require TLS transport settings.
+
+Tags:
+- AnkaiosServer
+- Communication Middleware
+
+Needs:
+- impl
+- utest
+
+#### Server validates socket group endpoint compatibility
+`swdd~server-validates-socket-group-endpoint-compatibility~1`
+
+Status: approved
+
+When the Ankaios server is configured with a non-Unix endpoint, the server shall reject startup configuration that sets `socket_group`.
+
+Rationale:
+The `socket_group` setting applies only to filesystem permissions of Unix domain socket files and is not applicable to TCP endpoints.
+
+Tags:
+- AnkaiosServer
+- Communication Middleware
+
+Needs:
+- impl
+- utest
+
+#### Server configures unix domain socket group
+`swdd~server-configures-unix-domain-socket-group~1`
+
+Status: approved
+
+When the Ankaios server is configured with a Unix domain socket endpoint and a `socket_group`, the server shall set the group ownership of the created socket file to that group.
+
+Rationale:
+The `socket_group` setting allows controlling local access to the Unix domain socket through group permissions.
+
+Tags:
+- AnkaiosServer
+- Communication Middleware
+
+Needs:
+- impl
+- utest
 
 #### Server uses common async communication channels
 `swdd~server-uses-async-channels~1`

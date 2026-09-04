@@ -5,18 +5,22 @@ SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 LOG_DIR="$(readlink -f "$SCRIPT_DIR/../../logs")"
 CERTS_FOLDER_NAME=".certs"
 CERTS_DIR="$SCRIPT_DIR/../../$CERTS_FOLDER_NAME"
+DEFAULT_TCP_SERVER_ADDRESS="127.0.0.1:25551"
+DEFAULT_TCP_CLI_ADDRESS="https://127.0.0.1:25551"
 
 mkdir -p "$LOG_DIR"
 
 "$SCRIPT_DIR/../certs/create_certs.sh"
 
 echo "Staring up Ankaios server with TLS enabled"
+ANKSERVER_SERVER_URL="$DEFAULT_TCP_SERVER_ADDRESS" \
 ANKSERVER_CA_PEM="$CERTS_DIR/ca.pem" \
 ANKSERVER_CRT_PEM="$CERTS_DIR/server.pem" \
 ANKSERVER_KEY_PEM="$CERTS_DIR/server-key.pem" \
 RUST_LOG=debug /workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank-server 2> "$LOG_DIR/ank-server" &
 
 echo "Staring up Ankaios agent with TLS enabled"
+ANKAGENT_SERVER_URL="$DEFAULT_TCP_CLI_ADDRESS" \
 ANKAGENT_CA_PEM="$CERTS_DIR/ca.pem" \
 ANKAGENT_CRT_PEM="$CERTS_DIR/agent.pem" \
 ANKAGENT_KEY_PEM="$CERTS_DIR/agent-key.pem" \
@@ -26,7 +30,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo -e "${RED}To use certificates for the ank cli run the cli as follows:${NC}"
-echo 'ank --ca_pem /workspaces/ankaios/.certs/ca.pem --crt_pem /workspaces/ankaios/.certs/cli.pem --key_pem /workspaces/ankaios/.certs/cli-key.pem get workloads'
+echo 'ank --address "'"$DEFAULT_TCP_CLI_ADDRESS"'" --ca_pem /workspaces/ankaios/.certs/ca.pem --crt_pem /workspaces/ankaios/.certs/cli.pem --key_pem /workspaces/ankaios/.certs/cli-key.pem get workloads'
 
 echo ''
 

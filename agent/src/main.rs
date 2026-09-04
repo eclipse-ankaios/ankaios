@@ -131,9 +131,9 @@ async fn main() {
         .unwrap_or_exit("Error encountered while checking agent name!");
 
     log::debug!(
-        "Starting the Ankaios agent with \n\tname: '{}', \n\tserver url: '{}', \n\trun directory: '{}'",
+        "Starting the Ankaios agent with \n\tname: '{}', \n\tserver endpoint: '{}', \n\trun directory: '{}'",
         agent_config.name,
-        agent_config.server_url,
+        agent_config.address,
         agent_config.run_folder,
     );
 
@@ -192,31 +192,35 @@ async fn main() {
         workload_state_sender,
     );
 
-    if let Err(err_message) = TLSConfig::is_config_conflicting(
-        agent_config.insecure,
-        &agent_config.ca_pem_content,
-        &agent_config.crt_pem_content,
-        &agent_config.key_pem_content,
-    ) {
-        log::warn!("{err_message}");
-    }
+    let tls_config = if agent_config.address.starts_with("unix://") {
+        None
+    } else {
+        if let Err(err_message) = TLSConfig::is_config_conflicting(
+            agent_config.insecure,
+            &agent_config.ca_pem_content,
+            &agent_config.crt_pem_content,
+            &agent_config.key_pem_content,
+        ) {
+            log::warn!("{err_message}");
+        }
 
-    // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
-    // [impl->swdd~agent-provides-file-paths-to-communication-middleware~1]
-    // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-    let tls_config = TLSConfig::new(
-        agent_config.insecure,
-        agent_config.ca_pem_content,
-        agent_config.crt_pem_content,
-        agent_config.key_pem_content,
-    );
+        // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
+        // [impl->swdd~agent-provides-file-paths-to-communication-middleware~1]
+        // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+        TLSConfig::new(
+            agent_config.insecure,
+            agent_config.ca_pem_content,
+            agent_config.crt_pem_content,
+            agent_config.key_pem_content,
+        )
+        .unwrap_or_exit("Missing certificate files")
+    };
 
     let mut communications_client = GRPCCommunicationsClient::new_agent_communication(
         agent_config.name.clone(),
-        agent_config.server_url,
+        agent_config.address,
         agent_config.tags,
-        // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-        tls_config.unwrap_or_exit("Missing certificate files"),
+        tls_config,
     )
     .unwrap_or_exit("Failed to create communications client.");
 
