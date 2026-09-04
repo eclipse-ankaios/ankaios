@@ -393,6 +393,42 @@ mod test {
     }
 
     // [utest->swdd~agent-authorizing-request-operations~2]
+    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
+    #[test]
+    fn utest_scoped_leading_wildcard_rule_does_not_authorize_empty_masks() {
+        // A rule scoped to one subtree must not authorize a request that names
+        // no path at all. Both request kinds go through the shared matcher, so
+        // both are checked here: an empty field mask is a complete-state read
+        // and an empty update mask is a replacement-state write.
+        let complete_state_request = Request {
+            request_id: "".into(),
+            request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
+                field_mask: vec![],
+                subscribe_for_events: false,
+            })),
+        };
+        let update_state_request = Request {
+            request_id: "".into(),
+            request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    new_state: Default::default(),
+                    update_mask: vec![],
+                },
+            ))),
+        };
+
+        let authorizer = populate_authorizer(
+            Authorizer::default(),
+            &[RuleType::StateAllowReadWrite(vec![
+                "*.workloads.some_workload".into(),
+            ])],
+        );
+
+        assert!(!authorizer.authorize(&complete_state_request));
+        assert!(!authorizer.authorize(&update_state_request));
+    }
+
+    // [utest->swdd~agent-authorizing-request-operations~2]
     // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]
     fn utest_read_requests_operations() {
