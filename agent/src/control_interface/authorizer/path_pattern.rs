@@ -51,7 +51,7 @@ impl PathPattern for AllowPathPattern {
 
     fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason) {
         if self.sections.len() > other.sections.len()
-            && self.sections.first() != Some(&PathPatternSection::Wildcard)
+            && !matches!(self.sections.as_slice(), [PathPatternSection::Wildcard])
         {
             return (false, String::new());
         }
@@ -239,6 +239,23 @@ mod tests {
         assert!(p.matches(&"some.pre.fix.test".into()).0);
     }
 
+    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
+    #[test]
+    fn utest_allow_path_pattern_with_wildcard_at_start() {
+        let p = AllowPathPattern::from("*.workloads.some_workload");
+
+        assert!(!p.matches(&"".into()).0);
+        assert!(!p.matches(&"desiredState".into()).0);
+        assert!(!p.matches(&"desiredState.workloads".into()).0);
+        assert!(!p.matches(&"desiredState.other".into()).0);
+        assert!(p.matches(&"desiredState.workloads.some_workload".into()).0);
+        assert!(p.matches(&"other.workloads.some_workload".into()).0);
+        assert!(
+            p.matches(&"desiredState.workloads.some_workload.tags".into())
+                .0
+        );
+    }
+
     // [utest->swdd~agent-authorizing-rules-without-segments-never-match~1]
     #[test]
     fn utest_empty_allow_path_pattern_does_not_match() {
@@ -300,11 +317,22 @@ mod tests {
     // [utest->swdd~agent-authorizing-matching-deny-rules~1]
     #[test]
     fn utest_deny_path_pattern_with_wildcard_only() {
-        let p = AllowPathPattern::from("*");
+        let p = DenyPathPattern::from("*");
 
         assert!(p.matches(&"".into()).0);
         assert!(p.matches(&"some".into()).0);
         assert!(p.matches(&"some.pre.fix.test".into()).0);
+    }
+
+    // [utest->swdd~agent-authorizing-matching-deny-rules~1]
+    #[test]
+    fn utest_deny_path_pattern_with_wildcard_at_start() {
+        let p = DenyPathPattern::from("*.pre.fix");
+
+        assert!(p.matches(&"".into()).0);
+        assert!(!p.matches(&"some.bla".into()).0);
+        assert!(p.matches(&"some.pre.fix".into()).0);
+        assert!(p.matches(&"other.pre.fix".into()).0);
     }
 
     // [utest->swdd~agent-authorizing-rules-without-segments-never-match~1]
