@@ -16,6 +16,10 @@ FROM ghcr.io/eclipse-ankaios/devcontainer-base:1.3.0
 
 ARG USERNAME=vscode
 
+# Security vulnerability analysis workflow
+# TODO: Move this dependency to Dockerfile.base with the next base container release.
+RUN PIP_BREAK_SYSTEM_PACKAGES=1 pip install cvss==3.6
+
 # add git completion for bash
 RUN curl -L https://raw.githubusercontent.com/git/git/master/contrib/completion/git-completion.bash -o /home/${USERNAME}/.git-completion.bash
 RUN echo 'if [ -f ~/.git-completion.bash ]; then\n\
