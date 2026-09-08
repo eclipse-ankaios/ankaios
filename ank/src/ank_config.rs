@@ -14,8 +14,10 @@
 
 use crate::cli::AnkCli;
 use crate::output_warn;
-use common::DEFAULT_SERVER_ADDRESS;
-use common::config::{CONFIG_VERSION, ConfigFile, ConversionErrors};
+use common::config::{
+    CONFIG_VERSION, ConfigFile, ConversionErrors, get_default_server_url,
+    validate_server_address_format, validate_unix_socket_tls_settings,
+};
 use common::std_extensions::UnreachableOption;
 
 use grpc::security::PemFileType;
@@ -34,7 +36,6 @@ use std::collections::BTreeMap;
 use std::env;
 use std::fmt;
 use std::fs::read_to_string;
-use std::path::Path;
 use std::path::PathBuf;
 
 pub const DEFAULT_CONFIG: &str = "default";
@@ -49,7 +50,10 @@ fn get_user_config_path() -> Option<String> {
 
 pub fn get_config_file_paths() -> Vec<String> {
     if let Some(user_config_path) = get_user_config_path() {
-        vec![user_config_path, DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH.to_string()]
+        vec![
+            user_config_path,
+            DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH.to_string(),
+        ]
     } else {
         output_warn!(
             "HOME environment variable not found, continue with searching only system config file at '{}'.",
@@ -61,34 +65,6 @@ pub fn get_config_file_paths() -> Vec<String> {
 
 fn get_default_response_timeout() -> u64 {
     DEFAULT_RESPONSE_TIMEOUT
-}
-
-fn get_default_url() -> String {
-    DEFAULT_SERVER_ADDRESS.to_string()
-}
-
-fn is_unix_address(address: &str) -> bool {
-    address.starts_with("unix://")
-}
-
-fn validate_address_format(address: &str) -> Result<(), String> {
-    if let Some(path) = address.strip_prefix("unix://") {
-        if path.is_empty() {
-            return Err("Wrong server address format: empty unix socket path.".to_string());
-        }
-        if !Path::new(path).is_absolute() {
-            return Err(format!(
-                "Wrong server address format: unix socket path must be absolute: '{address}'."
-            ));
-        }
-        return Ok(());
-    }
-
-    if address.starts_with("https://") || address.starts_with("http://") {
-        Ok(())
-    } else {
-        Err(format!("Wrong server address format: '{address}'."))
-    }
 }
 
 // [impl->swdd~cli-loads-config-file~2]
@@ -120,7 +96,7 @@ struct AnkConfigHelper {
     quiet: bool,
     #[serde(default)]
     no_wait: bool,
-    #[serde(default = "get_default_url", alias = "server_url")]
+    #[serde(default = "get_default_server_url", alias = "server_url")]
     address: String,
     #[serde(default)]
     insecure: bool,
@@ -213,7 +189,7 @@ impl Default for AnkConfig {
             verbose: bool::default(),
             quiet: bool::default(),
             no_wait: bool::default(),
-            address: get_default_url(),
+            address: get_default_server_url(),
             insecure: bool::default(),
             ca_pem: None,
             crt_pem: None,
@@ -262,11 +238,10 @@ impl ConfigFile for AnkConfig {
             ank_config.key_pem_content = Some(key_pem_content);
         }
 
-        validate_address_format(&ank_config.address)
+        validate_server_address_format(&ank_config.address)
             .map_err(ConversionErrors::InvalidConfig)?;
 
-        validate_socket_configuration(&ank_config)
-            .map_err(ConversionErrors::InvalidConfig)?;
+        validate_socket_configuration(&ank_config).map_err(ConversionErrors::InvalidConfig)?;
 
         Ok(ank_config)
     }
@@ -314,36 +289,24 @@ impl AnkConfig {
             self.key_pem_content = Some(key_pem_content);
         }
 
-        validate_address_format(&self.address)?;
+        validate_server_address_format(&self.address)?;
         validate_socket_configuration(self)?;
         Ok(())
     }
 }
 
 fn validate_socket_configuration(ank_config: &AnkConfig) -> Result<(), String> {
-    if is_unix_address(&ank_config.address) {
-        if ank_config.insecure {
-            return Err(
-                "Invalid ank config: 'insecure' must not be enabled for unix:// endpoints"
-                    .to_string(),
-            );
-        }
-
-        if ank_config.ca_pem.is_some()
+    validate_unix_socket_tls_settings(
+        "ank",
+        &ank_config.address,
+        ank_config.insecure,
+        ank_config.ca_pem.is_some()
             || ank_config.crt_pem.is_some()
             || ank_config.key_pem.is_some()
             || ank_config.ca_pem_content.is_some()
             || ank_config.crt_pem_content.is_some()
-            || ank_config.key_pem_content.is_some()
-        {
-            return Err(
-                "Invalid ank config: TLS certificate settings are not allowed for unix:// endpoints"
-                    .to_string(),
-            );
-        }
-    }
-
-    Ok(())
+            || ank_config.key_pem_content.is_some(),
+    )
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -358,13 +321,13 @@ fn validate_socket_configuration(ank_config: &AnkConfig) -> Result<(), String> {
 mod tests {
     use super::AnkConfig;
     use crate::{
-        ank_config::{get_default_response_timeout, get_default_url},
+        ank_config::get_default_response_timeout,
         cli::{AnkCli, Commands, GetArgs, GetCommands},
     };
 
     use ankaios_api::test_utils::fixtures;
-    use common::DEFAULT_SERVER_ADDRESS;
     use common::config::{ConfigFile, ConversionErrors};
+    use common::{DEFAULT_SERVER_ADDRESS, config::get_default_server_url};
 
     use std::io::Write;
     use std::path::PathBuf;
@@ -623,7 +586,7 @@ mod tests {
 
         let ank_config = AnkConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
 
-        assert_eq!(ank_config.address, get_default_url());
+        assert_eq!(ank_config.address, get_default_server_url());
         assert!(!ank_config.insecure);
         assert!(ank_config.ca_pem.is_none());
         assert!(ank_config.crt_pem.is_none());

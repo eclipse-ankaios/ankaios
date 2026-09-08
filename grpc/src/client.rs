@@ -100,6 +100,42 @@ fn parse_server_endpoint(
     )))
 }
 
+fn build_client_tls_config(tls_config: &TLSConfig) -> ClientTlsConfig {
+    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
+    let ca = Certificate::from_pem(&tls_config.ca_pem);
+    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
+    let client_cert = Certificate::from_pem(&tls_config.crt_pem);
+
+    // [impl->swdd~grpc-supports-pem-file-format-for-keys~1]
+    let client_key = Certificate::from_pem(&tls_config.key_pem);
+    let client_identity = Identity::from_pem(client_cert, client_key);
+
+    ClientTlsConfig::new()
+        .domain_name("ank-server")
+        .ca_certificate(ca)
+        .identity(client_identity)
+}
+
+fn get_tcp_endpoint_for_tls(server_endpoint: &ServerEndpoint) -> Result<&str, GrpcMiddlewareError> {
+    match server_endpoint {
+        ServerEndpoint::Tcp(endpoint) => Ok(endpoint.as_str()),
+        ServerEndpoint::Unix(_) => Err(GrpcMiddlewareError::ConnectionInterrupted(
+            "TLS is not supported for unix:// endpoints".to_string(),
+        )),
+    }
+}
+
+async fn connect_unix_channel(path: PathBuf) -> Result<Channel, GrpcMiddlewareError> {
+    Endpoint::try_from("http://[::]:50061")
+        .map_err(|err| GrpcMiddlewareError::ConnectionInterrupted(err.to_string()))?
+        .connect_with_connector(service_fn(move |_| {
+            let path = path.clone();
+            async move { UnixStream::connect(path).await.map(TokioIo::new) }
+        }))
+        .await
+        .map_err(Into::into)
+}
+
 impl GRPCCommunicationsClient {
     pub fn new_agent_communication(
         name: String,
@@ -264,28 +300,8 @@ impl GRPCCommunicationsClient {
             ConnectionType::Agent => match &self.tls_config {
                 // [impl->swdd~grpc-agent-activate-mtls-when-certificates-and-key-provided-upon-start~1]
                 Some(tls_config) => {
-                    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-                    let ca = Certificate::from_pem(&tls_config.ca_pem);
-                    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-                    let client_cert = Certificate::from_pem(&tls_config.crt_pem);
-
-                    // [impl->swdd~grpc-supports-pem-file-format-for-keys~1]
-                    let client_key = Certificate::from_pem(&tls_config.key_pem);
-                    let client_identity = Identity::from_pem(client_cert, client_key);
-
-                    let tls = ClientTlsConfig::new()
-                        .domain_name("ank-server")
-                        .ca_certificate(ca)
-                        .identity(client_identity);
-
-                    let tcp_endpoint = match &self.server_endpoint {
-                        ServerEndpoint::Tcp(endpoint) => endpoint,
-                        ServerEndpoint::Unix(_) => {
-                            return Err(GrpcMiddlewareError::ConnectionInterrupted(
-                                "TLS is not supported for unix:// endpoints".to_string(),
-                            ));
-                        }
-                    };
+                    let tls = build_client_tls_config(tls_config);
+                    let tcp_endpoint = get_tcp_endpoint_for_tls(&self.server_endpoint)?;
 
                     let channel = Channel::from_shared(tcp_endpoint.to_string())
                         .map_err(|err| GrpcMiddlewareError::TLSError(err.to_string()))?
@@ -307,16 +323,7 @@ impl GRPCCommunicationsClient {
                             AgentConnectionClient::connect(endpoint.to_string()).await?
                         }
                         ServerEndpoint::Unix(path) => {
-                            let path = path.clone();
-                            let channel = Endpoint::try_from("http://[::]:50061")
-                                .map_err(|err| {
-                                    GrpcMiddlewareError::ConnectionInterrupted(err.to_string())
-                                })?
-                                .connect_with_connector(service_fn(move |_| {
-                                    let path = path.clone();
-                                    async move { UnixStream::connect(path).await.map(TokioIo::new) }
-                                }))
-                                .await?;
+                            let channel = connect_unix_channel(path.clone()).await?;
                             AgentConnectionClient::new(channel)
                         }
                     };
@@ -331,28 +338,8 @@ impl GRPCCommunicationsClient {
             ConnectionType::Cli => match &self.tls_config {
                 // [impl->swdd~grpc-cli-activate-mtls-when-certificates-and-key-provided-upon-start~1]
                 Some(tls_config) => {
-                    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-                    let ca = Certificate::from_pem(&tls_config.ca_pem);
-                    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-                    let client_cert = Certificate::from_pem(&tls_config.crt_pem);
-
-                    // [impl->swdd~grpc-supports-pem-file-format-for-keys~1]
-                    let client_key = Certificate::from_pem(&tls_config.key_pem);
-                    let client_identity = Identity::from_pem(client_cert, client_key);
-
-                    let tls = ClientTlsConfig::new()
-                        .domain_name("ank-server")
-                        .ca_certificate(ca)
-                        .identity(client_identity);
-
-                    let tcp_endpoint = match &self.server_endpoint {
-                        ServerEndpoint::Tcp(endpoint) => endpoint,
-                        ServerEndpoint::Unix(_) => {
-                            return Err(GrpcMiddlewareError::ConnectionInterrupted(
-                                "TLS is not supported for unix:// endpoints".to_string(),
-                            ));
-                        }
-                    };
+                    let tls = build_client_tls_config(tls_config);
+                    let tcp_endpoint = get_tcp_endpoint_for_tls(&self.server_endpoint)?;
 
                     let channel = Channel::from_shared(tcp_endpoint.to_string())
                         .map_err(|err| GrpcMiddlewareError::TLSError(err.to_string()))?
@@ -375,16 +362,7 @@ impl GRPCCommunicationsClient {
                             CliConnectionClient::connect(endpoint.to_string()).await?
                         }
                         ServerEndpoint::Unix(path) => {
-                            let path = path.clone();
-                            let channel = Endpoint::try_from("http://[::]:50061")
-                                .map_err(|err| {
-                                    GrpcMiddlewareError::ConnectionInterrupted(err.to_string())
-                                })?
-                                .connect_with_connector(service_fn(move |_| {
-                                    let path = path.clone();
-                                    async move { UnixStream::connect(path).await.map(TokioIo::new) }
-                                }))
-                                .await?;
+                            let channel = connect_unix_channel(path.clone()).await?;
                             CliConnectionClient::new(channel)
                         }
                     };
