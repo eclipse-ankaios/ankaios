@@ -15,8 +15,10 @@
 use crate::cli::Arguments;
 use crate::io_utils::default_run_folder_string;
 
-use common::DEFAULT_SERVER_ADDRESS;
-use common::config::{CONFIG_VERSION, ConfigFile, ConversionErrors};
+use common::config::{
+    CONFIG_VERSION, ConfigFile, ConversionErrors, get_default_server_url,
+    validate_server_address_format, validate_unix_socket_tls_settings,
+};
 use common::std_extensions::UnreachableOption;
 
 use grpc::security::PemFileType;
@@ -29,39 +31,10 @@ use tests::read_pem_file;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::read_to_string;
-use std::path::Path;
 use std::path::PathBuf;
 use toml::from_str;
 
 pub const DEFAULT_AGENT_CONFIG_FILE_PATH: [&str; 1] = ["/etc/ankaios/ank-agent.conf"];
-
-pub fn get_default_url() -> String {
-    DEFAULT_SERVER_ADDRESS.to_string()
-}
-
-fn is_unix_address(address: &str) -> bool {
-    address.starts_with("unix://")
-}
-
-fn validate_address_format(address: &str) -> Result<(), String> {
-    if let Some(path) = address.strip_prefix("unix://") {
-        if path.is_empty() {
-            return Err("Wrong server address format: empty unix socket path.".to_string());
-        }
-        if !Path::new(path).is_absolute() {
-            return Err(format!(
-                "Wrong server address format: unix socket path must be absolute: '{address}'."
-            ));
-        }
-        return Ok(());
-    }
-
-    if address.starts_with("https://") || address.starts_with("http://") {
-        Ok(())
-    } else {
-        Err(format!("Wrong server address format: '{address}'."))
-    }
-}
 
 // [impl->swdd~agent-loads-config-file~2]
 #[derive(Debug, Deserialize, PartialEq)]
@@ -69,7 +42,7 @@ pub struct AgentConfig {
     pub version: String,
     #[serde(default)]
     pub name: String,
-    #[serde(default = "get_default_url", alias = "server_url")]
+    #[serde(default = "get_default_server_url", alias = "server_url")]
     pub address: String,
     #[serde(default = "crate::io_utils::default_run_folder_string")]
     pub run_folder: String,
@@ -92,7 +65,7 @@ impl Default for AgentConfig {
         AgentConfig {
             version: CONFIG_VERSION.to_string(),
             name: String::new(),
-            address: get_default_url(),
+            address: get_default_server_url(),
             run_folder: default_run_folder_string(),
             insecure: bool::default(),
             runtimes: None,
@@ -144,7 +117,8 @@ impl ConfigFile for AgentConfig {
             agent_config.key_pem_content = Some(key_pem_content);
         }
 
-        validate_address_format(&agent_config.address).map_err(ConversionErrors::InvalidConfig)?;
+        validate_server_address_format(&agent_config.address)
+            .map_err(ConversionErrors::InvalidConfig)?;
 
         validate_socket_configuration(&agent_config).map_err(ConversionErrors::InvalidConfig)?;
 
@@ -193,7 +167,7 @@ impl AgentConfig {
             self.tags = tags.iter().cloned().collect();
         }
 
-        validate_address_format(&self.address)?;
+        validate_server_address_format(&self.address)?;
         validate_socket_configuration(self)?;
 
         Ok(())
@@ -201,30 +175,17 @@ impl AgentConfig {
 }
 
 fn validate_socket_configuration(agent_config: &AgentConfig) -> Result<(), String> {
-    // keep behavior aligned with server validation for unix:// endpoints
-    if is_unix_address(&agent_config.address) {
-        if agent_config.insecure {
-            return Err(
-                "Invalid agent config: 'insecure' must not be enabled for unix:// endpoints"
-                    .to_string(),
-            );
-        }
-
-        if agent_config.ca_pem.is_some()
+    validate_unix_socket_tls_settings(
+        "agent",
+        &agent_config.address,
+        agent_config.insecure,
+        agent_config.ca_pem.is_some()
             || agent_config.crt_pem.is_some()
             || agent_config.key_pem.is_some()
             || agent_config.ca_pem_content.is_some()
             || agent_config.crt_pem_content.is_some()
-            || agent_config.key_pem_content.is_some()
-        {
-            return Err(
-                "Invalid agent config: TLS certificate settings are not allowed for unix:// endpoints"
-                    .to_string(),
-            );
-        }
-    }
-
-    Ok(())
+            || agent_config.key_pem_content.is_some(),
+    )
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -243,7 +204,7 @@ mod tests {
     use common::config::{ConfigFile, ConversionErrors};
 
     use ankaios_api::test_utils::fixtures;
-    use common::DEFAULT_SERVER_ADDRESS;
+    use common::{DEFAULT_SERVER_ADDRESS, config::get_default_server_url};
 
     use std::io::Write;
     use std::path::PathBuf;
@@ -278,10 +239,7 @@ mod tests {
     fn utest_default_agent_config() {
         let default_agent_config = AgentConfig::default();
 
-        assert_eq!(
-            default_agent_config.address,
-            DEFAULT_SERVER_ADDRESS.to_string()
-        );
+        assert_eq!(default_agent_config.address, get_default_server_url());
         assert!(!default_agent_config.insecure);
         assert_eq!(default_agent_config.version, CONFIG_VERSION);
     }
