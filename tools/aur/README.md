@@ -9,7 +9,7 @@ Three package variants are currently maintained for AUR packaging:
 - `ankaios-git` (latest git revision)
 
 These scripts are currently not executed by CI/CD.
-They are intended to be run manually by the package maintainer.
+They are intended to be run manually by the package maintainer outside the dev container.
 
 | File | Purpose |
 | ------ | --------- |
@@ -23,12 +23,12 @@ They are intended to be run manually by the package maintainer.
 
 - `ANKAIOS_VERSION` must be set (for example `1.0.0`)
 - SSH access to AUR (`aur@aur.archlinux.org`) must be configured, including the correct SSH key for the AUR maintainer account being available and loaded
-- Required tools must be available: `m4`, `updpkgsums`, `makepkg`, `git`
+- Required tools must be available: `m4`, `updpkgsums`, `makepkg`, `git`. Install them with `sudo pacman -S m4 pacman-contrib git`.
 
 ## Manual invocation
 
 ```bash
-ANKAIOS_VERSION=v1.0.0 ./publish_to_aur.sh
+ANKAIOS_VERSION=1.0.0 ./publish_to_aur.sh
 ```
 
 ## Useful links
