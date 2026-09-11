@@ -20,6 +20,7 @@ use ankaios_api::ank_base::{CompleteStateSpec, StateSpec, validate_tags};
 use ankaios_server::{AnkaiosServer, create_from_server_channel, create_to_server_channel};
 
 use common::communications_server::CommunicationsServer;
+use common::communications_server::ServerConnection;
 use common::config::handle_config;
 use common::std_extensions::GracefulExitResult;
 
@@ -68,10 +69,10 @@ async fn main() {
 
     server_config
         .update_with_args(&args)
-        .unwrap_or_exit("Failed to load certificate files!");
+        .unwrap_or_exit("Failed to apply server configuration!");
 
     log::debug!(
-        "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup manifest path: '{}'",
+        "Starting the Ankaios server with \n\tserver endpoint: '{}', \n\tstartup manifest path: '{}'",
         server_config.address,
         server_config
             .startup_manifest
@@ -107,30 +108,34 @@ async fn main() {
     let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
     let (to_agents, agents_receiver) = create_from_server_channel(common::CHANNEL_CAPACITY);
 
-    if let Err(err_message) = TLSConfig::is_config_conflicting(
-        server_config.insecure,
-        &server_config.ca_pem_content,
-        &server_config.crt_pem_content,
-        &server_config.key_pem_content,
-    ) {
-        log::warn!("{err_message}");
-    }
+    let tls_config = match &server_config.address {
+        ServerConnection::Tcp(_) => {
+            if let Err(err_message) = TLSConfig::is_config_conflicting(
+                server_config.insecure,
+                &server_config.ca_pem_content,
+                &server_config.crt_pem_content,
+                &server_config.key_pem_content,
+            ) {
+                log::warn!("{err_message}");
+            }
 
-    // [impl->swdd~server-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
-    // [impl->swdd~server-provides-file-paths-to-communication-middleware~1]
-    // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-    let tls_config = TLSConfig::new(
-        server_config.insecure,
-        server_config.ca_pem_content,
-        server_config.crt_pem_content,
-        server_config.key_pem_content,
-    );
+            // [impl->swdd~server-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
+            // [impl->swdd~server-provides-file-paths-to-communication-middleware~1]
+            // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+            TLSConfig::new(
+                server_config.insecure,
+                server_config.ca_pem_content,
+                server_config.crt_pem_content,
+                server_config.key_pem_content,
+            )
+            .unwrap_or_exit("Missing certificate files")
+        }
+        // [impl->swdd~server-validates-unix-domain-socket-configuration~1]
+        ServerConnection::Unix(_) => None,
+    };
 
-    let mut communications_server = GRPCCommunicationsServer::new(
-        to_server,
-        // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-        tls_config.unwrap_or_exit("Missing certificate files"),
-    );
+    let mut communications_server = GRPCCommunicationsServer::new(to_server, tls_config)
+        .with_unix_socket_group(server_config.socket_group.clone());
 
     let mut server = AnkaiosServer::new(
         server_receiver,
@@ -140,6 +145,7 @@ async fn main() {
 
     tokio::select! {
         // [impl->swdd~server-default-communication-grpc~1]
+        // [impl->swdd~server-supports-unix-domain-socket-endpoints~1]
         communication_result = communications_server.start(agents_receiver, server_config.address) => {
             communication_result.unwrap_or_exit("server error")
         }

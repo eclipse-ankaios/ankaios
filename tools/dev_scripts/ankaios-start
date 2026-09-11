@@ -4,6 +4,7 @@ set -e
 DEFAULT_BIN_DIR="/workspaces/ankaios/target/x86_64-unknown-linux-musl/debug"
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 LOG_DIR="$(readlink -f "$SCRIPT_DIR/../../logs")"
+DEFAULT_UDS_ADDRESS="unix:///tmp/ankaios.sock"
 
 "$SCRIPT_DIR/ankaios-clean"
 
@@ -14,8 +15,17 @@ fi
 
 mkdir -p "$LOG_DIR"
 
-echo "Staring up Ankaios server with TLS disabled"
-RUST_LOG=debug "$DEFAULT_BIN_DIR/ank-server" --insecure 2> "$LOG_DIR/ank-server" &
+export ANKSERVER_SERVER_URL="${ANKSERVER_SERVER_URL:-$DEFAULT_UDS_ADDRESS}"
+export ANKAGENT_SERVER_URL="${ANKAGENT_SERVER_URL:-$DEFAULT_UDS_ADDRESS}"
+export ANK_SERVER_URL="${ANK_SERVER_URL:-$DEFAULT_UDS_ADDRESS}"
 
-echo "Staring up Ankaios agent with TLS disabled"
-RUST_LOG=debug "$DEFAULT_BIN_DIR/ank-agent" --insecure --name agent_A 2> "$LOG_DIR/ank-agent" &
+if [[ "$ANKSERVER_SERVER_URL" == unix://* ]]; then
+  SOCKET_PATH="${ANKSERVER_SERVER_URL#unix://}"
+  rm -f "$SOCKET_PATH"
+fi
+
+echo "Staring up Ankaios server using address '$ANKSERVER_SERVER_URL'"
+RUST_LOG=debug "$DEFAULT_BIN_DIR/ank-server" 2> "$LOG_DIR/ank-server" &
+
+echo "Staring up Ankaios agent using address '$ANKAGENT_SERVER_URL'"
+RUST_LOG=debug "$DEFAULT_BIN_DIR/ank-agent" --name agent_A 2> "$LOG_DIR/ank-agent" &

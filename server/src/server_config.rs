@@ -14,6 +14,7 @@
 
 use crate::cli::Arguments;
 use common::DEFAULT_SOCKET_ADDRESS;
+use common::communications_server::ServerConnection;
 use common::config::{CONFIG_VERSION, ConfigFile, ConversionErrors};
 use common::std_extensions::{UnreachableOption, UnreachableResult};
 
@@ -27,27 +28,52 @@ use tests::read_pem_file;
 use serde::{Deserialize, Deserializer};
 use std::fs::read_to_string;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use toml::from_str;
 
 pub const DEFAULT_SERVER_CONFIG_FILE_PATH: [&str; 1] = ["/etc/ankaios/ank-server.conf"];
 pub const DEFAULT_MUTATING_HOOKS_DIR: &str = "/usr/libexec/ankaios/hooks";
 
-pub fn get_default_address() -> SocketAddr {
-    DEFAULT_SOCKET_ADDRESS.parse().unwrap_or_unreachable()
+pub fn get_default_address() -> ServerConnection {
+    ServerConnection::Tcp(DEFAULT_SOCKET_ADDRESS.parse().unwrap_or_unreachable())
 }
 
 fn get_default_mutating_hooks_path() -> PathBuf {
     PathBuf::from(DEFAULT_MUTATING_HOOKS_DIR)
 }
 
-fn convert_to_socket_address<'de, D>(deserializer: D) -> Result<SocketAddr, D::Error>
+fn parse_server_address(value: &str) -> Result<ServerConnection, String> {
+    // [impl->swdd~server-uses-single-communication-listen-endpoint~1]
+    // [impl->swdd~server-supports-unix-domain-socket-endpoints~1]
+    if let Some(path) = value.strip_prefix("unix://") {
+        if path.is_empty() {
+            return Err("Unix domain socket path cannot be empty".to_string());
+        }
+
+        if !Path::new(path).is_absolute() {
+            return Err(format!("Unix domain socket path '{path}' must be absolute"));
+        }
+
+        return Ok(ServerConnection::Unix(PathBuf::from(path)));
+    }
+
+    value
+        .parse::<SocketAddr>()
+        .map(ServerConnection::Tcp)
+        .map_err(|err| {
+            format!(
+                "Invalid server endpoint '{value}': expected host:port or unix:///path/to/socket ({err})"
+            )
+        })
+}
+
+fn convert_to_server_address<'de, D>(deserializer: D) -> Result<ServerConnection, D::Error>
 where
     D: Deserializer<'de>,
 {
     let s: String = Deserialize::deserialize(deserializer)?;
 
-    s.parse::<SocketAddr>().map_err(serde::de::Error::custom)
+    parse_server_address(&s).map_err(serde::de::Error::custom)
 }
 
 // [impl->swdd~server-config-supports-mutating-hooks~1]
@@ -65,11 +91,13 @@ pub struct MutatingHook {
 pub struct ServerConfig {
     pub version: String,
     pub startup_manifest: Option<String>,
-    #[serde(deserialize_with = "convert_to_socket_address")]
+    #[serde(deserialize_with = "convert_to_server_address")]
     #[serde(default = "get_default_address")]
-    pub address: SocketAddr,
+    pub address: ServerConnection,
     #[serde(default)]
     pub insecure: bool,
+    #[serde(default)]
+    pub socket_group: Option<String>,
     ca_pem: Option<String>,
     crt_pem: Option<String>,
     key_pem: Option<String>,
@@ -87,6 +115,7 @@ impl Default for ServerConfig {
             startup_manifest: None,
             address: get_default_address(),
             insecure: false,
+            socket_group: None,
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
@@ -118,6 +147,10 @@ impl ConfigFile for ServerConfig {
             ));
         }
 
+        // [impl->swdd~server-validates-unix-domain-socket-configuration~1]
+        // [impl->swdd~server-validates-socket-group-endpoint-compatibility~1]
+        validate_socket_configuration(&server_config).map_err(ConversionErrors::InvalidConfig)?;
+
         if let Some(ca_pem_path) = &server_config.ca_pem {
             let ca_pem_content = read_pem_file(ca_pem_path, PemFileType::Certificate)
                 .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
@@ -145,11 +178,16 @@ impl ServerConfig {
         }
 
         if let Some(addr) = &args.addr {
-            self.address = *addr;
+            // [impl->swdd~server-supports-unix-domain-socket-endpoints~1]
+            self.address = parse_server_address(addr)?;
         }
 
         if let Some(insecure) = args.insecure {
             self.insecure = insecure;
+        }
+
+        if let Some(socket_group) = &args.socket_group {
+            self.socket_group = Some(socket_group.to_owned());
         }
 
         if let Some(ca_pem_path) = &args.ca_pem {
@@ -170,8 +208,59 @@ impl ServerConfig {
                 .map_err(|err| err.to_string())?;
             self.key_pem_content = Some(key_pem_content);
         }
+
+        // [impl->swdd~server-validates-unix-domain-socket-configuration~1]
+        // [impl->swdd~server-validates-socket-group-endpoint-compatibility~1]
+        validate_socket_configuration(self)?;
+
         Ok(())
     }
+}
+
+fn validate_socket_configuration(server_config: &ServerConfig) -> Result<(), String> {
+    match &server_config.address {
+        // [impl->swdd~server-validates-unix-domain-socket-configuration~1]
+        ServerConnection::Unix(_) => {
+            if server_config.insecure {
+                return Err(
+                    "Invalid server config: 'insecure' must not be enabled for unix:// endpoints"
+                        .to_string(),
+                );
+            }
+
+            if server_config.ca_pem.is_some()
+                || server_config.crt_pem.is_some()
+                || server_config.key_pem.is_some()
+                || server_config.ca_pem_content.is_some()
+                || server_config.crt_pem_content.is_some()
+                || server_config.key_pem_content.is_some()
+            {
+                return Err(
+                    "Invalid server config: TLS certificate settings are not allowed for unix:// endpoints"
+                        .to_string(),
+                );
+            }
+
+            if let Some(group) = server_config.socket_group.as_deref()
+                && group.trim().is_empty()
+            {
+                return Err(
+                    "Invalid server config: 'socket_group' must not be empty when set".to_string(),
+                );
+            }
+        }
+        ServerConnection::Tcp(_) => {
+            // [impl->swdd~server-validates-socket-group-endpoint-compatibility~1]
+            if server_config.socket_group.is_some() {
+                return Err(
+                    "Invalid server config: 'socket_group' is only supported for unix:// endpoints"
+                        .to_string(),
+                );
+            }
+        }
+    }
+
+    Ok(())
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -190,6 +279,7 @@ mod tests {
 
     use ankaios_api::test_utils::fixtures;
     use common::DEFAULT_SOCKET_ADDRESS;
+    use common::communications_server::ServerConnection;
     use common::config::{ConfigFile, ConversionErrors};
 
     use std::io::Write;
@@ -232,7 +322,7 @@ mod tests {
 
         assert_eq!(
             default_server_config.address,
-            DEFAULT_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap()
+            ServerConnection::Tcp(DEFAULT_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap())
         );
         assert!(!default_server_config.insecure);
         assert_eq!(default_server_config.version, "v1");
@@ -289,7 +379,8 @@ mod tests {
         let args = Arguments {
             manifest_path: Some(STARTUP_MANIFEST_PATH.to_string()),
             config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH[0].to_string()),
-            addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
+            addr: Some(TEST_SOCKET_ADDRESS.to_string()),
+            socket_group: None,
             insecure: Some(false),
             ca_pem: Some(fixtures::CA_PEM_PATH.to_string()),
             crt_pem: Some(fixtures::CRT_PEM_PATH.to_string()),
@@ -304,7 +395,7 @@ mod tests {
         );
         assert_eq!(
             server_config.address,
-            TEST_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap()
+            ServerConnection::Tcp(TEST_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap())
         );
         assert!(!server_config.insecure);
         assert_eq!(
@@ -356,7 +447,8 @@ mod tests {
         let args = Arguments {
             manifest_path: Some(STARTUP_MANIFEST_PATH.to_string()),
             config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH[0].to_string()),
-            addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
+            addr: Some(TEST_SOCKET_ADDRESS.to_string()),
+            socket_group: None,
             insecure: Some(false),
             ca_pem: None,
             crt_pem: None,
@@ -450,7 +542,7 @@ mod tests {
 
         assert_eq!(
             server_config.address,
-            "127.0.0.1:25551".parse::<SocketAddr>().unwrap()
+            ServerConnection::Tcp("127.0.0.1:25551".parse::<SocketAddr>().unwrap())
         );
         assert_eq!(
             server_config.ca_pem_content,
@@ -546,5 +638,153 @@ mod tests {
         let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
 
         assert!(server_config.mutating_hooks.is_empty());
+    }
+
+    // [utest->swdd~server-loads-config-file~2]
+    // [utest->swdd~server-supports-unix-domain-socket-endpoints~1]
+    #[test]
+    fn utest_server_config_from_file_with_unix_domain_socket() {
+        let server_config_content = r"#
+        version = 'v1'
+        address = 'unix:///tmp/ankaios-server.sock'
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
+
+        assert_eq!(
+            server_config.address,
+            ServerConnection::Unix(PathBuf::from("/tmp/ankaios-server.sock"))
+        );
+    }
+
+    // [utest->swdd~server-loads-config-file~2]
+    // [utest->swdd~server-supports-unix-domain-socket-endpoints~1]
+    #[test]
+    fn utest_server_config_update_with_args_unix_domain_socket() {
+        let mut server_config = ServerConfig::default();
+        let args = Arguments {
+            manifest_path: None,
+            config_path: None,
+            addr: Some("unix:///tmp/ankaios-from-args.sock".to_string()),
+            socket_group: None,
+            insecure: None,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
+        };
+
+        server_config.update_with_args(&args).unwrap();
+
+        assert_eq!(
+            server_config.address,
+            ServerConnection::Unix(PathBuf::from("/tmp/ankaios-from-args.sock"))
+        );
+    }
+
+    // [utest->swdd~server-validates-unix-domain-socket-configuration~1]
+    #[test]
+    fn utest_server_config_rejects_insecure_with_unix_domain_socket() {
+        let server_config_content = r"#
+        version = 'v1'
+        address = 'unix:///tmp/ankaios-server.sock'
+        insecure = true
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let result = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
+
+        assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
+    }
+
+    // [utest->swdd~server-validates-unix-domain-socket-configuration~1]
+    #[test]
+    fn utest_server_config_rejects_tls_settings_with_unix_domain_socket() {
+        let server_config_content = r"#
+        version = 'v1'
+        address = 'unix:///tmp/ankaios-server.sock'
+        ca_pem = '/tmp/.certs/ca.pem'
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let result = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
+
+        assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
+    }
+
+    // [utest->swdd~server-validates-socket-group-endpoint-compatibility~1]
+    #[test]
+    fn utest_server_config_rejects_socket_group_with_tcp_address() {
+        let server_config_content = r"#
+        version = 'v1'
+        address = '127.0.0.1:25551'
+        socket_group = 'ankaios'
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let result = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
+
+        assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
+    }
+
+    // [utest->swdd~server-configures-unix-domain-socket-group~1]
+    #[test]
+    fn utest_server_config_accepts_socket_group_with_unix_address() {
+        let server_config_content = r"#
+        version = 'v1'
+        address = 'unix:///tmp/ankaios-server.sock'
+        socket_group = 'ankaios'
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
+
+        assert_eq!(server_config.socket_group, Some("ankaios".to_string()));
+    }
+
+    // [utest->swdd~server-supports-unix-domain-socket-endpoints~1]
+    #[test]
+    fn utest_server_config_rejects_relative_unix_domain_socket_path_from_file() {
+        let server_config_content = r"#
+        version = 'v1'
+        address = 'unix://tmp/ankaios-server.sock'
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let result = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
+
+        assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
+    }
+
+    // [utest->swdd~server-supports-unix-domain-socket-endpoints~1]
+    #[test]
+    fn utest_server_config_rejects_relative_unix_domain_socket_path_from_args() {
+        let mut server_config = ServerConfig::default();
+        let args = Arguments {
+            manifest_path: None,
+            config_path: None,
+            addr: Some("unix://tmp/ankaios-from-args.sock".to_string()),
+            socket_group: None,
+            insecure: None,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
+        };
+
+        let result = server_config.update_with_args(&args);
+
+        assert!(result.is_err());
     }
 }

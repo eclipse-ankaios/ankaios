@@ -30,10 +30,10 @@ RUN echo 'alias ankaios-start="/workspaces/ankaios/tools/dev_scripts/ankaios-sta
 RUN echo 'alias ankaios-clean="/workspaces/ankaios/tools/dev_scripts/ankaios-clean"' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
 RUN echo 'export PATH=$PATH:/workspaces/ankaios/target/x86_64-unknown-linux-musl/debug' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
 
-# work in insecure mode in the dev container
-RUN echo 'export ANKAGENT_INSECURE=true' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
-RUN echo 'export ANKSERVER_INSECURE=true' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
-RUN echo 'export ANK_INSECURE=true' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
+# use unix domain socket defaults in the dev container
+RUN echo 'export ANK_SERVER_URL=unix:///tmp/ankaios.sock' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
+RUN echo 'export ANKSERVER_SERVER_URL=unix:///tmp/ankaios.sock' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
+RUN echo 'export ANKAGENT_SERVER_URL=unix:///tmp/ankaios.sock' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
 
 # add some convinence aliases
 RUN echo 'alias ll="ls -la"' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
