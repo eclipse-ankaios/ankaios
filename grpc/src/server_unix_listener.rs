@@ -20,7 +20,9 @@ use self::tests::shim::{Group, chown, fs};
 use nix::unistd::{Group, chown};
 #[cfg(not(test))]
 use std::fs;
+#[cfg(not(test))]
 use std::os::unix::fs::FileTypeExt;
+#[cfg(not(test))]
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use tokio::net::UnixListener;
