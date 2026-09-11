@@ -52,7 +52,7 @@ use common::{
 
 use runtime_connectors::{
     GenericRuntimeFacade, RuntimeFacade, SUPPORTED_RUNTIMES, containerd::ContainerdRuntime,
-    podman::PodmanRuntime, podman_kube::PodmanKubeRuntime,
+    podman::PodmanRuntime, podman_kube::PodmanKubeRuntime, systemd::SystemdRuntime,
 };
 
 use grpc::client::GRPCCommunicationsClient;
@@ -163,7 +163,8 @@ async fn main() {
         Box::new(PodmanKubeRuntime::default()),
         // [impl->swdd~agent-supports-containerd~1]
         Box::new(ContainerdRuntime {}),
-    ] as [Box<dyn OwnableRuntime>; 3])
+        Box::new(SystemdRuntime {}),
+    ] as [Box<dyn OwnableRuntime>; 4])
         .into_iter()
         .map(|r| {
             (
