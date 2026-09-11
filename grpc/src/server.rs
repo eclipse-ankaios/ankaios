@@ -22,6 +22,7 @@ use crate::grpc_cli_connection::GRPCCliConnection;
 use crate::grpc_commander_connection::GRPCCommanderConnection;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use crate::security::TLSConfig;
+use crate::server_unix_listener::prepare_unix_listener;
 
 use common::communications_error::CommunicationMiddlewareError;
 use common::communications_server::{CommunicationsServer, ServerConnection};
@@ -29,12 +30,6 @@ use common::from_server_interface::FromServerReceiver;
 use common::to_server_interface::ToServerSender;
 
 use async_trait::async_trait;
-use nix::unistd::{Group, chown};
-use std::fs;
-use std::os::unix::fs::FileTypeExt;
-use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
-use tokio::net::UnixListener;
 use tokio_stream::wrappers::UnixListenerStream;
 use tonic::transport::{Certificate, Identity, Server, ServerTlsConfig};
 
@@ -175,75 +170,6 @@ impl CommunicationsServer for GRPCCommunicationsServer {
         }
         Ok(())
     }
-}
-
-fn prepare_unix_listener(
-    socket_path: &Path,
-    socket_group: Option<&str>,
-) -> Result<UnixListener, CommunicationMiddlewareError> {
-    if socket_path.exists() {
-        let metadata = fs::metadata(socket_path).map_err(|err| {
-            CommunicationMiddlewareError(format!(
-                "Could not access existing unix socket path '{}': {err}",
-                socket_path.display()
-            ))
-        })?;
-
-        if metadata.file_type().is_socket() {
-            fs::remove_file(socket_path).map_err(|err| {
-                CommunicationMiddlewareError(format!(
-                    "Could not remove stale unix socket '{}': {err}",
-                    socket_path.display()
-                ))
-            })?;
-        } else {
-            return Err(CommunicationMiddlewareError(format!(
-                "Unix socket path '{}' exists and is not a socket file",
-                socket_path.display()
-            )));
-        }
-    }
-
-    let listener = UnixListener::bind(socket_path).map_err(|err| {
-        CommunicationMiddlewareError(format!(
-            "Could not bind unix socket '{}': {err}",
-            socket_path.display()
-        ))
-    })?;
-
-    if let Some(group_name) = socket_group {
-        // [impl->swdd~server-configures-unix-domain-socket-group~1]
-        let group = Group::from_name(group_name)
-            .map_err(|err| {
-                CommunicationMiddlewareError(format!(
-                    "Could not resolve unix socket group '{}': {err}",
-                    group_name
-                ))
-            })?
-            .ok_or_else(|| {
-                CommunicationMiddlewareError(format!(
-                    "Could not resolve unix socket group '{}': group does not exist",
-                    group_name
-                ))
-            })?;
-
-        chown(socket_path, None, Some(group.gid)).map_err(|err| {
-            CommunicationMiddlewareError(format!(
-                "Could not set unix socket group '{}' on '{}': {err}",
-                group_name,
-                socket_path.display()
-            ))
-        })?;
-
-        fs::set_permissions(socket_path, fs::Permissions::from_mode(0o660)).map_err(|err| {
-            CommunicationMiddlewareError(format!(
-                "Could not set unix socket permissions on '{}': {err}",
-                socket_path.display()
-            ))
-        })?;
-    }
-
-    Ok(listener)
 }
 
 impl GRPCCommunicationsServer {
