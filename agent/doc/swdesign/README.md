@@ -214,7 +214,7 @@ Needs:
 - stest
 
 #### Agent prepares dedicated run folder
-`swdd~agent-prepares-dedicated-run-folder~2`
+`swdd~agent-prepares-dedicated-run-folder~3`
 
 Status: approved
 
@@ -225,10 +225,31 @@ The Ankaios agent shall prepare a dedicated run directory during startup by crea
 in the specified by the startup arguments location or at the default location under "$TMPDIR/ankaios", or "/tmp/ankaios" if `$TMPDIR` is not set.
 
 Comment:
-The default folder "$TMPDIR/ankaios" must be created with full permissions if not existing. The specific agent folder will still have scoped permissions, but the default location could be used by other agents running under different users and must be usable.
+The default folder "$TMPDIR/ankaios" is created with permissions restricted to the agent's own user if not existing. If it already exists (default or explicitly configured location), see `swdd~agent-rejects-insecure-reused-run-folder-paths~1` for the conditions under which it is accepted.
 
 Rationale:
 The dedicated run folder is required by the agent to store temporary files for the workloads, e.g., Control Interface fifo pipes, workload files, etc.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent rejects insecure reused paths within the run folder
+`swdd~agent-rejects-insecure-reused-run-folder-paths~1`
+
+Status: approved
+
+When reusing an existing directory, FIFO file, or workload file within its run folder, the Ankaios agent shall reject the existing object and fail with an error if it is:
+* not owned by the user running the agent;
+* accessible by any other user or group; or
+* a workload file whose path is a symbolic link.
+
+Comment:
+This applies to the base run folder, the per-agent run folder, the per-workload Control Interface directory, the Control Interface input and output FIFO files, and workload files created via the `files` workload field.
+
+Rationale:
+Without this check, a local unprivileged user could pre-create the predictable run folder hierarchy, Control Interface FIFOs, or workload file paths before the agent starts, causing the agent to treat attacker-owned or attacker-redirected objects as trusted. Depending on the object, this could allow impersonating the workload's Control Interface, tampering with a workload's file inputs, or redirecting a file write outside the intended location.
 
 Needs:
 - impl
