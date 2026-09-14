@@ -36,6 +36,7 @@ pub struct Arguments {
     pub server_url: Option<String>,
     #[arg(short = 'r', long = "run-folder", required = false)]
     /// An existing directory where agent specific runtime files will be stored. If not specified, a default folder is created.
+    /// If the directory already exists, it must be owned by the user running the agent and not be accessible by other users or groups.
     pub run_folder: Option<String>,
     #[arg(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANKAGENT_INSECURE")]
     /// Flag to disable TLS communication between Ankaios agent and server.

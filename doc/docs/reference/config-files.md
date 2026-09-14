@@ -89,6 +89,8 @@ server_url = 'https://127.0.0.1:25551'
 
 # An existing path where to manage the fifo files.
 # If not set, defaults to '$TMPDIR/ankaios/' (falls back to '/tmp/ankaios/' if TMPDIR is not set).
+# If the path already exists, it must be owned by the user running the agent and must not be
+# accessible by other users or groups; otherwise, the agent prevents startup to protect against insecure permissions.
 run_folder = '/tmp/ankaios/'
 
 # The flag to disable TLS communication with the server.
@@ -197,6 +199,10 @@ ank -x /path/to/ank.conf
 - The configuration files are optional. If not provided, the default values will be used.
 - You can specify either the path to the certificate files or the content of the certificate files, but not both.
 - The `version` field is mandatory to ensure compatibility.
+- The agent's `run_folder` must already exist unless it is the default location, in which case Ankaios creates it automatically.
+  In both cases, the directory must be owned by the user running the agent and must not be accessible by other users or groups,
+  otherwise the agent fails to start. Pointing `run_folder` at a dedicated directory that is not shared with other users avoids
+  this restriction entirely.
 
 This documentation provides an introduction in the usage of config files for Ankaios components. Please fell free to contact us if you have
 any questions or need further assistance.

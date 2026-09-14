@@ -17,7 +17,7 @@ Documentation    Verifies that ank-agent respects TMPDIR when run_folder is not 
 Resource         ../../resources/ankaios.resource
 
 *** Test Cases ***
-# [stest->swdd~agent-prepares-dedicated-run-folder~2]
+# [stest->swdd~agent-prepares-dedicated-run-folder~3]
 Test agent uses TMPDIR for default run folder
     [Setup]    Setup Ankaios
 
@@ -48,6 +48,41 @@ Test agent uses TMPDIR for default run folder
     And the workload "simple-kube" shall have the execution state "Running(Ok)" on agent "agent_A" within "60" seconds
     # Asserts
     Then Directory Should Exist    ${expected_tmp_ankaios_dir}
+
+    [Teardown]    Run Keywords
+    ...    Clean up Ankaios
+    ...    AND    Run Process    command=rm -rf "${tmpdir}"    shell=True
+    ...    AND    Remove Environment Variable    TMPDIR
+
+# [stest->swdd~agent-rejects-insecure-reused-run-folder-paths~1]
+Test agent exits when the default run folder already exists with insecure permissions
+    [Setup]    Setup Ankaios
+
+    # Preconditions
+    Environment Variable Should Not Be Set    TMPDIR
+    Given Ankaios server is started with manifest "${CONFIGS_DIR}/simple_kube_with_control.yaml"
+    And the CLI listens for workload states
+
+    ${run_result}=    Run Process
+    ...    command=echo "/tmp/$(tr -dc 'a-z0-9' </dev/urandom | head -c 10)"
+    ...    shell=True
+    ${tmpdir}=    Strip String    ${run_result.stdout}
+
+    Directory Should Not Exist    ${tmpdir}
+    Run Process    command=mkdir -p "${tmpdir}"    shell=True
+    Set Environment Variable    name=TMPDIR    value=${tmpdir}
+
+    # Simulate the default run folder already existing with insecure (group/other
+    # accessible) permissions, e.g. pre-created by another local user.
+    ${default_ankaios_dir}=    Catenate    SEPARATOR=${/}    ${tmpdir}    ankaios
+    Run Process    command=mkdir -p "${default_ankaios_dir}" && chmod 0777 "${default_ankaios_dir}"    shell=True
+
+    # Actions
+    And Ankaios agent is started with name "agent_A"
+    # Asserts
+    ${process_result}=    Wait For Process    agent_A    timeout=5 s    on_timeout=continue
+    Process Should Be Stopped    agent_A
+    Should Not Be Equal As Integers    ${process_result.rc}    0
 
     [Teardown]    Run Keywords
     ...    Clean up Ankaios

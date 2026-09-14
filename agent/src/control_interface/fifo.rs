@@ -14,9 +14,9 @@
 
 use std::path::PathBuf;
 
-use crate::io_utils::FileSystemError;
 #[cfg_attr(test, mockall_double::double)]
 use crate::io_utils::filesystem;
+use crate::io_utils::FileSystemError;
 
 #[derive(Debug)]
 pub struct Fifo {
@@ -26,6 +26,9 @@ pub struct Fifo {
 impl Fifo {
     pub fn new(path: PathBuf) -> Result<Self, FileSystemError> {
         if filesystem::is_fifo(&path) {
+            if !filesystem::is_owner_exclusive(&path) {
+                return Err(FileSystemError::InsecurePermissions(path.into_os_string()));
+            }
             log::trace!("Reusing existing fifo file '{path:?}'");
             Ok(Fifo { path })
         } else {
@@ -86,7 +89,19 @@ mod tests {
         let is_fifo_context = mock_filesystem::is_fifo_context();
         is_fifo_context
             .expect()
-            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
+            .times(1)
+            .return_const(true);
+
+        let is_secure_context =
+            mock_filesystem::is_owner_exclusive_context();
+        is_secure_context
+            .expect()
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
             .times(1)
             .return_const(true);
 
@@ -96,11 +111,53 @@ mod tests {
         let rm_fifo_context = mock_filesystem::remove_fifo_context();
         rm_fifo_context
             .expect()
-            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
             .times(1)
             .return_once(|_| Ok(()));
 
         assert!(Fifo::new(test_path_buffer).is_ok());
+    }
+
+    // [utest->swdd~agent-rejects-insecure-reused-run-folder-paths~1]
+    #[test]
+    fn utest_fifo_reuse_existing_insecure_rejected() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
+
+        let test_path_buffer = Path::new(fixtures::PIPES_LOCATION).to_path_buf();
+
+        let is_fifo_context = mock_filesystem::is_fifo_context();
+        is_fifo_context
+            .expect()
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
+            .times(1)
+            .return_const(true);
+
+        let is_secure_context =
+            mock_filesystem::is_owner_exclusive_context();
+        is_secure_context
+            .expect()
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
+            .times(1)
+            .return_const(false);
+
+        let mk_fifo_context = mock_filesystem::make_fifo_context();
+        mk_fifo_context.expect().never();
+
+        let rm_fifo_context = mock_filesystem::remove_fifo_context();
+        rm_fifo_context.expect().never();
+
+        assert_eq!(
+            Fifo::new(test_path_buffer).unwrap_err(),
+            FileSystemError::InsecurePermissions(
+                Path::new(fixtures::PIPES_LOCATION).as_os_str().to_owned()
+            )
+        );
     }
 
     #[test]
@@ -112,21 +169,27 @@ mod tests {
         let is_fifo_context = mock_filesystem::is_fifo_context();
         is_fifo_context
             .expect()
-            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
             .times(1)
             .return_const(false);
 
         let mk_fifo_context = mock_filesystem::make_fifo_context();
         mk_fifo_context
             .expect()
-            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
             .times(1)
             .return_once(|_| Ok(()));
 
         let rm_fifo_context = mock_filesystem::remove_fifo_context();
         rm_fifo_context
             .expect()
-            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
             .times(1)
             .return_once(|_| Ok(()));
 
@@ -142,7 +205,9 @@ mod tests {
         let is_fifo_context = mock_filesystem::is_fifo_context();
         is_fifo_context
             .expect()
-            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
             .times(1)
             .return_const(false);
 
@@ -175,7 +240,9 @@ mod tests {
         let is_fifo_context = mock_filesystem::is_fifo_context();
         is_fifo_context
             .expect()
-            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
             .times(1)
             .return_const(false);
 
@@ -210,21 +277,27 @@ mod tests {
         let is_fifo_context = mock_filesystem::is_fifo_context();
         is_fifo_context
             .expect()
-            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
             .times(1)
             .return_const(false);
 
         let mk_fifo_context = mock_filesystem::make_fifo_context();
         mk_fifo_context
             .expect()
-            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
             .times(1)
             .return_once(|_| Ok(()));
 
         let rm_fifo_context = mock_filesystem::remove_fifo_context();
         rm_fifo_context
             .expect()
-            .with(predicate::eq(Path::new(fixtures::PIPES_LOCATION).to_path_buf()))
+            .with(predicate::eq(
+                Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
+            ))
             .times(1)
             .return_once(|_| Ok(()));
 
