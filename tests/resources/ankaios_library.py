@@ -240,12 +240,12 @@ def get_container_id_and_name_by_workload_name_from_runtime(runtime_cli: str, wo
         last_err = getattr(res, "stderr", "").strip()
         elapsed = time.time() - start_time
         if elapsed >= 5:
-            logger.warning(
+            logger.warn(
                 f"Command '{command_str}' did not succeed within 5s. Last error: '{last_err}'"
             )
             return "", ""
 
-        logger.warning(
+        logger.warn(
             f"Command '{command_str}' failed (rc={res.returncode}). Error: '{last_err}'. Retrying..."
         )
         time.sleep(0.2)
@@ -261,7 +261,7 @@ def get_container_id_and_name_by_workload_name_from_runtime(runtime_cli: str, wo
 
     expected_amount_of_rows = 1
     if len(container_ids_and_names) != expected_amount_of_rows:
-        logger.warning(
+        logger.warn(
             f"Expected {expected_amount_of_rows} row for workload name {workload_name} but found {len(container_ids_and_names)} rows"
         )
         return "", ""
@@ -877,7 +877,7 @@ def get_instance_name_from_ankaios_workload_states(workload_states: str, workloa
                     return ""
                 return f"{workload_name}.{hash_key}.{agent}"
 
-    logger.warning(f"Workload '{workload_name}' not found in workload states")
+    logger.warn(f"Workload '{workload_name}' not found in workload states")
     return ""
 
 @err_logging_decorator
