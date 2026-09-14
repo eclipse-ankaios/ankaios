@@ -2383,38 +2383,40 @@
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
 <a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># An existing path where to manage the fifo files.</span>
 <a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="c1"># If not set, defaults to &#39;$TMPDIR/ankaios/&#39; (falls back to &#39;/tmp/ankaios/&#39; if TMPDIR is not set).</span>
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="n">run_folder</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/tmp/ankaios/&#39;</span>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="c1"># The flag to disable TLS communication with the server.</span>
-<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="c1"># If set to &#39;true&#39;, then the agent shall not use TLS.</span>
-<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="n">insecure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>
-<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="c1"># The path to the ca certificate pem file.</span>
-<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="n">ca_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/etc/ankaios/certs/ca.pem&#39;</span>
-<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>
-<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="c1"># The path to agent certificate pem file.</span>
-<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="n">crt_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/etc/ankaios/certs/ank-agent.pem&#39;</span>
-<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>
-<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="c1"># The path to agent key pem file.</span>
-<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="n">key_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/etc/ankaios/certs/ank-agent-key.pem&#39;</span>
-<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>
-<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="c1"># The content of the ca certificate pem file.</span>
-<a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="c1"># You can either provide ca_pem or ca_pem_content, but not both</span>
-<a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a><span class="c1"># ca_pem_content = &#39;&#39;&#39;-----BEGIN CERTIFICATE-----</span>
-<a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a><span class="c1"># ...</span>
-<a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a><span class="c1"># -----END CERTIFICATE-----&#39;&#39;&#39;</span>
-<a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a>
-<a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a><span class="c1"># The content of the agent certificate pem file.</span>
-<a id="__codelineno-1-40" name="__codelineno-1-40" href="#__codelineno-1-40"></a><span class="c1"># You can either provide crt_pem or crt_pem_content, but not both</span>
-<a id="__codelineno-1-41" name="__codelineno-1-41" href="#__codelineno-1-41"></a><span class="c1"># crt_pem_content = &#39;&#39;&#39;-----BEGIN CERTIFICATE-----</span>
-<a id="__codelineno-1-42" name="__codelineno-1-42" href="#__codelineno-1-42"></a><span class="c1"># ...</span>
-<a id="__codelineno-1-43" name="__codelineno-1-43" href="#__codelineno-1-43"></a><span class="c1"># -----END CERTIFICATE-----&#39;&#39;&#39;</span>
-<a id="__codelineno-1-44" name="__codelineno-1-44" href="#__codelineno-1-44"></a>
-<a id="__codelineno-1-45" name="__codelineno-1-45" href="#__codelineno-1-45"></a><span class="c1"># The content of the agent key pem file.</span>
-<a id="__codelineno-1-46" name="__codelineno-1-46" href="#__codelineno-1-46"></a><span class="c1"># You can either provide key_pem or key_pem_content, but not both</span>
-<a id="__codelineno-1-47" name="__codelineno-1-47" href="#__codelineno-1-47"></a><span class="c1"># key_pem_content = &#39;&#39;&#39;-----BEGIN PRIVATE KEY-----</span>
-<a id="__codelineno-1-48" name="__codelineno-1-48" href="#__codelineno-1-48"></a><span class="c1"># ...</span>
-<a id="__codelineno-1-49" name="__codelineno-1-49" href="#__codelineno-1-49"></a><span class="c1"># -----END PRIVATE KEY-----&#39;&#39;&#39;</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="c1"># If the path already exists, it must be owned by the user running the agent and must not be</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># accessible by other users or groups; otherwise, the agent prevents startup to protect against insecure permissions.</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="n">run_folder</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/tmp/ankaios/&#39;</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="c1"># The flag to disable TLS communication with the server.</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="c1"># If set to &#39;true&#39;, then the agent shall not use TLS.</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="n">insecure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="c1"># The path to the ca certificate pem file.</span>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="n">ca_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/etc/ankaios/certs/ca.pem&#39;</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="c1"># The path to agent certificate pem file.</span>
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="n">crt_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/etc/ankaios/certs/ank-agent.pem&#39;</span>
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="c1"># The path to agent key pem file.</span>
+<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="n">key_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/etc/ankaios/certs/ank-agent-key.pem&#39;</span>
+<a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a>
+<a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a><span class="c1"># The content of the ca certificate pem file.</span>
+<a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a><span class="c1"># You can either provide ca_pem or ca_pem_content, but not both</span>
+<a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a><span class="c1"># ca_pem_content = &#39;&#39;&#39;-----BEGIN CERTIFICATE-----</span>
+<a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a><span class="c1"># ...</span>
+<a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a><span class="c1"># -----END CERTIFICATE-----&#39;&#39;&#39;</span>
+<a id="__codelineno-1-40" name="__codelineno-1-40" href="#__codelineno-1-40"></a>
+<a id="__codelineno-1-41" name="__codelineno-1-41" href="#__codelineno-1-41"></a><span class="c1"># The content of the agent certificate pem file.</span>
+<a id="__codelineno-1-42" name="__codelineno-1-42" href="#__codelineno-1-42"></a><span class="c1"># You can either provide crt_pem or crt_pem_content, but not both</span>
+<a id="__codelineno-1-43" name="__codelineno-1-43" href="#__codelineno-1-43"></a><span class="c1"># crt_pem_content = &#39;&#39;&#39;-----BEGIN CERTIFICATE-----</span>
+<a id="__codelineno-1-44" name="__codelineno-1-44" href="#__codelineno-1-44"></a><span class="c1"># ...</span>
+<a id="__codelineno-1-45" name="__codelineno-1-45" href="#__codelineno-1-45"></a><span class="c1"># -----END CERTIFICATE-----&#39;&#39;&#39;</span>
+<a id="__codelineno-1-46" name="__codelineno-1-46" href="#__codelineno-1-46"></a>
+<a id="__codelineno-1-47" name="__codelineno-1-47" href="#__codelineno-1-47"></a><span class="c1"># The content of the agent key pem file.</span>
+<a id="__codelineno-1-48" name="__codelineno-1-48" href="#__codelineno-1-48"></a><span class="c1"># You can either provide key_pem or key_pem_content, but not both</span>
+<a id="__codelineno-1-49" name="__codelineno-1-49" href="#__codelineno-1-49"></a><span class="c1"># key_pem_content = &#39;&#39;&#39;-----BEGIN PRIVATE KEY-----</span>
+<a id="__codelineno-1-50" name="__codelineno-1-50" href="#__codelineno-1-50"></a><span class="c1"># ...</span>
+<a id="__codelineno-1-51" name="__codelineno-1-51" href="#__codelineno-1-51"></a><span class="c1"># -----END PRIVATE KEY-----&#39;&#39;&#39;</span>
 </code></pre></div>
 <h3 id="ankaios-cli-configuration-ankconf">Ankaios CLI Configuration (<code>ank.conf</code>)<a class="headerlink" href="#ankaios-cli-configuration-ankconf" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># This is the configuration file for the ank CLI.</span>
@@ -2483,6 +2485,10 @@
 <li>The configuration files are optional. If not provided, the default values will be used.</li>
 <li>You can specify either the path to the certificate files or the content of the certificate files, but not both.</li>
 <li>The <code>version</code> field is mandatory to ensure compatibility.</li>
+<li>The agent's <code>run_folder</code> must already exist unless it is the default location, in which case Ankaios creates it automatically.
+  In both cases, the directory must be owned by the user running the agent and must not be accessible by other users or groups,
+  otherwise the agent fails to start. Pointing <code>run_folder</code> at a dedicated directory that is not shared with other users avoids
+  this restriction entirely.</li>
 </ul>
 <p>This documentation provides an introduction in the usage of config files for Ankaios components. Please fell free to contact us if you have
 any questions or need further assistance.</p>
