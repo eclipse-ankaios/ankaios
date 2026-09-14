@@ -146,13 +146,15 @@ impl WorkloadFilesCreator {
                     },
                 )?;
 
-            filesystem::make_dir(&host_workload_file_location.directory).map_err(|err| {
-                WorkloadFileCreationError::new(format!(
-                    "failed to create workload file directory structure for '{}': '{}'",
-                    mount_point.display(),
-                    err
-                ))
-            })?;
+            // [impl->swdd~agent-rejects-insecure-reused-run-folder-paths~1]
+            crate::io_utils::ensure_dir_exists_and_secure(&host_workload_file_location.directory)
+                .map_err(|err| {
+                    WorkloadFileCreationError::new(format!(
+                        "failed to create workload file directory structure for '{}': '{}'",
+                        mount_point.display(),
+                        err
+                    ))
+                })?;
 
             let workload_file_host_path = host_workload_file_location.get_absolute_file_path();
             Self::write_file(workload_file_host_path.as_path(), file).await?;
@@ -166,6 +168,17 @@ impl WorkloadFilesCreator {
         file_path: &Path,
         file: &FileSpec,
     ) -> Result<(), WorkloadFileCreationError> {
+        // Reject a pre-existing symlink or a file owned by someone else: writing through
+        // either could redirect the write outside the intended location or clobber
+        // content that isn't ours.
+        // [impl->swdd~agent-rejects-insecure-reused-run-folder-paths~1]
+        if !filesystem::is_safe_write_target(file_path) {
+            return Err(WorkloadFileCreationError::new(format!(
+                "refusing to write '{}': existing path is not a private, owned regular file",
+                file.mount_point
+            )));
+        }
+
         let file_io_result = match &file.file_content {
             FileContentSpec::Data { data } => {
                 filesystem_async::write_file(file_path, data.clone()).await
@@ -247,18 +260,14 @@ mod tests {
             },
         ];
 
+        let exists_context = mock_filesystem::exists_context();
+        exists_context.expect().returning(|_| false);
         let mock_make_dir_context = mock_filesystem::make_dir_context();
-        mock_make_dir_context
-            .expect()
-            .once()
-            .with(predicate::eq(workload_files_path.join("some/path")))
-            .returning(|_| Ok(()));
-
-        mock_make_dir_context
-            .expect()
-            .once()
-            .with(predicate::eq(workload_files_path.clone()))
-            .returning(|_| Ok(()));
+        mock_make_dir_context.expect().returning(|_| Ok(()));
+        let set_permissions_context = mock_filesystem::set_permissions_context();
+        set_permissions_context.expect().returning(|_, _| Ok(()));
+        let is_safe_write_target_context = mock_filesystem::is_safe_write_target_context();
+        is_safe_write_target_context.expect().returning(|_| true);
 
         let text_host_file_path = workload_files_path.join("some/path/test.conf");
         let mock_write_file_context = mock_filesystem_async::write_file_context();
@@ -306,9 +315,14 @@ mod tests {
 
         let workload_files_path = generate_test_workload_files_path();
 
+        let exists_context = mock_filesystem::exists_context();
+        exists_context.expect().returning(|_| false);
         let mock_make_dir_context = mock_filesystem::make_dir_context();
-
-        mock_make_dir_context.expect().once().returning(|_| Ok(()));
+        mock_make_dir_context.expect().returning(|_| Ok(()));
+        let set_permissions_context = mock_filesystem::set_permissions_context();
+        set_permissions_context.expect().returning(|_, _| Ok(()));
+        let is_safe_write_target_context = mock_filesystem::is_safe_write_target_context();
+        is_safe_write_target_context.expect().returning(|_| true);
 
         let binary_file_path = workload_files_path.join(fixtures::FILE_BINARY_PATH.trim_start_matches('/'));
         let mock_write_file_context = mock_filesystem_async::write_file_context();
@@ -356,13 +370,26 @@ mod tests {
             },
         }];
 
+        let exists_context = mock_filesystem::exists_context();
+        exists_context
+            .expect()
+            .with(predicate::eq(workload_files_path.parent().unwrap().to_path_buf()))
+            .return_const(true);
+        let is_owner_exclusive_context = mock_filesystem::is_owner_exclusive_context();
+        is_owner_exclusive_context
+            .expect()
+            .with(predicate::eq(workload_files_path.parent().unwrap().to_path_buf()))
+            .return_const(true);
         let mock_make_dir_context = mock_filesystem::make_dir_context();
-        mock_make_dir_context.expect().once().returning(|_| {
-            Err(FileSystemError::Permissions(
-                fixtures::FILE_TEXT_PATH.into(),
-                std::io::ErrorKind::Other,
-            ))
-        });
+        mock_make_dir_context
+            .expect()
+            .with(predicate::eq(workload_files_path.clone()))
+            .returning(|_| {
+                Err(FileSystemError::Permissions(
+                    fixtures::FILE_TEXT_PATH.into(),
+                    std::io::ErrorKind::Other,
+                ))
+            });
 
         let mock_write_file_context = mock_filesystem_async::write_file_context();
         mock_write_file_context.expect::<String>().never();
@@ -394,12 +421,14 @@ mod tests {
             },
         }];
 
+        let exists_context = mock_filesystem::exists_context();
+        exists_context.expect().returning(|_| false);
         let mock_make_dir_context = mock_filesystem::make_dir_context();
-        mock_make_dir_context
-            .expect()
-            .once()
-            .with(predicate::eq(workload_files_path.join("some/path")))
-            .returning(|_| Ok(()));
+        mock_make_dir_context.expect().returning(|_| Ok(()));
+        let set_permissions_context = mock_filesystem::set_permissions_context();
+        set_permissions_context.expect().returning(|_, _| Ok(()));
+        let is_safe_write_target_context = mock_filesystem::is_safe_write_target_context();
+        is_safe_write_target_context.expect().returning(|_| true);
 
         let mock_write_file_context = mock_filesystem_async::write_file_context();
         mock_write_file_context
@@ -515,6 +544,12 @@ mod tests {
     // [utest->swdd~workload-files-creator-decodes-base64-to-binary~2]
     #[tokio::test]
     async fn utest_workload_files_creator_write_file_base64_decode_error() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let is_safe_write_target_context = mock_filesystem::is_safe_write_target_context();
+        is_safe_write_target_context.expect().returning(|_| true);
+
         let result = WorkloadFilesCreator::write_file(
             &PathBuf::from("/some/host/file/path/to/binary"),
             &FileSpec {
@@ -529,6 +564,75 @@ mod tests {
         assert!(result.is_err());
         let error = result.unwrap_err();
         let expected_error_substring = "invalid base64 data";
+        assert!(
+            error.to_string().contains(expected_error_substring),
+            "Expected substring '{expected_error_substring}' in error, got '{error}'"
+        );
+    }
+
+    // [utest->swdd~agent-rejects-insecure-reused-run-folder-paths~1]
+    #[tokio::test]
+    async fn utest_workload_files_creator_create_files_insecure_directory_rejected() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let workload_files_path = generate_test_workload_files_path();
+        let workload_files = vec![FileSpec {
+            mount_point: fixtures::FILE_TEXT_PATH.to_string(),
+            file_content: FileContentSpec::Data {
+                data: fixtures::FILE_TEXT_DATA.to_owned(),
+            },
+        }];
+
+        let exists_context = mock_filesystem::exists_context();
+        exists_context.expect().returning(|_| true); // parent already exists, insecurely
+        let is_owner_exclusive_context = mock_filesystem::is_owner_exclusive_context();
+        is_owner_exclusive_context.expect().returning(|_| false);
+        let mock_make_dir_context = mock_filesystem::make_dir_context();
+        mock_make_dir_context.expect().never();
+
+        let mock_write_file_context = mock_filesystem_async::write_file_context();
+        mock_write_file_context.expect::<String>().never();
+
+        let result =
+            WorkloadFilesCreator::create_files(&workload_files_path, &workload_files).await;
+
+        assert!(result.is_err());
+        let expected_error_substring = "failed to create workload file directory structure";
+        let error = result.unwrap_err();
+        assert!(
+            error.to_string().contains(expected_error_substring),
+            "Expected substring '{expected_error_substring}' in error, got '{error}'"
+        );
+    }
+
+    // [utest->swdd~agent-rejects-insecure-reused-run-folder-paths~1]
+    #[tokio::test]
+    async fn utest_workload_files_creator_write_file_rejects_symlink() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let is_safe_write_target_context = mock_filesystem::is_safe_write_target_context();
+        is_safe_write_target_context.expect().returning(|_| false);
+
+        let mock_write_file_context = mock_filesystem_async::write_file_context();
+        mock_write_file_context.expect::<String>().never();
+
+        let result = WorkloadFilesCreator::write_file(
+            &PathBuf::from("/some/host/file/path/to/file.conf"),
+            &FileSpec {
+                mount_point: "/file.conf".to_string(),
+                file_content: FileContentSpec::Data {
+                    data: fixtures::FILE_TEXT_DATA.to_owned(),
+                },
+            },
+        )
+        .await;
+
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        let expected_error_substring = "refusing to write";
         assert!(
             error.to_string().contains(expected_error_substring),
             "Expected substring '{expected_error_substring}' in error, got '{error}'"

@@ -16,10 +16,11 @@ mod dir_utils;
 mod directory;
 mod fs;
 
+pub use directory::ensure_dir_exists_and_secure;
 #[cfg(not(test))]
 pub use directory::Directory;
 #[cfg(test)]
-pub use directory::{MockDirectory, generate_test_directory_mock};
+pub use directory::{generate_test_directory_mock, MockDirectory};
 #[cfg(not(test))]
 pub use fs::filesystem;
 #[cfg(not(test))]

@@ -14,7 +14,7 @@
 
 use crate::io_utils::FileSystemError;
 #[cfg_attr(test, mockall_double::double)]
-use crate::io_utils::{Directory, filesystem};
+use crate::io_utils::{filesystem, Directory};
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -34,7 +34,7 @@ pub fn default_run_folder_string() -> String {
     default_run_folder().to_string_lossy().to_string()
 }
 
-// [impl->swdd~agent-prepares-dedicated-run-folder~2]
+// [impl->swdd~agent-prepares-dedicated-run-folder~3]
 pub fn prepare_agent_run_directory(
     run_folder: &str,
     agent_name: &str,
@@ -48,10 +48,13 @@ pub fn prepare_agent_run_directory(
         if base_path == default_base_path.as_path() {
             filesystem::make_dir(base_path)?;
 
-            filesystem::set_permissions(base_path, 0o777)?;
+            filesystem::set_permissions(base_path, 0o700)?;
         } else {
             return Err(FileSystemError::NotFoundDirectory(base_path.into()));
         }
+    // [impl->swdd~agent-rejects-insecure-reused-run-folder-paths~1]
+    } else if !filesystem::is_owner_exclusive(base_path) {
+        return Err(FileSystemError::InsecurePermissions(base_path.into()));
     }
 
     Directory::new(agent_run_folder)
@@ -77,7 +80,7 @@ mod tests {
 
     use mockall::predicate;
 
-    // [utest->swdd~agent-prepares-dedicated-run-folder~2]
+    // [utest->swdd~agent-prepares-dedicated-run-folder~3]
     #[test]
     fn utest_arguments_prepare_agent_run_directory_use_default_directory_create() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -101,7 +104,7 @@ mod tests {
             .expect()
             .with(
                 predicate::eq(Path::new(&run_folder).to_path_buf()),
-                predicate::eq(0o777),
+                predicate::eq(0o700),
             )
             .return_once(|_, _| Ok(()));
 
@@ -113,7 +116,7 @@ mod tests {
         assert!(prepare_agent_run_directory(&run_folder, fixtures::AGENT_NAMES[0]).is_ok());
     }
 
-    // [utest->swdd~agent-prepares-dedicated-run-folder~2]
+    // [utest->swdd~agent-prepares-dedicated-run-folder~3]
     #[test]
     fn utest_arguments_prepare_agent_run_directory_use_default_directory_create_fails() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -149,7 +152,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-prepares-dedicated-run-folder~2]
+    // [utest->swdd~agent-prepares-dedicated-run-folder~3]
     #[test]
     fn utest_arguments_prepare_agent_run_directory_use_default_directory_create_permissions_fail() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -173,7 +176,7 @@ mod tests {
             .expect()
             .with(
                 predicate::eq(Path::new(&run_folder).to_path_buf()),
-                predicate::eq(0o777),
+                predicate::eq(0o700),
             )
             .return_once(|_, _| {
                 Err(FileSystemError::Permissions(
@@ -191,7 +194,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-prepares-dedicated-run-folder~2]
+    // [utest->swdd~agent-prepares-dedicated-run-folder~3]
     #[test]
     fn utest_arguments_prepare_agent_run_directory_use_default_directory_exists() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -204,6 +207,13 @@ mod tests {
             .with(predicate::eq(Path::new(&run_folder).to_path_buf()))
             .return_const(true);
 
+        let is_secure_context =
+            mock_filesystem::is_owner_exclusive_context();
+        is_secure_context
+            .expect()
+            .with(predicate::eq(Path::new(&run_folder).to_path_buf()))
+            .return_const(true);
+
         let _directory_mock_context = generate_test_directory_mock(
             run_folder.as_str(),
             format!("{}_io", fixtures::AGENT_NAMES[0]).as_str(),
@@ -212,7 +222,35 @@ mod tests {
         assert!(prepare_agent_run_directory(&run_folder, fixtures::AGENT_NAMES[0]).is_ok());
     }
 
-    // [utest->swdd~agent-prepares-dedicated-run-folder~2]
+    // [utest->swdd~agent-rejects-insecure-reused-run-folder-paths~1]
+    #[test]
+    fn utest_arguments_prepare_agent_run_directory_existing_base_dir_insecure_rejected() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
+
+        let run_folder = default_run_folder_string();
+
+        let exists_mock_context = mock_filesystem::exists_context();
+        exists_mock_context
+            .expect()
+            .with(predicate::eq(Path::new(&run_folder).to_path_buf()))
+            .return_const(true);
+
+        let is_secure_context =
+            mock_filesystem::is_owner_exclusive_context();
+        is_secure_context
+            .expect()
+            .with(predicate::eq(Path::new(&run_folder).to_path_buf()))
+            .return_const(false);
+
+        assert_eq!(
+            prepare_agent_run_directory(&run_folder, fixtures::AGENT_NAMES[0]),
+            Err(FileSystemError::InsecurePermissions(
+                Path::new(&run_folder).as_os_str().to_os_string()
+            ))
+        );
+    }
+
+    // [utest->swdd~agent-prepares-dedicated-run-folder~3]
     #[test]
     fn utest_arguments_prepare_agent_run_directory_given_directory_not_found() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
