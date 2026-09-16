@@ -601,10 +601,14 @@ mod test {
         let authorizer = Authorizer::default();
         assert!(!authorizer.authorize(&request));
 
-        let authorizer = create_authorizer(&[RuleType::LogAllow(vec![fixtures::WORKLOAD_NAMES[0].to_string()])]);
+        let authorizer = create_authorizer(&[RuleType::LogAllow(vec![
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+        ])]);
         assert!(authorizer.authorize(&request));
 
-        let authorizer = create_authorizer(&[RuleType::LogDeny(vec![fixtures::WORKLOAD_NAMES[0].to_string()])]);
+        let authorizer = create_authorizer(&[RuleType::LogDeny(vec![
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+        ])]);
         assert!(!authorizer.authorize(&request));
 
         let authorizer = create_authorizer(&[
@@ -668,15 +672,79 @@ mod test {
 
         let authorizer = Authorizer::default();
         assert!(authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::LogAllow(vec![fixtures::WORKLOAD_NAMES[0].to_string()])]);
+        let authorizer = create_authorizer(&[RuleType::LogAllow(vec![
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+        ])]);
         assert!(authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::LogDeny(vec![fixtures::WORKLOAD_NAMES[0].to_string()])]);
+        let authorizer = create_authorizer(&[RuleType::LogDeny(vec![
+            fixtures::WORKLOAD_NAMES[0].to_string(),
+        ])]);
         assert!(authorizer.authorize(&request));
         let authorizer = create_authorizer(&[
             RuleType::LogAllow(vec![fixtures::WORKLOAD_NAMES[0].to_string()]),
             RuleType::LogDeny(vec![fixtures::WORKLOAD_NAMES[0].to_string()]),
         ]);
         assert!(authorizer.authorize(&request));
+    }
+
+    // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
+    #[test]
+    fn utest_log_requests_deny_rule_checks_later_wildcard_patterns() {
+        fn request(workload: &str) -> Request {
+            Request {
+                request_id: "".into(),
+                request_content: Some(RequestContent::LogsRequest(LogsRequest {
+                    workload_names: vec![WorkloadInstanceName {
+                        workload_name: workload.to_string(),
+                        agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                        id: fixtures::WORKLOAD_IDS[0].to_string(),
+                    }],
+                    follow: Some(false),
+                    tail: Some(-1),
+                    since: None,
+                    until: None,
+                })),
+            }
+        }
+
+        let authorizer = create_authorizer(&[
+            RuleType::LogAllow(vec!["*".into()]),
+            RuleType::LogDeny(vec!["audit_*".into(), "secret_*".into()]),
+        ]);
+
+        assert!(!authorizer.authorize(&request("audit_log")));
+        assert!(!authorizer.authorize(&request("secret_store")));
+        assert!(authorizer.authorize(&request("public_data")));
+    }
+
+    // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
+    #[test]
+    fn utest_log_requests_allow_rule_checks_later_wildcard_patterns() {
+        fn request(workload: &str) -> Request {
+            Request {
+                request_id: "".into(),
+                request_content: Some(RequestContent::LogsRequest(LogsRequest {
+                    workload_names: vec![WorkloadInstanceName {
+                        workload_name: workload.to_string(),
+                        agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                        id: fixtures::WORKLOAD_IDS[0].to_string(),
+                    }],
+                    follow: Some(false),
+                    tail: Some(-1),
+                    since: None,
+                    until: None,
+                })),
+            }
+        }
+
+        let authorizer = create_authorizer(&[RuleType::LogAllow(vec![
+            "frontend_*".into(),
+            "backend_*".into(),
+        ])]);
+
+        assert!(authorizer.authorize(&request("frontend_web")));
+        assert!(authorizer.authorize(&request("backend_api")));
+        assert!(!authorizer.authorize(&request("public_data")));
     }
 
     // [utest->swdd~agent-authorizing-request-operations~2]
