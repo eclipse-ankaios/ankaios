@@ -36,7 +36,7 @@ Test Ankaios CLI get events with field mask filter
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user starts the CLI to subscribe to events with format "yaml" and field mask "desiredState.workloads" in background
-    And user triggers "ank -k apply ${CONFIGS_DIR}/nginx.yaml"
+    And user triggers "ank apply ${CONFIGS_DIR}/nginx.yaml"
     And the user waits "3" seconds
     # Asserts
     Then the event output shall contain workload "nginx"
@@ -79,9 +79,9 @@ Test Ankaios CLI get events receives multiple sequential events
     # Actions
     When user starts the CLI to subscribe to events with format "json" and field mask "" in background
     And the user waits "3" seconds
-    And user triggers "ank -k apply ${CONFIGS_DIR}/nginx.yaml"
+    And user triggers "ank apply ${CONFIGS_DIR}/nginx.yaml"
     And the user waits "3" seconds
-    And user triggers "ank -k apply ${CONFIGS_DIR}/manifest1.yaml"
+    And user triggers "ank apply ${CONFIGS_DIR}/manifest1.yaml"
     And the user waits "5" seconds
     # Asserts
     Then the event output shall contain at least "2" events
@@ -97,7 +97,7 @@ Test Ankaios CLI get events handles connection errors gracefully
 
     # Preconditions
     # Actions
-    When user triggers "ank -k get events"
+    When user triggers "ank get events"
     # Asserts
     Then the last command shall finish with an error
     [Teardown]    Clean up Ankaios
@@ -117,7 +117,7 @@ Test Ankaios CLI get events with workload state changes
     # Actions
     When user starts the CLI to subscribe to events with format "yaml" and field mask "workloadStates" in background
     And the user waits "2" seconds
-    And user triggers "ank -k apply ${CONFIGS_DIR}/nginx.yaml"
+    And user triggers "ank apply ${CONFIGS_DIR}/nginx.yaml"
     And the user waits "3" seconds
     # Asserts
     Then the event output shall contain field name "workloadStates"
@@ -139,7 +139,7 @@ Test Ankaios CLI get events includes timestamp in output
     # Actions
     When user starts the CLI to subscribe to events with format "json" and field mask "" in background
     And the user waits "3" seconds
-    And user triggers "ank -k apply ${CONFIGS_DIR}/nginx.yaml"
+    And user triggers "ank apply ${CONFIGS_DIR}/nginx.yaml"
     And the user waits "5" seconds
     # Asserts
     Then the event output shall contain timestamp in RFC3339 format
@@ -160,7 +160,7 @@ Test Ankaios CLI get events with empty field mask
     # Actions
     When user starts the CLI to subscribe to events with format "yaml" and field mask "" in background
     And the user waits "3" seconds
-    And user triggers "ank -k apply ${CONFIGS_DIR}/nginx.yaml"
+    And user triggers "ank apply ${CONFIGS_DIR}/nginx.yaml"
     And the user waits "5" seconds
     # Asserts
     Then the event output shall contain field name "desiredState"
@@ -184,7 +184,7 @@ Test Ankaios CLI get events with workload deletion
     # Actions
     When user starts the CLI to subscribe to events with format "json" and field mask "desiredState.workloads" in background
     And the user waits "3" seconds
-    And user triggers "ank -k delete workload sleepy hello1"
+    And user triggers "ank delete workload sleepy hello1"
     And the user waits "5" seconds
     # Asserts
     Then the event output shall contain altered fields with removed workloads

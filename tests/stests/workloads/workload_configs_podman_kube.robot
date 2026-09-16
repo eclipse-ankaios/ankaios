@@ -19,11 +19,6 @@ Documentation       Test of different cases related to workloads and their rende
 Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
 
-
-*** Variables ***
-${start_up_yaml_file}           ${EMPTY}
-
-
 *** Test Cases ***
 # [stest->swdd~config-renderer-supports-rendering-with-keeping-line-indent~1]
 Test Ankaios start up with templated Ankaios manifest keeping indentation level of rendered multi-line config

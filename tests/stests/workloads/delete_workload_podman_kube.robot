@@ -38,7 +38,7 @@ Test Ankaios Podman delete kube workload
     And Ankaios agent is started with name "agent_A"
     And the workload "hello-k8s" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Actions
-    When user triggers "ank --no-wait -k delete workload hello-k8s"
+    When user triggers "ank --no-wait delete workload hello-k8s"
     # Asserts
     Then podman shall not have a container for workload "hello-pod-hello-container" on agent "agent_A"
     And volumes for "hello-k8s" shall not exist on "agent_A" within "20" seconds
