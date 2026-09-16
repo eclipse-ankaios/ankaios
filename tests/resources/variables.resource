@@ -18,3 +18,6 @@ ${CERTS_DIR}=    /tmp/.certs
 ${AGENT_NAME}=    agent_A
 ${AGENT_2_NAME}=    agent_B
 ${ANKAIOS_TMP_FOLDER}=    /tmp/ankaios
+${ANKAIOS_SERVER_URL}=    unix:///tmp/ankaios.sock
+${ANKAIOS_SERVER_TCP_ADDRESS}=    127.0.0.1:25551
+${ANKAIOS_SERVER_HTTPS_URL}=    https://127.0.0.1:25551

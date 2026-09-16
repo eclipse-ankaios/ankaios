@@ -33,7 +33,7 @@ Test Ankaios updates only agent tags through state updates
     And Ankaios agent is started with name "${agent_name}" and tags "type=AI-agent location=online"
     And the CLI listens for workload states
     # Verify initial tags via CLI
-    When user triggers "ank -k get state"
+    When user triggers "ank get state"
     Then the agent "${agent_name}" shall have tag "type" with value "AI-agent"
     And the agent "${agent_name}" shall have tag "location" with value "online"
 
@@ -43,11 +43,11 @@ Test Ankaios updates only agent tags through state updates
     And the controller workload shall execute successfully on running system
 
     # Verify updated state
-    When user triggers "ank -k get agents"
+    When user triggers "ank get agents"
     Then the last command shall list exactly "1" agents
     And the last command shall list the connected agent "${agent_name}"
 
-    When user triggers "ank -k get state"
+    When user triggers "ank get state"
     Then the agent "${agent_name}" shall have tag "location" with value "on-car"
     And the agent "${agent_name}" shall have tag "new_tag" with value "value"
     And the agent "${agent_name}" shall not have tag "type"
