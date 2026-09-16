@@ -59,7 +59,7 @@ Test Ankaios updates a workload upon update of its workload file content
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload "podman_workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
-    And user triggers "ank -k --no-wait set state desiredState.workloads.podman_workload_with_mounted_text_file desiredState.configs.web_server_config ${CONFIGS_DIR}/update_state_workload_files.yaml"
+    And user triggers "ank --no-wait set state desiredState.workloads.podman_workload_with_mounted_text_file desiredState.configs.web_server_config ${CONFIGS_DIR}/update_state_workload_files.yaml"
     # Asserts
     Then the workload "podman_workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the command "curl -Lf localhost:8087/update" shall finish with exit code "0"
@@ -80,10 +80,10 @@ Test Ankaios updates a workload upon adding additional workload files
     And Ankaios agent is started with name "agent_A"
     And the workload "podman_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # First update the files only by setting the update mask
-    And user triggers "ank -k --no-wait set state desiredState.workloads.podman_workload_with_mounted_binary_file.files ${CONFIGS_DIR}/update_state_workload_files.yaml"
+    And user triggers "ank --no-wait set state desiredState.workloads.podman_workload_with_mounted_binary_file.files ${CONFIGS_DIR}/update_state_workload_files.yaml"
     And the workload "podman_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Now update the runtimeConfig calling the newly added workload file
-    And user triggers "ank -k --no-wait set state desiredState.workloads.podman_workload_with_mounted_binary_file.runtimeConfig ${CONFIGS_DIR}/update_state_workload_files.yaml"
+    And user triggers "ank --no-wait set state desiredState.workloads.podman_workload_with_mounted_binary_file.runtimeConfig ${CONFIGS_DIR}/update_state_workload_files.yaml"
     # Asserts
     Then the workload "podman_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios

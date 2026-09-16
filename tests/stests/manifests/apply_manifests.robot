@@ -276,8 +276,8 @@ Test Ankaios Podman Update workload with current API version
     And Ankaios agent is started with name "agent_A"
     And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Actions
-    When user triggers "ank -k apply ${CONFIGS_DIR}/default.yaml"
-    And user triggers "ank -k get workloads"
+    When user triggers "ank apply ${CONFIGS_DIR}/default.yaml"
+    And user triggers "ank get workloads"
     # Asserts
     Then the last command shall finish with exit code "0"
     Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
@@ -297,8 +297,8 @@ Test Ankaios Podman Update workload with deprecated API version v0.1
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     # Actions
-    When user triggers "ank -k apply ${CONFIGS_DIR}/default_deprecated_api.yaml"
-    And user triggers "ank -k get workloads"
+    When user triggers "ank apply ${CONFIGS_DIR}/default_deprecated_api.yaml"
+    And user triggers "ank get workloads"
     # Asserts
     Then the last command shall finish with exit code "0"
     Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds

@@ -45,7 +45,7 @@ Test Ankaios MTLS by providing PEM files via environment variables
 # [stest->swdd~agent-supports-pem-file-paths-as-cli-arguments~1]
 # [stest->swdd~cli-supports-pem-file-paths-as-cli-arguments~1]
 Test Ankaios MTLS by providing PEM files via command line arguments
-    [Setup]    Run Keyword    Setup Ankaios without MTLS Setup
+    [Setup]    Run Keyword    Setup Ankaios for mTLS with explicit certs
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
@@ -62,7 +62,7 @@ Test Ankaios MTLS by providing PEM files via command line arguments
 # [stest->swdd~agent-supports-pem-file-paths-as-cli-arguments~1]
 # [stest->swdd~cli-supports-pem-file-paths-as-cli-arguments~1]
 Test Ankaios MTLS by providing wrong PEM config via command line arguments
-    [Setup]    Run Keyword    Setup Ankaios without MTLS Setup
+    [Setup]    Run Keyword    Setup Ankaios for mTLS with explicit certs
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
@@ -81,7 +81,7 @@ Test Ankaios MTLS by providing wrong PEM config via command line arguments
 # [stest->swdd~cli-supports-cli-argument-for-insecure-communication~1]
 # [stest->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
 Test Ankaios insecure mode by providing --insecure command line arguments
-    [Setup]    Run Keyword    Setup Ankaios
+    [Setup]    Run Keyword    Setup Ankaios for insecure TCP
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
@@ -104,7 +104,7 @@ Test Ankaios insecure mode by providing --insecure command line arguments
 # [stest->swdd~agent-loads-config-file~2]
 # [stest->swdd~cli-loads-config-file~2]
 Test Ankaios MTLS by providing PEM files via config files
-    [Setup]    Run Keyword    Setup Ankaios without MTLS Setup
+    [Setup]    Run Keyword    Setup Ankaios for mTLS with explicit certs
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers

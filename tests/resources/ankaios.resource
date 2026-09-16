@@ -34,7 +34,6 @@ ${TEST_FOLDER_NAME}    ${EMPTY}
 &{ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}
 &{ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}
 ${ANKAIOS_VERSION}    ${EMPTY}
-${CONFIGS_DIR}=    ${CURDIR}/configs
 
 
 *** Keywords ***
@@ -53,6 +52,21 @@ Setup Ankaios without MTLS Setup
 Setup Ankaios
     [Arguments]    ${mtls_enabled}=False
     Setup MTLS    enabled=${mtls_enabled}
+    Setup Ankaios without MTLS Setup
+
+Setup Ankaios for mTLS with explicit certs
+    Set Environment Variable    name=ANKSERVER_SERVER_URL    value=${ANKAIOS_SERVER_TCP_ADDRESS}
+    Set Environment Variable    name=ANKAGENT_SERVER_URL    value=${ANKAIOS_SERVER_HTTPS_URL}
+    Set Environment Variable    name=ANK_SERVER_URL    value=${ANKAIOS_SERVER_HTTPS_URL}
+    Setup Ankaios without MTLS Setup
+
+Setup Ankaios for insecure TCP
+    Set Environment Variable    name=ANKSERVER_SERVER_URL    value=${ANKAIOS_SERVER_TCP_ADDRESS}
+    Set Environment Variable    name=ANKAGENT_SERVER_URL    value=${ANKAIOS_SERVER_HTTPS_URL}
+    Set Environment Variable    name=ANK_SERVER_URL    value=${ANKAIOS_SERVER_HTTPS_URL}
+    Set Environment Variable    name=ANKSERVER_INSECURE    value=true
+    Set Environment Variable    name=ANKAGENT_INSECURE    value=true
+    Set Environment Variable    name=ANK_INSECURE    value=true
     Setup Ankaios without MTLS Setup
 
 Clean up Ankaios
@@ -77,6 +91,9 @@ Clean up Ankaios
     Remove Environment Variable    ANKSERVER_INSECURE
     Remove Environment Variable    ANKAGENT_INSECURE
     Remove Environment Variable    ANK_INSECURE
+    Set Environment Variable    name=ANKSERVER_SERVER_URL    value=${ANKAIOS_SERVER_URL}
+    Set Environment Variable    name=ANKAGENT_SERVER_URL    value=${ANKAIOS_SERVER_URL}
+    Set Environment Variable    name=ANK_SERVER_URL    value=${ANKAIOS_SERVER_URL}
 
 Clean up Podman
     Log    Clean up Podman
@@ -91,6 +108,9 @@ Clean up containerd
 Setup MTLS
     [Arguments]    ${enabled}
     IF  ${enabled} == True
+        Set Environment Variable    name=ANKSERVER_SERVER_URL    value=${ANKAIOS_SERVER_TCP_ADDRESS}
+        Set Environment Variable    name=ANKAGENT_SERVER_URL    value=${ANKAIOS_SERVER_HTTPS_URL}
+        Set Environment Variable    name=ANK_SERVER_URL    value=${ANKAIOS_SERVER_HTTPS_URL}
         ${ca_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /ca.pem
         ${server_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /server.pem
         ${server_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /server-key.pem
@@ -107,19 +127,8 @@ Setup MTLS
         Set Environment Variable    name=ANK_CA_PEM    value=${ca_pem}
         Set Environment Variable    name=ANK_CRT_PEM    value=${cli_crt_pem}
         Set Environment Variable    name=ANK_KEY_PEM    value=${cli_key_pem}
-    ELSE
-        Set Environment Variable    name=ANKSERVER_INSECURE    value=true
-        Set Environment Variable    name=ANKAGENT_INSECURE    value=true
-        Set Environment Variable    name=ANK_INSECURE    value=true
     END
 
-
-Run in background
-    [Arguments]    ${location}    ${cli_command}
-    Log    Run in background: ${cli_command}
-    ${cmd}=    Split Command Line    ${cli_command}
-    Set List Value    ${cmd}    0    ${location}${/}${cmd}[0]
-    Start Process    @{cmd}
 
 Run in foreground
     [Arguments]    ${cli_command}
@@ -412,12 +421,6 @@ in the last result, the workload "${workload_name}" shall have the execution sta
     Should Not Be Empty
     ...    ${list_result}
     ...    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' does not have the execution state '${expected_execution_state}'!
-
-user executes system app "${cli_command}"
-    ${cmd}=    Split Command Line    ${cli_command}    escaping=True
-    ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True    stdout=${TEMPDIR}/stdout.txt    stderr=${TEMPDIR}/stderr.txt
-    Log    ${CURRENT_RESULT.stdout}
-    Set Global Variable    ${CURRENT_RESULT}
 
 volumes for "${workload_name}" shall exist on "${agent_name}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
@@ -718,24 +721,14 @@ The controller workload can receive logs from ${workload_names}
     internal_log_allow_control_interface    ${workload_names}
     The controller workload sends initial hello with correct version
 
-The controller workload cannot receive logs from ${workload_names}
-    internal_log_deny_control_interface    ${workload_names}
-    The controller workload sends initial hello with correct version
-
 The controller workload requests the logs of ${workload_names_with_agents}
     internal_add_logs_request_command    ${workload_names_with_agents}
 
 The controller workload gets the logs of ${workload_names}
     internal_get_logs_command    ${workload_names}
 
-The controller workload cancels the logs request of ${workload_names}
-    internal_add_cancel_logs_request_command    ${workload_names}
-
 The controller workload sends initial hello with correct version
     internal_send_initial_hello    ${ANKAIOS_VERSION}
-
-The controller workload updates the state with manifest "${manifest}"
-    The controller workload updates the state with manifest "${manifest}" and update mask ${EMPTY}
 
 The controller workload updates the state with manifest "${manifest}" and update mask ${update_mask}
     internal_add_update_state_command    ${manifest}    ${update_mask}
@@ -757,9 +750,6 @@ The last result contains exactly the workloads ${workload_names}
 
 The last result contains no workloads
     internal_check_control_interface_workloads_in_last_result    ${EMPTY}
-
-In the last result the workload ${workload_name} has exactly the fields ${field_names}
-    internal_check_control_interface_workload_fields_in_last_result    ${workload_name}    ${field_names}
 
 The last result has added fields ${field_names}
     internal_check_control_interface_altered_fields_in_last_result    addedFields    ${field_names}
@@ -807,7 +797,7 @@ The controller workload requests shall all succeed with second agent
 
 The controller workload shall execute successfully on running system
     ${ankaios_config_folder}=    create_control_interface_config_for_test
-    user triggers "ank -k apply ${ankaios_config_folder.name}${/}startup_config.yaml"
+    user triggers "ank apply ${ankaios_config_folder.name}${/}startup_config.yaml"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_all_control_interface_requests_succeeded    ${ankaios_config_folder.name}
 
@@ -902,20 +892,6 @@ Get Running Container Names
 
     RETURN    ${container_names}
 
-Log Container Debugging Information
-    [Documentation]    Logs debugging information about workloads, pods, and containers
-    # Debug: Check workload status
-    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
-    Log    Ankaios workloads: ${command_result.stdout}
-
-    # Debug: Check podman pods
-    ${result}=    Run Process    podman    pod    ls    shell=True
-    Log    Podman pods: ${result.stdout}
-
-    # Debug: Check all containers (running and stopped)
-    ${result}=    Run Process    podman    ps    -a    shell=True
-    Log    All containers: ${result.stdout}
-
 Identify Target Container For Control Interface
     [Arguments]    ${container_names}    ${target_container_name}=container_A    ${pod_name}=pod_A
     [Documentation]    Identifies the target container and non-target containers based on naming patterns
@@ -970,11 +946,10 @@ Verify Control Interface Access In Containers
     END
 
 Verify Multi Container Control Interface Access
-    [Arguments]    ${workload_name}=simple    ${container_name}=container_A    ${pod_name}=pod_A
+    [Arguments]    ${container_name}=container_A    ${pod_name}=pod_A
     [Documentation]    Verifies that control interface access is properly limited in multi-container environments
 
     ${container_names}=    Get Running Container Names
-    ${container_count}=    Get Length    ${container_names}
 
     ${target_container}    ${non_target_containers}=    Identify Target Container For Control Interface    ${container_names}    ${container_name}    ${pod_name}
     Verify Control Interface Access In Containers    ${target_container}    ${non_target_containers}
@@ -1058,9 +1033,6 @@ containerd shall have a container for workload "${workload_name}" on agent "${ag
 containerd shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}"
     runtime "containerd" shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "1" seconds
 
-containerd shall not have a container for workload "${workload_name}" on agent "${agent_name}"
-    runtime "containerd" shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "1" seconds
-
 containerd shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
     runtime "containerd" shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
 
@@ -1078,12 +1050,12 @@ the last command shall finish with exit code "${exit_code}"
 
 user starts the CLI to subscribe to events with format "${format}" and field mask "${field_mask}" in background
     ${field_mask_arg}=    Set Variable If    "${field_mask}" == ""    ${EMPTY}    ${field_mask}
-    ${cmd}=    Set Variable If    "${field_mask}" == ""    %{ANK_BIN_DIR}${/}ank -k get events -o ${format}    %{ANK_BIN_DIR}${/}ank -k get events \"${field_mask_arg}\" -o ${format}
+    ${cmd}=    Set Variable If    "${field_mask}" == ""    %{ANK_BIN_DIR}${/}ank get events -o ${format}    %{ANK_BIN_DIR}${/}ank get events \"${field_mask_arg}\" -o ${format}
     Start Process    ${cmd}    shell=True    stdout=target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/events_error.txt    alias=event-listener
 
 user starts the CLI to subscribe to events with format "${format}", field mask "${field_mask}" and current state output enabled in background
     ${field_mask_arg}=    Set Variable If    "${field_mask}" == ""    ${EMPTY}    ${field_mask}
-    ${cmd}=    Set Variable If    "${field_mask}" == ""    %{ANK_BIN_DIR}${/}ank -k get events -o ${format}    %{ANK_BIN_DIR}${/}ank -k get events \"${field_mask_arg}\" --include-current-state -o ${format}
+    ${cmd}=    Set Variable If    "${field_mask}" == ""    %{ANK_BIN_DIR}${/}ank get events -o ${format}    %{ANK_BIN_DIR}${/}ank get events \"${field_mask_arg}\" --include-current-state -o ${format}
     Start Process    ${cmd}    shell=True    stdout=target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/events_error.txt    alias=event-listener
 
 the CLI listens for workload states
@@ -1103,9 +1075,6 @@ the event output shall be valid yaml format
 
 the event output shall be valid json format
     Event Output Shall Be Valid Json Format    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
-
-the event output shall contain timestamp
-    Event Output Shall Contain Timestamp    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt
 
 the event output shall contain timestamp in RFC3339 format
     Event Output Shall Contain Timestamp In RFC3339 Format    target/robot_tests_result/${TEST_FOLDER_NAME}/events_output.txt

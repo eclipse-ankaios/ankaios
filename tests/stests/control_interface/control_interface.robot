@@ -48,7 +48,7 @@ Test Ankaios workload restart after update without a Control Interface access
     And Ankaios agent is started with name "${agent_name}"
     And the workload "${workload_name}" shall have the execution state "Succeeded(Ok)" on agent "${agent_name}"
     # Actions
-    When user triggers "ank -k apply ${CONFIGS_DIR}/simple.yaml"
+    When user triggers "ank apply ${CONFIGS_DIR}/simple.yaml"
     # Asserts
     Then the mount point for the control interface has not been generated for ${agent_name}
     [Teardown]    Clean up Ankaios
@@ -158,7 +158,7 @@ Test target path from control interface access is limited to the designated pod 
     And the workload "${workload_name}" shall have the execution state "Running(Ok)" on agent "${agent_name}" within "30" seconds
     And the mount point for the control interface has been generated for ${agent_name}
     # Asserts
-    Then verify multi container control interface access    simple
+    Then verify multi container control interface access
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~podman-kube-mounts-control-interface~2]
@@ -171,5 +171,5 @@ Test target path from control interface access is limited to the designated depl
     And the workload "simple" shall have the execution state "Running(Ok)" on agent "${agent_name}" within "60" seconds
     And the mount point for the control interface has been generated for ${agent_name}
     # Asserts
-    Then verify multi container control interface access    simple    container_A    pod_A-pod
+    Then verify multi container control interface access    container_A    pod_A-pod
     [Teardown]    Clean up Ankaios
