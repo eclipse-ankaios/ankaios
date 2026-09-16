@@ -40,7 +40,7 @@ Test Ankaios CLI update workload
     And Ankaios agent is started with name "agent_A"
     And the workload "simple" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Actions
-    And user triggers "ank -k --no-wait set state desiredState.workloads.simple.agent ${new_state_yaml_file}"
+    And user triggers "ank --no-wait set state desiredState.workloads.simple.agent ${new_state_yaml_file}"
     # Asserts
     Then the workload "simple" shall have the execution state "Removed" on agent "agent_A" within "20" seconds
     And podman shall not have a container for workload "simple" on agent "agent_A"
@@ -58,7 +58,7 @@ Test Ankaios CLI get workloads with wildcard
     And Ankaios agent is started with name "agent_A"
     And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Actions
-    And user triggers "ank -k get state -o json 'desiredState.workloads.*.agent' 'desiredState.workloads.*.runtime'"
+    And user triggers "ank get state -o json 'desiredState.workloads.*.agent' 'desiredState.workloads.*.runtime'"
     # Asserts
     Then the last command shall contain the workload "sleepy"
     And the last command shall contain the workload "hello1"

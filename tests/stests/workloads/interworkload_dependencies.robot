@@ -65,9 +65,9 @@ Test Ankaios observes the inter-workload dependencies when deleting workloads
     And Ankaios agent is started with name "agent_A"
     And the workload "frontend" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     # Actions
-    When user triggers "ank -k --no-wait delete workload backend"
+    When user triggers "ank --no-wait delete workload backend"
     And the workload "backend" shall have the execution state "Stopping(WaitingToStop)" on agent "agent_A"
-    And user triggers "ank -k --no-wait delete workload frontend"
+    And user triggers "ank --no-wait delete workload frontend"
     # Asserts
     Then the workload "backend" shall be removed and not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
@@ -88,11 +88,11 @@ Test Ankaios CLI update workload with pending delete
     And Ankaios agent is started with name "agent_A"
     And the workload "frontend" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     # Actions
-    When user triggers "ank -k get state > ${new_state_yaml_file}"
+    When user triggers "ank get state > ${new_state_yaml_file}"
     And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.backend.runtimeConfig.commandOptions=['-p', '8084:80']"
-    And user triggers "ank -k --no-wait set state desiredState.workloads.backend ${new_state_yaml_file}"
+    And user triggers "ank --no-wait set state desiredState.workloads.backend ${new_state_yaml_file}"
     And the workload "backend" shall have the execution state "Stopping(WaitingToStop)" on agent "agent_A" within "20" seconds
-    And user triggers "ank -k --no-wait delete workload frontend"
+    And user triggers "ank --no-wait delete workload frontend"
     # Asserts
     Then the workload "frontend" shall be removed and not exist on agent "agent_A" within "20" seconds
     And the workload "backend" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
@@ -114,9 +114,9 @@ Test Ankaios CLI update workload with pending create
     And Ankaios agent is started with name "agent_A"
     And the workload "after_backend" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     # Actions
-    When user triggers "ank -k --no-wait set state desiredState.workloads.after_backend ${new_state_yaml_file}"
+    When user triggers "ank --no-wait set state desiredState.workloads.after_backend ${new_state_yaml_file}"
     And the workload "after_backend" shall have the execution state "Pending(WaitingToStart)" on agent "agent_A" within "3" seconds
-    And user triggers "ank -k set state desiredState.workloads.backend ${new_state_yaml_file}"
+    And user triggers "ank set state desiredState.workloads.backend ${new_state_yaml_file}"
     # Asserts
     Then the workload "backend" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "5" seconds
     And the workload "after_backend" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "5" seconds

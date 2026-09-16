@@ -50,10 +50,10 @@ Test Ankaios containerd retry creation of a workload on creation failure interce
     And Ankaios agent is started with name "agent_A"
     And the workload state of workload "invalid_image_workload" shall contain an additional info signaling retries within "5" seconds
     # Actions
-    When user triggers "ank -k get state > ${new_state_yaml_file}"
-    And user triggers "ank -k set state ${new_state_yaml_file} desiredState.workloads.invalid_image_workload"
+    When user triggers "ank get state > ${new_state_yaml_file}"
+    And user triggers "ank set state ${new_state_yaml_file} desiredState.workloads.invalid_image_workload"
     And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.invalid_image_workload.runtimeConfig.image=ghcr.io/eclipse-ankaios/tests/alpine:latest"
-    And user triggers "ank -k set state desiredState.workloads.invalid_image_workload ${new_state_yaml_file}"
+    And user triggers "ank set state desiredState.workloads.invalid_image_workload ${new_state_yaml_file}"
     # Asserts
     Then the workload "invalid_image_workload" shall have the execution state "Succeeded(Ok)" from agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
@@ -72,7 +72,7 @@ Test Ankaios containerd retry creation of a workload on creation failure interce
     And Ankaios agent is started with name "agent_A"
     And the workload state of workload "invalid_image_workload" shall contain an additional info signaling retries within "5" seconds
     # Actions
-    When user triggers "ank -k --no-wait delete workload invalid_image_workload"
+    When user triggers "ank --no-wait delete workload invalid_image_workload"
     # Asserts
     Then the workload "invalid_image_workload" shall be removed and not exist on agent "agent_A" within "20" seconds
     And containerd shall not have a container for workload "invalid_image_workload" on agent "agent_A" within "20" seconds

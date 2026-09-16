@@ -20,12 +20,6 @@ Documentation       Tests to verify that Ankaios restarts workloads according to
 Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
 
-
-*** Variables ***
-${default_state_yaml_file}      ${EMPTY}
-${new_state_yaml_file}          ${EMPTY}
-
-
 *** Test Cases ***
 # [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
 # [stest->swdd~workload-control-loop-reuses-bundle-on-successful-restart~1]
