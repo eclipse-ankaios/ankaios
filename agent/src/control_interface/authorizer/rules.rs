@@ -61,19 +61,20 @@ impl LogRule {
 
     // [impl->swdd~agent-authorizing-log-rules-matches-request~1]
     pub fn matches(&self, workload_name: &str) -> bool {
-        for pattern in &self.patterns {
+        self.patterns.iter().any(|pattern| {
             if pattern == workload_name || pattern == WILDCARD_SYMBOL {
-                return true;
+                true
             } else if pattern.contains(WILDCARD_SYMBOL) {
                 let wildcard_pos = pattern.find(WILDCARD_SYMBOL).unwrap_or_unreachable();
                 let prefix = &pattern[..wildcard_pos];
                 let suffix = &pattern[wildcard_pos + WILDCARD_SYMBOL.len()..];
-                return workload_name.starts_with(prefix)
+                workload_name.starts_with(prefix)
                     && workload_name.ends_with(suffix)
-                    && prefix.len() + suffix.len() <= workload_name.len();
+                    && prefix.len() + suffix.len() <= workload_name.len()
+            } else {
+                false
             }
-        }
-        false
+        })
     }
 }
 
@@ -201,5 +202,15 @@ mod test {
         assert!(rule.matches("aab"));
         assert!(rule.matches("abab"));
         assert!(!rule.matches("ab"));
+    }
+
+    // [utest->swdd~agent-authorizing-log-rules-matches-request~1]
+    #[test]
+    fn utest_log_rule_matches_later_patterns_after_wildcard_mismatch() {
+        let rule = LogRule::from(vec!["audit_*".into(), "secret_*".into(), "vault".into()]);
+
+        assert!(rule.matches("secret_store"));
+        assert!(rule.matches("vault"));
+        assert!(!rule.matches("public_data"));
     }
 }
