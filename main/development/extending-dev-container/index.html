@@ -1928,6 +1928,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#add-a-tool-between-base-container-releases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add a tool between base container releases
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build-the-base-container" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2148,6 +2159,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#add-a-tool-between-base-container-releases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add a tool between base container releases
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build-the-base-container" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2223,6 +2245,15 @@ If there is a need to include additional items in the dev container, please note
 </li>
 </ul>
 <p>If you want to add some additional tools, you can initially do it in <code>.devcontainer/Dockerfile</code>, but later on they need to be pulled in the base image in order to speed up the initial dev container build.</p>
+<h2 id="add-a-tool-between-base-container-releases">Add a tool between base container releases<a class="headerlink" href="#add-a-tool-between-base-container-releases" title="Permanent link">&para;</a></h2>
+<p>When a development workflow requires a tool before the next base container release:</p>
+<ol>
+<li>Add the tool to <code>.devcontainer/Dockerfile</code> under a workflow-specific heading.</li>
+<li>Pin its version and add a comment that it must move to <code>.devcontainer/Dockerfile.base</code> with the next base container release.</li>
+<li>Rebuild the dev container and verify the workflow that uses the tool.</li>
+<li>For the next base container release, move the installation to <code>.devcontainer/Dockerfile.base</code> and build and publish the image as described below.</li>
+<li>Update the base image version in <code>.devcontainer/Dockerfile</code>, remove the temporary installation from that file, and verify the workflow again.</li>
+</ol>
 <h2 id="build-the-base-container">Build the base container<a class="headerlink" href="#build-the-base-container" title="Permanent link">&para;</a></h2>
 <p>The base container is available for amd64 and arm64/v8 architectures. There are two options to build the base container:</p>
 <ol>
