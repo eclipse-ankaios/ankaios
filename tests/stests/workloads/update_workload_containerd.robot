@@ -43,9 +43,9 @@ Test Ankaios CLI update workload for containerd runtime
     And the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "10" seconds
     And the command "curl localhost:8081" finished with exit code "0" within "10" seconds
     # Actions
-    When user triggers "ank -k get state > ${new_state_file}"
+    When user triggers "ank get state > ${new_state_file}"
     And user updates the state "${new_state_file}" with "desiredState.workloads.nginx.runtimeConfig.commandOptions=['-p', '8082:80']"
-    And user triggers "ank -k set state desiredState.workloads.nginx ${new_state_file}"
+    And user triggers "ank set state desiredState.workloads.nginx ${new_state_file}"
     # Asserts
     Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     And the command "curl localhost:8082" shall finish with exit code "0" within "10" seconds

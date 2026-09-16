@@ -33,7 +33,7 @@ Test Ankaios CLI get workloads
     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     # Actions
-    When user triggers "ank -k get workloads"
+    When user triggers "ank get workloads"
     # Asserts
     Then in the last result, the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
     And in the last result, the workload "hello1" shall have the execution state "Failed(Lost)" on agent "agent_B"
