@@ -26,8 +26,6 @@ use common::std_extensions::GracefulExitResult;
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 use server_config::{DEFAULT_SERVER_CONFIG_FILE_PATH, ServerConfig};
 
-use std::fs;
-
 #[cfg(test)]
 pub mod test_helper;
 
@@ -81,8 +79,9 @@ async fn main() {
 
     let startup_state = match &server_config.startup_manifest {
         Some(config_path) => {
-            let data =
-                fs::read_to_string(config_path).unwrap_or_exit("Could not read the startup config");
+            let data = tokio::fs::read_to_string(config_path)
+                .await
+                .unwrap_or_exit("Could not read the startup config");
 
             validate_tags_format_in_manifest(&data)
                 .unwrap_or_exit("Invalid tags format in startup manifest");

@@ -200,7 +200,7 @@ mod tests {
             writing_side.write_all(&data).await.unwrap();
             writing_side.flush().await.unwrap();
         }
-        std::thread::sleep(Duration::from_millis(TEST_TIMEOUT));
+        tokio::time::sleep(Duration::from_millis(TEST_TIMEOUT)).await;
         {
             let mut writing_side = super::OpenOptions::new().open_sender(&fifo).unwrap();
             let data = vec![1, 17];
@@ -229,7 +229,7 @@ mod tests {
             writing_side.write_all(&data).await.unwrap();
             writing_side.flush().await.unwrap();
         }
-        std::thread::sleep(Duration::from_millis(TEST_TIMEOUT));
+        tokio::time::sleep(Duration::from_millis(TEST_TIMEOUT)).await;
         {
             let mut writing_side = super::OpenOptions::new().open_sender(&fifo).unwrap();
             let data = vec![1, 17];
