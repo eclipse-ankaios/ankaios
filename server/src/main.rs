@@ -63,7 +63,8 @@ async fn main() {
 
     // [impl->swdd~server-loads-config-file~2]
     let mut server_config: ServerConfig =
-        handle_config(&args.config_path, &DEFAULT_SERVER_CONFIG_FILE_PATH);
+        handle_config(&args.config_path, &DEFAULT_SERVER_CONFIG_FILE_PATH)
+            .unwrap_or_exit("Config file could not be parsed");
 
     server_config
         .update_with_args(&args)
