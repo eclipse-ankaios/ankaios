@@ -11,7 +11,6 @@ The central workload will be a databroker from the [Kuksa.val project](https://g
 </figure>
 
 To run this tutorial you will need a Linux platform, which can be a RaspberryPi or a Linux PC or virtual machine.
-Additionally, it's assumed that the Ankaios setup is done with mutual TLS (mTLS) disabled or using its default installation settings.
 
 ## Start the databroker
 
@@ -112,16 +111,15 @@ The next workload we want to start is a speed consumer that consumes vehicle spe
 A speed consumer such as a navigation system typically runs on a separate node for infotainment.  A separate node requires a new Ankaios agent.
 Let's create another Ankaios agent to connect to the existing server.
 For this tutorial we can either use a separate Linux host or use the existing one.
-Start a new agent with:
+
+!!! info
+
+    For a genuine multi-node setup, i.e. running the new agent on a separate host from the server, read [Connecting Ankaios components over the network](network-setup.md) and follow it to set up the cluster with network communication, ideally secured with mTLS, then start an agent named `infotainment` on the separate host. Keep in mind that the agent's certificate needs to be generated for that name.
+
+If you run the new agent on the same host as the existing Ankaios server and agent, no further configuration is needed, since the standard installation already configures agents to connect to the server over the local Unix domain socket. Simply start the new agent with:
 
 ```shell
-ank-agent --name infotainment --server-url http://<SERVER_IP>:25551
-```
-
-If the agent is started on the same host as the existing Ankaios server and agent, then we will call it as follows:
-
-```shell
-ank-agent --name infotainment --server-url http://127.0.0.1:25551
+ank-agent --name infotainment
 ```
 
 As the first agent was started by systemd, it runs as root and therefore calls podman as root.
@@ -182,19 +180,7 @@ ank apply --agent infotainment speed-consumer.yaml
 
 !!! note
 
-    If you are running the ank command on a host that is different from the host
-    on which the Ankaios server is running, you need to add a parameter `-s <SERVER_URL>` like:
-
-    ```
-    ank apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
-    ```
-
-    Optionally the server URL can also be provided via environment variable:
-
-    ```
-    export ANK_SERVER_URL=http://127.0.0.1:25551
-    ank apply --agent infotainment speed-consumer.yaml
-    ```
+    If you are running the `ank` CLI on a host that is different from the host on which the Ankaios server is running, you need to configure it to connect over the network, as described in [Connecting Ankaios components over the network](network-setup.md). Once configured, you can start it as described above.
 
 The command waits until speed consumer is running.
 It should print:
