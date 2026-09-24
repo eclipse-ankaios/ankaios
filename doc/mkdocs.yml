@@ -101,7 +101,7 @@ plugins:
           - usage/quickstart.md
           - "usage/tutorial-*.md"
           - usage/awesome-ankaios.md
-          - usage/mtls-setup.md
+          - usage/network-setup.md
           - usage/shell-completion.md
           - "usage/manifest/*.md"
         Reference:
@@ -132,7 +132,7 @@ nav:
     - usage/tutorial-fleet-management.md
     - usage/tutorial-events.md
     - usage/awesome-ankaios.md
-    - usage/mtls-setup.md
+    - usage/network-setup.md
     - usage/shell-completion.md
     - Manifest:
       - usage/manifest/config-objects.md
