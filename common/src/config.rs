@@ -12,7 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::std_extensions::GracefulExitResult;
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
@@ -106,10 +105,16 @@ impl fmt::Display for ConversionErrors {
 /// existing configuration file. If no configuration file is found, it will return the
 /// default configuration.
 ///
+/// Loading errors are returned to the caller instead of being handled here, so that each
+/// component can report them through its own tracing/logging mechanism.
+///
 /// ## Returns
 ///
-/// The loaded configuration.
-pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_paths: &[&str]) -> T {
+/// The loaded configuration or the error that occurred while loading it.
+pub fn handle_config<T: ConfigFile>(
+    config_path: &Option<String>,
+    default_paths: &[&str],
+) -> Result<T, ConversionErrors> {
     match config_path {
         Some(config_path) => {
             let config_path = PathBuf::from(config_path);
@@ -117,7 +122,7 @@ pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_paths:
                 "Loading config from user provided path '{}'",
                 config_path.display()
             );
-            T::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
+            T::from_file(config_path)
         }
         None => {
             for path in default_paths {
@@ -127,8 +132,7 @@ pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_paths:
                         "Loading config from default path '{}'",
                         default_path.display()
                     );
-                    return T::from_file(default_path)
-                        .unwrap_or_exit("Config file could not be parsed");
+                    return T::from_file(default_path);
                 }
             }
 
@@ -136,7 +140,7 @@ pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_paths:
                 "No config file found at default paths '{:?}'. Continue with default config.",
                 default_paths,
             );
-            T::default()
+            Ok(T::default())
         }
     }
 }
@@ -281,7 +285,8 @@ mod tests {
         let test_config: TestConfig = handle_config(
             &Some(tmp_config.into_temp_path().to_str().unwrap().to_string()),
             &["/a/very/invalid/path/to/config/file"],
-        );
+        )
+        .unwrap();
 
         assert_eq!(test_config.test_string, "test_value");
         assert!(test_config.test_bool);
@@ -292,7 +297,8 @@ mod tests {
         let mut file = NamedTempFile::new().expect("Failed to create file");
         writeln!(file, "{VALID_TEST_CONFIG_CONTENT}").expect("Failed to write to file");
 
-        let test_config: TestConfig = handle_config(&None, &[file.path().to_str().unwrap()]);
+        let test_config: TestConfig =
+            handle_config(&None, &[file.path().to_str().unwrap()]).unwrap();
 
         assert_eq!(test_config.test_string, "test_value");
         assert!(test_config.test_bool);
@@ -314,7 +320,7 @@ mod tests {
         let file_path_1 = default_file_1.path().to_str().unwrap().to_owned();
         let file_path_2 = default_file_2.path().to_str().unwrap().to_owned();
 
-        let test_config: TestConfig = handle_config(&None, &[&file_path_1, &file_path_2]);
+        let test_config: TestConfig = handle_config(&None, &[&file_path_1, &file_path_2]).unwrap();
 
         assert_eq!(test_config.test_string, "test_value");
         assert!(test_config.test_bool);
@@ -322,7 +328,7 @@ mod tests {
         // config file 1 is deleted, so config file 2 should be loaded
         drop(default_file_1);
 
-        let test_config: TestConfig = handle_config(&None, &[&file_path_1, &file_path_2]);
+        let test_config: TestConfig = handle_config(&None, &[&file_path_1, &file_path_2]).unwrap();
 
         assert_eq!(test_config.test_string, CHANGED_TEST_VALUE);
         assert!(test_config.test_bool);
@@ -331,7 +337,7 @@ mod tests {
     #[test]
     fn utest_handle_config_default() {
         let test_config: TestConfig =
-            handle_config(&None, &["/a/very/invalid/path/to/config/file"]);
+            handle_config(&None, &["/a/very/invalid/path/to/config/file"]).unwrap();
 
         assert_eq!(test_config, TestConfig::default());
     }

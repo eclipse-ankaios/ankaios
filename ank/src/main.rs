@@ -37,8 +37,8 @@ async fn main() {
     // [impl->swdd~cli-loads-config-file~2]
     let config_file_paths = get_config_file_paths();
     let config_file_paths_refs: Vec<&str> = config_file_paths.iter().map(|s| s.as_str()).collect();
-    let mut ank_config: AnkConfig =
-        handle_config(&args.config_path, &config_file_paths_refs);
+    let mut ank_config: AnkConfig = handle_config(&args.config_path, &config_file_paths_refs)
+        .unwrap_or_exit_func(|err| output_and_error!("Config file could not be parsed: {}", err), -1);
     ank_config.update_with_args(&args)
         .unwrap_or_exit_func(|err| output_and_error!("{}", err), -1);
 

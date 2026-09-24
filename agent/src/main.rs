@@ -121,7 +121,8 @@ async fn main() {
 
     // [impl->swdd~agent-loads-config-file~2]
     let mut agent_config: AgentConfig =
-        handle_config(&args.config_path, &DEFAULT_AGENT_CONFIG_FILE_PATH);
+        handle_config(&args.config_path, &DEFAULT_AGENT_CONFIG_FILE_PATH)
+            .unwrap_or_exit("Config file could not be parsed");
 
     agent_config
         .update_with_args(&args)
