@@ -51,7 +51,11 @@ Setup Ankaios without MTLS Setup
 
 Setup Ankaios
     [Arguments]    ${mtls_enabled}=False
-    Setup MTLS    enabled=${mtls_enabled}
+    IF  ${mtls_enabled} == True
+        Setup mTLS
+    ELSE
+        Setup Unix Socket
+    END
     Setup Ankaios without MTLS Setup
 
 Setup Ankaios for mTLS with explicit certs
@@ -105,29 +109,31 @@ Clean up containerd
     Log    Clean up containerd
     containerd has deleted all existing containers
 
-Setup MTLS
-    [Arguments]    ${enabled}
-    IF  ${enabled} == True
-        Set Environment Variable    name=ANKSERVER_SERVER_URL    value=${ANKAIOS_SERVER_TCP_ADDRESS}
-        Set Environment Variable    name=ANKAGENT_SERVER_URL    value=${ANKAIOS_SERVER_HTTPS_URL}
-        Set Environment Variable    name=ANK_SERVER_URL    value=${ANKAIOS_SERVER_HTTPS_URL}
-        ${ca_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /ca.pem
-        ${server_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /server.pem
-        ${server_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /server-key.pem
-        ${agent_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /agent.pem
-        ${agent_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /agent-key.pem
-        ${cli_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /cli.pem
-        ${cli_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /cli-key.pem
-        Set Environment Variable    name=ANKSERVER_CA_PEM    value=${ca_pem}
-        Set Environment Variable    name=ANKSERVER_CRT_PEM    value=${server_crt_pem}
-        Set Environment Variable    name=ANKSERVER_KEY_PEM    value=${server_key_pem}
-        Set Environment Variable    name=ANKAGENT_CA_PEM    value=${ca_pem}
-        Set Environment Variable    name=ANKAGENT_CRT_PEM    value=${agent_crt_pem}
-        Set Environment Variable    name=ANKAGENT_KEY_PEM    value=${agent_key_pem}
-        Set Environment Variable    name=ANK_CA_PEM    value=${ca_pem}
-        Set Environment Variable    name=ANK_CRT_PEM    value=${cli_crt_pem}
-        Set Environment Variable    name=ANK_KEY_PEM    value=${cli_key_pem}
-    END
+Setup mTLS
+    Set Environment Variable    name=ANKSERVER_SERVER_URL    value=${ANKAIOS_SERVER_TCP_ADDRESS}
+    Set Environment Variable    name=ANKAGENT_SERVER_URL    value=${ANKAIOS_SERVER_HTTPS_URL}
+    Set Environment Variable    name=ANK_SERVER_URL    value=${ANKAIOS_SERVER_HTTPS_URL}
+    ${ca_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /ca.pem
+    ${server_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /server.pem
+    ${server_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /server-key.pem
+    ${agent_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /agent.pem
+    ${agent_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /agent-key.pem
+    ${cli_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /cli.pem
+    ${cli_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /cli-key.pem
+    Set Environment Variable    name=ANKSERVER_CA_PEM    value=${ca_pem}
+    Set Environment Variable    name=ANKSERVER_CRT_PEM    value=${server_crt_pem}
+    Set Environment Variable    name=ANKSERVER_KEY_PEM    value=${server_key_pem}
+    Set Environment Variable    name=ANKAGENT_CA_PEM    value=${ca_pem}
+    Set Environment Variable    name=ANKAGENT_CRT_PEM    value=${agent_crt_pem}
+    Set Environment Variable    name=ANKAGENT_KEY_PEM    value=${agent_key_pem}
+    Set Environment Variable    name=ANK_CA_PEM    value=${ca_pem}
+    Set Environment Variable    name=ANK_CRT_PEM    value=${cli_crt_pem}
+    Set Environment Variable    name=ANK_KEY_PEM    value=${cli_key_pem}
+
+Setup Unix Socket
+    Set Environment Variable    name=ANKSERVER_SERVER_URL    value=${ANKAIOS_SERVER_URL}
+    Set Environment Variable    name=ANKAGENT_SERVER_URL    value=${ANKAIOS_SERVER_URL}
+    Set Environment Variable    name=ANK_SERVER_URL    value=${ANKAIOS_SERVER_URL}
 
 
 Run in foreground

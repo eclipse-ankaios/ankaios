@@ -46,7 +46,7 @@ Test agent config file successful start-up
 Test server config overwrite manifest with cli arguments
     [Setup]        Setup Ankaios
     # Preconditions
-    Ankaios server is started with manifest "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server.conf"
+    Ankaios server is started with manifest "${CONFIGS_DIR}/default.yaml"
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
