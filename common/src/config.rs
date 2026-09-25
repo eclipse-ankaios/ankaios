@@ -12,9 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::std_extensions::GracefulExitResult;
 use std::fmt;
+use std::path::Path;
 use std::path::PathBuf;
+
+use crate::DEFAULT_SERVER_ADDRESS;
 
 // [impl->swdd~common-config-handling~1]
 
@@ -30,6 +32,53 @@ pub enum ConversionErrors {
 
 pub trait ConfigFile: Default + Sized {
     fn from_file(file_path: PathBuf) -> Result<Self, ConversionErrors>;
+}
+
+pub fn get_default_server_url() -> String {
+    DEFAULT_SERVER_ADDRESS.to_string()
+}
+
+pub fn validate_server_address_format(address: &str) -> Result<(), String> {
+    if let Some(path) = address.strip_prefix("unix://") {
+        if path.is_empty() {
+            return Err("Wrong server address format: empty unix socket path.".to_string());
+        }
+        if !Path::new(path).is_absolute() {
+            return Err(format!(
+                "Wrong server address format: unix socket path must be absolute: '{address}'."
+            ));
+        }
+        return Ok(());
+    }
+
+    if address.starts_with("https://") || address.starts_with("http://") {
+        Ok(())
+    } else {
+        Err(format!("Wrong server address format: '{address}'."))
+    }
+}
+
+pub fn validate_unix_socket_tls_settings(
+    config_name: &str,
+    address: &str,
+    insecure: bool,
+    has_tls_certificate_settings: bool,
+) -> Result<(), String> {
+    if address.starts_with("unix://") {
+        if insecure {
+            return Err(format!(
+                "Invalid {config_name} config: 'insecure' must not be enabled for unix:// endpoints"
+            ));
+        }
+
+        if has_tls_certificate_settings {
+            return Err(format!(
+                "Invalid {config_name} config: TLS certificate settings are not allowed for unix:// endpoints"
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 impl fmt::Display for ConversionErrors {
@@ -56,10 +105,16 @@ impl fmt::Display for ConversionErrors {
 /// existing configuration file. If no configuration file is found, it will return the
 /// default configuration.
 ///
+/// Loading errors are returned to the caller instead of being handled here, so that each
+/// component can report them through its own tracing/logging mechanism.
+///
 /// ## Returns
 ///
-/// The loaded configuration.
-pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_paths: &[&str]) -> T {
+/// The loaded configuration or the error that occurred while loading it.
+pub fn handle_config<T: ConfigFile>(
+    config_path: &Option<String>,
+    default_paths: &[&str],
+) -> Result<T, ConversionErrors> {
     match config_path {
         Some(config_path) => {
             let config_path = PathBuf::from(config_path);
@@ -67,7 +122,7 @@ pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_paths:
                 "Loading config from user provided path '{}'",
                 config_path.display()
             );
-            T::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
+            T::from_file(config_path)
         }
         None => {
             for path in default_paths {
@@ -77,8 +132,7 @@ pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_paths:
                         "Loading config from default path '{}'",
                         default_path.display()
                     );
-                    return T::from_file(default_path)
-                        .unwrap_or_exit("Config file could not be parsed");
+                    return T::from_file(default_path);
                 }
             }
 
@@ -86,7 +140,7 @@ pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_paths:
                 "No config file found at default paths '{:?}'. Continue with default config.",
                 default_paths,
             );
-            T::default()
+            Ok(T::default())
         }
     }
 }
@@ -102,7 +156,11 @@ pub fn handle_config<T: ConfigFile>(config_path: &Option<String>, default_paths:
 // [utest->swdd~common-config-handling~1]
 #[cfg(test)]
 mod tests {
-    use super::{ConfigFile, ConversionErrors, handle_config};
+    use super::{
+        ConfigFile, ConversionErrors, get_default_server_url, handle_config,
+        validate_server_address_format, validate_unix_socket_tls_settings,
+    };
+    use crate::DEFAULT_SERVER_ADDRESS;
     use crate::std_extensions::UnreachableOption;
     use serde::Deserialize;
     use std::fs::read_to_string;
@@ -135,6 +193,57 @@ mod tests {
         for (error, expected) in test_cases {
             assert_eq!(error.to_string(), expected);
         }
+    }
+
+    #[test]
+    fn utest_get_default_server_url() {
+        assert_eq!(get_default_server_url(), DEFAULT_SERVER_ADDRESS.to_string());
+    }
+
+    #[test]
+    fn utest_validate_server_address_format_accepts_http_https_and_unix_absolute() {
+        assert!(validate_server_address_format("http://127.0.0.1:25551").is_ok());
+        assert!(validate_server_address_format("https://127.0.0.1:25551").is_ok());
+        assert!(validate_server_address_format("unix:///tmp/ank.sock").is_ok());
+    }
+
+    #[test]
+    fn utest_validate_server_address_format_rejects_invalid_address() {
+        assert!(validate_server_address_format("127.0.0.1:25551").is_err());
+    }
+
+    #[test]
+    fn utest_validate_server_address_format_rejects_empty_unix_path() {
+        assert_eq!(
+            validate_server_address_format("unix://"),
+            Err("Wrong server address format: empty unix socket path.".to_string())
+        );
+    }
+
+    #[test]
+    fn utest_validate_server_address_format_rejects_relative_unix_path() {
+        assert!(validate_server_address_format("unix://tmp/ank.sock").is_err());
+    }
+
+    #[test]
+    fn utest_validate_unix_socket_tls_settings_allows_tcp_with_tls_or_insecure() {
+        assert!(
+            validate_unix_socket_tls_settings("ank", "https://127.0.0.1:25551", true, true).is_ok()
+        );
+    }
+
+    #[test]
+    fn utest_validate_unix_socket_tls_settings_rejects_unix_with_insecure() {
+        assert!(
+            validate_unix_socket_tls_settings("ank", "unix:///tmp/ank.sock", true, false).is_err()
+        );
+    }
+
+    #[test]
+    fn utest_validate_unix_socket_tls_settings_rejects_unix_with_tls() {
+        assert!(
+            validate_unix_socket_tls_settings("ank", "unix:///tmp/ank.sock", false, true).is_err()
+        );
     }
 
     #[derive(Debug, Deserialize, PartialEq)]
@@ -176,7 +285,8 @@ mod tests {
         let test_config: TestConfig = handle_config(
             &Some(tmp_config.into_temp_path().to_str().unwrap().to_string()),
             &["/a/very/invalid/path/to/config/file"],
-        );
+        )
+        .unwrap();
 
         assert_eq!(test_config.test_string, "test_value");
         assert!(test_config.test_bool);
@@ -187,7 +297,8 @@ mod tests {
         let mut file = NamedTempFile::new().expect("Failed to create file");
         writeln!(file, "{VALID_TEST_CONFIG_CONTENT}").expect("Failed to write to file");
 
-        let test_config: TestConfig = handle_config(&None, &[file.path().to_str().unwrap()]);
+        let test_config: TestConfig =
+            handle_config(&None, &[file.path().to_str().unwrap()]).unwrap();
 
         assert_eq!(test_config.test_string, "test_value");
         assert!(test_config.test_bool);
@@ -209,7 +320,7 @@ mod tests {
         let file_path_1 = default_file_1.path().to_str().unwrap().to_owned();
         let file_path_2 = default_file_2.path().to_str().unwrap().to_owned();
 
-        let test_config: TestConfig = handle_config(&None, &[&file_path_1, &file_path_2]);
+        let test_config: TestConfig = handle_config(&None, &[&file_path_1, &file_path_2]).unwrap();
 
         assert_eq!(test_config.test_string, "test_value");
         assert!(test_config.test_bool);
@@ -217,7 +328,7 @@ mod tests {
         // config file 1 is deleted, so config file 2 should be loaded
         drop(default_file_1);
 
-        let test_config: TestConfig = handle_config(&None, &[&file_path_1, &file_path_2]);
+        let test_config: TestConfig = handle_config(&None, &[&file_path_1, &file_path_2]).unwrap();
 
         assert_eq!(test_config.test_string, CHANGED_TEST_VALUE);
         assert!(test_config.test_bool);
@@ -226,7 +337,7 @@ mod tests {
     #[test]
     fn utest_handle_config_default() {
         let test_config: TestConfig =
-            handle_config(&None, &["/a/very/invalid/path/to/config/file"]);
+            handle_config(&None, &["/a/very/invalid/path/to/config/file"]).unwrap();
 
         assert_eq!(test_config, TestConfig::default());
     }
