@@ -269,6 +269,8 @@ rm -f "${FILE_ANK_SERVER_SERVICE}" "${FILE_ANK_AGENT_SERVICE}"
 
 echo "Removing Ankaios binaries"
 rm -f "${BIN_DESTINATION}"/ank{,-server,-agent}
+echo "Removing default run folder"
+rm -rf "\${TMPDIR:-/tmp}/ankaios"
 echo "Removing this uninstall script"
 rm -f "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}"
 EOF
