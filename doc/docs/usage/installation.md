@@ -73,7 +73,7 @@ curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/in
 
 The installation process automatically detects the platform and downloads the appropriate binaries.
 The installation path for the binaries is `/usr/local/bin`.
-The installation also creates systemd unit files and an uninstall script.
+The installation also creates systemd unit files, an uninstall script and default configuration files for the Ankaios server, agent, and CLI. The configuration files are never overwritten if they already exist, but new files for comparison reasons for users are provided with a `.confnew` suffix.
 
 Supported platforms: `linux/amd64`, `linux/arm64`
 
