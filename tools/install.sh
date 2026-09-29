@@ -147,7 +147,7 @@ if [ -w "${BIN_DESTINATION}" ]; then
 fi
 
 echo "Extracting the binaries into install folder: '${BIN_DESTINATION}'"
-${BIN_SUDO} tar -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}/"
+${BIN_SUDO} tar --no-same-owner -m -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}/"
 
 # Install systemd unit files
 if [ -d "$SERVICE_DEST" ]; then
@@ -228,14 +228,32 @@ download_release "${ANKAIOS_CONFIGS_URL}"
 # Extract the config files
 CONFIGS_FILE_NAME="ankaios_configs.tar.gz"
 
+# Never overwrites an existing config file, instead the new default is extracted as '<name>.confnew'
+install_config_file() {
+    local sudo_cmd="$1"
+    local target_dir="$2"
+    local config_file="$3"
+    local target_file="${target_dir}/${config_file}"
+
+    if [ -e "${target_file}.conf" ]; then
+        echo "Keeping the existing config file '${target_file}.conf'."
+        tar -xzOf "${CONFIGS_FILE_NAME}" "${config_file}.conf" | ${sudo_cmd} tee "${target_file}.confnew" >/dev/null
+        echo "  Created '${target_file}.confnew' with the default config. It is unused, but you can compare it with your existing config file."
+    else
+        tar -xzOf "${CONFIGS_FILE_NAME}" "${config_file}.conf" | ${sudo_cmd} tee "${target_file}.conf" >/dev/null
+        echo "Created config file '${target_file}.conf'."
+    fi
+}
+
 echo "Extracting the config files"
-${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-server.conf
-${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-agent.conf
-${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank.conf
+${BIN_SUDO} mkdir -p "${CONFIG_DEST}"
+for config_file in ank-server ank-agent ank; do
+    install_config_file "${BIN_SUDO}" "${CONFIG_DEST}" "${config_file}"
+done
 
 if [ "${EUID}" -ne 0 ]; then
     mkdir -p "${HOME_CONFIG_DEST}"
-    tar -xvzf "${CONFIGS_FILE_NAME}" -C "${HOME_CONFIG_DEST}" ank.conf
+    install_config_file "" "${HOME_CONFIG_DEST%/}" ank
 fi
 
 echo "Customization of your Ankaios system (agent name, server address, etc.) can be done by modifying the following files:"
