@@ -38,18 +38,18 @@ rust_sdk_version=""
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -h|--help) usage ;;
-        --version|--sdk-version|--rust_sdk_version)
+        --version|--rust_sdk_version)
             if [[ "$#" -lt 2 || -z "$2" || "$2" == --* ]]; then
                 echo "Error: $1 requires a value."
                 usage
             fi
             case $1 in
                 --version) version="$2" ;;
-                --sdk-version|--rust_sdk_version) rust_sdk_version="$2" ;;
+                --rust_sdk_version) rust_sdk_version="$2" ;;
             esac
             shift 2
             ;;
-        --version=*|--sdk-version=*|--rust_sdk_version=*)
+        --version=*|--rust_sdk_version=*)
             option="${1%%=*}"
             value="${1#*=}"
             if [[ -z "$value" ]]; then
@@ -58,7 +58,7 @@ while [[ "$#" -gt 0 ]]; do
             fi
             case $option in
                 --version) version="$value" ;;
-                --sdk-version|--rust_sdk_version) rust_sdk_version="$value" ;;
+                --rust_sdk_version) rust_sdk_version="$value" ;;
             esac
             shift
             ;;
