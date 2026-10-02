@@ -2470,7 +2470,7 @@ If you want to install Ankaios during an automated workflow, please install a sp
 </div>
 <p>The installation process automatically detects the platform and downloads the appropriate binaries.
 The installation path for the binaries is <code>/usr/local/bin</code>.
-The installation also creates systemd unit files and an uninstall script.</p>
+The installation also creates systemd unit files, an uninstall script and default configuration files for the Ankaios server, agent, and CLI. The configuration files are never overwritten if they already exist, but new files for comparison reasons for users are provided with a <code>.confnew</code> suffix.</p>
 <p>Supported platforms: <code>linux/amd64</code>, <code>linux/arm64</code></p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
