@@ -32,24 +32,24 @@ log_update() {
 
 # Initialize variables
 version=""
-sdk_version=""
+rust_sdk_version=""
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -h|--help) usage ;;
-        --version|--sdk-version|--sdk_version)
+        --version|--sdk-version|--rust_sdk_version)
             if [[ "$#" -lt 2 || -z "$2" || "$2" == --* ]]; then
                 echo "Error: $1 requires a value."
                 usage
             fi
             case $1 in
                 --version) version="$2" ;;
-                --sdk-version|--sdk_version) sdk_version="$2" ;;
+                --sdk-version|--rust_sdk_version) rust_sdk_version="$2" ;;
             esac
             shift 2
             ;;
-        --version=*|--sdk-version=*|--sdk_version=*)
+        --version=*|--sdk-version=*|--rust_sdk_version=*)
             option="${1%%=*}"
             value="${1#*=}"
             if [[ -z "$value" ]]; then
@@ -58,7 +58,7 @@ while [[ "$#" -gt 0 ]]; do
             fi
             case $option in
                 --version) version="$value" ;;
-                --sdk-version|--sdk_version) sdk_version="$value" ;;
+                --sdk-version|--rust_sdk_version) rust_sdk_version="$value" ;;
             esac
             shift
             ;;
@@ -92,7 +92,7 @@ for example in $examples; do
     dockerfile="$base_dir/examples/$example/Dockerfile"
     log_update "$dockerfile"
     sed -i "s/^ENV ANKAIOS_VERSION=.*/ENV ANKAIOS_VERSION=${version}/" "$dockerfile"
-    if [[ -n "$sdk_version" ]]; then
-        sed -i "s/^ENV ANKAIOS_SDK_VERSION=.*/ENV ANKAIOS_SDK_VERSION=${sdk_version}/" "$dockerfile"
+    if [[ -n "$rust_sdk_version" ]]; then
+        sed -i "s/^ENV ANKAIOS_SDK_VERSION=.*/ENV ANKAIOS_SDK_VERSION=${rust_sdk_version}/" "$dockerfile"
     fi
 done
