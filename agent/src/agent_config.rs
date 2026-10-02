@@ -15,8 +15,10 @@
 use crate::cli::Arguments;
 use crate::io_utils::default_run_folder_string;
 
-use common::DEFAULT_SERVER_ADDRESS;
-use common::config::{CONFIG_VERSION, ConfigFile, ConversionErrors};
+use common::config::{
+    CONFIG_VERSION, ConfigFile, ConversionErrors, get_default_server_url,
+    validate_server_address_format, validate_unix_socket_tls_settings,
+};
 use common::std_extensions::UnreachableOption;
 
 use grpc::security::PemFileType;
@@ -34,18 +36,14 @@ use toml::from_str;
 
 pub const DEFAULT_AGENT_CONFIG_FILE_PATH: [&str; 1] = ["/etc/ankaios/ank-agent.conf"];
 
-pub fn get_default_url() -> String {
-    DEFAULT_SERVER_ADDRESS.to_string()
-}
-
 // [impl->swdd~agent-loads-config-file~2]
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct AgentConfig {
     pub version: String,
     #[serde(default)]
     pub name: String,
-    #[serde(default = "get_default_url")]
-    pub server_url: String,
+    #[serde(default = "get_default_server_url", alias = "server_url")]
+    pub address: String,
     #[serde(default = "crate::io_utils::default_run_folder_string")]
     pub run_folder: String,
     #[serde(default)]
@@ -67,7 +65,7 @@ impl Default for AgentConfig {
         AgentConfig {
             version: CONFIG_VERSION.to_string(),
             name: String::new(),
-            server_url: get_default_url(),
+            address: get_default_server_url(),
             run_folder: default_run_folder_string(),
             insecure: bool::default(),
             runtimes: None,
@@ -119,6 +117,11 @@ impl ConfigFile for AgentConfig {
             agent_config.key_pem_content = Some(key_pem_content);
         }
 
+        validate_server_address_format(&agent_config.address)
+            .map_err(ConversionErrors::InvalidConfig)?;
+
+        validate_socket_configuration(&agent_config).map_err(ConversionErrors::InvalidConfig)?;
+
         Ok(agent_config)
     }
 }
@@ -129,8 +132,8 @@ impl AgentConfig {
             self.name = name.to_string();
         }
 
-        if let Some(url) = &args.server_url {
-            self.server_url = url.to_string();
+        if let Some(address) = &args.address {
+            self.address = address.to_string();
         }
 
         if let Some(run_folder) = &args.run_folder {
@@ -163,8 +166,26 @@ impl AgentConfig {
         if let Some(tags) = &args.tags {
             self.tags = tags.iter().cloned().collect();
         }
+
+        validate_server_address_format(&self.address)?;
+        validate_socket_configuration(self)?;
+
         Ok(())
     }
+}
+
+fn validate_socket_configuration(agent_config: &AgentConfig) -> Result<(), String> {
+    validate_unix_socket_tls_settings(
+        "agent",
+        &agent_config.address,
+        agent_config.insecure,
+        agent_config.ca_pem.is_some()
+            || agent_config.crt_pem.is_some()
+            || agent_config.key_pem.is_some()
+            || agent_config.ca_pem_content.is_some()
+            || agent_config.crt_pem_content.is_some()
+            || agent_config.key_pem_content.is_some(),
+    )
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -183,7 +204,7 @@ mod tests {
     use common::config::{ConfigFile, ConversionErrors};
 
     use ankaios_api::test_utils::fixtures;
-    use common::DEFAULT_SERVER_ADDRESS;
+    use common::{DEFAULT_SERVER_ADDRESS, config::get_default_server_url};
 
     use std::io::Write;
     use std::path::PathBuf;
@@ -218,10 +239,7 @@ mod tests {
     fn utest_default_agent_config() {
         let default_agent_config = AgentConfig::default();
 
-        assert_eq!(
-            default_agent_config.server_url,
-            DEFAULT_SERVER_ADDRESS.to_string()
-        );
+        assert_eq!(default_agent_config.address, get_default_server_url());
         assert!(!default_agent_config.insecure);
         assert_eq!(default_agent_config.version, CONFIG_VERSION);
     }
@@ -278,7 +296,7 @@ mod tests {
         let args = Arguments {
             config_path: None,
             agent_name: Some(fixtures::AGENT_NAMES[0].to_string()),
-            server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
+            address: Some(DEFAULT_SERVER_ADDRESS.to_string()),
             run_folder: Some(default_run_folder.clone()),
             insecure: Some(false),
             tags: None,
@@ -290,13 +308,10 @@ mod tests {
         agent_config.update_with_args(&args).unwrap();
 
         assert_eq!(agent_config.name, fixtures::AGENT_NAMES[0].to_string());
-        assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
+        assert_eq!(agent_config.address, DEFAULT_SERVER_ADDRESS.to_string());
         assert_eq!(agent_config.run_folder, default_run_folder);
         assert!(!agent_config.insecure);
-        assert_eq!(
-            agent_config.ca_pem,
-            Some(fixtures::CA_PEM_PATH.to_string())
-        );
+        assert_eq!(agent_config.ca_pem, Some(fixtures::CA_PEM_PATH.to_string()));
         assert_eq!(
             agent_config.crt_pem,
             Some(fixtures::CRT_PEM_PATH.to_string())
@@ -343,7 +358,7 @@ mod tests {
         let args = Arguments {
             config_path: None,
             agent_name: Some(fixtures::AGENT_NAMES[0].to_string()),
-            server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
+            address: Some(DEFAULT_SERVER_ADDRESS.to_string()),
             run_folder: Some(default_run_folder),
             insecure: Some(false),
             tags: None,
@@ -376,7 +391,7 @@ mod tests {
             r"#
         version = 'v1'
         name = '{}'
-        server_url = 'https://127.0.0.1:25551'
+        address = 'https://127.0.0.1:25551'
         run_folder = '{}'
         insecure = true
         ca_pem_content = '''{}'''
@@ -400,7 +415,7 @@ mod tests {
         let agent_config = agent_config_res.unwrap();
 
         assert_eq!(agent_config.name, fixtures::AGENT_NAMES[0].to_string());
-        assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
+        assert_eq!(agent_config.address, DEFAULT_SERVER_ADDRESS.to_string());
         assert_eq!(agent_config.run_folder, default_run_folder_string());
         assert!(agent_config.insecure);
         assert_eq!(
@@ -428,7 +443,7 @@ mod tests {
         let args = Arguments {
             config_path: None,
             agent_name: None,
-            server_url: None,
+            address: None,
             run_folder: None,
             insecure: None,
             ca_pem: None,
@@ -445,5 +460,35 @@ mod tests {
             Some(&"cli_value".to_string())
         );
         assert!(!agent_config.tags.contains_key("config_tag"));
+    }
+
+    #[test]
+    fn utest_agent_config_rejects_insecure_with_unix_domain_socket() {
+        let agent_config_content = r"#
+        version = 'v1'
+        address = 'unix:///tmp/ankaios-agent.sock'
+        insecure = true
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{agent_config_content}").unwrap();
+
+        let result = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
+    }
+
+    #[test]
+    fn utest_agent_config_rejects_tls_with_unix_domain_socket() {
+        let agent_config_content = r"#
+        version = 'v1'
+        address = 'unix:///tmp/ankaios-agent.sock'
+        ca_pem = '/tmp/.certs/ca.pem'
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{agent_config_content}").unwrap();
+
+        let result = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
     }
 }

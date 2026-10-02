@@ -37,7 +37,7 @@ Test Ankaios containerd remove workloads
     And Ankaios agent is started with name "agent_A"
     And the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Actions
-    When user triggers "ank --no-wait -k delete workload sleepy"
+    When user triggers "ank --no-wait delete workload sleepy"
     # Asserts
     Then the workload "sleepy" shall be removed and not exist on agent "agent_A" within "20" seconds
     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "20" seconds

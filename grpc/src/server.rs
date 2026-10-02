@@ -22,14 +22,15 @@ use crate::grpc_cli_connection::GRPCCliConnection;
 use crate::grpc_commander_connection::GRPCCommanderConnection;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use crate::security::TLSConfig;
+use crate::server_unix_listener::prepare_unix_listener;
 
 use common::communications_error::CommunicationMiddlewareError;
-use common::communications_server::CommunicationsServer;
+use common::communications_server::{CommunicationsServer, ServerConnection};
 use common::from_server_interface::FromServerReceiver;
 use common::to_server_interface::ToServerSender;
 
 use async_trait::async_trait;
-use std::net::SocketAddr;
+use tokio_stream::wrappers::UnixListenerStream;
 use tonic::transport::{Certificate, Identity, Server, ServerTlsConfig};
 
 #[derive(Debug)]
@@ -38,6 +39,7 @@ pub struct GRPCCommunicationsServer {
     agent_senders: ClientSendersMap,
     commander_senders: ClientSendersMap,
     tls_config: Option<TLSConfig>,
+    unix_socket_group: Option<String>,
 }
 
 #[async_trait]
@@ -45,8 +47,9 @@ impl CommunicationsServer for GRPCCommunicationsServer {
     async fn start(
         &mut self,
         mut receiver: FromServerReceiver,
-        addr: SocketAddr,
+        addr: ServerConnection,
     ) -> Result<(), CommunicationMiddlewareError> {
+        // [impl->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
         // [impl->swdd~grpc-server-creates-agent-connection~1]
         let my_connection =
             GRPCAgentConnection::new(self.agent_senders.clone(), self.sender.clone());
@@ -62,9 +65,9 @@ impl CommunicationsServer for GRPCCommunicationsServer {
         let agent_senders_clone = self.agent_senders.clone();
         let commander_senders_clone = self.commander_senders.clone();
 
-        match &self.tls_config {
+        match (&self.tls_config, addr) {
             // [impl->swdd~grpc-server-activate-mtls-when-certificates-and-key-provided-upon-start~1]
-            Some(tls_config) => {
+            (Some(tls_config), ServerConnection::Tcp(tcp_addr)) => {
                 let ca = &tls_config.ca_pem;
                 let cert = &tls_config.crt_pem;
                 let key = &tls_config.key_pem;
@@ -84,7 +87,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                         // [impl->swdd~grpc-commander-uses-dedicated-server-endpoint~1]
                         // [impl->swdd~grpc-server-provides-endpoint-for-commander-connection-handling~1]
                         .add_service(CommandConnectionServer::new(my_commander_connection))
-                        .serve(addr) => {
+                        .serve(tcp_addr) => {
                             result.map_err(|err| {
                                 GrpcMiddlewareError::StartError(format!("{err:?}"))
                             })?
@@ -101,8 +104,12 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                     }
                 }
             }
+            // [impl->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
+            (Some(_), ServerConnection::Unix(_)) => Err(CommunicationMiddlewareError(
+                "Invalid runtime config: TLS is not supported for unix:// endpoints".to_string(),
+            ))?,
             // [impl->swdd~grpc-server-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
-            None => {
+            (None, ServerConnection::Tcp(tcp_addr)) => {
                 log::warn!(
                     "!!!ANKSERVER IS STARTED IN INSECURE MODE (-k, --insecure) -> TLS is disabled!!!"
                 );
@@ -115,7 +122,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                         .add_service(CliConnectionServer::new(my_cli_connection))
                         // [impl->swdd~grpc-server-provides-endpoint-for-commander-connection-handling~1]
                         .add_service(CommandConnectionServer::new(my_commander_connection))
-                        .serve(addr) => {
+                        .serve(tcp_addr) => {
                             result.map_err(|err| {
                                 GrpcMiddlewareError::StartError(format!("{err:?}"))
                             })?
@@ -131,6 +138,33 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                         )?
                     }
 
+                }
+            }
+            // [impl->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
+            (None, ServerConnection::Unix(unix_socket_path)) => {
+                let listener =
+                    prepare_unix_listener(&unix_socket_path, self.unix_socket_group.as_deref())?;
+                let incoming = UnixListenerStream::new(listener);
+
+                tokio::select! {
+                    result = Server::builder()
+                        .add_service(AgentConnectionServer::new(my_connection))
+                        .add_service(CliConnectionServer::new(my_cli_connection))
+                        .add_service(CommandConnectionServer::new(my_commander_connection))
+                        .serve_with_incoming(incoming) => {
+                            result.map_err(|err| {
+                                GrpcMiddlewareError::StartError(format!("{err:?}"))
+                            })?
+                        }
+                    _ = from_server_proxy::forward_from_ankaios_to_proto(
+                        &agent_senders_clone,
+                        &commander_senders_clone,
+                        &mut receiver,
+                    ) => {
+                        Err(GrpcMiddlewareError::ConnectionInterrupted(
+                            "Connection between Ankaios server and the communication middleware dropped.".into())
+                        )?
+                    }
                 }
             }
         }
@@ -145,6 +179,13 @@ impl GRPCCommunicationsServer {
             commander_senders: ClientSendersMap::new(),
             sender,
             tls_config,
+            unix_socket_group: None,
         }
+    }
+
+    pub fn with_unix_socket_group(mut self, unix_socket_group: Option<String>) -> Self {
+        // [impl->swdd~server-configures-unix-domain-socket-group~1]
+        self.unix_socket_group = unix_socket_group;
+        self
     }
 }

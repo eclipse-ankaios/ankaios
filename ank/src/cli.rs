@@ -191,9 +191,10 @@ pub struct AnkCli {
     /// The path to the server config file.
     /// The default paths are $HOME/.config/ankaios/ank.conf and /etc/ankaios/ank.conf with first existing file taking precedence over the other.
     pub config_path: Option<String>,
-    #[arg(short = 's', long = "server-url", required=false, env = ANK_SERVER_URL_ENV_KEY)]
-    /// The url to Ankaios server.
-    pub server_url: Option<String>,
+    #[arg(short = 's', long = "address", alias = "server-url", required=false, env = ANK_SERVER_URL_ENV_KEY)]
+    /// The endpoint to Ankaios server.
+    /// Supported values are https://host:port and unix:///path/to/socket.
+    pub address: Option<String>,
     #[arg(
         long = "response-timeout",
         required = false,

@@ -14,8 +14,10 @@
 
 use crate::cli::AnkCli;
 use crate::output_warn;
-use common::DEFAULT_SERVER_ADDRESS;
-use common::config::{CONFIG_VERSION, ConfigFile, ConversionErrors};
+use common::config::{
+    CONFIG_VERSION, ConfigFile, ConversionErrors, get_default_server_url,
+    validate_server_address_format, validate_unix_socket_tls_settings,
+};
 use common::std_extensions::UnreachableOption;
 
 use grpc::security::PemFileType;
@@ -48,7 +50,10 @@ fn get_user_config_path() -> Option<String> {
 
 pub fn get_config_file_paths() -> Vec<String> {
     if let Some(user_config_path) = get_user_config_path() {
-        vec![user_config_path, DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH.to_string()]
+        vec![
+            user_config_path,
+            DEFAULT_ANK_CONFIG_SYSTEM_FILE_PATH.to_string(),
+        ]
     } else {
         output_warn!(
             "HOME environment variable not found, continue with searching only system config file at '{}'.",
@@ -62,10 +67,6 @@ fn get_default_response_timeout() -> u64 {
     DEFAULT_RESPONSE_TIMEOUT
 }
 
-fn get_default_url() -> String {
-    DEFAULT_SERVER_ADDRESS.to_string()
-}
-
 // [impl->swdd~cli-loads-config-file~2]
 #[derive(Debug, PartialEq)]
 pub struct AnkConfig {
@@ -74,7 +75,7 @@ pub struct AnkConfig {
     pub verbose: bool,
     pub quiet: bool,
     pub no_wait: bool,
-    pub server_url: String,
+    pub address: String,
     pub insecure: bool,
     ca_pem: Option<String>,
     crt_pem: Option<String>,
@@ -95,8 +96,8 @@ struct AnkConfigHelper {
     quiet: bool,
     #[serde(default)]
     no_wait: bool,
-    #[serde(default = "get_default_url")]
-    server_url: String,
+    #[serde(default = "get_default_server_url", alias = "server_url")]
+    address: String,
     #[serde(default)]
     insecure: bool,
     ca_pem: Option<String>,
@@ -115,7 +116,7 @@ impl From<AnkConfigHelper> for AnkConfig {
             verbose: helper.verbose,
             quiet: helper.quiet,
             no_wait: helper.no_wait,
-            server_url: helper.server_url,
+            address: helper.address,
             insecure: helper.insecure,
             ca_pem: helper.ca_pem,
             crt_pem: helper.crt_pem,
@@ -188,7 +189,7 @@ impl Default for AnkConfig {
             verbose: bool::default(),
             quiet: bool::default(),
             no_wait: bool::default(),
-            server_url: get_default_url(),
+            address: get_default_server_url(),
             insecure: bool::default(),
             ca_pem: None,
             crt_pem: None,
@@ -237,6 +238,11 @@ impl ConfigFile for AnkConfig {
             ank_config.key_pem_content = Some(key_pem_content);
         }
 
+        validate_server_address_format(&ank_config.address)
+            .map_err(ConversionErrors::InvalidConfig)?;
+
+        validate_socket_configuration(&ank_config).map_err(ConversionErrors::InvalidConfig)?;
+
         Ok(ank_config)
     }
 }
@@ -260,8 +266,8 @@ impl AnkConfig {
             self.insecure = insecure;
         }
 
-        if let Some(server_url) = &args.server_url {
-            self.server_url = server_url.to_owned();
+        if let Some(address) = &args.address {
+            self.address = address.to_owned();
         }
 
         if let Some(ca_pem_path) = &args.ca_pem {
@@ -282,8 +288,25 @@ impl AnkConfig {
                 .map_err(|err| err.to_string())?;
             self.key_pem_content = Some(key_pem_content);
         }
+
+        validate_server_address_format(&self.address)?;
+        validate_socket_configuration(self)?;
         Ok(())
     }
+}
+
+fn validate_socket_configuration(ank_config: &AnkConfig) -> Result<(), String> {
+    validate_unix_socket_tls_settings(
+        "ank",
+        &ank_config.address,
+        ank_config.insecure,
+        ank_config.ca_pem.is_some()
+            || ank_config.crt_pem.is_some()
+            || ank_config.key_pem.is_some()
+            || ank_config.ca_pem_content.is_some()
+            || ank_config.crt_pem_content.is_some()
+            || ank_config.key_pem_content.is_some(),
+    )
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -298,13 +321,13 @@ impl AnkConfig {
 mod tests {
     use super::AnkConfig;
     use crate::{
-        ank_config::{get_default_response_timeout, get_default_url},
+        ank_config::get_default_response_timeout,
         cli::{AnkCli, Commands, GetArgs, GetCommands},
     };
 
     use ankaios_api::test_utils::fixtures;
-    use common::DEFAULT_SERVER_ADDRESS;
     use common::config::{ConfigFile, ConversionErrors};
+    use common::{DEFAULT_SERVER_ADDRESS, config::get_default_server_url};
 
     use std::io::Write;
     use std::path::PathBuf;
@@ -413,7 +436,7 @@ mod tests {
                     object_field_mask: Vec::new(),
                 }),
             }),
-            server_url: Some(TEST_SERVER_URL.to_string()),
+            address: Some(TEST_SERVER_URL.to_string()),
             config_path: Some(super::get_config_file_paths()[0].clone()),
             response_timeout_ms: Some(5000),
             insecure: Some(false),
@@ -432,7 +455,7 @@ mod tests {
         assert!(ank_config.quiet);
         assert!(ank_config.no_wait);
         assert!(!ank_config.insecure);
-        assert_eq!(ank_config.server_url, TEST_SERVER_URL.to_string());
+        assert_eq!(ank_config.address, TEST_SERVER_URL.to_string());
         assert_eq!(ank_config.ca_pem, Some(fixtures::CA_PEM_PATH.to_string()));
         assert_eq!(ank_config.crt_pem, Some(fixtures::CRT_PEM_PATH.to_string()));
         assert_eq!(ank_config.key_pem, Some(fixtures::KEY_PEM_PATH.to_string()));
@@ -477,7 +500,7 @@ mod tests {
                     object_field_mask: Vec::new(),
                 }),
             }),
-            server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
+            address: Some(DEFAULT_SERVER_ADDRESS.to_string()),
             config_path: Some(super::get_config_file_paths()[0].clone()),
             response_timeout_ms: Some(5000),
             insecure: Some(false),
@@ -532,7 +555,7 @@ mod tests {
                     object_field_mask: Vec::new(),
                 }),
             }),
-            server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
+            address: Some(DEFAULT_SERVER_ADDRESS.to_string()),
             config_path: Some(super::get_config_file_paths()[0].clone()),
             response_timeout_ms: Some(5000),
             insecure: None,
@@ -563,7 +586,7 @@ mod tests {
 
         let ank_config = AnkConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
 
-        assert_eq!(ank_config.server_url, get_default_url());
+        assert_eq!(ank_config.address, get_default_server_url());
         assert!(!ank_config.insecure);
         assert!(ank_config.ca_pem.is_none());
         assert!(ank_config.crt_pem.is_none());
@@ -600,7 +623,7 @@ mod tests {
         quiet = false
         no_wait = false
         [default]
-        server_url = 'https://127.0.0.1:25551'
+        address = 'https://127.0.0.1:25551'
         insecure = false
         ca_pem_content = '''{}'''
         crt_pem_content = '''{}'''
@@ -624,7 +647,7 @@ mod tests {
         assert!(!ank_config.verbose);
         assert!(!ank_config.quiet);
         assert!(!ank_config.no_wait);
-        assert_eq!(ank_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
+        assert_eq!(ank_config.address, DEFAULT_SERVER_ADDRESS.to_string());
         assert!(!ank_config.insecure);
         assert_eq!(
             ank_config.ca_pem_content,
@@ -694,5 +717,40 @@ mod tests {
         if let Some(home) = original_home {
             unsafe { std::env::set_var("HOME", home) };
         }
+    }
+
+    #[test]
+    fn utest_ank_config_rejects_insecure_with_unix_domain_socket() {
+        let ank_config_content = r"#
+        version = 'v1'
+        [default]
+        address = 'unix:///tmp/ankaios-cli.sock'
+        insecure = true
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{ank_config_content}").unwrap();
+
+        let result = AnkConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
+    }
+
+    #[test]
+    fn utest_ank_config_rejects_tls_with_unix_domain_socket() {
+        let ank_config_content = format!(
+            r"#
+        version = 'v1'
+        [default]
+        address = 'unix:///tmp/ankaios-cli.sock'
+        ca_pem_content = '''{}'''
+        #",
+            fixtures::CA_PEM_CONTENT,
+        );
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{ank_config_content}").unwrap();
+
+        let result = AnkConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
     }
 }

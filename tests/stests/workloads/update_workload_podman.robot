@@ -42,9 +42,9 @@ Test Ankaios CLI update workload
     And the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the command "curl localhost:8081" finished with exit code "0"
     # Actions
-    When user triggers "ank -k get state > ${new_state_yaml_file}"
+    When user triggers "ank get state > ${new_state_yaml_file}"
     And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.nginx.runtimeConfig.commandOptions=['-p', '8082:80']"
-    And user triggers "ank -k set state desiredState.workloads.nginx ${new_state_yaml_file}"
+    And user triggers "ank set state desiredState.workloads.nginx ${new_state_yaml_file}"
     # Asserts
     Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     And the command "curl localhost:8082" shall finish with exit code "0" within "10" seconds
@@ -61,9 +61,9 @@ Test Ankaios Podman update workload from empty state
     And the CLI listens for workload states
     And Ankaios agent is started with name "agent_A"
     # Actions
-    When user triggers "ank -k get workloads"
+    When user triggers "ank get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank -k set state desiredState.workloads ${CONFIGS_DIR}/update_state_create_one_workload.yaml"
+    When user triggers "ank set state desiredState.workloads ${CONFIGS_DIR}/update_state_create_one_workload.yaml"
     Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
@@ -77,10 +77,10 @@ Test Ankaios Podman Update workload with invalid api version
     And Ankaios server is started without manifest successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
-    When user triggers "ank -k get workloads"
+    When user triggers "ank get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank -k set state desiredState ${CONFIGS_DIR}/update_state_invalid_version.yaml"
-    And user triggers "ank -k get workloads"
+    When user triggers "ank set state desiredState ${CONFIGS_DIR}/update_state_invalid_version.yaml"
+    And user triggers "ank get workloads"
     Then list of workloads shall be empty
 
     [Teardown]    Clean up Ankaios
@@ -96,10 +96,10 @@ Test Ankaios Podman Update workload with invalid workload name
     And Ankaios server is started without manifest successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
-    When user triggers "ank -k get workloads"
+    When user triggers "ank get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank -k set state desiredState ${CONFIGS_DIR}/update_state_invalid_names.yaml"
-    And user triggers "ank -k get workloads"
+    When user triggers "ank set state desiredState ${CONFIGS_DIR}/update_state_invalid_names.yaml"
+    And user triggers "ank get workloads"
     Then list of workloads shall be empty
 
     [Teardown]    Clean up Ankaios
@@ -115,10 +115,10 @@ Test Ankaios Podman Update workload with lengthy workload name
     And Ankaios server is started without manifest successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
-    When user triggers "ank -k get workloads"
+    When user triggers "ank get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank -k set state desiredState ${CONFIGS_DIR}/update_state_long_names.yaml"
-    And user triggers "ank -k get workloads"
+    When user triggers "ank set state desiredState ${CONFIGS_DIR}/update_state_long_names.yaml"
+    And user triggers "ank get workloads"
     Then list of workloads shall be empty
 
     [Teardown]    Clean up Ankaios
@@ -135,11 +135,11 @@ Test Ankaios Podman Update workload with invalid agent name
     And Ankaios server is started without manifest successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
-    When user triggers "ank -k get workloads"
+    When user triggers "ank get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank -k set state desiredState.workloads.sleepy ${CONFIGS_DIR}/update_state_invalid_names.yaml"
+    When user triggers "ank set state desiredState.workloads.sleepy ${CONFIGS_DIR}/update_state_invalid_names.yaml"
     And the last command finished with an error
-    And user triggers "ank -k get workloads"
+    And user triggers "ank get workloads"
     Then list of workloads shall be empty
 
     [Teardown]    Clean up Ankaios
@@ -156,7 +156,7 @@ Test Ankaios Podman Update workload support empty agent name in workload specifi
     And Ankaios server is started without manifest successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
-    When user triggers "ank -k set state desiredState.workloads ${CONFIGS_DIR}/update_state_empty_agent_name.yaml"
+    When user triggers "ank set state desiredState.workloads ${CONFIGS_DIR}/update_state_empty_agent_name.yaml"
     And the last command finished with exit code "0"
 
     [Teardown]    Clean up Ankaios
@@ -171,10 +171,10 @@ Test Ankaios Podman Update workload with missing api version
     And Ankaios server is started without manifest successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
-    When user triggers "ank -k get workloads"
+    When user triggers "ank get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank -k set state desiredState ${CONFIGS_DIR}/update_state_missing_version.yaml"
-    And user triggers "ank -k get workloads"
+    When user triggers "ank set state desiredState ${CONFIGS_DIR}/update_state_missing_version.yaml"
+    And user triggers "ank get workloads"
     Then list of workloads shall be empty
 
     [Teardown]    Clean up Ankaios
