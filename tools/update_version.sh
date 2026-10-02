@@ -21,8 +21,8 @@ base_dir="$script_dir/.."
 workspace_config="$base_dir/Cargo.toml"
 
 usage() {
-    echo "Usage: $0 VERSION"
-    echo "Update Ankaios files to VERSION."
+    echo "Usage: $0 --version VERSION [--sdk-version SDK_VERSION]"
+    echo "Update Ankaios files to VERSION and optionally SDK files to SDK_VERSION."
     exit 1
 }
 
@@ -32,18 +32,39 @@ log_update() {
 
 # Initialize variables
 version=""
+sdk_version=""
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -h|--help) usage ;;
-        *)
-            if [[ -z "$version" ]]; then
-                version="$1"
-            else
-                echo "Error: Unknown parameter passed: $1"
+        --version|--sdk-version|--sdk_version)
+            if [[ "$#" -lt 2 || -z "$2" || "$2" == --* ]]; then
+                echo "Error: $1 requires a value."
                 usage
             fi
+            case $1 in
+                --version) version="$2" ;;
+                --sdk-version|--sdk_version) sdk_version="$2" ;;
+            esac
+            shift 2
+            ;;
+        --version=*|--sdk-version=*|--sdk_version=*)
+            option="${1%%=*}"
+            value="${1#*=}"
+            if [[ -z "$value" ]]; then
+                echo "Error: $option requires a value."
+                usage
+            fi
+            case $option in
+                --version) version="$value" ;;
+                --sdk-version|--sdk_version) sdk_version="$value" ;;
+            esac
+            shift
+            ;;
+        *)
+            echo "Error: Unknown parameter passed: $1"
+            usage
             shift
             ;;
     esac
@@ -71,4 +92,7 @@ for example in $examples; do
     dockerfile="$base_dir/examples/$example/Dockerfile"
     log_update "$dockerfile"
     sed -i "s/^ENV ANKAIOS_VERSION=.*/ENV ANKAIOS_VERSION=${version}/" "$dockerfile"
+    if [[ -n "$sdk_version" ]]; then
+        sed -i "s/^ENV ANKAIOS_SDK_VERSION=.*/ENV ANKAIOS_SDK_VERSION=${sdk_version}/" "$dockerfile"
+    fi
 done
