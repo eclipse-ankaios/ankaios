@@ -236,9 +236,15 @@ install_config_file() {
     local target_file="${target_dir}/${config_file}"
 
     if [ -e "${target_file}.conf" ]; then
-        echo "Keeping the existing config file '${target_file}.conf'."
-        tar -xzOf "${CONFIGS_FILE_NAME}" "${config_file}.conf" | ${sudo_cmd} tee "${target_file}.confnew" >/dev/null
-        echo "  Created '${target_file}.confnew' with the default config. It is unused, but you can compare it with your existing config file."
+        if cmp -s \
+            <(tar -xzOf "${CONFIGS_FILE_NAME}" "${config_file}.conf" | tr -d '[:space:]') \
+            <(${sudo_cmd} cat "${target_file}.conf" | tr -d '[:space:]'); then
+            echo "Existing config file '${target_file}.conf' matches the default; no .confnew file needed."
+        else
+            echo "Keeping the existing config file '${target_file}.conf'."
+            tar -xzOf "${CONFIGS_FILE_NAME}" "${config_file}.conf" | ${sudo_cmd} tee "${target_file}.confnew" >/dev/null
+            echo "  Created '${target_file}.confnew' with the default config. It is unused, but you can compare it with your existing config file."
+        fi
     else
         tar -xzOf "${CONFIGS_FILE_NAME}" "${config_file}.conf" | ${sudo_cmd} tee "${target_file}.conf" >/dev/null
         echo "Created config file '${target_file}.conf'."
