@@ -18,7 +18,7 @@ They are intended to be run manually by the package maintainer outside the dev c
 | `PKGBUILD-ankaios.m4` | Template for the release-from-source AUR package |
 | `PKGBUILD-ankaios-bin.m4` | Template for the prebuilt-binary AUR package |
 | `PKGBUILD-ankaios-git.m4` | Template for the git-head AUR package |
-| `ank-server.service`, `ank-agent.service`, `ankaios-cli.install`, `ankaios.sysusers` | Asset files copied into each AUR package repository |
+| `ankaios-cli.install`, `ankaios.sysusers` | Asset files copied into each AUR package repository |
 | `ankaios.sysusers` | `systemd-sysusers` fragment creating the system group `ankaios` used for the server's Unix domain socket (`/run/ankaios/server.sock`), installed to `/usr/lib/sysusers.d/ankaios.conf` |
 
 ## Required environment
