@@ -168,6 +168,10 @@ fi
 echo "Extracting the binaries into install folder: '${BIN_DESTINATION}'"
 ${BIN_SUDO} tar -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}/"
 
+CONFIGS_FILE_NAME="ankaios_configs.tar.gz"
+echo "Downloading the configs: '${ANKAIOS_CONFIGS_URL}'"
+download_release "${ANKAIOS_CONFIGS_URL}"
+
 if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
     create_ankaios_system_group
 fi
@@ -180,40 +184,15 @@ if [ -d "$SERVICE_DEST" ]; then
     fi
 
     if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
-        $SVC_SUDO tee "$FILE_ANK_SERVER_SERVICE" >/dev/null << EOF
-[Unit]
-Description=Ankaios server
-After=network.target
-Wants=network.target
-
-[Service]
-Environment="RUST_LOG=${INSTALL_ANK_SERVER_RUST_LOG}"
-ExecStartPre=/usr/bin/mkdir -p /run/ankaios
-ExecStartPre=/usr/bin/chgrp ${ANK_SYSTEM_GROUP} /run/ankaios
-ExecStartPre=/usr/bin/chmod 0750 /run/ankaios
-ExecStart=${BIN_DESTINATION}/ank-server
-
-[Install]
-WantedBy=default.target
-EOF
-    echo "Start server with 'sudo systemctl start $ANK_SERVER_SERVICE'"
+        tar -xzf "${CONFIGS_FILE_NAME}" -C "${ANKAIOS_TMP_DIR}" ank-server.service
+        sed "s#RUST_LOG=[^\"]*#RUST_LOG=${INSTALL_ANK_SERVER_RUST_LOG}#" "${ANKAIOS_TMP_DIR}/ank-server.service" | $SVC_SUDO tee "$FILE_ANK_SERVER_SERVICE" >/dev/null
+        echo "Start server with 'sudo systemctl start $ANK_SERVER_SERVICE'"
     fi
 
     if [[ "$INSTALL_TYPE" == agent || "$INSTALL_TYPE" == both ]]; then
-        $SVC_SUDO tee "$FILE_ANK_AGENT_SERVICE" >/dev/null << EOF
-[Unit]
-Description=Ankaios agent
-After=network.target ${ANK_SERVER_SERVICE}.service
-Wants=network.target
-
-[Service]
-Environment="RUST_LOG=${INSTALL_ANK_AGENT_RUST_LOG}"
-ExecStart=${BIN_DESTINATION}/ank-agent
-
-[Install]
-WantedBy=default.target
-EOF
-    echo "Start agent with 'sudo systemctl start $ANK_AGENT_SERVICE'"
+        tar -xzf "${CONFIGS_FILE_NAME}" -C "${ANKAIOS_TMP_DIR}" ank-agent.service
+        sed "s#RUST_LOG=[^\"]*#RUST_LOG=${INSTALL_ANK_AGENT_RUST_LOG}#" "${ANKAIOS_TMP_DIR}/ank-agent.service" | $SVC_SUDO tee "$FILE_ANK_AGENT_SERVICE" >/dev/null
+        echo "Start agent with 'sudo systemctl start $ANK_AGENT_SERVICE'"
     fi
 
 else
@@ -255,12 +234,7 @@ EOF
     fi
 fi
 
-echo "Downloading the configs: '${ANKAIOS_CONFIGS_URL}'"
-download_release "${ANKAIOS_CONFIGS_URL}"
-
 # Extract the config files
-CONFIGS_FILE_NAME="ankaios_configs.tar.gz"
-
 echo "Extracting the config files"
 ${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-server.conf
 ${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-agent.conf

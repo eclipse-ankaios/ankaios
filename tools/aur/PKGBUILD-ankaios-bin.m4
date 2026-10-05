@@ -11,18 +11,19 @@ license=('Apache-2.0')
 depends=('libgcc' 'glibc')
 source=("$pkgbase-${pkgver}_configs.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/ankaios_configs.tar.gz"
         "$pkgbase-${pkgver}_man-pages.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/man-pages.tar.gz"
-	'ank-server.service'
-	'ank-agent.service'
 	'ankaios.sysusers')
 source_x86_64=("$pkgbase-$pkgver-x86_64.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/ankaios-linux-amd64.tar.gz")
 source_aarch64=("$pkgbase-$pkgver-aarch64.tar.gz::https://github.com/eclipse-ankaios/ankaios/releases/download/v$pkgver/ankaios-linux-arm64.tar.gz")
 b2sums=('xxxxx'
         'xxxxx'
-        'xxxxx'
-        'xxxxx'
         'xxxxx')
 b2sums_x86_64=('xxxxx')
 b2sums_aarch64=('xxxxx')
+
+prepare() {
+    # The released config archive ships the unit files with ExecStart=/usr/local/bin/...; adapt to the AUR package layout
+    sed -i 's#/usr/local/bin#/usr/bin#' ank-server.service ank-agent.service
+}
 
 package_ankaios-server-bin() {
     pkgdesc="The server application of Eclipse Ankaios"

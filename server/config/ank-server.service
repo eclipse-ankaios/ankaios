@@ -1,0 +1,12 @@
+[Unit]
+Description=Ankaios server
+After=network.target
+Wants=network.target
+
+[Service]
+Environment="RUST_LOG=info"
+ExecStart=/usr/local/bin/ank-server
+ExecStopPost=-/bin/rm -f /run/ankaios.sock
+
+[Install]
+WantedBy=default.target
