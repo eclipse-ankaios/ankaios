@@ -133,24 +133,14 @@ mod tests {
     use nix::unistd::Gid;
     use std::io;
     use std::path::PathBuf;
-    use std::sync::{Mutex, OnceLock};
 
     fn socket_path() -> PathBuf {
         PathBuf::from(shim::SHARED_SOCKET_PATH)
     }
 
-    fn lock_shim() -> std::sync::MutexGuard<'static, ()> {
-        static TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        TEST_LOCK
-            .get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("test lock poisoned")
-    }
-
     // [utest->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_prepare_unix_listener_skips_existing_path_checks_when_path_is_missing() {
-        let _lock = lock_shim();
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -165,7 +155,6 @@ mod tests {
     // [utest->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_prepare_unix_listener_replaces_stale_socket_file() {
-        let _lock = lock_shim();
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -182,7 +171,6 @@ mod tests {
     // [utest->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_prepare_unix_listener_fails_when_removing_stale_socket_fails() {
-        let _lock = lock_shim();
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -208,7 +196,6 @@ mod tests {
     // [utest->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_prepare_unix_listener_fails_if_path_exists_and_is_not_socket() {
-        let _lock = lock_shim();
         shim::reset_overrides();
 
         let file_path = socket_path();
@@ -232,7 +219,6 @@ mod tests {
     // [utest->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_prepare_unix_listener_fails_when_existing_path_metadata_fails() {
-        let _lock = lock_shim();
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -260,7 +246,6 @@ mod tests {
     // [utest->swdd~server-configures-unix-domain-socket-group~1]
     #[test]
     fn utest_prepare_unix_listener_skips_group_configuration_without_group() {
-        let _lock = lock_shim();
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -276,7 +261,6 @@ mod tests {
     // [utest->swdd~server-configures-unix-domain-socket-group~1]
     #[test]
     fn utest_prepare_unix_listener_fails_for_unknown_group() {
-        let _lock = lock_shim();
         shim::reset_overrides();
         let socket_path = socket_path();
         shim::expect_group_from_name_once(GROUP_NAME, Ok(None));
@@ -293,7 +277,6 @@ mod tests {
     // [utest->swdd~server-configures-unix-domain-socket-group~1]
     #[test]
     fn utest_prepare_unix_listener_configures_group_permissions() {
-        let _lock = lock_shim();
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -314,7 +297,6 @@ mod tests {
     // [utest->swdd~server-configures-unix-domain-socket-group~1]
     #[test]
     fn utest_prepare_unix_listener_fails_when_chown_fails() {
-        let _lock = lock_shim();
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -340,7 +322,6 @@ mod tests {
 
     #[test]
     fn utest_prepare_unix_listener_fails_when_group_lookup_fails() {
-        let _lock = lock_shim();
         shim::reset_overrides();
         let socket_path = socket_path();
         shim::expect_group_from_name_once(GROUP_NAME, Err(Errno::EINVAL));
@@ -363,7 +344,6 @@ mod tests {
     // [utest->swdd~server-configures-unix-domain-socket-group~1]
     #[test]
     fn utest_prepare_unix_listener_fails_when_setting_permissions_fails() {
-        let _lock = lock_shim();
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -393,9 +373,9 @@ mod tests {
 
     pub(crate) mod shim {
         use nix::unistd::Gid;
+        use std::cell::RefCell;
         use std::io;
         use std::path::Path;
-        use std::sync::{Mutex, MutexGuard, OnceLock};
 
         pub(crate) const SHARED_SOCKET_PATH: &str = "/unit-test/shared.sock";
         pub(crate) const GROUP_NAME: &str = "ankaios";
@@ -410,38 +390,35 @@ mod tests {
             calls: Vec<&'static str>,
         }
 
-        fn ops_store() -> MutexGuard<'static, Ops> {
-            static STORE: OnceLock<Mutex<Ops>> = OnceLock::new();
-            STORE
-                .get_or_init(|| {
-                    Mutex::new(Ops {
-                        metadata: None,
-                        remove_file: None,
-                        set_permissions: None,
-                        group_from_name: None,
-                        chown: None,
-                        calls: Vec::new(),
-                    })
-                })
-                .lock()
-                .expect("test shim lock poisoned")
+        impl Ops {
+            fn new() -> Self {
+                Self {
+                    metadata: None,
+                    remove_file: None,
+                    set_permissions: None,
+                    group_from_name: None,
+                    chown: None,
+                    calls: Vec::new(),
+                }
+            }
+        }
+
+        thread_local! {
+            static OPS: RefCell<Ops> = RefCell::new(Ops::new());
+        }
+
+        fn with_ops<T>(operation: impl FnOnce(&mut Ops) -> T) -> T {
+            OPS.with(|ops| operation(&mut ops.borrow_mut()))
         }
 
         pub(crate) fn reset_overrides() {
-            let mut ops = ops_store();
-            *ops = Ops {
-                metadata: None,
-                remove_file: None,
-                set_permissions: None,
-                group_from_name: None,
-                chown: None,
-                calls: Vec::new(),
-            };
+            with_ops(|ops| *ops = Ops::new());
         }
 
         pub(crate) fn assert_calls(expected: &[&'static str]) {
-            let ops = ops_store();
-            assert_eq!(ops.calls.as_slice(), expected, "unexpected call sequence");
+            with_ops(|ops| {
+                assert_eq!(ops.calls.as_slice(), expected, "unexpected call sequence");
+            });
         }
 
         pub(crate) fn expect_metadata_once(path: &Path, result: io::Result<fs::Metadata>) {
@@ -450,7 +427,7 @@ mod tests {
                 Path::new(SHARED_SOCKET_PATH),
                 "unexpected metadata path"
             );
-            ops_store().metadata = Some(result);
+            with_ops(|ops| ops.metadata = Some(result));
         }
 
         pub(crate) fn expect_remove_file_once(path: &Path, result: io::Result<()>) {
@@ -459,7 +436,7 @@ mod tests {
                 Path::new(SHARED_SOCKET_PATH),
                 "unexpected remove_file path"
             );
-            ops_store().remove_file = Some(result);
+            with_ops(|ops| ops.remove_file = Some(result));
         }
 
         pub(crate) fn expect_set_permissions_once(path: &Path, result: io::Result<()>) {
@@ -468,7 +445,7 @@ mod tests {
                 Path::new(SHARED_SOCKET_PATH),
                 "unexpected set_permissions path"
             );
-            ops_store().set_permissions = Some(result);
+            with_ops(|ops| ops.set_permissions = Some(result));
         }
 
         pub(crate) fn expect_group_from_name_once(
@@ -476,17 +453,17 @@ mod tests {
             result: Result<Option<Group>, nix::Error>,
         ) {
             assert_eq!(name, GROUP_NAME, "unexpected group name lookup");
-            ops_store().group_from_name = Some(result);
+            with_ops(|ops| ops.group_from_name = Some(result));
         }
 
         pub(crate) fn expect_chown_once(path: &Path, gid: Gid, result: Result<(), nix::Error>) {
             assert_eq!(path, Path::new(SHARED_SOCKET_PATH), "unexpected chown path");
             assert_eq!(gid, Gid::from_raw(GROUP_GID), "unexpected chown gid");
-            ops_store().chown = Some(result);
+            with_ops(|ops| ops.chown = Some(result));
         }
 
         pub(crate) mod fs {
-            use super::{Path, SHARED_SOCKET_PATH, ops_store};
+            use super::{Path, SHARED_SOCKET_PATH, with_ops};
             use std::io;
 
             #[derive(Clone, Copy)]
@@ -533,49 +510,49 @@ mod tests {
             }
 
             pub fn metadata(path: &Path) -> io::Result<Metadata> {
-                let mut ops = ops_store();
-                ops.calls.push("metadata");
-                assert_eq!(
-                    path,
-                    Path::new(SHARED_SOCKET_PATH),
-                    "unexpected metadata path"
-                );
-                if let Some(result) = ops.metadata.take() {
-                    return result;
-                }
-                panic!("missing metadata expectation for '{}'", path.display());
+                with_ops(|ops| {
+                    ops.calls.push("metadata");
+                    assert_eq!(
+                        path,
+                        Path::new(SHARED_SOCKET_PATH),
+                        "unexpected metadata path"
+                    );
+                    ops.metadata.take().unwrap_or_else(|| {
+                        panic!("missing metadata expectation for '{}'", path.display())
+                    })
+                })
             }
 
             pub fn remove_file(path: &Path) -> io::Result<()> {
-                let mut ops = ops_store();
-                ops.calls.push("remove_file");
-                assert_eq!(
-                    path,
-                    Path::new(SHARED_SOCKET_PATH),
-                    "unexpected remove_file path"
-                );
-                if let Some(result) = ops.remove_file.take() {
-                    return result;
-                }
-                panic!("missing remove_file expectation for '{}'", path.display());
+                with_ops(|ops| {
+                    ops.calls.push("remove_file");
+                    assert_eq!(
+                        path,
+                        Path::new(SHARED_SOCKET_PATH),
+                        "unexpected remove_file path"
+                    );
+                    ops.remove_file.take().unwrap_or_else(|| {
+                        panic!("missing remove_file expectation for '{}'", path.display())
+                    })
+                })
             }
 
             pub fn set_permissions(path: &Path, perms: Permissions) -> io::Result<()> {
-                let mut ops = ops_store();
-                ops.calls.push("set_permissions");
-                assert_eq!(perms.mode, 0o660, "unexpected permission mode");
-                assert_eq!(
-                    path,
-                    Path::new(SHARED_SOCKET_PATH),
-                    "unexpected set_permissions path"
-                );
-                if let Some(result) = ops.set_permissions.take() {
-                    return result;
-                }
-                panic!(
-                    "missing set_permissions expectation for '{}'",
-                    path.display()
-                );
+                with_ops(|ops| {
+                    ops.calls.push("set_permissions");
+                    assert_eq!(perms.mode, 0o660, "unexpected permission mode");
+                    assert_eq!(
+                        path,
+                        Path::new(SHARED_SOCKET_PATH),
+                        "unexpected set_permissions path"
+                    );
+                    ops.set_permissions.take().unwrap_or_else(|| {
+                        panic!(
+                            "missing set_permissions expectation for '{}'",
+                            path.display()
+                        )
+                    })
+                })
             }
         }
 
@@ -586,13 +563,13 @@ mod tests {
 
         impl Group {
             pub fn from_name(group_name: &str) -> Result<Option<Group>, nix::Error> {
-                let mut ops = ops_store();
-                ops.calls.push("group_from_name");
-                assert_eq!(group_name, GROUP_NAME, "unexpected group name lookup");
-                if let Some(result) = ops.group_from_name.take() {
-                    return result;
-                }
-                panic!("missing group lookup expectation for '{group_name}'");
+                with_ops(|ops| {
+                    ops.calls.push("group_from_name");
+                    assert_eq!(group_name, GROUP_NAME, "unexpected group name lookup");
+                    ops.group_from_name.take().unwrap_or_else(|| {
+                        panic!("missing group lookup expectation for '{group_name}'")
+                    })
+                })
             }
         }
 
@@ -602,14 +579,14 @@ mod tests {
             gid: Option<Gid>,
         ) -> Result<(), nix::Error> {
             let gid = gid.expect("gid is required for test shim chown");
-            let mut ops = ops_store();
-            ops.calls.push("chown");
-            if let Some(result) = ops.chown.take() {
+            with_ops(|ops| {
+                ops.calls.push("chown");
                 assert_eq!(path, Path::new(SHARED_SOCKET_PATH), "unexpected chown path");
                 assert_eq!(gid, Gid::from_raw(GROUP_GID), "unexpected chown gid");
-                return result;
-            }
-            panic!("missing chown expectation for '{}'", path.display());
+                ops.chown
+                    .take()
+                    .unwrap_or_else(|| panic!("missing chown expectation for '{}'", path.display()))
+            })
         }
     }
 }
