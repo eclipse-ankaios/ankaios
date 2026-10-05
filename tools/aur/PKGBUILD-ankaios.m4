@@ -11,18 +11,16 @@ license=('Apache-2.0')
 depends=('libgcc' 'glibc')
 makedepends=('cargo' 'protobuf' 'help2man')
 source=("$pkgbase-$pkgver.tar.gz::https://github.com/eclipse-ankaios/ankaios/archive/refs/tags/v$pkgver.tar.gz"
-	'ank-server.service'
-	'ank-agent.service'
 	'ankaios.sysusers')
 b2sums=('xxxxxx'
-        'xxxxxx'
-        'xxxxxx'
         'xxxxxx')
 
 prepare() {
     cd "ankaios-$pkgver"
     export RUSTUP_TOOLCHAIN=stable
     cargo fetch --locked --target host-tuple
+    # Unit files ship with ExecStart=/usr/local/bin/...; adapt to the AUR package layout
+    sed -i 's#/usr/local/bin#/usr/bin#' server/config/ank-server.service agent/config/ank-agent.service
 }
 
 build() {
@@ -40,7 +38,7 @@ package_ankaios-server() {
             "etc/ankaios/state.yaml")
 
     install -Dm755 -t "$pkgdir"/usr/bin/ "ankaios-$pkgver/target/$(rustc --print host-tuple)/release/ank-server"
-    install -Dm644 -t "$pkgdir"/usr/lib/systemd/system/ ank-server.service
+    install -Dm644 -t "$pkgdir"/usr/lib/systemd/system/ "ankaios-$pkgver"/server/config/ank-server.service
     install -Dm644 ankaios.sysusers "$pkgdir"/usr/lib/sysusers.d/ankaios.conf
     install -Dm644 -t "$pkgdir"/etc/ankaios/ "ankaios-$pkgver"/server/config/ank-server.conf
     install -Dm644 -t "$pkgdir"/etc/ankaios/ "ankaios-$pkgver"/server/config/state.yaml
@@ -56,7 +54,7 @@ package_ankaios-agent() {
     )
 
     install -Dm755 -t "$pkgdir"/usr/bin/ "ankaios-$pkgver/target/$(rustc --print host-tuple)/release/ank-agent"
-    install -Dm644 -t "$pkgdir"/usr/lib/systemd/system/ ank-agent.service
+    install -Dm644 -t "$pkgdir"/usr/lib/systemd/system/ "ankaios-$pkgver"/agent/config/ank-agent.service
     install -Dm644 -t "$pkgdir"/etc/ankaios/ "ankaios-$pkgver"/agent/config/ank-agent.conf
     install -Dm644 -t "$pkgdir"/usr/share/man/man8 "ankaios-$pkgver"/build/man/man8/ank-agent.8
 }
