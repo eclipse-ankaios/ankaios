@@ -27,7 +27,7 @@ Test Ankaios CLI get configs
     And Ankaios server is started with manifest "${CONFIGS_DIR}/default_with_config.yaml"
     And Ankaios server is available
     # Actions
-    When user triggers "ank -k get configs"
+    When user triggers "ank get configs"
     # Asserts
     Then the last command shall list the config "config_1"
     And the last command shall list the config "config_2"
@@ -42,8 +42,8 @@ Test Ankaios Podman remove configs
     And Ankaios server is started with manifest "${CONFIGS_DIR}/default_with_config.yaml"
     And Ankaios server is available
     # Actions
-    When user triggers "ank -k delete configs config_1"
-    And user triggers "ank -k get configs"
+    When user triggers "ank delete configs config_1"
+    And user triggers "ank get configs"
     # Asserts
     Then the last command shall not list the config "config_1"
     And the last command shall list the config "config_2"

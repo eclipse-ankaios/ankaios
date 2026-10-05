@@ -12,8 +12,10 @@ depends=('libgcc' 'glibc')
 makedepends=('cargo' 'git' 'protobuf' 'help2man')
 source=("$pkgbase::git+https://github.com/eclipse-ankaios/ankaios.git"
 	'ank-server.service'
-	'ank-agent.service')
+	'ank-agent.service'
+	'ankaios.sysusers')
 b2sums=('SKIP'
+        'xxxxx'
         'xxxxx'
         'xxxxx')
 
@@ -46,6 +48,7 @@ package_ankaios-server-git() {
 
     install -Dm755 -t "$pkgdir"/usr/bin/ "$pkgbase/target/$(rustc --print host-tuple)/release/ank-server"
     install -Dm644 -t "$pkgdir"/usr/lib/systemd/system/ ank-server.service
+    install -Dm644 ankaios.sysusers "$pkgdir"/usr/lib/sysusers.d/ankaios.conf
     install -Dm644 -t "$pkgdir"/etc/ankaios/ "$pkgbase"/server/config/ank-server.conf
     install -Dm644 -t "$pkgdir"/etc/ankaios/ "$pkgbase"/server/config/state.yaml
     install -Dm644 -t "$pkgdir"/usr/share/man/man8 "$pkgbase"/build/man/man8/ank-server.8

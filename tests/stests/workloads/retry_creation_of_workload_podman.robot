@@ -50,10 +50,10 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
     And Ankaios agent is started with name "agent_A"
     And the workload state of workload "hello1" shall contain an additional info signaling retries within "5" seconds
     # Actions
-    When user triggers "ank -k get state > ${new_state_yaml_file}"
-    And user triggers "ank -k set state ${new_state_yaml_file} desiredState.workloads.hello1"
+    When user triggers "ank get state > ${new_state_yaml_file}"
+    And user triggers "ank set state ${new_state_yaml_file} desiredState.workloads.hello1"
     And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.hello1.runtimeConfig.image=ghcr.io/eclipse-ankaios/tests/alpine:latest"
-    And user triggers "ank -k set state desiredState.workloads.hello1 ${new_state_yaml_file}"
+    And user triggers "ank set state desiredState.workloads.hello1 ${new_state_yaml_file}"
     # Asserts
     Then the workload "hello1" shall have the execution state "Succeeded(Ok)" from agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
@@ -73,7 +73,7 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
     And Ankaios agent is started with name "agent_A"
     And the workload state of workload "hello1" shall contain an additional info signaling retries within "5" seconds
     # Actions
-    When user triggers "ank -k --no-wait delete workload hello1"
+    When user triggers "ank --no-wait delete workload hello1"
     # Asserts
     Then the workload "hello1" shall be removed and not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios

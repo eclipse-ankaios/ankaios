@@ -1026,7 +1026,9 @@ dependencies = [
  "common",
  "env_logger",
  "futures-core",
+ "hyper-util",
  "log",
+ "nix",
  "prost",
  "regex",
  "serde",
@@ -1036,6 +1038,7 @@ dependencies = [
  "tonic",
  "tonic-prost",
  "tonic-prost-build",
+ "tower",
  "uuid",
  "x509-parser",
 ]

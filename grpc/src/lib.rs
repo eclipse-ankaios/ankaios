@@ -138,13 +138,14 @@ pub mod security {
     }
 }
 
-mod client_senders_map;
 pub mod client;
+mod client_senders_map;
 mod from_server_proxy;
 mod grpc_agent_connection;
 mod grpc_cli_connection;
 mod grpc_commander_connection;
 pub mod server;
+mod server_unix_listener;
 mod to_server_proxy;
 
 use ankaios_api::ank_base;
@@ -198,7 +199,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
         permissions.set_mode(0o644);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
-        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 
@@ -213,7 +216,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions.set_mode(0o777);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
 
-        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 
@@ -228,7 +233,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions.set_mode(0o722);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
 
-        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 
@@ -243,7 +250,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions.set_mode(0o610);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
 
-        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 
@@ -258,7 +267,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions.set_mode(0o660);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
 
-        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 
@@ -273,7 +284,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions.set_mode(0o602);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
 
-        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::PrivateKey)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 
@@ -363,7 +376,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions.set_mode(0o666);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
 
-        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 
@@ -378,7 +393,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions.set_mode(0o620);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
 
-        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 
@@ -393,7 +410,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions.set_mode(0o602);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
 
-        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 
@@ -408,7 +427,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions.set_mode(0o755);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
 
-        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 
@@ -423,7 +444,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions.set_mode(0o744);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
 
-        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 
@@ -438,7 +461,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions.set_mode(0o645);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
 
-        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 
@@ -453,7 +478,9 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
         permissions.set_mode(0o654);
         let _ = temp_file.as_file_mut().set_permissions(permissions);
 
-        let error = read_pem_file(temp_file.path(), PemFileType::Certificate).err().unwrap();
+        let error = read_pem_file(temp_file.path(), PemFileType::Certificate)
+            .err()
+            .unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
     }
 }

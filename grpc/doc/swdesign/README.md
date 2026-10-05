@@ -203,6 +203,23 @@ Needs:
 - impl
 - itest
 
+#### gRPC Server supports unix domain socket endpoints
+`swdd~grpc-server-supports-unix-domain-socket-endpoints~1`
+
+Status: approved
+
+The gRPC Server shall support listening for incoming gRPC connections on either a TCP socket endpoint or a Unix domain socket endpoint.
+
+Rationale:
+Unix domain sockets allow local communication without exposing a TCP port.
+
+Tags:
+- gRPC_Server
+
+Needs:
+- impl
+- itest
+
 #### gRPC Server provides a gRPC endpoint for CLI connection handling
 `swdd~grpc-server-provides-endpoint-for-cli-connection-handling~1`
 

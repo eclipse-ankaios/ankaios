@@ -31,9 +31,16 @@ pub struct Arguments {
     /// The name to use for the registration with the server. Every agent has to register with a unique name.
     /// Agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
     pub agent_name: Option<String>,
-    #[arg(short = 's', long = "server-url", required = false)]
-    /// The server url.
-    pub server_url: Option<String>,
+    #[arg(
+        short = 's',
+        long = "address",
+        alias = "server-url",
+        required = false,
+        env = "ANKAGENT_SERVER_URL"
+    )]
+    /// The server endpoint.
+    /// Supported values are https://host:port and unix:///path/to/socket.
+    pub address: Option<String>,
     #[arg(short = 'r', long = "run-folder", required = false)]
     /// An existing directory where agent specific runtime files will be stored. If not specified, a default folder is created.
     /// If the directory already exists, it must be owned by the user running the agent and not be accessible by other users or groups.

@@ -41,7 +41,7 @@ Test Ankaios start up with templated Ankaios manifest and update state with upda
     And the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the command "curl localhost:8081" finished with exit code "0"
     # Actions
-    When user triggers "ank -k set state desiredState.configs ${new_state_yaml_file}"
+    When user triggers "ank set state desiredState.configs ${new_state_yaml_file}"
     # Asserts
     Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     And the command "curl localhost:8082" shall finish with exit code "0" within "10" seconds
@@ -59,7 +59,7 @@ Test Ankaios update configs with invalid config item key
     And Ankaios agent is started with name "agent_A"
     # Actions
     Then the configs field inside the state shall be empty
-    When user triggers "ank -k set state desiredState.configs ${CONFIGS_DIR}/update_state_invalid_config_item_key.yaml"
+    When user triggers "ank set state desiredState.configs ${CONFIGS_DIR}/update_state_invalid_config_item_key.yaml"
     Then the configs field inside the state shall be empty
 
     [Teardown]    Clean up Ankaios
@@ -76,7 +76,7 @@ Test Ankaios update workload with invalid config alias
     And Ankaios agent is started with name "agent_A"
     # Actions
     Then the configs field inside the state shall be empty
-    When user triggers "ank -k set state desiredState ${CONFIGS_DIR}/update_state_invalid_workload_config_alias.yaml"
+    When user triggers "ank set state desiredState ${CONFIGS_DIR}/update_state_invalid_workload_config_alias.yaml"
     Then the configs field inside the state shall be empty
 
     [Teardown]    Clean up Ankaios
@@ -93,7 +93,7 @@ Test Ankaios update workload with invalid config reference key
     And Ankaios agent is started with name "agent_A"
     # Actions
     Then the configs field inside the state shall be empty
-    When user triggers "ank -k set state desiredState ${CONFIGS_DIR}/update_state_invalid_workload_config_reference_key.yaml"
+    When user triggers "ank set state desiredState ${CONFIGS_DIR}/update_state_invalid_workload_config_reference_key.yaml"
     Then the configs field inside the state shall be empty
 
     [Teardown]    Clean up Ankaios

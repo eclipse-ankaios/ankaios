@@ -18,7 +18,11 @@ The Ankaios configuration files are per default loaded from the following locati
 
 ## Configuration File Structure
 
-The following three examples show how the Ankaios configuration files look like:
+The following three examples show how the Ankaios configuration files look like. By default, the
+standard [installation](../usage/installation.md) configures the server, agent and CLI to
+communicate over a local Unix domain socket at `/run/ankaios/server.sock`, as shown in the examples
+below. For communication over the network instead, see
+[Connecting Ankaios components over the network](../usage/network-setup.md).
 
 ### Ankaios Server Configuration (`ank-server.conf`)
 
@@ -33,22 +37,30 @@ version = 'v1'
 # By default, no startup configuration manifest is used.
 startup_manifest = '/etc/ankaios/state.yaml'
 
-# The address, including the port, to which the server should listen.
-address = '127.0.0.1:25551'
+# The address to which the server should listen, either a TCP socket
+# address including the port (`<host>:<port>`) or a Unix domain socket
+# address (`unix://<absolute-path>`).
+address = 'unix:///run/ankaios/server.sock'
+
+# Optional group applied to the Unix domain socket file's group ownership.
+# This option is only valid with 'unix://' addresses.
+socket_group = 'ankaios'
 
 # The flag to disable TLS communication between
 # the Ankaios server, agents and the ank CLI.
 # If set to 'true' and the certificates are not provided, then the server shall not use TLS.
-insecure = false
+# This option must not be used with 'unix://' addresses.
+# insecure = true
 
 # The path to ca certificate pem file.
-ca_pem = '/etc/ankaios/certs/ca.pem'
+# TLS options are only valid with TCP addresses.
+# ca_pem = '/etc/ankaios/certs/ca.pem'
 
 # The path to server certificate pem file.
-crt_pem = '/etc/ankaios/certs/ank-server.pem'
+# crt_pem = '/etc/ankaios/certs/ank-server.pem'
 
 # The path to server key pem file.
-key_pem = '/etc/ankaios/certs/ank-server-key.pem'
+# key_pem = '/etc/ankaios/certs/ank-server-key.pem'
 
 # The content of the ca certificate pem file.
 # You can either provide key_pem or key_pem_content, but not both.
@@ -69,6 +81,11 @@ key_pem = '/etc/ankaios/certs/ank-server-key.pem'
 # -----END PRIVATE KEY-----'''
 ```
 
+!!! note
+
+    If no `address` is configured and no configuration file is used, the Ankaios server defaults to
+    the TCP address `127.0.0.1:25551`.
+
 ### Ankaios Agent Configuration (`ank-agent.toml`)
 
 ```toml
@@ -84,27 +101,31 @@ version = 'v1'
 # (a-z and A-Z), numbers and the symbols "-" and "_".
 name = 'agent_1'
 
-# The server URL.
-server_url = 'https://127.0.0.1:25551'
+# The server address, either a TCP address (`https://<host>:<port>`) or a
+# Unix domain socket address (`unix://<absolute-path>`).
+# The legacy field name 'server_url' is still accepted as an alias.
+address = 'unix:///run/ankaios/server.sock'
 
 # An existing path where to manage the fifo files.
 # If not set, defaults to '$TMPDIR/ankaios/' (falls back to '/tmp/ankaios/' if TMPDIR is not set).
 # If the path already exists, it must be owned by the user running the agent and must not be
 # accessible by other users or groups; otherwise, the agent prevents startup to protect against insecure permissions.
-run_folder = '/tmp/ankaios/'
+# run_folder = '/tmp/ankaios/'
 
 # The flag to disable TLS communication with the server.
 # If set to 'true', then the agent shall not use TLS.
-insecure = false
+# This option must not be used with 'unix://' addresses.
+# insecure = true
 
 # The path to the ca certificate pem file.
-ca_pem = '/etc/ankaios/certs/ca.pem'
+# TLS options are only valid with TCP addresses.
+# ca_pem = '/etc/ankaios/certs/ca.pem'
 
 # The path to agent certificate pem file.
-crt_pem = '/etc/ankaios/certs/ank-agent.pem'
+# crt_pem = '/etc/ankaios/certs/ank-agent.pem'
 
 # The path to agent key pem file.
-key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
+# key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
 
 # The content of the ca certificate pem file.
 # You can either provide ca_pem or ca_pem_content, but not both
@@ -125,6 +146,11 @@ key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
 # -----END PRIVATE KEY-----'''
 ```
 
+!!! note
+
+    If no `address` is configured and no configuration file is used, the Ankaios agent defaults to
+    the TCP address `https://127.0.0.1:25551`.
+
 ### Ankaios CLI Configuration (`ank.conf`)
 
 ```toml
@@ -135,35 +161,40 @@ key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
 version = 'v1'
 
 # The timeout in milliseconds to wait for a response from the ank-server.
-response_timeout = 3000  # milliseconds
+# response_timeout = 3000  # milliseconds
 
 # The flag to enable verbose output.
-verbose = false
+# verbose = false
 
 # The flag to disable all output.
-quiet = false
+# quiet = false
 
 # The flag that enables waiting for workloads to be created/deleted.
-no_wait = false
+# no_wait = false
 
 [default]
-# The URL to Ankaios server.
+# The address of the Ankaios server, either a TCP address
+# (`https://<host>:<port>`) or a Unix domain socket address
+# (`unix://<absolute-path>`).
 # If started in insecure mode then the HTTP protocol shall be used,
 # otherwise the HTTPS protocol shall be used.
-server_url = 'https://127.0.0.1:25551'
+# The legacy field name 'server_url' is still accepted as an alias.
+address = 'unix:///run/ankaios/server.sock'
 
 # The flag to disable TLS communication with the server.
 # If set to 'true', then the CLI shall not use TLS.
-insecure = false
+# This option must not be used with 'unix://' addresses.
+# insecure = true
 
 # The path to the ca certificate pem file.
-ca_pem = '/etc/ankaios/certs/ca.pem'
+# TLS options are only valid with TCP addresses.
+# ca_pem = '/etc/ankaios/certs/ca.pem'
 
 # The path to CLI certificate pem file.
-crt_pem = '/home/ankaios/.config/ankaios/ank.pem'
+# crt_pem = '/home/ankaios/.config/ankaios/ank.pem'
 
 # The path to CLI key pem file.
-key_pem = '/home/ankaios/.config/ankaios/ank-key.pem'
+# key_pem = '/home/ankaios/.config/ankaios/ank-key.pem'
 
 # The content of the ca certificate pem file.
 # You can either provide ca_pem or ca_pem_content, but not both.

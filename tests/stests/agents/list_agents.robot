@@ -35,7 +35,7 @@ Test Ankaios CLI lists connected agents
     And the workload "hello2" shall have the execution state "Pending(Initial)" on agent "agent_B"
     And the workload "hello3" shall have the execution state "Pending(Initial)" on agent "agent_B"
     # Actions
-    When user triggers "ank -k get agents"
+    When user triggers "ank get agents"
     # Asserts
     Then the last command shall list the connected agent "agent_A"
 
@@ -52,7 +52,7 @@ Test Ankaios CLI enforces agent naming convention
     And Ankaios agent is started with name "agent.A"
     And Ankaios agent is started with config file "${CONFIGS_DIR}/ank-agent_invalid_agent_name.conf"
     # Actions
-    When user triggers "ank -k get agents"
+    When user triggers "ank get agents"
     ${result_cli}=  Run Keyword And Return Status    the last command shall list the connected agent "agent.A"
     ${result_config}=  Run Keyword And Return Status    the last command shall list the connected agent "Invalid@gent.name"
     # Asserts
