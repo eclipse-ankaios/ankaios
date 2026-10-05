@@ -39,7 +39,6 @@ fi
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BASE_DIR="$SCRIPT_DIR/../.."
 MAINTAINER="Eclipse Ankaios <ankaios-dev@eclipse.org>"
-LOG_LEVEL="info"
 RELEASE_URL="https://github.com/eclipse-ankaios/ankaios/releases/tag/v$ANKAIOS_VERSION"
 ANK_SYSTEM_GROUP="ankaios"
 
@@ -103,37 +102,9 @@ EOF
 }
 
 write_services() {
-    cat > "$BASE_DIR/debian/ank-server.service" << EOF
-[Unit]
-Description=Ankaios server
-After=network.target
-Wants=network.target
-
-[Service]
-Environment="RUST_LOG=${LOG_LEVEL}"
-ExecStartPre=/usr/bin/mkdir -p /run/ankaios
-ExecStartPre=/usr/bin/chgrp ${ANK_SYSTEM_GROUP} /run/ankaios
-ExecStartPre=/usr/bin/chmod 0750 /run/ankaios
-ExecStart=/usr/bin/ank-server
-
-[Install]
-WantedBy=default.target
-EOF
-
-    cat > "$BASE_DIR/debian/ank-agent.service" << EOF
-[Unit]
-Description=Ankaios agent
-After=network.target ank-server.service
-Wants=network.target
-
-[Service]
-Environment="RUST_LOG=${LOG_LEVEL}"
-ExecStart=/usr/bin/ank-agent
-
-[Install]
-WantedBy=default.target
-EOF
-
+    # Reuse the canonical unit files, just adapting the install path for the debian package layout
+    sed 's#/usr/local/bin#/usr/bin#' "$BASE_DIR/server/config/ank-server.service" > "$BASE_DIR/debian/ank-server.service"
+    sed 's#/usr/local/bin#/usr/bin#' "$BASE_DIR/agent/config/ank-agent.service" > "$BASE_DIR/debian/ank-agent.service"
 }
 
 write_postinst() {
