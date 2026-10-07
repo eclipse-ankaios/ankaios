@@ -138,7 +138,7 @@ mod tests {
         PathBuf::from(shim::SHARED_SOCKET_PATH)
     }
 
-    // [utest->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
+    // [utest->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_prepare_unix_listener_skips_existing_path_checks_when_path_is_missing() {
         shim::reset_overrides();
@@ -152,7 +152,7 @@ mod tests {
         shim::reset_overrides();
     }
 
-    // [utest->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
+    // [utest->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_prepare_unix_listener_replaces_stale_socket_file() {
         shim::reset_overrides();
@@ -168,7 +168,7 @@ mod tests {
         shim::reset_overrides();
     }
 
-    // [utest->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
+    // [utest->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_prepare_unix_listener_fails_when_removing_stale_socket_fails() {
         shim::reset_overrides();
@@ -193,7 +193,7 @@ mod tests {
         shim::reset_overrides();
     }
 
-    // [utest->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
+    // [utest->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_prepare_unix_listener_fails_if_path_exists_and_is_not_socket() {
         shim::reset_overrides();
@@ -216,7 +216,7 @@ mod tests {
         shim::reset_overrides();
     }
 
-    // [utest->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
+    // [utest->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_prepare_unix_listener_fails_when_existing_path_metadata_fails() {
         shim::reset_overrides();
