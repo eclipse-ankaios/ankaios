@@ -170,16 +170,18 @@ impl AgentConfig {
 }
 
 fn validate_socket_configuration(agent_config: &AgentConfig) -> Result<(), String> {
-    agent_config.server_url.validate_tls_settings(
-        "agent",
-        agent_config.insecure,
-        agent_config.ca_pem.is_some()
-            || agent_config.crt_pem.is_some()
-            || agent_config.key_pem.is_some()
-            || agent_config.ca_pem_content.is_some()
-            || agent_config.crt_pem_content.is_some()
-            || agent_config.key_pem_content.is_some(),
-    )
+    agent_config
+        .server_url
+        .validate_tls_settings(
+            agent_config.insecure,
+            agent_config.ca_pem.is_some()
+                || agent_config.crt_pem.is_some()
+                || agent_config.key_pem.is_some()
+                || agent_config.ca_pem_content.is_some()
+                || agent_config.crt_pem_content.is_some()
+                || agent_config.key_pem_content.is_some(),
+        )
+        .map_err(|err| format!("Invalid agent config: {err}"))
 }
 
 //////////////////////////////////////////////////////////////////////////////

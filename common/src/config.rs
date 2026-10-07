@@ -54,7 +54,6 @@ impl ServerUrl {
 
     pub fn validate_tls_settings(
         &self,
-        config_name: &str,
         insecure: bool,
         has_tls_certificate_settings: bool,
     ) -> Result<(), String> {
@@ -63,15 +62,13 @@ impl ServerUrl {
         }
 
         if insecure {
-            return Err(format!(
-                "Invalid {config_name} config: 'insecure' must not be enabled for unix:// endpoints"
-            ));
+            return Err("'insecure' must not be enabled for unix:// endpoints".to_string());
         }
 
         if has_tls_certificate_settings {
-            return Err(format!(
-                "Invalid {config_name} config: TLS certificate settings are not allowed for unix:// endpoints"
-            ));
+            return Err(
+                "TLS certificate settings are not allowed for unix:// endpoints".to_string(),
+            );
         }
 
         Ok(())
@@ -203,8 +200,7 @@ pub fn handle_config<T: ConfigFile>(
 #[cfg(test)]
 mod tests {
     use super::{
-        ConfigFile, ConversionErrors, ServerUrl, UNIX_SOCKET_SCHEME,
-        get_default_url, handle_config,
+        ConfigFile, ConversionErrors, ServerUrl, UNIX_SOCKET_SCHEME, get_default_url, handle_config,
     };
     use crate::DEFAULT_SERVER_ADDRESS;
     use crate::std_extensions::UnreachableOption;
@@ -286,19 +282,19 @@ mod tests {
     #[test]
     fn utest_server_url_validate_tls_settings_allows_tcp_with_tls_or_insecure() {
         let url = ServerUrl::Tcp("https://127.0.0.1:25551".to_string());
-        assert!(url.validate_tls_settings("ank", true, true).is_ok());
+        assert!(url.validate_tls_settings(true, true).is_ok());
     }
 
     #[test]
     fn utest_server_url_validate_tls_settings_rejects_unix_with_insecure() {
         let url = ServerUrl::Unix(PathBuf::from("/tmp/ank.sock"));
-        assert!(url.validate_tls_settings("ank", true, false).is_err());
+        assert!(url.validate_tls_settings(true, false).is_err());
     }
 
     #[test]
     fn utest_server_url_validate_tls_settings_rejects_unix_with_tls() {
         let url = ServerUrl::Unix(PathBuf::from("/tmp/ank.sock"));
-        assert!(url.validate_tls_settings("ank", false, true).is_err());
+        assert!(url.validate_tls_settings(false, true).is_err());
     }
 
     #[derive(Debug, Deserialize, PartialEq)]
