@@ -320,6 +320,23 @@ Needs:
 - impl
 - itest
 
+#### gRPC Client supports TCP and unix domain socket endpoints
+`swdd~grpc-client-supports-tcp-and-unix-domain-socket-endpoints~1`
+
+Status: approved
+
+The gRPC Client shall support connecting to the gRPC Server via either a TCP socket endpoint or a Unix domain socket endpoint.
+
+Rationale:
+Unix domain sockets allow securing local communication using IAM improving the ease of use.
+
+Tags:
+- gRPC_Client
+
+Needs:
+- impl
+- itest
+
 #### gRPC Client connects with agent hello
 `swdd~grpc-client-connects-with-agent-hello~1`
 

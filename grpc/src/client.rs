@@ -71,6 +71,7 @@ fn build_client_tls_config(tls_config: &TLSConfig) -> ClientTlsConfig {
         .identity(client_identity)
 }
 
+// [impl->swdd~grpc-client-supports-tcp-and-unix-domain-socket-endpoints~1]
 async fn connect_unix_channel(path: PathBuf) -> Result<Channel, GrpcMiddlewareError> {
     // Tonic requires an Endpoint URI even when the transport is
     // provided by a custom connector. The URI is not used for
@@ -259,9 +260,11 @@ impl GRPCCommunicationsClient {
                         .into_inner();
                     Ok(res)
                 }
-                (Some(_), ServerUrl::Unix(_)) => Err(GrpcMiddlewareError::ConnectionInterrupted(
-                    "TLS is not supported for unix:// endpoints".to_string(),
-                )),
+                (Some(_), ServerUrl::Unix(_)) => {
+                    Err(GrpcMiddlewareError::ConnectionInterrupted(
+                        "TLS is not supported for unix:// endpoints".to_string(),
+                    ))
+                }
                 // [impl->swdd~grpc-agent-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
                 (None, ServerUrl::Tcp(endpoint)) => {
                     let endpoint = endpoint.replace("https:", "http:");
@@ -273,6 +276,7 @@ impl GRPCCommunicationsClient {
                         .into_inner();
                     Ok(res)
                 }
+                // [impl->swdd~grpc-client-supports-tcp-and-unix-domain-socket-endpoints~1]
                 (None, ServerUrl::Unix(path)) => {
                     let channel = connect_unix_channel(path.clone()).await?;
                     let mut client = AgentConnectionClient::new(channel);
@@ -303,9 +307,11 @@ impl GRPCCommunicationsClient {
                         .into_inner();
                     Ok(res)
                 }
-                (Some(_), ServerUrl::Unix(_)) => Err(GrpcMiddlewareError::ConnectionInterrupted(
-                    "TLS is not supported for unix:// endpoints".to_string(),
-                )),
+                (Some(_), ServerUrl::Unix(_)) => {
+                    Err(GrpcMiddlewareError::ConnectionInterrupted(
+                        "TLS is not supported for unix:// endpoints".to_string(),
+                    ))
+                }
                 // [impl->swdd~grpc-cli-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
                 (None, ServerUrl::Tcp(endpoint)) => {
                     let endpoint = endpoint.replace("https:", "http:");
@@ -318,6 +324,7 @@ impl GRPCCommunicationsClient {
                         .into_inner();
                     Ok(res)
                 }
+                // [impl->swdd~grpc-client-supports-tcp-and-unix-domain-socket-endpoints~1]
                 (None, ServerUrl::Unix(path)) => {
                     let channel = connect_unix_channel(path.clone()).await?;
                     let mut client = CliConnectionClient::new(channel);
