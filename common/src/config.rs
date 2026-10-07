@@ -12,15 +12,21 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use serde::Deserialize;
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use crate::DEFAULT_SERVER_ADDRESS;
 
 // [impl->swdd~common-config-handling~1]
 
 pub const CONFIG_VERSION: &str = "v1";
+
+pub const UNIX_SOCKET_SCHEME: &str = "unix://";
+pub const HTTP_SCHEME: &str = "http://";
+pub const HTTPS_SCHEME: &str = "https://";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ConversionErrors {
@@ -34,37 +40,28 @@ pub trait ConfigFile: Default + Sized {
     fn from_file(file_path: PathBuf) -> Result<Self, ConversionErrors>;
 }
 
-pub fn get_default_server_url() -> String {
-    DEFAULT_SERVER_ADDRESS.to_string()
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "String")]
+pub enum ServerUrl {
+    Tcp(String),
+    Unix(PathBuf),
 }
 
-pub fn validate_server_address_format(address: &str) -> Result<(), String> {
-    if let Some(path) = address.strip_prefix("unix://") {
-        if path.is_empty() {
-            return Err("Wrong server address format: empty unix socket path.".to_string());
-        }
-        if !Path::new(path).is_absolute() {
-            return Err(format!(
-                "Wrong server address format: unix socket path must be absolute: '{address}'."
-            ));
-        }
-        return Ok(());
+impl ServerUrl {
+    pub fn is_unix(&self) -> bool {
+        matches!(self, ServerUrl::Unix(_))
     }
 
-    if address.starts_with("https://") || address.starts_with("http://") {
-        Ok(())
-    } else {
-        Err(format!("Wrong server address format: '{address}'."))
-    }
-}
+    pub fn validate_tls_settings(
+        &self,
+        config_name: &str,
+        insecure: bool,
+        has_tls_certificate_settings: bool,
+    ) -> Result<(), String> {
+        if !self.is_unix() {
+            return Ok(());
+        }
 
-pub fn validate_unix_socket_tls_settings(
-    config_name: &str,
-    address: &str,
-    insecure: bool,
-    has_tls_certificate_settings: bool,
-) -> Result<(), String> {
-    if address.starts_with("unix://") {
         if insecure {
             return Err(format!(
                 "Invalid {config_name} config: 'insecure' must not be enabled for unix:// endpoints"
@@ -76,9 +73,58 @@ pub fn validate_unix_socket_tls_settings(
                 "Invalid {config_name} config: TLS certificate settings are not allowed for unix:// endpoints"
             ));
         }
-    }
 
-    Ok(())
+        Ok(())
+    }
+}
+
+pub fn parse_unix_socket_path(raw_path: &str) -> Result<PathBuf, String> {
+    if raw_path.is_empty() {
+        return Err("Wrong server url format: empty unix socket path.".to_string());
+    }
+    if !Path::new(raw_path).is_absolute() {
+        return Err(format!(
+            "Wrong server url format: unix socket path must be absolute: '{raw_path}'."
+        ));
+    }
+    Ok(PathBuf::from(raw_path))
+}
+
+impl FromStr for ServerUrl {
+    type Err = String;
+
+    fn from_str(url: &str) -> Result<Self, Self::Err> {
+        if let Some(path) = url.strip_prefix(UNIX_SOCKET_SCHEME) {
+            return parse_unix_socket_path(path).map(ServerUrl::Unix);
+        }
+
+        if url.starts_with(HTTPS_SCHEME) || url.starts_with(HTTP_SCHEME) {
+            Ok(ServerUrl::Tcp(url.to_string()))
+        } else {
+            Err(format!("Wrong server url format: '{url}'."))
+        }
+    }
+}
+
+impl TryFrom<String> for ServerUrl {
+    type Error = String;
+
+    fn try_from(url: String) -> Result<Self, Self::Error> {
+        url.parse()
+    }
+}
+
+impl fmt::Display for ServerUrl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ServerUrl::Tcp(url) => write!(f, "{url}"),
+            ServerUrl::Unix(path) => write!(f, "{UNIX_SOCKET_SCHEME}{}", path.display()),
+        }
+    }
+}
+
+pub fn get_default_url() -> ServerUrl {
+    ServerUrl::Tcp(DEFAULT_SERVER_ADDRESS.to_string())
 }
 
 impl fmt::Display for ConversionErrors {
@@ -157,8 +203,8 @@ pub fn handle_config<T: ConfigFile>(
 #[cfg(test)]
 mod tests {
     use super::{
-        ConfigFile, ConversionErrors, get_default_server_url, handle_config,
-        validate_server_address_format, validate_unix_socket_tls_settings,
+        ConfigFile, ConversionErrors, ServerUrl, UNIX_SOCKET_SCHEME,
+        get_default_url, handle_config,
     };
     use crate::DEFAULT_SERVER_ADDRESS;
     use crate::std_extensions::UnreachableOption;
@@ -196,54 +242,63 @@ mod tests {
     }
 
     #[test]
-    fn utest_get_default_server_url() {
-        assert_eq!(get_default_server_url(), DEFAULT_SERVER_ADDRESS.to_string());
-    }
-
-    #[test]
-    fn utest_validate_server_address_format_accepts_http_https_and_unix_absolute() {
-        assert!(validate_server_address_format("http://127.0.0.1:25551").is_ok());
-        assert!(validate_server_address_format("https://127.0.0.1:25551").is_ok());
-        assert!(validate_server_address_format("unix:///tmp/ank.sock").is_ok());
-    }
-
-    #[test]
-    fn utest_validate_server_address_format_rejects_invalid_address() {
-        assert!(validate_server_address_format("127.0.0.1:25551").is_err());
-    }
-
-    #[test]
-    fn utest_validate_server_address_format_rejects_empty_unix_path() {
+    fn utest_get_default_url() {
         assert_eq!(
-            validate_server_address_format("unix://"),
-            Err("Wrong server address format: empty unix socket path.".to_string())
+            get_default_url(),
+            ServerUrl::Tcp(DEFAULT_SERVER_ADDRESS.to_string())
         );
     }
 
     #[test]
-    fn utest_validate_server_address_format_rejects_relative_unix_path() {
-        assert!(validate_server_address_format("unix://tmp/ank.sock").is_err());
-    }
-
-    #[test]
-    fn utest_validate_unix_socket_tls_settings_allows_tcp_with_tls_or_insecure() {
-        assert!(
-            validate_unix_socket_tls_settings("ank", "https://127.0.0.1:25551", true, true).is_ok()
+    fn utest_server_url_parses_http_https_and_unix_absolute() {
+        assert_eq!(
+            "http://127.0.0.1:25551".parse::<ServerUrl>(),
+            Ok(ServerUrl::Tcp("http://127.0.0.1:25551".to_string()))
+        );
+        assert_eq!(
+            "https://127.0.0.1:25551".parse::<ServerUrl>(),
+            Ok(ServerUrl::Tcp("https://127.0.0.1:25551".to_string()))
+        );
+        assert_eq!(
+            "unix:///tmp/ank.sock".parse::<ServerUrl>(),
+            Ok(ServerUrl::Unix(PathBuf::from("/tmp/ank.sock")))
         );
     }
 
     #[test]
-    fn utest_validate_unix_socket_tls_settings_rejects_unix_with_insecure() {
-        assert!(
-            validate_unix_socket_tls_settings("ank", "unix:///tmp/ank.sock", true, false).is_err()
+    fn utest_server_url_rejects_invalid_url() {
+        assert!("127.0.0.1:25551".parse::<ServerUrl>().is_err());
+    }
+
+    #[test]
+    fn utest_server_url_rejects_empty_unix_path() {
+        assert_eq!(
+            UNIX_SOCKET_SCHEME.parse::<ServerUrl>(),
+            Err("Wrong server url format: empty unix socket path.".to_string())
         );
     }
 
     #[test]
-    fn utest_validate_unix_socket_tls_settings_rejects_unix_with_tls() {
-        assert!(
-            validate_unix_socket_tls_settings("ank", "unix:///tmp/ank.sock", false, true).is_err()
-        );
+    fn utest_server_url_rejects_relative_unix_path() {
+        assert!("unix://tmp/ank.sock".parse::<ServerUrl>().is_err());
+    }
+
+    #[test]
+    fn utest_server_url_validate_tls_settings_allows_tcp_with_tls_or_insecure() {
+        let url = ServerUrl::Tcp("https://127.0.0.1:25551".to_string());
+        assert!(url.validate_tls_settings("ank", true, true).is_ok());
+    }
+
+    #[test]
+    fn utest_server_url_validate_tls_settings_rejects_unix_with_insecure() {
+        let url = ServerUrl::Unix(PathBuf::from("/tmp/ank.sock"));
+        assert!(url.validate_tls_settings("ank", true, false).is_err());
+    }
+
+    #[test]
+    fn utest_server_url_validate_tls_settings_rejects_unix_with_tls() {
+        let url = ServerUrl::Unix(PathBuf::from("/tmp/ank.sock"));
+        assert!(url.validate_tls_settings("ank", false, true).is_err());
     }
 
     #[derive(Debug, Deserialize, PartialEq)]

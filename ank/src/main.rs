@@ -38,8 +38,12 @@ async fn main() {
     let config_file_paths = get_config_file_paths();
     let config_file_paths_refs: Vec<&str> = config_file_paths.iter().map(|s| s.as_str()).collect();
     let mut ank_config: AnkConfig = handle_config(&args.config_path, &config_file_paths_refs)
-        .unwrap_or_exit_func(|err| output_and_error!("Config file could not be parsed: {}", err), -1);
-    ank_config.update_with_args(&args)
+        .unwrap_or_exit_func(
+            |err| output_and_error!("Config file could not be parsed: {}", err),
+            -1,
+        );
+    ank_config
+        .update_with_args(&args)
         .unwrap_or_exit_func(|err| output_and_error!("{}", err), -1);
 
     let cli_name = "ank-cli";
@@ -53,7 +57,7 @@ async fn main() {
         ank_config
     );
 
-    let tls_config = if ank_config.address.starts_with("unix://") {
+    let tls_config = if ank_config.server_url.is_unix() {
         None
     } else {
         if let Err(err_message) = TLSConfig::is_config_conflicting(
@@ -83,7 +87,7 @@ async fn main() {
     let mut cmd = CliCommands::init(
         ank_config.response_timeout,
         cli_name.to_string(),
-        ank_config.address.clone(),
+        ank_config.server_url,
         ank_config.no_wait,
         tls_config,
     )

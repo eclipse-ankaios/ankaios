@@ -134,7 +134,7 @@ async fn main() {
     log::debug!(
         "Starting the Ankaios agent with \n\tname: '{}', \n\tserver endpoint: '{}', \n\trun directory: '{}'",
         agent_config.name,
-        agent_config.address,
+        agent_config.server_url,
         agent_config.run_folder,
     );
 
@@ -193,7 +193,7 @@ async fn main() {
         workload_state_sender,
     );
 
-    let tls_config = if agent_config.address.starts_with("unix://") {
+    let tls_config = if agent_config.server_url.is_unix() {
         None
     } else {
         if let Err(err_message) = TLSConfig::is_config_conflicting(
@@ -219,7 +219,7 @@ async fn main() {
 
     let mut communications_client = GRPCCommunicationsClient::new_agent_communication(
         agent_config.name.clone(),
-        agent_config.address,
+        agent_config.server_url,
         agent_config.tags,
         tls_config,
     )
