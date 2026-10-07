@@ -46,7 +46,8 @@ use ankaios_api::ank_base::{
     WorkloadStatesMap,
 };
 use common::{
-    communications_error::CommunicationMiddlewareError, from_server_interface::FromServer,
+    communications_error::CommunicationMiddlewareError, config::ServerUrl,
+    from_server_interface::FromServer,
 };
 
 use wait_list_display::WaitListDisplay;
@@ -170,7 +171,7 @@ impl CliCommands {
     pub fn init(
         response_timeout_ms: u64,
         cli_name: String,
-        server_url: String,
+        server_url: ServerUrl,
         no_wait: bool,
         tls_config: Option<TLSConfig>,
     ) -> Result<Self, CommunicationMiddlewareError> {
@@ -178,7 +179,7 @@ impl CliCommands {
             no_wait,
             server_connection: ServerConnection::new(
                 cli_name.as_str(),
-                server_url.clone(),
+                server_url,
                 tls_config,
                 response_timeout_ms,
             )?,
@@ -384,7 +385,10 @@ impl CliCommands {
 mod tests {
     use super::{InputSourcePair, get_input_sources};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
-    use common::{from_server_interface::FromServerSender, to_server_interface::ToServerReceiver};
+    use common::{
+        config::ServerUrl, from_server_interface::FromServerSender,
+        to_server_interface::ToServerReceiver,
+    };
     use grpc::security::TLSConfig;
 
     use std::collections::VecDeque;
@@ -397,7 +401,7 @@ mod tests {
 
     mockall::mock! {
         pub GRPCCommunicationsClient {
-            pub fn new_cli_communication(name: String, server_address: String, tls_config: Option<TLSConfig>) -> Self;
+            pub fn new_cli_communication(name: String, server_address: ServerUrl, tls_config: Option<TLSConfig>) -> Self;
             pub async fn run(
                 &mut self,
                 mut server_rx: ToServerReceiver,

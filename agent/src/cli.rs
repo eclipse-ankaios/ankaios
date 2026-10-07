@@ -33,14 +33,13 @@ pub struct Arguments {
     pub agent_name: Option<String>,
     #[arg(
         short = 's',
-        long = "address",
-        alias = "server-url",
+        long = "server-url",
         required = false,
         env = "ANKAGENT_SERVER_URL"
     )]
     /// The server endpoint.
     /// Supported values are https://host:port and unix:///path/to/socket.
-    pub address: Option<String>,
+    pub server_url: Option<String>,
     #[arg(short = 'r', long = "run-folder", required = false)]
     /// An existing directory where agent specific runtime files will be stored. If not specified, a default folder is created.
     /// If the directory already exists, it must be owned by the user running the agent and not be accessible by other users or groups.
