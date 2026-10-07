@@ -49,7 +49,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
         mut receiver: FromServerReceiver,
         addr: ServerConnection,
     ) -> Result<(), CommunicationMiddlewareError> {
-        // [impl->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
+        // [impl->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
         // [impl->swdd~grpc-server-creates-agent-connection~1]
         let my_connection =
             GRPCAgentConnection::new(self.agent_senders.clone(), self.sender.clone());
@@ -104,7 +104,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                     }
                 }
             }
-            // [impl->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
+            // [impl->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
             (Some(_), ServerConnection::Unix(_)) => Err(CommunicationMiddlewareError(
                 "Invalid runtime config: TLS is not supported for unix:// endpoints".to_string(),
             ))?,
@@ -140,7 +140,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
 
                 }
             }
-            // [impl->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
+            // [impl->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
             (None, ServerConnection::Unix(unix_socket_path)) => {
                 let listener =
                     prepare_unix_listener(&unix_socket_path, self.unix_socket_group.as_deref())?;
