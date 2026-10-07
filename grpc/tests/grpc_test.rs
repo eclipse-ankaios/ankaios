@@ -20,6 +20,7 @@ mod grpc_tests {
         communications_client::CommunicationsClient,
         communications_error::CommunicationMiddlewareError,
         communications_server::{CommunicationsServer, ServerConnection},
+        config::ServerUrl,
         from_server_interface::{FromServer, FromServerSender},
         to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender},
     };
@@ -224,7 +225,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         JoinHandle<Result<(), CommunicationMiddlewareError>>,
     ) {
         let (to_grpc_client, grpc_client_receiver) = mpsc::channel::<ToServer>(20);
-        let url = format!("https://{server_addr}");
+        let url = ServerUrl::Tcp(format!("https://{server_addr}"));
         let grpc_communications_client = match comm_type {
             CommunicationType::Cli => GRPCCommunicationsClient::new_cli_communication(
                 test_request_id.to_owned(),

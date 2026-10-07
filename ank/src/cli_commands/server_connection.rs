@@ -25,6 +25,7 @@ use common::{
     commands::UpdateWorkloadState,
     communications_client::CommunicationsClient,
     communications_error::CommunicationMiddlewareError,
+    config::ServerUrl,
     from_server_interface::{FromServer, FromServerReceiver},
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
@@ -111,7 +112,7 @@ impl ServerConnection {
     #[cfg_attr(test, allow(dead_code))]
     pub fn new(
         cli_name: &str,
-        server_url: String,
+        server_url: ServerUrl,
         tls_config: Option<TLSConfig>,
         response_timeout_ms: u64,
     ) -> Result<Self, CommunicationMiddlewareError> {

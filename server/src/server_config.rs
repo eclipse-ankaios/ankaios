@@ -15,7 +15,9 @@
 use crate::cli::Arguments;
 use common::DEFAULT_SOCKET_ADDRESS;
 use common::communications_server::ServerConnection;
-use common::config::{CONFIG_VERSION, ConfigFile, ConversionErrors};
+use common::config::{
+    CONFIG_VERSION, ConfigFile, ConversionErrors, UNIX_SOCKET_SCHEME, parse_unix_socket_path,
+};
 use common::std_extensions::{UnreachableOption, UnreachableResult};
 
 use grpc::security::PemFileType;
@@ -28,7 +30,7 @@ use tests::read_pem_file;
 use serde::{Deserialize, Deserializer};
 use std::fs::read_to_string;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use toml::from_str;
 
 pub const DEFAULT_SERVER_CONFIG_FILE_PATH: [&str; 1] = ["/etc/ankaios/ank-server.conf"];
@@ -45,16 +47,8 @@ fn get_default_mutating_hooks_path() -> PathBuf {
 fn parse_server_address(value: &str) -> Result<ServerConnection, String> {
     // [impl->swdd~server-uses-single-communication-listen-endpoint~1]
     // [impl->swdd~server-supports-unix-domain-socket-endpoints~1]
-    if let Some(path) = value.strip_prefix("unix://") {
-        if path.is_empty() {
-            return Err("Unix domain socket path cannot be empty".to_string());
-        }
-
-        if !Path::new(path).is_absolute() {
-            return Err(format!("Unix domain socket path '{path}' must be absolute"));
-        }
-
-        return Ok(ServerConnection::Unix(PathBuf::from(path)));
+    if let Some(path) = value.strip_prefix(UNIX_SOCKET_SCHEME) {
+        return parse_unix_socket_path(path).map(ServerConnection::Unix);
     }
 
     value
