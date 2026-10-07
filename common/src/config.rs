@@ -267,6 +267,14 @@ mod tests {
     }
 
     #[test]
+    fn utest_server_url_rejects_unknown_scheme() {
+        assert_eq!(
+            "ftp://127.0.0.1:25551".parse::<ServerUrl>(),
+            Err("Wrong server url format: 'ftp://127.0.0.1:25551'.".to_string())
+        );
+    }
+
+    #[test]
     fn utest_server_url_rejects_empty_unix_path() {
         assert_eq!(
             UNIX_SOCKET_SCHEME.parse::<ServerUrl>(),
