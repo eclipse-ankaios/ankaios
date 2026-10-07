@@ -72,8 +72,10 @@ fn build_client_tls_config(tls_config: &TLSConfig) -> ClientTlsConfig {
 }
 
 async fn connect_unix_channel(path: PathBuf) -> Result<Channel, GrpcMiddlewareError> {
-    Endpoint::try_from("http://[::]:50061")
-        .map_err(|err| GrpcMiddlewareError::ConnectionInterrupted(err.to_string()))?
+    // Tonic requires an Endpoint URI even when the transport is
+   // provided by a custom connector. The URI is not used for
+   // establishing the connection; UnixStream::connect() below is.
+   Endpoint::from_static("http://unix-socket")
         .connect_with_connector(service_fn(move |_| {
             let path = path.clone();
             async move { UnixStream::connect(path).await.map(TokioIo::new) }
