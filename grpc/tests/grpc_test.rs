@@ -671,7 +671,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         );
     }
 
-    // [itest->swdd~grpc-server-supports-unix-domain-socket-endpoints~1]
+    // [itest->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
     // [itest->swdd~server-supports-unix-domain-socket-endpoints~1]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn itest_grpc_communication_command_connection_over_unix_domain_socket() {
