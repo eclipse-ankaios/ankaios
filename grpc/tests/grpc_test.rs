@@ -495,6 +495,49 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         );
     }
 
+    // [itest->swdd~grpc-client-supports-tcp-and-unix-domain-socket-endpoints~1]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn itest_grpc_communication_client_agent_connection_over_unix_domain_socket() {
+        let test_agent_name = "test_agent_name";
+        let tempdir = TempDir::new().unwrap();
+        let socket_path = tempdir.path().join("ankaios.sock");
+
+        let (to_grpc_server, grpc_server_receiver) = mpsc::channel::<FromServer>(20);
+        let (to_server, mut server_receiver) = mpsc::channel::<ToServer>(20);
+
+        let mut communications_server = GRPCCommunicationsServer::new(to_server, None);
+        let socket_endpoint = ServerConnection::Unix(socket_path.clone());
+        let _grpc_server_task = tokio::spawn(async move {
+            communications_server
+                .start(grpc_server_receiver, socket_endpoint)
+                .await
+        });
+
+        let (_, grpc_client_receiver) = mpsc::channel::<ToServer>(20);
+        let url = ServerUrl::Unix(socket_path);
+        let grpc_communications_client = GRPCCommunicationsClient::new_agent_communication(
+            test_agent_name.to_owned(),
+            url,
+            HashMap::new(),
+            None,
+        );
+        let _grpc_client_task = tokio::spawn(async move {
+            grpc_communications_client?
+                .run(grpc_client_receiver, to_grpc_server)
+                .await
+        });
+
+        let result = timeout(Duration::from_secs(10), server_receiver.recv()).await;
+
+        assert_eq!(
+            result,
+            Ok(Some(ToServer::AgentHello(commands::AgentHello {
+                agent_name: test_agent_name.to_owned(),
+                tags: Default::default(),
+            })))
+        );
+    }
+
     // Starts an insecure gRPC communication server for testing the commander connection
     // and returns the receiver on which the server forwards the received ToServer messages.
     // The returned FromServerSender must be kept alive for the whole test, otherwise the
@@ -677,7 +720,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
     async fn itest_grpc_communication_command_connection_over_unix_domain_socket() {
         let test_request_id = "test_request_id";
         let tempdir = TempDir::new().unwrap();
-        let socket_path = tempdir.path().join("ankaios-grpc.sock");
+        let socket_path = tempdir.path().join("ankaios.sock");
 
         let (to_grpc_server, grpc_server_receiver) = mpsc::channel::<FromServer>(20);
         let (to_server, mut server_receiver) = mpsc::channel::<ToServer>(20);
