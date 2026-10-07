@@ -213,7 +213,6 @@ Similarly, switch `/etc/ankaios/ank-agent.conf` to the network address of the se
 
 ```toml
 address = 'https://127.0.0.1:25551'
-insecure = false
 ```
 
 For the agent add the following lines to `/etc/ankaios/ank-agent.conf`:
