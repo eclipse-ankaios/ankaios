@@ -50,7 +50,7 @@ socket_group = 'ankaios'
 # the Ankaios server, agents and the ank CLI.
 # If set to 'true' and the certificates are not provided, then the server shall not use TLS.
 # This option must not be used with 'unix://' addresses.
-# insecure = true
+# insecure = false
 
 # The path to ca certificate pem file.
 # TLS options are only valid with TCP addresses.
