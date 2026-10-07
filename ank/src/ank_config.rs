@@ -14,9 +14,7 @@
 
 use crate::cli::AnkCli;
 use crate::output_warn;
-use common::config::{
-    CONFIG_VERSION, ConfigFile, ConversionErrors, ServerUrl, get_default_url,
-};
+use common::config::{CONFIG_VERSION, ConfigFile, ConversionErrors, ServerUrl, get_default_url};
 use common::std_extensions::UnreachableOption;
 
 use grpc::security::PemFileType;
@@ -291,16 +289,18 @@ impl AnkConfig {
 }
 
 fn validate_socket_configuration(ank_config: &AnkConfig) -> Result<(), String> {
-    ank_config.server_url.validate_tls_settings(
-        "ank",
-        ank_config.insecure,
-        ank_config.ca_pem.is_some()
-            || ank_config.crt_pem.is_some()
-            || ank_config.key_pem.is_some()
-            || ank_config.ca_pem_content.is_some()
-            || ank_config.crt_pem_content.is_some()
-            || ank_config.key_pem_content.is_some(),
-    )
+    ank_config
+        .server_url
+        .validate_tls_settings(
+            ank_config.insecure,
+            ank_config.ca_pem.is_some()
+                || ank_config.crt_pem.is_some()
+                || ank_config.key_pem.is_some()
+                || ank_config.ca_pem_content.is_some()
+                || ank_config.crt_pem_content.is_some()
+                || ank_config.key_pem_content.is_some(),
+        )
+        .map_err(|err| format!("Invalid ank config: {err}"))
 }
 
 //////////////////////////////////////////////////////////////////////////////
