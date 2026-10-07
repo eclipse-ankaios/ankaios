@@ -27,6 +27,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use tokio::net::UnixListener;
 
+// [impl->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
 pub(crate) fn prepare_unix_listener(
     socket_path: &Path,
     socket_group: Option<&str>,
