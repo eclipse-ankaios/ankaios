@@ -170,6 +170,7 @@ impl AgentConfig {
 }
 
 fn validate_socket_configuration(agent_config: &AgentConfig) -> Result<(), String> {
+    // [impl->swdd~agent-validates-unix-domain-socket-configuration~1]
     agent_config
         .server_url
         .validate_tls_settings(
@@ -464,6 +465,7 @@ mod tests {
         assert!(!agent_config.tags.contains_key("config_tag"));
     }
 
+    // [utest->swdd~agent-validates-unix-domain-socket-configuration~1]
     #[test]
     fn utest_agent_config_rejects_insecure_with_unix_domain_socket() {
         let agent_config_content = r"#
@@ -479,6 +481,7 @@ mod tests {
         assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
     }
 
+    // [utest->swdd~agent-validates-unix-domain-socket-configuration~1]
     #[test]
     fn utest_agent_config_rejects_tls_with_unix_domain_socket() {
         let agent_config_content = r"#
