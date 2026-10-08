@@ -28,7 +28,7 @@ Creates the artifacts and packages the necessary files required for a release of
 
 ## generate_docs.sh
 
-Generates the documentation using MkDocs. Running the script with the `--help` will provide the complete commands list.
+Generates the documentation using Zensical. Running the script with the `--help` will provide the complete commands list.
 
 ## generate_test_coverage_report.sh
 

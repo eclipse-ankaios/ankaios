@@ -1,0 +1,176 @@
+[project]
+site_name = "Eclipse Ankaios"
+site_url = "https://eclipse-ankaios.github.io/ankaios"
+repo_url = "https://github.com/eclipse-ankaios/ankaios"
+repo_name = "eclipse-ankaios/ankaios"
+edit_uri = "edit/main/doc/docs/"
+copyright = "Copyright &copy; 2023-2026 Elektrobit Automotive GmbH and others"
+site_dir = "html"
+
+extra_css = ["stylesheets/extra.css"]
+
+nav = [
+  "index.md",
+  "architecture.md",
+  { "Usage" = [
+    "usage/installation.md",
+    "usage/quickstart.md",
+    "usage/tutorial-vehicle-signals.md",
+    "usage/tutorial-fleet-management.md",
+    "usage/tutorial-events.md",
+    "usage/awesome-ankaios.md",
+    "usage/mtls-setup.md",
+    "usage/shell-completion.md",
+    { "Manifest" = [
+      "usage/manifest/config-objects.md",
+      "usage/manifest/workload-files.md",
+    ] },
+    { "Upgrading" = [
+      "usage/upgrading/v0_7_to_v1_0.md",
+      "usage/upgrading/v0_6_to_v0_7.md",
+      "usage/upgrading/v0_5_to_v0_6.md",
+      "usage/upgrading/v0_4_to_v0_5.md",
+      "usage/upgrading/v0_3_to_v0_4.md",
+      "usage/upgrading/v0_2_to_v0_3.md",
+    ] },
+  ] },
+  { "Reference" = [
+    "reference/startup-configuration.md",
+    "reference/interacting-with-ankaios.md",
+    { "Control Interface" = [
+      "reference/control-interface.md",
+      "reference/complete-state.md",
+      "reference/events.md",
+    ] },
+    "reference/inter-workload-dependencies.md",
+    "reference/restart-policy.md",
+    "reference/resource-usage.md",
+    "reference/orch-comparison.md",
+    "reference/glossary.md",
+    "reference/config-files.md",
+    { "Protobuf data structures" = "reference/_ankaios.proto.md" },
+  ] },
+  { "Contributing" = [
+    "development/build.md",
+    "development/rust-coding-guidelines.md",
+    "development/changing-the-api.md",
+    "development/unit-verification.md",
+    "development/run-unit-tests.md",
+    "development/test-coverage.md",
+    "development/system-tests.md",
+    "development/requirement-tracing.md",
+    "development/requirement-template.md",
+    "development/extending-dev-container.md",
+    "development/ci-cd.md",
+    "development/ci-cd-release.md",
+    "development/self-service.md",
+    "development/documentation-guidelines.md",
+  ] },
+  "support.md",
+]
+
+[project.theme]
+# Preserves the look and feel of the former Material for MkDocs setup
+variant = "classic"
+logo = "assets/Ankaios__logo_for_dark_bgrd_clipped.png"
+favicon = "assets/favicon128x128.png"
+custom_dir = "overrides"
+features = [
+  "navigation.instant",
+  "navigation.sections",
+  "navigation.tabs",
+  "navigation.top",
+  "content.code.copy",
+  "content.code.annotate",
+  "content.action.edit",
+  "content.tabs.link",
+  "navigation.footer",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+primary = "teal"
+toggle.icon = "material/brightness-auto"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "teal"
+toggle.icon = "material/brightness-7"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "teal"
+toggle.icon = "material/brightness-4"
+toggle.name = "Switch to light mode"
+
+[project.extra.version]
+provider = "mike"
+
+[project.markdown_extensions]
+attr_list = {}
+md_in_html = {}
+admonition = {}
+footnotes = {}
+toc.permalink = true
+toc.toc_depth = 3
+pymdownx.details = {}
+pymdownx.highlight.anchor_linenums = true
+pymdownx.inlinehilite = {}
+pymdownx.snippets = {}
+pymdownx.smartsymbols = {}
+pymdownx.tasklist = {}
+pymdownx.tabbed.alternate_style = true
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
+
+[project.plugins.search]
+
+[project.plugins.social]
+
+[project.plugins.mike]
+
+[project.plugins.llmstxt]
+full_output = "llms-full.txt"
+# Rewritten by tools/generate_docs.sh when DOCS_VERSION_URL is set
+base_url = "https://eclipse-ankaios.github.io/ankaios/latest"
+markdown_description = """
+Eclipse Ankaios is a lightweight workload orchestrator for embedded and automotive edge devices.
+It manages containerized workloads across one server and multiple agents running on resource-constrained hardware.
+Use this documentation to understand the architecture, configure manifests, interact with the Control Interface, and contribute to the project.
+"""
+
+[project.plugins.llmstxt.sections]
+Overview = [
+  "index.md",
+  "architecture.md",
+]
+Usage = [
+  "usage/installation.md",
+  "usage/quickstart.md",
+  "usage/tutorial-*.md",
+  "usage/awesome-ankaios.md",
+  "usage/mtls-setup.md",
+  "usage/shell-completion.md",
+  "usage/manifest/*.md",
+]
+Reference = [
+  "reference/*.md",
+  "reference/**/*.md",
+]
+Upgrading = [
+  "usage/upgrading/*.md",
+]
+Contributing = [
+  "development/*.md",
+  "development/**/*.md",
+]
+Support = [
+  "support.md",
+]
