@@ -129,8 +129,8 @@ fn secure_socket_file(
 #[cfg(test)]
 mod tests {
     use self::shim::{GROUP_GID, GROUP_NAME};
-    use super::secure_socket_file;
     use super::prepare_socket_path;
+    use super::secure_socket_file;
     use nix::errno::Errno;
     use nix::unistd::Gid;
     use std::io;
@@ -142,7 +142,7 @@ mod tests {
 
     // [utest->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
-    fn utest_prepare_unix_listener_skips_existing_path_checks_when_path_is_missing() {
+    fn utest_prepare_socket_path_skips_existing_path_checks_when_path_is_missing() {
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -156,7 +156,7 @@ mod tests {
 
     // [utest->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
-    fn utest_prepare_unix_listener_replaces_stale_socket_file() {
+    fn utest_prepare_socket_path_replaces_stale_socket_file() {
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -172,7 +172,7 @@ mod tests {
 
     // [utest->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
-    fn utest_prepare_unix_listener_fails_when_removing_stale_socket_fails() {
+    fn utest_prepare_socket_path_fails_when_removing_stale_socket_fails() {
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -197,7 +197,7 @@ mod tests {
 
     // [utest->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
-    fn utest_prepare_unix_listener_fails_if_path_exists_and_is_not_socket() {
+    fn utest_prepare_socket_path_fails_if_path_exists_and_is_not_socket() {
         shim::reset_overrides();
 
         let file_path = socket_path();
@@ -220,7 +220,7 @@ mod tests {
 
     // [utest->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
-    fn utest_prepare_unix_listener_fails_when_existing_path_metadata_fails() {
+    fn utest_prepare_socket_path_fails_when_existing_path_metadata_fails() {
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -248,7 +248,7 @@ mod tests {
     // [utest->swdd~grpc-server-sets-unix-domain-socket-group-ownership~1]
     // [utest->swdd~grpc-server-restricts-unix-domain-socket-permissions~1]
     #[test]
-    fn utest_prepare_unix_listener_skips_group_configuration_without_group() {
+    fn utest_secure_socket_file_skips_group_configuration_without_group() {
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -264,7 +264,7 @@ mod tests {
 
     // [utest->swdd~grpc-server-restricts-unix-domain-socket-permissions~1]
     #[test]
-    fn utest_prepare_unix_listener_fails_when_setting_permissions_fails_without_group() {
+    fn utest_secure_socket_file_fails_when_setting_permissions_fails_without_group() {
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -290,7 +290,7 @@ mod tests {
 
     // [utest->swdd~grpc-server-sets-unix-domain-socket-group-ownership~1]
     #[test]
-    fn utest_prepare_unix_listener_fails_for_unknown_group() {
+    fn utest_secure_socket_file_fails_for_unknown_group() {
         shim::reset_overrides();
         let socket_path = socket_path();
         shim::expect_group_from_name_once(GROUP_NAME, Ok(None));
@@ -307,7 +307,7 @@ mod tests {
     // [utest->swdd~grpc-server-sets-unix-domain-socket-group-ownership~1]
     // [utest->swdd~grpc-server-restricts-unix-domain-socket-permissions~1]
     #[test]
-    fn utest_prepare_unix_listener_configures_group_permissions() {
+    fn utest_secure_socket_file_configures_group_permissions() {
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -327,7 +327,7 @@ mod tests {
 
     // [utest->swdd~grpc-server-sets-unix-domain-socket-group-ownership~1]
     #[test]
-    fn utest_prepare_unix_listener_fails_when_chown_fails() {
+    fn utest_secure_socket_file_fails_when_chown_fails() {
         shim::reset_overrides();
 
         let socket_path = socket_path();
@@ -353,7 +353,7 @@ mod tests {
 
     // [utest->swdd~grpc-server-sets-unix-domain-socket-group-ownership~1]
     #[test]
-    fn utest_prepare_unix_listener_fails_when_group_lookup_fails() {
+    fn utest_secure_socket_file_fails_when_group_lookup_fails() {
         shim::reset_overrides();
         let socket_path = socket_path();
         shim::expect_group_from_name_once(GROUP_NAME, Err(Errno::EINVAL));
@@ -375,7 +375,7 @@ mod tests {
 
     // [utest->swdd~grpc-server-restricts-unix-domain-socket-permissions~1]
     #[test]
-    fn utest_prepare_unix_listener_fails_when_setting_permissions_fails() {
+    fn utest_secure_socket_file_fails_when_setting_permissions_fails() {
         shim::reset_overrides();
 
         let socket_path = socket_path();
