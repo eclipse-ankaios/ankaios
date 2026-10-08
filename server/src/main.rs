@@ -146,7 +146,7 @@ async fn main() {
 
     tokio::select! {
         // [impl->swdd~server-default-communication-grpc~1]
-        // [impl->swdd~server-supports-unix-domain-socket-endpoints~1]
+        // [impl->swdd~server-supports-tcp-and-unix-domain-socket-endpoints~1]
         // [impl->swdd~server-restricts-unix-domain-socket-permissions~1]
         communication_result = communications_server.start(agents_receiver, server_config.address) => {
             communication_result.unwrap_or_exit("server error")
