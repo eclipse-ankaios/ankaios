@@ -423,6 +423,24 @@ Needs:
 - impl
 - utest
 
+#### Server rejects empty socket group
+`swdd~server-rejects-empty-socket-group~1`
+
+Status: approved
+
+When the Ankaios server is configured with a Unix domain socket endpoint and a `socket_group` that is empty or consists only of whitespace, the server shall reject the startup configuration.
+
+Rationale:
+An empty or whitespace-only `socket_group` does not identify a valid group and would otherwise be silently ignored, leading to confusing behavior.
+
+Tags:
+- AnkaiosServer
+- Communication Middleware
+
+Needs:
+- impl
+- utest
+
 #### Server restricts unix domain socket file permissions
 `swdd~server-restricts-unix-domain-socket-permissions~1`
 
