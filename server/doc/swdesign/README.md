@@ -347,8 +347,8 @@ Needs:
 - impl
 - itest
 
-#### Server supports unix domain socket endpoints
-`swdd~server-supports-unix-domain-socket-endpoints~1`
+#### Server supports TCP and unix domain socket endpoints
+`swdd~server-supports-tcp-and-unix-domain-socket-endpoints~1`
 
 Status: approved
 
