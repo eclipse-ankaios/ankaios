@@ -713,6 +713,23 @@ mod tests {
         assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
     }
 
+    // [utest->swdd~server-validates-unix-domain-socket-configuration~1]
+    #[test]
+    fn utest_server_config_rejects_tls_content_settings_with_unix_domain_socket() {
+        let server_config_content = r"#
+        version = 'v1'
+        address = 'unix:///tmp/ankaios-server.sock'
+        ca_pem_content = 'some ca pem content'
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let result = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
+
+        assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
+    }
+
     // [utest->swdd~server-rejects-empty-socket-group~1]
     #[test]
     fn utest_server_config_rejects_empty_socket_group_with_unix_domain_socket() {
