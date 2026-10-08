@@ -141,6 +141,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 }
             }
             // [impl->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
+            // [impl->swdd~grpc-server-sets-unix-domain-socket-group-ownership~1]
             (None, ServerConnection::Unix(unix_socket_path)) => {
                 let listener =
                     prepare_unix_listener(&unix_socket_path, self.unix_socket_group.as_deref())?;
@@ -184,7 +185,6 @@ impl GRPCCommunicationsServer {
     }
 
     pub fn with_unix_socket_group(mut self, unix_socket_group: Option<String>) -> Self {
-        // [impl->swdd~server-configures-unix-domain-socket-group~1]
         self.unix_socket_group = unix_socket_group;
         self
     }
