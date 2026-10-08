@@ -218,6 +218,7 @@ Tags:
 
 Needs:
 - impl
+- utest
 - itest
 
 #### gRPC Server sets unix domain socket group ownership
