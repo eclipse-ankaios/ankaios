@@ -41,7 +41,7 @@ pub(crate) fn prepare_unix_listener(
         ))
     })?;
 
-    configure_socket_group(socket_path, socket_group)?;
+    secure_socket_file(socket_path, socket_group)?;
 
     Ok(listener)
 }
@@ -78,12 +78,12 @@ fn prepare_socket_path(
     Ok(())
 }
 
-fn configure_socket_group(
+fn secure_socket_file(
     socket_path: &Path,
     socket_group: Option<&str>,
 ) -> Result<(), CommunicationMiddlewareError> {
     if let Some(group_name) = socket_group {
-        // [impl->swdd~server-configures-unix-domain-socket-group~1]
+        // [impl->swdd~grpc-server-sets-unix-domain-socket-group-ownership~1]
         let group = Group::from_name(group_name)
             .map_err(|err| {
                 CommunicationMiddlewareError(format!(
@@ -105,14 +105,15 @@ fn configure_socket_group(
                 socket_path.display()
             ))
         })?;
-
-        fs::set_permissions(socket_path, fs::Permissions::from_mode(0o660)).map_err(|err| {
-            CommunicationMiddlewareError(format!(
-                "Could not set unix socket permissions on '{}': {err}",
-                socket_path.display()
-            ))
-        })?;
     }
+
+    // [impl->swdd~grpc-server-restricts-unix-domain-socket-permissions~1]
+    fs::set_permissions(socket_path, fs::Permissions::from_mode(0o660)).map_err(|err| {
+        CommunicationMiddlewareError(format!(
+            "Could not set unix socket permissions on '{}': {err}",
+            socket_path.display()
+        ))
+    })?;
 
     Ok(())
 }
@@ -128,7 +129,7 @@ fn configure_socket_group(
 #[cfg(test)]
 mod tests {
     use self::shim::{GROUP_GID, GROUP_NAME};
-    use super::configure_socket_group;
+    use super::secure_socket_file;
     use super::prepare_socket_path;
     use nix::errno::Errno;
     use nix::unistd::Gid;
@@ -244,29 +245,57 @@ mod tests {
         shim::reset_overrides();
     }
 
-    // [utest->swdd~server-configures-unix-domain-socket-group~1]
+    // [utest->swdd~grpc-server-sets-unix-domain-socket-group-ownership~1]
+    // [utest->swdd~grpc-server-restricts-unix-domain-socket-permissions~1]
     #[test]
     fn utest_prepare_unix_listener_skips_group_configuration_without_group() {
         shim::reset_overrides();
 
         let socket_path = socket_path();
+        shim::expect_set_permissions_once(&socket_path, Ok(()));
 
-        let result = configure_socket_group(&socket_path, None);
+        let result = secure_socket_file(&socket_path, None);
 
         assert!(result.is_ok());
-        shim::assert_calls(&[]);
+        shim::assert_calls(&["set_permissions"]);
 
         shim::reset_overrides();
     }
 
-    // [utest->swdd~server-configures-unix-domain-socket-group~1]
+    // [utest->swdd~grpc-server-restricts-unix-domain-socket-permissions~1]
+    #[test]
+    fn utest_prepare_unix_listener_fails_when_setting_permissions_fails_without_group() {
+        shim::reset_overrides();
+
+        let socket_path = socket_path();
+        shim::expect_set_permissions_once(
+            &socket_path,
+            Err(io::Error::other("set permissions failed")),
+        );
+
+        let result = secure_socket_file(&socket_path, None);
+
+        assert!(result.is_err());
+        assert!(
+            result
+                .err()
+                .unwrap()
+                .0
+                .contains("Could not set unix socket permissions")
+        );
+        shim::assert_calls(&["set_permissions"]);
+
+        shim::reset_overrides();
+    }
+
+    // [utest->swdd~grpc-server-sets-unix-domain-socket-group-ownership~1]
     #[test]
     fn utest_prepare_unix_listener_fails_for_unknown_group() {
         shim::reset_overrides();
         let socket_path = socket_path();
         shim::expect_group_from_name_once(GROUP_NAME, Ok(None));
 
-        let result = configure_socket_group(&socket_path, Some(GROUP_NAME));
+        let result = secure_socket_file(&socket_path, Some(GROUP_NAME));
 
         assert!(result.is_err());
         assert!(result.err().unwrap().0.contains("group does not exist"));
@@ -275,7 +304,8 @@ mod tests {
         shim::reset_overrides();
     }
 
-    // [utest->swdd~server-configures-unix-domain-socket-group~1]
+    // [utest->swdd~grpc-server-sets-unix-domain-socket-group-ownership~1]
+    // [utest->swdd~grpc-server-restricts-unix-domain-socket-permissions~1]
     #[test]
     fn utest_prepare_unix_listener_configures_group_permissions() {
         shim::reset_overrides();
@@ -287,7 +317,7 @@ mod tests {
         shim::expect_chown_once(&socket_path, gid, Ok(()));
         shim::expect_set_permissions_once(&socket_path, Ok(()));
 
-        let result = configure_socket_group(&socket_path, Some(GROUP_NAME));
+        let result = secure_socket_file(&socket_path, Some(GROUP_NAME));
 
         assert!(result.is_ok());
         shim::assert_calls(&["group_from_name", "chown", "set_permissions"]);
@@ -295,7 +325,7 @@ mod tests {
         shim::reset_overrides();
     }
 
-    // [utest->swdd~server-configures-unix-domain-socket-group~1]
+    // [utest->swdd~grpc-server-sets-unix-domain-socket-group-ownership~1]
     #[test]
     fn utest_prepare_unix_listener_fails_when_chown_fails() {
         shim::reset_overrides();
@@ -306,7 +336,7 @@ mod tests {
         shim::expect_group_from_name_once(GROUP_NAME, Ok(Some(shim::Group { gid })));
         shim::expect_chown_once(&socket_path, gid, Err(Errno::EPERM));
 
-        let result = configure_socket_group(&socket_path, Some(GROUP_NAME));
+        let result = secure_socket_file(&socket_path, Some(GROUP_NAME));
 
         assert!(result.is_err());
         assert!(
@@ -321,13 +351,14 @@ mod tests {
         shim::reset_overrides();
     }
 
+    // [utest->swdd~grpc-server-sets-unix-domain-socket-group-ownership~1]
     #[test]
     fn utest_prepare_unix_listener_fails_when_group_lookup_fails() {
         shim::reset_overrides();
         let socket_path = socket_path();
         shim::expect_group_from_name_once(GROUP_NAME, Err(Errno::EINVAL));
 
-        let result = configure_socket_group(&socket_path, Some(GROUP_NAME));
+        let result = secure_socket_file(&socket_path, Some(GROUP_NAME));
 
         assert!(result.is_err());
         assert!(
@@ -342,7 +373,7 @@ mod tests {
         shim::reset_overrides();
     }
 
-    // [utest->swdd~server-configures-unix-domain-socket-group~1]
+    // [utest->swdd~grpc-server-restricts-unix-domain-socket-permissions~1]
     #[test]
     fn utest_prepare_unix_listener_fails_when_setting_permissions_fails() {
         shim::reset_overrides();
@@ -357,7 +388,7 @@ mod tests {
             Err(io::Error::other("set permissions failed")),
         );
 
-        let result = configure_socket_group(&socket_path, Some(GROUP_NAME));
+        let result = secure_socket_file(&socket_path, Some(GROUP_NAME));
 
         assert!(result.is_err());
         assert!(

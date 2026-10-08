@@ -220,6 +220,40 @@ Needs:
 - impl
 - itest
 
+#### gRPC Server sets unix domain socket group ownership
+`swdd~grpc-server-sets-unix-domain-socket-group-ownership~1`
+
+Status: approved
+
+When the gRPC Server creates a Unix domain socket endpoint and a socket group is configured, the gRPC Server shall set the group ownership of the socket file to that group.
+
+Rationale:
+Group ownership of the socket file allows controlling local access to the Unix domain socket through group permissions.
+
+Tags:
+- gRPC_Server
+
+Needs:
+- impl
+- utest
+
+#### gRPC Server restricts unix domain socket file permissions
+`swdd~grpc-server-restricts-unix-domain-socket-permissions~1`
+
+Status: approved
+
+When the gRPC Server creates a Unix domain socket endpoint, the gRPC Server shall restrict the permissions of the socket file to `0660`.
+
+Rationale:
+Restricting the socket file permissions to owner and group read/write access prevents other local users from connecting to the Unix domain socket.
+
+Tags:
+- gRPC_Server
+
+Needs:
+- impl
+- utest
+
 #### gRPC Server provides a gRPC endpoint for CLI connection handling
 `swdd~grpc-server-provides-endpoint-for-cli-connection-handling~1`
 
