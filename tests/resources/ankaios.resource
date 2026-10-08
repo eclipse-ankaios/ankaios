@@ -95,9 +95,9 @@ Clean up Ankaios
     Remove Environment Variable    ANKSERVER_INSECURE
     Remove Environment Variable    ANKAGENT_INSECURE
     Remove Environment Variable    ANK_INSECURE
-    Set Environment Variable    name=ANKSERVER_SERVER_URL    value=${ANKAIOS_SERVER_URL}
-    Set Environment Variable    name=ANKAGENT_SERVER_URL    value=${ANKAIOS_SERVER_URL}
-    Set Environment Variable    name=ANK_SERVER_URL    value=${ANKAIOS_SERVER_URL}
+    Set Environment Variable    name=ANKSERVER_SERVER_URL    value=${ANKAIOS_SERVER_SOCKET_URL}
+    Set Environment Variable    name=ANKAGENT_SERVER_URL    value=${ANKAIOS_SERVER_SOCKET_URL}
+    Set Environment Variable    name=ANK_SERVER_URL    value=${ANKAIOS_SERVER_SOCKET_URL}
 
 Clean up Podman
     Log    Clean up Podman
@@ -131,9 +131,9 @@ Setup mTLS
     Set Environment Variable    name=ANK_KEY_PEM    value=${cli_key_pem}
 
 Setup Unix Socket
-    Set Environment Variable    name=ANKSERVER_SERVER_URL    value=${ANKAIOS_SERVER_URL}
-    Set Environment Variable    name=ANKAGENT_SERVER_URL    value=${ANKAIOS_SERVER_URL}
-    Set Environment Variable    name=ANK_SERVER_URL    value=${ANKAIOS_SERVER_URL}
+    Set Environment Variable    name=ANKSERVER_SERVER_URL    value=${ANKAIOS_SERVER_SOCKET_URL}
+    Set Environment Variable    name=ANKAGENT_SERVER_URL    value=${ANKAIOS_SERVER_SOCKET_URL}
+    Set Environment Variable    name=ANK_SERVER_URL    value=${ANKAIOS_SERVER_SOCKET_URL}
 
 
 Run in foreground
