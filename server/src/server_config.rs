@@ -46,7 +46,7 @@ fn get_default_mutating_hooks_path() -> PathBuf {
 
 fn parse_server_address(value: &str) -> Result<ServerConnection, String> {
     // [impl->swdd~server-uses-single-communication-listen-endpoint~1]
-    // [impl->swdd~server-supports-unix-domain-socket-endpoints~1]
+    // [impl->swdd~server-supports-tcp-and-unix-domain-socket-endpoints~1]
     if let Some(path) = value.strip_prefix(UNIX_SOCKET_SCHEME) {
         return parse_unix_socket_path(path).map(ServerConnection::Unix);
     }
@@ -172,7 +172,7 @@ impl ServerConfig {
         }
 
         if let Some(addr) = &args.addr {
-            // [impl->swdd~server-supports-unix-domain-socket-endpoints~1]
+            // [impl->swdd~server-supports-tcp-and-unix-domain-socket-endpoints~1]
             self.address = parse_server_address(addr)?;
         }
 
@@ -635,7 +635,7 @@ mod tests {
     }
 
     // [utest->swdd~server-loads-config-file~2]
-    // [utest->swdd~server-supports-unix-domain-socket-endpoints~1]
+    // [utest->swdd~server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_server_config_from_file_with_unix_domain_socket() {
         let server_config_content = r"#
@@ -655,7 +655,7 @@ mod tests {
     }
 
     // [utest->swdd~server-loads-config-file~2]
-    // [utest->swdd~server-supports-unix-domain-socket-endpoints~1]
+    // [utest->swdd~server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_server_config_update_with_args_unix_domain_socket() {
         let mut server_config = ServerConfig::default();
@@ -746,7 +746,7 @@ mod tests {
         assert_eq!(server_config.socket_group, Some("ankaios".to_string()));
     }
 
-    // [utest->swdd~server-supports-unix-domain-socket-endpoints~1]
+    // [utest->swdd~server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_server_config_rejects_relative_unix_domain_socket_path_from_file() {
         let server_config_content = r"#
@@ -762,7 +762,7 @@ mod tests {
         assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
     }
 
-    // [utest->swdd~server-supports-unix-domain-socket-endpoints~1]
+    // [utest->swdd~server-supports-tcp-and-unix-domain-socket-endpoints~1]
     #[test]
     fn utest_server_config_rejects_relative_unix_domain_socket_path_from_args() {
         let mut server_config = ServerConfig::default();
