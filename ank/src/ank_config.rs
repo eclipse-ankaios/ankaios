@@ -289,6 +289,7 @@ impl AnkConfig {
 }
 
 fn validate_socket_configuration(ank_config: &AnkConfig) -> Result<(), String> {
+    // [impl->swdd~cli-validates-unix-domain-socket-configuration~1]
     ank_config
         .server_url
         .validate_tls_settings(
@@ -719,6 +720,7 @@ mod tests {
         }
     }
 
+    // [utest->swdd~cli-validates-unix-domain-socket-configuration~1]
     #[test]
     fn utest_ank_config_rejects_insecure_with_unix_domain_socket() {
         let ank_config_content = r"#
@@ -735,6 +737,7 @@ mod tests {
         assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
     }
 
+    // [utest->swdd~cli-validates-unix-domain-socket-configuration~1]
     #[test]
     fn utest_ank_config_rejects_tls_with_unix_domain_socket() {
         let ank_config_content = format!(
