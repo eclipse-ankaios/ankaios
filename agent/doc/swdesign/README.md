@@ -455,6 +455,26 @@ Tags:
 Needs:
 - impl
 
+#### Agent validates unix domain socket configuration
+`swdd~agent-validates-unix-domain-socket-configuration~1`
+
+Status: approved
+
+When the Ankaios agent is configured with a Unix domain socket server url (`unix://`), the agent shall reject startup configuration that:
+
+- enables `insecure`
+- sets TLS certificate paths or TLS certificate content fields
+
+Rationale:
+Unix domain socket communication uses local filesystem permissions and does not require TLS transport settings.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
 #### Agent uses common async communication channels
 `swdd~agent-uses-async-channels~1`
 
