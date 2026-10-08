@@ -134,6 +134,7 @@ async fn main() {
         ServerConnection::Unix(_) => None,
     };
 
+    // [impl->swdd~server-configures-unix-domain-socket-group~1]
     let mut communications_server = GRPCCommunicationsServer::new(to_server, tls_config)
         .with_unix_socket_group(server_config.socket_group.clone());
 
@@ -146,6 +147,7 @@ async fn main() {
     tokio::select! {
         // [impl->swdd~server-default-communication-grpc~1]
         // [impl->swdd~server-supports-unix-domain-socket-endpoints~1]
+        // [impl->swdd~server-restricts-unix-domain-socket-permissions~1]
         communication_result = communications_server.start(agents_receiver, server_config.address) => {
             communication_result.unwrap_or_exit("server error")
         }

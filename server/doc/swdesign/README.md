@@ -423,6 +423,24 @@ Needs:
 - impl
 - utest
 
+#### Server restricts unix domain socket file permissions
+`swdd~server-restricts-unix-domain-socket-permissions~1`
+
+Status: approved
+
+When the Ankaios server is configured with a Unix domain socket endpoint, the server shall restrict the permissions of the created socket file to `0660` regardless of whether a `socket_group` is configured.
+
+Rationale:
+Restricting the socket file permissions to owner and group read/write access prevents other local users from connecting to the Unix domain socket.
+
+Tags:
+- AnkaiosServer
+- Communication Middleware
+
+Needs:
+- impl
+- itest
+
 #### Server uses common async communication channels
 `swdd~server-uses-async-channels~1`
 
