@@ -716,6 +716,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
 
     // [itest->swdd~grpc-server-supports-tcp-and-unix-domain-socket-endpoints~1]
     // [itest->swdd~server-supports-unix-domain-socket-endpoints~1]
+    // [itest->swdd~server-restricts-unix-domain-socket-permissions~1]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn itest_grpc_communication_command_connection_over_unix_domain_socket() {
         let test_request_id = "test_request_id";
@@ -743,7 +744,11 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
             .await
             .unwrap();
 
-        let mut client = connect_command_client_with_retry_unix_socket(socket_path).await;
+        let mut client = connect_command_client_with_retry_unix_socket(socket_path.clone()).await;
+
+        let socket_permissions = std::fs::metadata(&socket_path).unwrap().permissions();
+        assert_eq!(socket_permissions.mode() & 0o777, 0o660);
+
         let _response_stream = client
             .connect_command(ReceiverStream::new(grpc_client_receiver))
             .await
