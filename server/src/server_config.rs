@@ -238,6 +238,7 @@ fn validate_socket_configuration(server_config: &ServerConfig) -> Result<(), Str
             if let Some(group) = server_config.socket_group.as_deref()
                 && group.trim().is_empty()
             {
+                // [impl->swdd~server-rejects-empty-socket-group~1]
                 return Err(
                     "Invalid server config: 'socket_group' must not be empty when set".to_string(),
                 );
@@ -702,6 +703,23 @@ mod tests {
         version = 'v1'
         address = 'unix:///tmp/ankaios-server.sock'
         ca_pem = '/tmp/.certs/ca.pem'
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let result = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
+
+        assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
+    }
+
+    // [utest->swdd~server-rejects-empty-socket-group~1]
+    #[test]
+    fn utest_server_config_rejects_empty_socket_group_with_unix_domain_socket() {
+        let server_config_content = r"#
+        version = 'v1'
+        address = 'unix:///tmp/ankaios-server.sock'
+        socket_group = '   '
         #";
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
