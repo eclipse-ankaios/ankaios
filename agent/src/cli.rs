@@ -37,7 +37,7 @@ pub struct Arguments {
         required = false,
         env = "ANKAGENT_SERVER_URL"
     )]
-    /// The server endpoint.
+    /// The server url.
     /// Supported values are https://host:port and unix:///path/to/socket.
     pub server_url: Option<String>,
     #[arg(short = 'r', long = "run-folder", required = false)]
