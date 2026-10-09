@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ankaios_api::ank_base::{
-    AgentMap, CompleteState, ConfigMap, ExecutionsStatesOfWorkload, LogsRequest,
-    State, WorkloadInstanceName, WorkloadMap, WorkloadStatesMap,
+    AgentMap, CompleteState, ConfigMap, ExecutionsStatesOfWorkload, LogsRequest, State,
+    WorkloadInstanceName, WorkloadMap, WorkloadStatesMap,
 };
 use common::helpers::parse_key_val;
 
@@ -192,7 +192,7 @@ pub struct AnkCli {
     /// The default paths are $HOME/.config/ankaios/ank.conf and /etc/ankaios/ank.conf with first existing file taking precedence over the other.
     pub config_path: Option<String>,
     #[arg(short = 's', long = "server-url", required=false, env = ANK_SERVER_URL_ENV_KEY)]
-    /// The endpoint to Ankaios server.
+    /// The url to Ankaios server.
     /// Supported values are https://host:port and unix:///path/to/socket.
     pub server_url: Option<String>,
     #[arg(

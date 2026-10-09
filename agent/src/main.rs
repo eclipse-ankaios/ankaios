@@ -132,7 +132,7 @@ async fn main() {
         .unwrap_or_exit("Error encountered while checking agent name!");
 
     log::debug!(
-        "Starting the Ankaios agent with \n\tname: '{}', \n\tserver endpoint: '{}', \n\trun directory: '{}'",
+        "Starting the Ankaios agent with \n\tname: '{}', \n\tserver url: '{}', \n\trun directory: '{}'",
         agent_config.name,
         agent_config.server_url,
         agent_config.run_folder,

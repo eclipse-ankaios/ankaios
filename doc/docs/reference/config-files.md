@@ -20,7 +20,7 @@ The Ankaios configuration files are per default loaded from the following locati
 
 The following three examples show how the Ankaios configuration files look like. By default, the
 standard [installation](../usage/installation.md) configures the server, agent and CLI to
-communicate over a local Unix domain socket at `/run/ankaios/server.sock`, as shown in the examples
+communicate over a local Unix domain socket at `/run/ankaios.sock`, as shown in the examples
 below. For communication over the network instead, see
 [Connecting Ankaios components over the network](../usage/network-setup.md).
 
@@ -40,7 +40,7 @@ startup_manifest = '/etc/ankaios/state.yaml'
 # The address to which the server should listen, either a TCP socket
 # address including the port (`<host>:<port>`) or a Unix domain socket
 # address (`unix://<absolute-path>`).
-address = 'unix:///run/ankaios/server.sock'
+address = 'unix:///run/ankaios.sock'
 
 # Optional group applied to the Unix domain socket file's group ownership.
 # This option is only valid with 'unix://' addresses.
@@ -101,10 +101,9 @@ version = 'v1'
 # (a-z and A-Z), numbers and the symbols "-" and "_".
 name = 'agent_1'
 
-# The server address, either a TCP address (`https://<host>:<port>`) or a
+# The server URL, either a TCP address (`https://<host>:<port>`) or a
 # Unix domain socket address (`unix://<absolute-path>`).
-# The legacy field name 'server_url' is still accepted as an alias.
-address = 'unix:///run/ankaios/server.sock'
+server_url = 'unix:///run/ankaios.sock'
 
 # An existing path where to manage the fifo files.
 # If not set, defaults to '$TMPDIR/ankaios/' (falls back to '/tmp/ankaios/' if TMPDIR is not set).
@@ -148,7 +147,7 @@ address = 'unix:///run/ankaios/server.sock'
 
 !!! note
 
-    If no `address` is configured and no configuration file is used, the Ankaios agent defaults to
+    If no `server_url` is configured and no configuration file is used, the Ankaios agent defaults to
     the TCP address `https://127.0.0.1:25551`.
 
 ### Ankaios CLI Configuration (`ank.conf`)
@@ -173,13 +172,12 @@ version = 'v1'
 # no_wait = false
 
 [default]
-# The address of the Ankaios server, either a TCP address
+# The URL of the Ankaios server, either a TCP address
 # (`https://<host>:<port>`) or a Unix domain socket address
 # (`unix://<absolute-path>`).
 # If started in insecure mode then the HTTP protocol shall be used,
 # otherwise the HTTPS protocol shall be used.
-# The legacy field name 'server_url' is still accepted as an alias.
-address = 'unix:///run/ankaios/server.sock'
+server_url = 'unix:///run/ankaios.sock'
 
 # The flag to disable TLS communication with the server.
 # If set to 'true', then the CLI shall not use TLS.

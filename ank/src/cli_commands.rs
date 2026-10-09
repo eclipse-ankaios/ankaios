@@ -401,7 +401,7 @@ mod tests {
 
     mockall::mock! {
         pub GRPCCommunicationsClient {
-            pub fn new_cli_communication(name: String, server_address: ServerUrl, tls_config: Option<TLSConfig>) -> Self;
+            pub fn new_cli_communication(name: String, server_url: ServerUrl, tls_config: Option<TLSConfig>) -> Self;
             pub async fn run(
                 &mut self,
                 mut server_rx: ToServerReceiver,
