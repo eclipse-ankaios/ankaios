@@ -27,6 +27,7 @@ pub mod from_server_interface;
 pub mod helpers;
 pub mod message_size;
 pub mod objects;
+pub mod path_security;
 pub mod request_id_prepending;
 pub mod state_manipulation;
 pub mod std_extensions;
@@ -36,3 +37,4 @@ pub mod to_server_interface;
 pub mod test_utils;
 
 pub use helpers::{check_version_compatibility, parse_key_val};
+pub use path_security::{safe_join, validate_safe_name, PathSecurityError};
