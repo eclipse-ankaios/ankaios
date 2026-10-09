@@ -1,7 +1,7 @@
 # Connecting Ankaios components over the network
 
  The standard [installation](installation.md) configures the server, agent and CLI to communicate over a local Unix domain socket (see the respective [configuration files](../reference/config-files.md)), which relies on filesystem permissions and only works when all components run on the same host.
- To connect an agent or the CLI from a different host, or simply to reach the server over the network, the `address` in the server, agent and CLI configuration files needs to be switched from a `unix://` address to a network address (`<host>:<port>`).
+ To connect an agent or the CLI from a different host, or simply to reach the server over the network, the `address` in the server configuration file and the `server_url` in the agent and CLI configuration files need to be switched from a `unix://` address to a network address (`<host>:<port>`).
 
 !!! info
 
@@ -212,7 +212,7 @@ key_pem = '/etc/ankaios/certs/ank-server-key.pem'
 Similarly, switch `/etc/ankaios/ank-agent.conf` to the network address of the server, using the `https://` scheme, and set `insecure` to `false`:
 
 ```toml
-address = 'https://127.0.0.1:25551'
+server_url = 'https://127.0.0.1:25551'
 ```
 
 For the agent add the following lines to `/etc/ankaios/ank-agent.conf`:
@@ -256,7 +256,7 @@ ank --ca_pem=/etc/ankaios/certs/ca.pem --crt_pem="$HOME/.config/ankaios/ank.pem"
 ```
 
 Or you can also configure the mTLS certificates in the CLI configuration file `~/.config/ankaios/ank.conf`.
-In any case, make sure the `address` in there is set to the network address of the server (e.g. `https://127.0.0.1:25551`) and `insecure = false` is set to prevent a warning when mTLS certificates are provided.
+In any case, make sure the `server_url` in there is set to the network address of the server (e.g. `https://127.0.0.1:25551`) and `insecure = false` is set to prevent a warning when mTLS certificates are provided.
 
 ## Use network communication without TLS
 
@@ -271,10 +271,10 @@ address = '0.0.0.0:25551'
 insecure = true
 ```
 
-Replace the default `address` in `/etc/ankaios/ank-agent.conf` with the network address of the server and mark the connection as insecure:
+Replace the default `server_url` in `/etc/ankaios/ank-agent.conf` with the network address of the server and mark the connection as insecure:
 
 ```toml
-address = 'http://<SERVER_IP>:25551'
+server_url = 'http://<SERVER_IP>:25551'
 insecure = true
 ```
 
