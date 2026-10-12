@@ -11,7 +11,6 @@ HOME_CONFIG_DEST="${HOME}/.config/ankaios/"
 FILE_STARTUP_STATE="${CONFIG_DEST}/state.yaml"
 INSTALL_TYPE="both"
 SERVICE_DEST=/etc/systemd/system
-ANK_SERVER_RUNTIME_DIR="/run/ankaios"
 ANK_SYSTEM_GROUP="ankaios"
 
 ANK_SERVER_SERVICE="ank-server"
@@ -197,13 +196,6 @@ if [ -d "$SERVICE_DEST" ]; then
 
 else
     echo "$$SERVICE_DEST not found. Skipping installation of systemd unit files for Ankaios"
-fi
-
-if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
-    echo "Preparing server runtime directory: '${ANK_SERVER_RUNTIME_DIR}'"
-    $RUNTIME_SUDO mkdir -p "${ANK_SERVER_RUNTIME_DIR}"
-    $RUNTIME_SUDO chown "root:${ANK_SYSTEM_GROUP}" "${ANK_SERVER_RUNTIME_DIR}"
-    $RUNTIME_SUDO chmod 0750 "${ANK_SERVER_RUNTIME_DIR}"
 fi
 
 # Write sample state startup config
