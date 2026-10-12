@@ -14,6 +14,8 @@ Ankaios works with most Linux distributions and has been tested with Ubuntu 22.0
 
 Detailed installation steps, including instructions on setting up container runtimes, choosing an installation method, and installing specific Ankaios versions, are provided below.
 
+See also the [post-installation steps](#post-installation-steps).
+
 ## System requirements
 
 Ankaios currently requires a Linux OS and is available for x86_64 and arm64
@@ -68,12 +70,6 @@ The installation process automatically detects the platform and downloads the ap
 The installation path for the binaries is `/usr/local/bin`.
 The installation also creates systemd unit files, an uninstall script and default configuration files for the Ankaios server, agent, and CLI. The configuration files are never overwritten if they already exist, but new files for comparison reasons for users are provided with a `.confnew` suffix.
 
-When installing the server, the script also creates the system group `ankaios`, which owns the default Unix domain socket. Add your user to this group so that the `ank` CLI can connect without `sudo`:
-
-```shell
-sudo usermod -aG ankaios "$USER"
-```
-
 Supported platforms: `linux/amd64`, `linux/arm64`
 
 !!! note
@@ -96,7 +92,8 @@ To install a specific version run the following command and substitute `<version
 curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/<version>/install.sh | bash -s -- -v <version>
 ```
 
-For available versions see the [list of releases](https://github.com/eclipse-ankaios/ankaios/tags).
+For available versions see the [list of releases](https://github.com/eclipse-ankaios/ankaios/tags)
+and also check the [post-installation steps](#post-installation-steps).
 
 #### Set the log level for `ank-server` and `ank-agent` services
 
@@ -159,11 +156,7 @@ The `ankaios` meta-package installs all components. Individual packages can be i
 
 The packages are compatible with Ubuntu 22.04+, Debian 12+ and other distributions based on glibc 2.35 or later.
 
-Installing `ank-server` creates the system group `ankaios`, which owns the default Unix domain socket. Add your user to this group so that the `ank` CLI can connect without `sudo`:
-
-```shell
-sudo usermod -aG ankaios "$USER"
-```
+See also the [post-installation steps](#post-installation-steps).
 
 #### Uninstall
 
@@ -220,17 +213,13 @@ You can also install:
 | `ankaios-bin` | Pre-built binaries from releases |
 | `ankaios-git` | Build from the latest git revision |
 
-Installing `ankaios-server` creates the system group `ankaios`, which owns the default Unix domain socket. Add your user to this group so that the `ank` CLI can connect without `sudo`:
-
-```shell
-sudo usermod -aG ankaios "$USER"
-```
-
 !!! note
 
     If `ankaios-server` and `ankaios-agent` are installed, you can enable and start the services with:
 
     `sudo systemctl enable --now ank-server ank-agent`
+
+See also the [post-installation steps](#post-installation-steps).
 
 #### Uninstall
 
@@ -252,3 +241,13 @@ This is useful if the automatic detection of the platform is failing in case of 
 ### Build from source
 
 For building Ankaios from source see [Build](../development/build.md).
+
+## Post-installation steps
+
+Installing `ankaios-server` creates the system group `ankaios`, which owns the default Unix domain socket. Add your user to this group so that the `ank` CLI can connect without `sudo`:
+
+```shell
+sudo usermod -aG ankaios "$USER"
+```
+
+Log out and log back in so that your group membership is re-evaluated.
