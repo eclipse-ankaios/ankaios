@@ -69,6 +69,12 @@ The installation process automatically detects the platform and downloads the ap
 The installation path for the binaries is `/usr/local/bin`.
 The installation also creates systemd unit files, an uninstall script and default configuration files for the Ankaios server, agent, and CLI. The configuration files are never overwritten if they already exist, but new files for comparison reasons for users are provided with a `.confnew` suffix.
 
+When installing the server, the script also creates the system group `ankaios`, which owns the default Unix domain socket. Add your user to this group so that the `ank` CLI can connect without `sudo`:
+
+```shell
+sudo usermod -aG ankaios "$USER"
+```
+
 Supported platforms: `linux/amd64`, `linux/arm64`
 
 !!! note
@@ -154,6 +160,12 @@ The `ankaios` meta-package installs all components. Individual packages can be i
 
 The packages are compatible with Ubuntu 22.04+, Debian 12+ and other distributions based on glibc 2.35 or later.
 
+Installing `ank-server` creates the system group `ankaios`, which owns the default Unix domain socket. Add your user to this group so that the `ank` CLI can connect without `sudo`:
+
+```shell
+sudo usermod -aG ankaios "$USER"
+```
+
 #### Uninstall
 
 ```shell
@@ -208,6 +220,12 @@ You can also install:
 | --- | --- |
 | `ankaios-bin` | Pre-built binaries from releases |
 | `ankaios-git` | Build from the latest git revision |
+
+Installing `ankaios-server` creates the system group `ankaios`, which owns the default Unix domain socket. Add your user to this group so that the `ank` CLI can connect without `sudo`:
+
+```shell
+sudo usermod -aG ankaios "$USER"
+```
 
 !!! note
 
