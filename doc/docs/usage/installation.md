@@ -48,8 +48,7 @@ Ankaios uses the `nerdctl` command-line interface (CLI) to manage containers wit
 ## Installation methods
 
 By default, the server, agent and CLI communicate over a local Unix domain socket, which relies on filesystem permissions and only works when all components run on the same host.
-This default is not intended for production use.
-For communication over the network, follow the [network setup instructions](network-setup.md) after installing Ankaios.
+For a multi-node setup communication over the network has to be used. Follow the [network setup instructions](network-setup.md) after installing Ankaios.
 
 ### Install script
 
