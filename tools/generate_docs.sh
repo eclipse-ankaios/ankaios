@@ -21,10 +21,10 @@ show_help() {
     cat << EOF
 Usage: $(basename "$0") [COMMAND]
 
-Generate documentation from Protocol Buffer files and manage MkDocs documentation.
+Generate documentation from Protocol Buffer files and manage Zensical documentation.
 
 Commands:
-    serve                    Start local MkDocs development server
+    serve                    Start local Zensical development server
     build                    Build static HTML documentation
     deploy                   Deploy documentation to main branch
     deploy-release <version> Deploy specific version as latest
@@ -54,13 +54,23 @@ cp "$base_dir/doc/" "$target_dir" -rul
 protoc --plugin=protoc-gen-doc="/usr/local/bin/protoc-gen-doc" --doc_out="$target_dir/docs/reference" --doc_opt=markdown,_ankaios.proto.md --proto_path="$base_dir/ankaios_api/proto" control_api.proto ank_base.proto
 echo "Generate Markdown from ./ankaios_api/proto done."
 
+config_file="$target_dir/zensical.toml"
+
+# zensical.toml has no environment variable interpolation, so the version specific
+# base URL of the llmstxt plugin is patched into the generated copy of the config.
+set_llmstxt_base_url() {
+    sed -i "s|^base_url = .*|base_url = \"$1\"|" "$config_file"
+}
+
 if [[ "$1" = serve ]]; then
-    mkdocs serve --config-file "$target_dir/mkdocs.yml"
+    zensical serve --config-file "$config_file"
 elif [[ "$1" = build ]]; then
-    mkdocs build --config-file "$target_dir/mkdocs.yml" -d html
+    zensical build --config-file "$config_file"
 elif [[ "$1" = deploy ]]; then
-    DOCS_VERSION_URL="https://eclipse-ankaios.github.io/ankaios/main" mike deploy --push --config-file "$target_dir/mkdocs.yml" main
+    set_llmstxt_base_url "https://eclipse-ankaios.github.io/ankaios/main"
+    mike deploy --push --config-file "$config_file" main
 elif [[ "$1" = deploy-release && ! (-z "$2") ]]; then
     echo "Deploying documentation version $2"
-    DOCS_VERSION_URL="https://eclipse-ankaios.github.io/ankaios/$2" mike deploy --update-aliases --push --config-file "$target_dir/mkdocs.yml" "$2" latest
+    set_llmstxt_base_url "https://eclipse-ankaios.github.io/ankaios/$2"
+    mike deploy --update-aliases --push --config-file "$config_file" "$2" latest
 fi
