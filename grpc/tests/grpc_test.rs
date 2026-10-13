@@ -37,6 +37,7 @@ mod grpc_tests {
         collections::HashMap,
         fs::File,
         io::{self, Write},
+        net::TcpListener,
         os::unix::fs::PermissionsExt,
         path::PathBuf,
         time::Duration,
@@ -44,8 +45,12 @@ mod grpc_tests {
 
     use hyper_util::rt::TokioIo;
     use tempfile::TempDir;
-    use tokio::net::UnixStream;
-    use tokio::{sync::mpsc, task::JoinHandle, time::timeout};
+    use tokio::{
+        net::{TcpStream, UnixStream},
+        sync::mpsc,
+        task::JoinHandle,
+        time::timeout,
+    };
     use tokio_stream::wrappers::ReceiverStream;
     use tonic::transport::{Channel, Endpoint};
     use tower::service_fn;
@@ -214,6 +219,77 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         Agent,
     }
 
+    // Lets the OS pick a currently free port. Hardcoded ports lie inside the ephemeral port
+    // range and can be occupied by unrelated outgoing connections on busy machines (e.g. CI),
+    // which makes the server bind fail and the test fail sporadically.
+    fn get_free_port() -> u16 {
+        TcpListener::bind("0.0.0.0:0")
+            .and_then(|listener| listener.local_addr())
+            .map(|addr| addr.port())
+            .expect("Could not get a free port from the OS.")
+    }
+
+    // Waits until the gRPC server accepts TCP connections. Returns false if the server
+    // stopped before, e.g. because binding the port failed.
+    async fn wait_for_grpc_server(
+        port: u16,
+        grpc_server_task: &JoinHandle<Result<(), CommunicationMiddlewareError>>,
+    ) -> bool {
+        for _ in 0..100 {
+            if grpc_server_task.is_finished() {
+                return false;
+            }
+            if TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        panic!("The test gRPC server on port '{port}' did not start in time.");
+    }
+
+    // Starts a gRPC communication server on a free port and waits until it accepts connections.
+    // Clients must not be started before the server is ready: the CLI client does not retry and
+    // drops the FromServer channel on failure, which shuts down the server.
+    // As the free port can be taken by another socket before the server binds it, the start is
+    // retried on a new port.
+    // Returns the port and the receiver on which the server forwards the received ToServer
+    // messages. The returned FromServerSender must be kept alive for the whole test, otherwise
+    // the server shuts down as soon as its FromServer channel is closed.
+    async fn start_test_grpc_server(
+        tls_config: Option<TLSConfig>,
+    ) -> (
+        u16,
+        ToServerReceiver,
+        FromServerSender,
+        JoinHandle<Result<(), CommunicationMiddlewareError>>,
+    ) {
+        const MAX_START_ATTEMPTS: usize = 5;
+        for _ in 0..MAX_START_ATTEMPTS {
+            let port = get_free_port();
+            let (to_grpc_server, grpc_server_receiver) = mpsc::channel::<FromServer>(20);
+            let (to_server, server_receiver) = mpsc::channel::<ToServer>(20);
+
+            let mut communications_server =
+                GRPCCommunicationsServer::new(to_server, tls_config.clone());
+            let socket_addr = ServerConnection::Tcp(format!("0.0.0.0:{port}").parse().unwrap());
+
+            let grpc_server_task = tokio::spawn(async move {
+                communications_server
+                    .start(grpc_server_receiver, socket_addr)
+                    .await
+            });
+
+            if wait_for_grpc_server(port, &grpc_server_task).await {
+                return (port, server_receiver, to_grpc_server, grpc_server_task);
+            }
+            log::warn!(
+                "Test gRPC server on port '{port}' stopped: '{:?}'. Retrying on another port.",
+                grpc_server_task.await
+            );
+        }
+        panic!("Could not start the test gRPC server after {MAX_START_ATTEMPTS} attempts.");
+    }
+
     async fn generate_test_grpc_communication_client(
         server_addr: &str,
         comm_type: &CommunicationType,
@@ -250,7 +326,6 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
     }
 
     async fn generate_test_grpc_communication_setup(
-        port: u16,
         comm_type: CommunicationType,
         test_request_id: &str,
         tls_pem_files_package: Option<&TestPEMFilesPackage>,
@@ -269,10 +344,6 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         //
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        let server_addr = format!("0.0.0.0:{port}");
-        let (to_grpc_server, grpc_server_receiver) = mpsc::channel::<FromServer>(20);
-        let (to_server, server_receiver) = mpsc::channel::<ToServer>(20);
-
         let (server_tls_config, agent_tls_config, cli_tls_config) =
             if let Some(tls_pem_files_package) = tls_pem_files_package {
                 (
@@ -285,15 +356,9 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
             };
 
         // create communication server
-        let mut communications_server = GRPCCommunicationsServer::new(to_server, server_tls_config);
-
-        let socket_addr = ServerConnection::Tcp(server_addr.parse().unwrap());
-
-        let grpc_server_task = tokio::spawn(async move {
-            communications_server
-                .start(grpc_server_receiver, socket_addr)
-                .await
-        });
+        let (port, server_receiver, to_grpc_server, grpc_server_task) =
+            start_test_grpc_server(server_tls_config).await;
+        let server_addr = format!("0.0.0.0:{port}");
 
         // create communication client
         let (to_grpc_client, grpc_client_task) = generate_test_grpc_communication_client(
@@ -327,7 +392,6 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
 
         let (to_grpc_client, mut server_receiver, _grpc_server_task, _grpc_client_task) =
             generate_test_grpc_communication_setup(
-                50050,
                 CommunicationType::Cli,
                 test_request_id,
                 Some(&test_pem_files_package),
@@ -372,13 +436,9 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
     async fn itest_grpc_communication_client_cli_connection_grpc_server_received_request_complete_state()
      {
         let test_request_id = "test_request_id";
-        let (to_grpc_client, mut server_receiver, _, _) = generate_test_grpc_communication_setup(
-            50051,
-            CommunicationType::Cli,
-            test_request_id,
-            None,
-        )
-        .await;
+        let (to_grpc_client, mut server_receiver, _, _) =
+            generate_test_grpc_communication_setup(CommunicationType::Cli, test_request_id, None)
+                .await;
 
         // send request to grpc client
         let request_complete_state_result = to_grpc_client
@@ -415,13 +475,9 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
     async fn itest_grpc_communication_client_cli_connection_grpc_server_received_update_state() {
         let test_request_id = "test_request_id";
-        let (to_grpc_client, mut server_receiver, _, _) = generate_test_grpc_communication_setup(
-            50052,
-            CommunicationType::Cli,
-            test_request_id,
-            None,
-        )
-        .await;
+        let (to_grpc_client, mut server_receiver, _, _) =
+            generate_test_grpc_communication_setup(CommunicationType::Cli, test_request_id, None)
+                .await;
 
         // send request to grpc client
         let update_state_result = to_grpc_client
@@ -449,13 +505,9 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
     async fn itest_grpc_communication_client_agent_connection_grpc_server_received_agent_hello() {
         let test_agent_name = "test_agent_name";
-        let (_, mut server_receiver, _, _) = generate_test_grpc_communication_setup(
-            50053,
-            CommunicationType::Agent,
-            test_agent_name,
-            None,
-        )
-        .await;
+        let (_, mut server_receiver, _, _) =
+            generate_test_grpc_communication_setup(CommunicationType::Agent, test_agent_name, None)
+                .await;
 
         let result = timeout(Duration::from_secs(10), server_receiver.recv()).await;
 
@@ -477,7 +529,6 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let test_pem_files_package = TestPEMFilesPackage::new().unwrap();
 
         let (_, mut server_receiver, _, _) = generate_test_grpc_communication_setup(
-            50054,
             CommunicationType::Agent,
             test_agent_name,
             Some(&test_pem_files_package),
@@ -538,33 +589,6 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         );
     }
 
-    // Starts an insecure gRPC communication server for testing the commander connection
-    // and returns the receiver on which the server forwards the received ToServer messages.
-    // The returned FromServerSender must be kept alive for the whole test, otherwise the
-    // server shuts down as soon as its FromServer channel is closed.
-    async fn start_insecure_test_grpc_server(
-        port: u16,
-    ) -> (
-        ToServerReceiver,
-        FromServerSender,
-        JoinHandle<Result<(), CommunicationMiddlewareError>>,
-    ) {
-        let server_addr = format!("0.0.0.0:{port}");
-        let (to_grpc_server, grpc_server_receiver) = mpsc::channel::<FromServer>(20);
-        let (to_server, server_receiver) = mpsc::channel::<ToServer>(20);
-
-        let mut communications_server = GRPCCommunicationsServer::new(to_server, None);
-        let socket_addr = ServerConnection::Tcp(server_addr.parse().unwrap());
-
-        let grpc_server_task = tokio::spawn(async move {
-            communications_server
-                .start(grpc_server_receiver, socket_addr)
-                .await
-        });
-
-        (server_receiver, to_grpc_server, grpc_server_task)
-    }
-
     // Connects a raw CommandConnectionClient to the test server, retrying until the
     // server accepts connections.
     async fn connect_command_client_with_retry(url: String) -> CommandConnectionClient<Channel> {
@@ -586,8 +610,8 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
     async fn itest_grpc_communication_command_connection_grpc_server_received_request_complete_state()
      {
         let test_request_id = "test_request_id";
-        let (mut server_receiver, _to_grpc_server, _grpc_server_task) =
-            start_insecure_test_grpc_server(50055).await;
+        let (port, mut server_receiver, _to_grpc_server, _grpc_server_task) =
+            start_test_grpc_server(None).await;
 
         let (client_to_server_tx, grpc_client_receiver) = mpsc::channel::<ProtoToServer>(20);
 
@@ -600,7 +624,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
             .unwrap();
 
         let mut client =
-            connect_command_client_with_retry("http://127.0.0.1:50055".to_owned()).await;
+            connect_command_client_with_retry(format!("http://127.0.0.1:{port}")).await;
         let _response_stream = client
             .connect_command(ReceiverStream::new(grpc_client_receiver))
             .await
@@ -640,8 +664,8 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
     // [itest->swdd~grpc-commander-connection-checks-version-compatibility~1]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
     async fn itest_grpc_communication_command_connection_refused_on_version_mismatch() {
-        let (_server_receiver, _to_grpc_server, _grpc_server_task) =
-            start_insecure_test_grpc_server(50056).await;
+        let (port, _server_receiver, _to_grpc_server, _grpc_server_task) =
+            start_test_grpc_server(None).await;
 
         let (client_to_server_tx, grpc_client_receiver) = mpsc::channel::<ProtoToServer>(20);
 
@@ -656,7 +680,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
             .unwrap();
 
         let mut client =
-            connect_command_client_with_retry("http://127.0.0.1:50056".to_owned()).await;
+            connect_command_client_with_retry(format!("http://127.0.0.1:{port}")).await;
         let result = client
             .connect_command(ReceiverStream::new(grpc_client_receiver))
             .await;
@@ -666,8 +690,8 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
     async fn itest_grpc_communication_command_connection_refused_on_missing_commander_hello() {
-        let (_server_receiver, _to_grpc_server, _grpc_server_task) =
-            start_insecure_test_grpc_server(50057).await;
+        let (port, _server_receiver, _to_grpc_server, _grpc_server_task) =
+            start_test_grpc_server(None).await;
 
         let (client_to_server_tx, grpc_client_receiver) = mpsc::channel::<ProtoToServer>(20);
 
@@ -680,7 +704,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
             .unwrap();
 
         let mut client =
-            connect_command_client_with_retry("http://127.0.0.1:50057".to_owned()).await;
+            connect_command_client_with_retry(format!("http://127.0.0.1:{port}")).await;
         let result = client
             .connect_command(ReceiverStream::new(grpc_client_receiver))
             .await;
