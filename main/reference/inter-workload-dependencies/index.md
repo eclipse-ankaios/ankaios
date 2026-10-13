@@ -7,19 +7,19 @@ There are two types of inter-workload dependencies supported by Ankaios:
 - explicit
 - implicit
 
-The user configures [explicit inter-workload dependencies](#explicit-inter-workload-dependencies) within a workload's configuration, which Ankaios considers when starting the workload. Ankaios starts workloads with dependencies only when all dependencies are met, allowing the user to define a specific sequence for starting workloads.
+The user configures [explicit inter-workload dependencies](<#explicit-inter-workload-dependencies>) within a workload's configuration, which Ankaios considers when starting the workload. Ankaios starts workloads with dependencies only when all dependencies are met, allowing the user to define a specific sequence for starting workloads.
 
-Ankaios defines [implicit inter-workload dependencies](#implicit-inter-workload-dependencies) internally and takes them into account when a dependency is deleted.
+Ankaios defines [implicit inter-workload dependencies](<#implicit-inter-workload-dependencies>) internally and takes them into account when a dependency is deleted.
 
 ## Explicit inter-workload dependencies
 
 Ankaios supports the following dependency types:
 
-| Dependency type | AddCondition       | Description                                           |
-| --------------- | ------------------ | ----------------------------------------------------- |
-| running         | ADD_COND_RUNNING   | The dependency must be operational.                   |
-| succeeded       | ADD_COND_SUCCEEDED | The dependency must be successfully exited.           |
-| failed          | ADD_COND_FAILED    | The dependency must exit with a non-zero return code. |
+| Dependency type | AddCondition | Description |
+| --- | --- | --- |
+| running | ADD\_COND\_RUNNING | The dependency must be operational. |
+| succeeded | ADD\_COND\_SUCCEEDED | The dependency must be successfully exited. |
+| failed | ADD\_COND\_FAILED | The dependency must exit with a non-zero return code. |
 
 The user configures the `AddCondition` for each dependency in the `dependencies` field to define one or multiple dependencies for a workload.
 
@@ -36,9 +36,9 @@ workloads:
 
 When the `storage_provider` is operational, Ankaios starts the `logger` workload. The ExecutionState of the workload remains `Pending(WaitingToStart)` until all dependencies are met.
 
-Note
-
-Ankaios rejects manifests and workload configurations with cyclic dependencies. A manifest is valid only when its workloads and dependencies form a directed acyclic graph.
+> [!NOTE]
+>
+> Ankaios rejects manifests and workload configurations with cyclic dependencies. A manifest is valid only when its workloads and dependencies form a directed acyclic graph.
 
 This example demonstrates how to use dependency types to configure inter-workload dependencies:
 
@@ -58,7 +58,7 @@ flowchart RL
     storage-- succeeded -->init
 ```
 
-The logging service requires an operational storage provider to write logs. Therefore, the storage provider must be started first and its initialization (init_storage) must be completed before starting the provider itself. In case of a failure, an error handler is started to manage errors.
+The logging service requires an operational storage provider to write logs. Therefore, the storage provider must be started first and its initialization (init\_storage) must be completed before starting the provider itself. In case of a failure, an error handler is started to manage errors.
 
 The Ankaios manifest below includes the configuration of each workload and its dependencies:
 
@@ -101,9 +101,9 @@ workloads:
 ```
 
 1. The logger is started only when the storage provider is operational.
-1. The storage provider is started only after the successful completion of init_storage.
-1. init_storage starts immediately since it has no dependencies to wait for.
-1. The error_handler is only started when the storage_provider has failed.
+2. The storage provider is started only after the successful completion of init\_storage.
+3. init\_storage starts immediately since it has no dependencies to wait for.
+4. The error\_handler is only started when the storage\_provider has failed.
 
 Workloads may have dependencies that do not currently exist in the Ankaios state.
 
@@ -133,6 +133,6 @@ In the previous example, the workload `logger` depends on the `storage_provider`
 
 If an update meets the delete conditions but not the add conditions, Ankaios will execute the delete operation directly without delaying the entire update.
 
-Note
-
-Ankaios does not define implicit dependencies for workloads that have dependencies with the `succeeded` and `failed` types.
+> [!NOTE]
+>
+> Ankaios does not define implicit dependencies for workloads that have dependencies with the `succeeded` and `failed` types.

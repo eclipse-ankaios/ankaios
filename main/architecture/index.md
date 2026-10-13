@@ -10,7 +10,7 @@ A running instance of the Ankaios agent is present on every node where Ankaios n
 
 The Ankaios server itself does not run workloads directly so in order to start workloads on the node running the server, an Ankaios agent shall be started there too.
 
-Ankaios also allows workloads to change the state stored in the Ankaios server via the [control interface](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md). Workloads access this interface by sending their requests to the Ankaios agent managing them. Each request is checked by the Ankaios agent and, on successful authorization, forwarded to the Ankaios server. This interface can be used to, e.g.:
+Ankaios also allows workloads to change the state stored in the Ankaios server via the [control interface](<https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md>). Workloads access this interface by sending their requests to the Ankaios agent managing them. Each request is checked by the Ankaios agent and, on successful authorization, forwarded to the Ankaios server. This interface can be used to, e.g.:
 
 - Dynamically reconfigure the system to start a parking assistant.
 - Start additional workloads requested by an OEM backend to collect data about the road condition.

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-In this tutorial, we will show you how to use Ankaios to set up workloads that publish and subscribe to vehicle signals in accordance with the [Vehicle Signal Specification (VSS)](https://covesa.github.io/vehicle_signal_specification/). The central workload will be a databroker from the [Kuksa.val project](https://github.com/eclipse/kuksa.val). It will receive vehicle speed signals published from a speed provider workload. Finally a speed consumer workload will consume those speed limits.
+In this tutorial, we will show you how to use Ankaios to set up workloads that publish and subscribe to vehicle signals in accordance with the [Vehicle Signal Specification (VSS)](<https://covesa.github.io/vehicle_signal_specification/>). The central workload will be a databroker from the [Kuksa.val project](<https://github.com/eclipse/kuksa.val>). It will receive vehicle speed signals published from a speed provider workload. Finally a speed consumer workload will consume those speed limits.
 
 Overview of workloads
 
@@ -10,7 +10,7 @@ To run this tutorial you will need a Linux platform, which can be a RaspberryPi 
 
 ## Start the databroker
 
-If you have not yet installed Ankaios, please follow the instructions [here](https://eclipse-ankaios.github.io/ankaios/latest/usage/installation/). The following examples assume that the installation script has been used with the default options.
+If you have not yet installed Ankaios, please follow the instructions [here](<https://eclipse-ankaios.github.io/ankaios/latest/usage/installation/>). The following examples assume that the installation script has been used with the default options.
 
 Make sure that Ankaios server and agent are started:
 
@@ -35,7 +35,7 @@ workloads:
       commandOptions: ["--net=host"]
 ```
 
-This defines a workload `databroker` to be scheduled on agent `agent_A` (default agent name when using standard installation procedure) using the runtime `podman`. See the [reference documentation](https://eclipse-ankaios.github.io/ankaios/latest/reference/startup-configuration/#configuration-structure) for the other attributes.
+This defines a workload `databroker` to be scheduled on agent `agent_A` (default agent name when using standard installation procedure) using the runtime `podman`. See the [reference documentation](<https://eclipse-ankaios.github.io/ankaios/latest/reference/startup-configuration/#configuration-structure>) for the other attributes.
 
 Let's have a look at the `runtimeConfig` which in this case is specific for the `podman` runtime.
 
@@ -76,7 +76,7 @@ workloads:
         - "--net=host"
 ```
 
-The source code for that image is available in the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorials/vehicle_signals).
+The source code for that image is available in the [Ankaios repository](<https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorials/vehicle_signals>).
 
 Start the workload with:
 
@@ -91,7 +91,7 @@ The command waits until the speed-provider is running. It should finally print:
  speed-provider   agent_A   podman      Running(Ok)
 ```
 
-The speed-provider workload provides a web UI that allows the user to enter a speed value that is then sent to the databroker. The web UI is available on <http://127.0.0.1:5000>. If your web browser is running on a different host than the Ankaios agent, replace 127.0.0.1 with the IP address of the host running the Ankaios agent.
+The speed-provider workload provides a web UI that allows the user to enter a speed value that is then sent to the databroker. The web UI is available on [http://127.0.0.1:5000](<http://127.0.0.1:5000>). If your web browser is running on a different host than the Ankaios agent, replace 127.0.0.1 with the IP address of the host running the Ankaios agent.
 
 Speed provider web UI
 
@@ -133,9 +133,9 @@ infotainment   0              42%            42B
 
 Since `agent_A` is already managing the `databroker` and the `speed-provider` workloads, the `WORKLOADS` column contains the number `2`. The Ankaios agent `infotainment` has recently been started and does not yet manage any workloads.
 
-Note
-
-The currently connected Ankaios agents are part of the CompleteState and can also be retrieved [working with the CompleteState](https://eclipse-ankaios.github.io/ankaios/main/reference/complete-state/index.md).
+> [!NOTE]
+>
+> The currently connected Ankaios agents are part of the CompleteState and can also be retrieved [working with the CompleteState](<https://eclipse-ankaios.github.io/ankaios/main/reference/complete-state/index.md>).
 
 ## Start the speed consumer
 
@@ -164,20 +164,20 @@ Note that this time the image does not specify the agent. While we could add `ag
 ank apply --agent infotainment speed-consumer.yaml
 ```
 
-Note
-
-If you are running the ank command on a host that is different from the host on which the Ankaios server is running, you need to add a parameter `-s <SERVER_URL>` like:
-
-```
-ank apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
-```
-
-Optionally the server URL can also be provided via environment variable:
-
-```
-export ANK_SERVER_URL=http://127.0.0.1:25551
-ank apply --agent infotainment speed-consumer.yaml
-```
+> [!NOTE]
+>
+> If you are running the ank command on a host that is different from the host on which the Ankaios server is running, you need to add a parameter `-s <SERVER_URL>` like:
+>
+> ```
+> ank apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
+> ```
+>
+> Optionally the server URL can also be provided via environment variable:
+>
+> ```
+> export ANK_SERVER_URL=http://127.0.0.1:25551
+> ank apply --agent infotainment speed-consumer.yaml
+> ```
 
 The command waits until speed consumer is running. It should print:
 

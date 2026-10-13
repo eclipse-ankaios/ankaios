@@ -1,8 +1,8 @@
 # Startup manifest
 
-Depending on the use-case, the Ankaios cluster can be started with an optional predefined list of [workloads](https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#workload) - the startup manifest. The startup manifest can be provided as a YAML file. The file path can be passed to the Ankaios server through a command line argument or via the [server configuration file](https://eclipse-ankaios.github.io/ankaios/main/reference/config-files/index.md). If Ankaios is started without or with an empty startup manifest, workloads can still be added to the cluster dynamically during runtime.
+Depending on the use-case, the Ankaios cluster can be started with an optional predefined list of [workloads](<https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#workload>) - the startup manifest. The startup manifest can be provided as a YAML file. The file path can be passed to the Ankaios server through a command line argument or via the [server configuration file](<https://eclipse-ankaios.github.io/ankaios/main/reference/config-files/index.md>). If Ankaios is started without or with an empty startup manifest, workloads can still be added to the cluster dynamically during runtime.
 
-**Note:** To be able to run a workload an Ankaios agent must be started on the same or on a different [node](https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#node).
+**Note:** To be able to run a workload an Ankaios agent must be started on the same or on a different [node](<https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#node>).
 
 ## Manifest structure
 
@@ -13,9 +13,9 @@ The startup manifest is composed of a list of workload specifications within the
 - `agent`, specify the name of the owning agent which is going to execute the workload. Supports templated strings.
 - `restartPolicy`, specify how the workload should be restarted upon exiting.
 - `tags`, specify a map of string key-value pairs for workload metadata and filtering.
-- `runtimeConfig`, specify as a *string* the configuration for the [runtime](https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) and for `containerd` the [ContainerdRuntimeConfig](#containerdruntimeconfig) is used. Supports templated strings.
+- `runtimeConfig`, specify as a *string* the configuration for the [runtime](<https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#runtime>) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](<#podmanruntimeconfig>) and for `containerd` the [ContainerdRuntimeConfig](<#containerdruntimeconfig>) is used. Supports templated strings.
 - `configs`: assign configuration items defined in the state's `configs` field to the workload
-- `files`: map workload files to a workload, see [here](https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/workload-files/index.md) for details
+- `files`: map workload files to a workload, see [here](<https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/workload-files/index.md>) for details
 - `controlInterfaceAccess`, specify the access rights of the workload for the control interface.
 
 Example `startup-config.yaml` file:
@@ -45,17 +45,17 @@ configs:
     access_port: "8081"
 ```
 
-Ankaios supports templated strings and [essential control directives](https://github.com/sunng87/handlebars-rust/tree/v6.1.0?tab=readme-ov-file#limited-but-essential-control-structures-built-in) in the handlebars templating language for the following workload fields:
+Ankaios supports templated strings and [essential control directives](<https://github.com/sunng87/handlebars-rust/tree/v6.1.0?tab=readme-ov-file#limited-but-essential-control-structures-built-in>) in the handlebars templating language for the following workload fields:
 
 - `agent`
 - `runtimeConfig`
 - the subfields `data` and `binaryData` within the `files` field
 
-Ankaios renders a templated state at startup or when the state is updated. The rendering replaces the templated strings with the configuration items associated with each workload. The configuration items themselves are defined in a `configs` field, which contains several key-value pairs. The key specifies the name of the configuration item and the value is a string, list or associative data structure. To see templated workload configurations in action, see the tutorial [Manage a fleet of vehicles from the cloud](https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-fleet-management/#remote-installation-of-a-vehicle-data-sender).
+Ankaios renders a templated state at startup or when the state is updated. The rendering replaces the templated strings with the configuration items associated with each workload. The configuration items themselves are defined in a `configs` field, which contains several key-value pairs. The key specifies the name of the configuration item and the value is a string, list or associative data structure. To see templated workload configurations in action, see the tutorial [Manage a fleet of vehicles from the cloud](<https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-fleet-management/#remote-installation-of-a-vehicle-data-sender>).
 
-Note
-
-The name of a configuration item can only contain regular characters, digits, the "-" and "\_" symbols. The same applies to the keys and values of the workload's `configs` field when assigning configuration items to a workload.
+> [!NOTE]
+>
+> The name of a configuration item can only contain regular characters, digits, the "-" and "\_" symbols. The same applies to the keys and values of the workload's `configs` field when assigning configuration items to a workload.
 
 ### PodmanRuntimeConfig
 

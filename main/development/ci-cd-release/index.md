@@ -64,8 +64,8 @@ The scripts expect this folder structure to create final release artifacts.
 
 If a new platform shall be supported the following steps must be done:
 
-1. If not already done, add a build job for the new platform in `.github/workflows/build.yml` and configure the upload of the artifacts, see [CI/CD](https://eclipse-ankaios.github.io/ankaios/main/development/ci-cd/index.md) section.
-1. Configure the release workflow under `.github/workflows/release.yml` to download the new artifacts. Under `jobs.release.steps` add a new step after the existing download steps and replace the parameters `<os>-<platform>` with the correct text (e.g. linux-amd64):
+1. If not already done, add a build job for the new platform in `.github/workflows/build.yml` and configure the upload of the artifacts, see [CI/CD](<https://eclipse-ankaios.github.io/ankaios/main/development/ci-cd/index.md>) section.
+2. Configure the release workflow under `.github/workflows/release.yml` to download the new artifacts. Under `jobs.release.steps` add a new step after the existing download steps and replace the parameters `<os>-<platform>` with the correct text (e.g. linux-amd64):
 
 ```
  jobs:
@@ -104,42 +104,43 @@ run: |
 ```
 
 1. Test and run the release workflow and check if the new artifact is uploaded correctly.
-1. Validate if the platform auto-detect mechanism of the installation script is supporting the new platform `tools/install.sh` and update the script if needed.
+2. Validate if the platform auto-detect mechanism of the installation script is supporting the new platform `tools/install.sh` and update the script if needed.
 
 ## Release notes
 
-The release notes are generated automatically as a draft release by [Release Drafter](https://github.com/release-drafter/release-drafter). The procedure uses the filters for pull request labels configured inside `.github/release-drafter.yml`.
+The release notes are generated automatically as a draft release by [Release Drafter](<https://github.com/release-drafter/release-drafter>). The procedure uses the filters for pull request labels configured inside `.github/release-drafter.yml`.
 
 ## Preparing a release
 
 The following steps shall be done before the actual release build is triggered.
 
 1. Create an isssue containing tasks for getting the main branch ready:
+
    1. Update the versions in the project packages (Cargo.toml files) to the new version (use `tools/update_version.sh --release <new version>`).
-   1. Execute tests on the supported targets.
-   1. Make sure there are no security warnings of Github dependabot.
-1. Finish all tasks inside the issue.
-1. Build the release according to the steps described [here](#building-a-release).
+   2. Execute tests on the supported targets.
+   3. Make sure there are no security warnings of Github dependabot.
+2. Finish all tasks inside the issue.
+3. Build the release according to the steps described [here](<#building-a-release>).
 
 ## Building a release
 
-Before building the release, all [preparation steps](#preparing-a-release) shall be finished before.
+Before building the release, all [preparation steps](<#preparing-a-release>) shall be finished before.
 
 The release shall be created directly via the GitHub web frontend.
 
 When creating a release a tag with the following naming convention must be provided: `vX.Y.Z` (e.g. v0.1.0).
 
-1. Go to the release section inside the repository and chose the draft release that has been created by [Release Drafter](https://github.com/release-drafter/release-drafter).
-1. Check the tag to be created on publish and adapt if required.
-1. As release name enter the same tag.
-1. Check the generated draft release notes based on the filter settings for pull requests inside `.github/release-drafter.yml` configuration. In case of unwanted pull requests are listed, label the pull requests correctly and generate the draft release notes again by executing the Github action `Release Drafter`.
-1. Uncheck the box `Set as the latest release` (will be enabled later).
-1. Click on `Publish release`.
-1. Go to GitHub Actions section and wait until the release workflow has finished.
-1. If the release build finished successfully, go to the release section again and validate that all required artifacts are uploaded to the new release.
-1. Edit the release and enable the check box `Set as the latest release`. This setting is important otherwise the provided link for the installation script in [chapter installation](https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md) is still pointing to the previous release marked as latest.
-1. If the release workflow fails, delete the release and the tag manually via the GitHub web frontend. Next, check the logs of the release workflow and fix the issues. Repeat the steps starting at step 1.
+1. Go to the release section inside the repository and chose the draft release that has been created by [Release Drafter](<https://github.com/release-drafter/release-drafter>).
+2. Check the tag to be created on publish and adapt if required.
+3. As release name enter the same tag.
+4. Check the generated draft release notes based on the filter settings for pull requests inside `.github/release-drafter.yml` configuration. In case of unwanted pull requests are listed, label the pull requests correctly and generate the draft release notes again by executing the Github action `Release Drafter`.
+5. Uncheck the box `Set as the latest release` (will be enabled later).
+6. Click on `Publish release`.
+7. Go to GitHub Actions section and wait until the release workflow has finished.
+8. If the release build finished successfully, go to the release section again and validate that all required artifacts are uploaded to the new release.
+9. Edit the release and enable the check box `Set as the latest release`. This setting is important otherwise the provided link for the installation script in [chapter installation](<https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md>) is still pointing to the previous release marked as latest.
+10. If the release workflow fails, delete the release and the tag manually via the GitHub web frontend. Next, check the logs of the release workflow and fix the issues. Repeat the steps starting at step 1.
 
-Note
-
-There is a GitHub Action available to automatically rollback the created release and tag. This action is not used to have a better control over the cleanup procedure before a next release build is triggered. For instance, without auto-rollback a manually entered release description is still available after a failing release build.
+> [!NOTE]
+>
+> There is a GitHub Action available to automatically rollback the created release and tag. This action is not used to have a better control over the cleanup procedure before a next release build is triggered. For instance, without auto-rollback a manually entered release description is still available after a failing release build.

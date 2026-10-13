@@ -7,16 +7,16 @@ System tests are a critical phase of software testing, aimed at evaluating the e
 Here are key aspects of system tests:
 
 1. **End-to-End Evaluation:** System tests assess the software's performance, functionality, and reliability in a real-world scenario, simulating the complete user journey. They cover all aspects of the system, from the user interface to the backend processes.
-1. **Functional and Non-Functional Testing:** These tests not only verify that the software's features work as intended (functional testing) but also assess non-functional attributes like performance, scalability, security, and usability.
-1. **Scenario-Based Testing:** Test scenarios are designed to replicate various user interactions, use cases, and business workflows. This includes testing different paths, inputs, and error conditions to ensure the system handles them correctly.
-1. **Interoperability Testing:** In cases where the software interacts with external systems or components, system tests evaluate its compatibility and ability to communicate effectively with these external entities.
-1. **Data Integrity and Security:** Ensuring the protection of sensitive data and the integrity of information is a critical part of system testing. This includes checking for vulnerabilities and ensuring compliance with security standards.
-1. **Performance Testing:** Assessing the system's response times, resource utilization, and scalability under various load conditions to ensure it can handle expected levels of usage.
-1. **Regression Testing:** System tests often include regression testing to ensure that new features or changes do not introduce new defects or disrupt existing functionality.
+2. **Functional and Non-Functional Testing:** These tests not only verify that the software's features work as intended (functional testing) but also assess non-functional attributes like performance, scalability, security, and usability.
+3. **Scenario-Based Testing:** Test scenarios are designed to replicate various user interactions, use cases, and business workflows. This includes testing different paths, inputs, and error conditions to ensure the system handles them correctly.
+4. **Interoperability Testing:** In cases where the software interacts with external systems or components, system tests evaluate its compatibility and ability to communicate effectively with these external entities.
+5. **Data Integrity and Security:** Ensuring the protection of sensitive data and the integrity of information is a critical part of system testing. This includes checking for vulnerabilities and ensuring compliance with security standards.
+6. **Performance Testing:** Assessing the system's response times, resource utilization, and scalability under various load conditions to ensure it can handle expected levels of usage.
+7. **Regression Testing:** System tests often include regression testing to ensure that new features or changes do not introduce new defects or disrupt existing functionality.
 
 ## Robot test framework for system tests
 
-The [Robot test framework](https://robotframework.org/), often referred to as just "Robot Framework," is a popular open-source test automation framework used for automating test cases in various software applications. It is designed to be easy to use, highly readable, and adaptable for both beginners and experienced testers. It employs a keyword-driven approach, which means that test cases are written using a combination of keywords that represent actions, objects, and verifications. These keywords can be custom-defined by using Python programming language or come from libraries specific to the application under test. One of the standout features of Robot Framework is its human-readable syntax. Test cases are written in plain text composed with defined keywords, making it accessible to non-programmers and allowing stakeholders to understand and contribute to test case creation. Because of the ability to create custom keywords, a pool of domain specific and generic keywords could be defined to form an Ankaios project specific language for writing test cases.This makes it possible to directly use the test specifications written in natural language or the same wording of it to write automated test cases. This is the main reason why we use this test framework for system tests in Ankaios.
+The [Robot test framework](<https://robotframework.org/>), often referred to as just "Robot Framework," is a popular open-source test automation framework used for automating test cases in various software applications. It is designed to be easy to use, highly readable, and adaptable for both beginners and experienced testers. It employs a keyword-driven approach, which means that test cases are written using a combination of keywords that represent actions, objects, and verifications. These keywords can be custom-defined by using Python programming language or come from libraries specific to the application under test. One of the standout features of Robot Framework is its human-readable syntax. Test cases are written in plain text composed with defined keywords, making it accessible to non-programmers and allowing stakeholders to understand and contribute to test case creation. Because of the ability to create custom keywords, a pool of domain specific and generic keywords could be defined to form an Ankaios project specific language for writing test cases.This makes it possible to directly use the test specifications written in natural language or the same wording of it to write automated test cases. This is the main reason why we use this test framework for system tests in Ankaios.
 
 ## System tests structure
 
@@ -60,7 +60,7 @@ Resource    ../../resources/variables.resource          # Ankaios variables e.g.
 [Teardown]    Clean up Ankaios
 ```
 
-For more best practices about writing tests with Robot framework see [here](https://github.com/robotframework/HowToWriteGoodTestCases/blob/master/HowToWriteGoodTestCases.rst).
+For more best practices about writing tests with Robot framework see [here](<https://github.com/robotframework/HowToWriteGoodTestCases/blob/master/HowToWriteGoodTestCases.rst>).
 
 ### Behavior-driven system test
 
@@ -109,13 +109,13 @@ Test Ankaios CLI get workloads
     And in the last result, the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
 ```
 
-Note
-
-For Ankaios manifests that are used for system tests, only images from ghcr.io should be used. A lot of other registries (docker.io, quay.io) apply rate limits which might cause failures when executing the system tests.
+> [!NOTE]
+>
+> For Ankaios manifests that are used for system tests, only images from ghcr.io should be used. A lot of other registries (docker.io, quay.io) apply rate limits which might cause failures when executing the system tests.
 
 ### Run long-runtime system tests upon merge into main
 
-To keep the pull request status check runtime short, system tests with a longer runtime (> 30-40 seconds) shall be excluded from the pull request CI/CD verification by assigning the tag "non_execution_during_pull_request_verification" directly to the test case. When the pull request is merged into the main branch, the system test is executed. A contributor shall check the test results of those system tests afterwards.
+To keep the pull request status check runtime short, system tests with a longer runtime (\> 30-40 seconds) shall be excluded from the pull request CI/CD verification by assigning the tag "non\_execution\_during\_pull\_request\_verification" directly to the test case. When the pull request is merged into the main branch, the system test is executed. A contributor shall check the test results of those system tests afterwards.
 
 Example system test that runs only on merge into main:
 
@@ -134,16 +134,16 @@ Test Ankaios Podman stops retries after reaching the retry attempt limit
 
 ## System test execution
 
-Warning
-
-The system tests will delete all Podman containers, pods and volume. We recommend to only execute the system tests in the dev container.
+> [!WARNING]
+>
+> The system tests will delete all Podman containers, pods and volume. We recommend to only execute the system tests in the dev container.
 
 A shell script is provided for the easy execution of the system tests. The script does the following:
 
 1. It checks if the required Ankaios executables (`ank`, `ank-server` and `ank-agent`) are available at specified path.
-1. It prints out the version number executables.
-1. It starts all the tests under specified folder or a specific robot test file.
-1. It stores the test result in the folder `{Ankaios root folder}/target/robot_tests_result`.
+2. It prints out the version number executables.
+3. It starts all the tests under specified folder or a specific robot test file.
+4. It stores the test result in the folder `{Ankaios root folder}/target/robot_tests_result`.
 
 ### Run in dev container
 
@@ -153,7 +153,7 @@ Generic syntax:
 /workspaces/ankaios$ [ANK_BIN_DIR=path_to_ankaios_executables] tools/run_robot_tests <options> <directory or robot file>
 ```
 
-If *ANK_BIN_DIR* is not provided the script looks in the path `{Ankaios root folder}/target/x86_64-unknown-linux-musl/debug` for the Ankaios executables. The supported options are the same as of `robot` cli, so for more detailed description about it see [here](https://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html#using-command-line-options).
+If *ANK\_BIN\_DIR* is not provided the script looks in the path `{Ankaios root folder}/target/x86_64-unknown-linux-musl/debug` for the Ankaios executables. The supported options are the same as of `robot` cli, so for more detailed description about it see [here](<https://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html#using-command-line-options>).
 
 *Note: In order to be able to start `podman` runtime in the dev container properly, the dev container needs to be run in `privilege` mode.*
 

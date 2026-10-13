@@ -12,17 +12,17 @@ If you want to add some additional tools, you can initially do it in `.devcontai
 When a development workflow requires a tool before the next base container release:
 
 1. Add the tool to `.devcontainer/Dockerfile` under a workflow-specific heading.
-1. Pin its version and add a comment that it must move to `.devcontainer/Dockerfile.base` with the next base container release.
-1. Rebuild the dev container and verify the workflow that uses the tool.
-1. For the next base container release, move the installation to `.devcontainer/Dockerfile.base` and build and publish the image as described below.
-1. Update the base image version in `.devcontainer/Dockerfile`, remove the temporary installation from that file, and verify the workflow again.
+2. Pin its version and add a comment that it must move to `.devcontainer/Dockerfile.base` with the next base container release.
+3. Rebuild the dev container and verify the workflow that uses the tool.
+4. For the next base container release, move the installation to `.devcontainer/Dockerfile.base` and build and publish the image as described below.
+5. Update the base image version in `.devcontainer/Dockerfile`, remove the temporary installation from that file, and verify the workflow again.
 
 ## Build the base container
 
 The base container is available for amd64 and arm64/v8 architectures. There are two options to build the base container:
 
 1. Multiplatform build for amd64 and arm64
-1. Separately building images for amd64 and arm64 and joining them afterwards
+2. Separately building images for amd64 and arm64 and joining them afterwards
 
 ### Multiplatform build
 

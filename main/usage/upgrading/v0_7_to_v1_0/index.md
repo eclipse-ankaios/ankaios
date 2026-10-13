@@ -2,7 +2,7 @@
 
 We are proud to present the first stable API version of Eclipse Ankaios. This documents describes the necessary changes required to update to the new stable API version of Ankaios.
 
-For a complete list of changes including all new features, please consult the [official release notes](https://github.com/eclipse-ankaios/ankaios/releases/tag/v1.0.0).
+For a complete list of changes including all new features, please consult the [official release notes](<https://github.com/eclipse-ankaios/ankaios/releases/tag/v1.0.0>).
 
 ## Manifest API version changes
 
@@ -102,13 +102,13 @@ agents:
 
 ## Protobuf changes
 
-If you are directly using the Ankaios Control Interface and build protobuf objects, you would need to update according to the latest [protobuf definitions](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/index.md).
+If you are directly using the Ankaios Control Interface and build protobuf objects, you would need to update according to the latest [protobuf definitions](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/index.md>).
 
 ## SDK changes
 
 Our SDKs now support Ankaios v1.0.0 too and also provide a stable release:
 
-- [Python SDK](https://github.com/eclipse-ankaios/ank-sdk-python/releases/tag/v1.0.0)
-- [Rust SDK](https://github.com/eclipse-ankaios/ank-sdk-rust/releases/tag/v1.0.0)
+- [Python SDK](<https://github.com/eclipse-ankaios/ank-sdk-python/releases/tag/v1.0.0>)
+- [Rust SDK](<https://github.com/eclipse-ankaios/ank-sdk-rust/releases/tag/v1.0.0>)
 
 Consult the documentation of the SDKs for further information on the upgrade strategy.

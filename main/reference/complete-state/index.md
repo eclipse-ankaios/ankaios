@@ -2,7 +2,7 @@
 
 ## CompleteState
 
-The complete state data structure [CompleteState](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#completestate) is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the `desiredState` which describes the state of the Ankaios system the user wants to have, the `workloadStates` which gives the information about the execution state of all the workloads and the `agents` field containing the names of the Ankaios agents that are currently connected to the Ankaios server. By using of [CompleteState](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#completestate) in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.
+The complete state data structure [CompleteState](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#completestate>) is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the `desiredState` which describes the state of the Ankaios system the user wants to have, the `workloadStates` which gives the information about the execution state of all the workloads and the `agents` field containing the names of the Ankaios agents that are currently connected to the Ankaios server. By using of [CompleteState](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#completestate>) in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.
 
 Example: `ank get state` returns the complete state of Ankaios system with runtimes `podman`, `containerd` and `podman-kube`:
 
@@ -76,7 +76,7 @@ workloadStates: []
 agents: {}
 ```
 
-It is not necessary to provide the whole structure of the [CompleteState](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#completestate) data structure when using it in conjunction with the [object field mask](#object-field-mask). It is sufficient to provide the relevant branch of the [CompleteState](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#completestate) object. As an example, to change the restart behavior of the nginx workload, only the relevant branch of the [CompleteState](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#completestate) needs to be provided:
+It is not necessary to provide the whole structure of the [CompleteState](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#completestate>) data structure when using it in conjunction with the [object field mask](<#object-field-mask>). It is sufficient to provide the relevant branch of the [CompleteState](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#completestate>) object. As an example, to change the restart behavior of the nginx workload, only the relevant branch of the [CompleteState](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#completestate>) needs to be provided:
 
 ```
 desiredState:
@@ -85,22 +85,21 @@ desiredState:
       restartPolicy: ALWAYS
 ```
 
-Note
+> [!NOTE]
+>
+> In case of workload names, the naming convention states that their names shall:  
+> \- contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "*"  
+> \- have a minimal length of 1 character  
+> \- have a maximal length of 63 characters  
+> Also, agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "*".
 
-In case of workload names, the naming convention states that their names shall:
-
-- contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "\*"
-- have a minimal length of 1 character
-- have a maximal length of 63 characters\
-  Also, agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "\*".
-
-Note
-
-Although updating the runtime of a workload is not prohibited, in practice it is not possible. Thus, updating the state of a workload with a different runtime will yield in sending a `Pending(StartingFailed)` workload state with an unsupported runtime message and the workload shall not start.
+> [!NOTE]
+>
+> Although updating the runtime of a workload is not prohibited, in practice it is not possible. Thus, updating the state of a workload with a different runtime will yield in sending a `Pending(StartingFailed)` workload state with an unsupported runtime message and the workload shall not start.
 
 ## Object field mask
 
-With the object field mask only specific parts of the Ankaios state could be retrieved or updated. The object field mask can be constructed using the field names of the [CompleteState](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#completestate) data structure:
+With the object field mask only specific parts of the Ankaios state could be retrieved or updated. The object field mask can be constructed using the field names of the [CompleteState](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#completestate>) data structure:
 
 ```
 <top level field name>.<second level field name>.<third level field name>.<...>
@@ -124,8 +123,7 @@ With the object field mask only specific parts of the Ankaios state could be ret
            commandOptions: ["-p", "8081:80"]
          configs: {}
    ```
-
-1. Example `ank get state desiredState.workloads.nginx.runtimeConfig` returns only the runtime configuration of nginx workload:
+2. Example `ank get state desiredState.workloads.nginx.runtimeConfig` returns only the runtime configuration of nginx workload:
 
    ```
    desiredState:
@@ -136,8 +134,7 @@ With the object field mask only specific parts of the Ankaios state could be ret
            image: docker.io/nginx:latest
            commandOptions: ["-p", "8081:80"]
    ```
-
-1. Example `ank set state desiredState.workloads.nginx.restartPolicy new-state.yaml` changes the restart behavior of nginx workload to `NEVER`:
+3. Example `ank set state desiredState.workloads.nginx.restartPolicy new-state.yaml` changes the restart behavior of nginx workload to `NEVER`:
 
    new-state.yaml
 

@@ -2,9 +2,9 @@
 
 Ankaios supports mapping files to workloads. The user can define files in the `files` field of a workload configuration, which supports text and base64 encoded content. The files are mounted in readonly mode. Workload files are not supported for a workload with runtime `podman-kube`. Instead, use the built-in `ConfigMaps` feature of `podman-kube`.
 
-The following manifest contains a workload with a mounted web server configuration and another workload which outputs the content of a mounted base64 encoded file to the terminal. It also combines the [config object approach](https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/config-objects/index.md) with workload files by defining the configuration separated from the workload. Ankaios expands the templated subfields `data` and `binaryData` using the handlebars template engine.
+The following manifest contains a workload with a mounted web server configuration and another workload which outputs the content of a mounted base64 encoded file to the terminal. It also combines the [config object approach](<https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/config-objects/index.md>) with workload files by defining the configuration separated from the workload. Ankaios expands the templated subfields `data` and `binaryData` using the handlebars template engine.
 
-To get an overview about which workload configuration fields currently support template expansion, see [here](https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/config-objects/index.md).
+To get an overview about which workload configuration fields currently support template expansion, see [here](<https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/config-objects/index.md>).
 
 ```
 apiVersion: v1
@@ -56,8 +56,8 @@ configs:
 ```
 
 1. The contents of the `data` field will be expanded and replaced with the custom web server configuration of `nginx_config` part of the `configs` field below.
-1. The contents of the `binaryData` field will be expanded and replaced with the content of `bin_data` part of the `configs` field below.
+2. The contents of the `binaryData` field will be expanded and replaced with the content of `bin_data` part of the `configs` field below.
 
-Note
-
-Ankaios expects base64 data in the Standard Base64 Encoding including padding according to [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html). Example: `echo -n "Hello, World!" | base64`. Ankaios decodes the base64 data before mounting the file to the workload.
+> [!NOTE]
+>
+> Ankaios expects base64 data in the Standard Base64 Encoding including padding according to [RFC 4648](<https://www.rfc-editor.org/rfc/rfc4648.html>). Example: `echo -n "Hello, World!" | base64`. Ankaios decodes the base64 data before mounting the file to the workload.

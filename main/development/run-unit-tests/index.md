@@ -1,10 +1,10 @@
 # Unit tests with cargo-nextest
 
-We use test runner [cargo-nextest](https://nexte.st/index.html) because of the following reasons:
+We use test runner [cargo-nextest](<https://nexte.st/index.html>) because of the following reasons:
 
 1. It runs tests faster than `cargo test`.
-1. It presents the test results concisely so you can see which tests passed and failed at a glance.
-1. If debug logs are activated, it prints the debug logs only when a test has failed, so that it is clear the debug logs belong that failed test.
+2. It presents the test results concisely so you can see which tests passed and failed at a glance.
+3. If debug logs are activated, it prints the debug logs only when a test has failed, so that it is clear the debug logs belong that failed test.
 
 ## Run unit tests
 
@@ -20,7 +20,7 @@ Some unit tests can print trace logs. If you want to see them, you have to set t
 RUST_LOG=debug cargo nextest run
 ```
 
-[Cargo-nextest](https://nexte.st/index.html) also allows to run only a subset of unit tests. You have to set the "filter string" in the command:
+[Cargo-nextest](<https://nexte.st/index.html>) also allows to run only a subset of unit tests. You have to set the "filter string" in the command:
 
 ```
 cargo nextest run <filter string>

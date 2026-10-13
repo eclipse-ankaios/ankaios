@@ -2,7 +2,7 @@
 
 Mutual TLS (mTLS) is a security protocol that verifies both the client and server identities before establishing a connection. In Ankaios mTLS can be used to secure communication between the server, agent and ank CLI.
 
-The standard [installation](https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md) **disables mTLS** for server, agent and CLI in the respective [configuration files](https://eclipse-ankaios.github.io/ankaios/main/reference/config-files/index.md) with `insecure = true`. Besides that, mTLS can also be disabled for the CLI as command argument like `ank --insecure get state` or setting the environment variable `export ANK_INSECURE=true`.
+The standard [installation](<https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md>) **disables mTLS** for server, agent and CLI in the respective [configuration files](<https://eclipse-ankaios.github.io/ankaios/main/reference/config-files/index.md>) with `insecure = true`. Besides that, mTLS can also be disabled for the CLI as command argument like `ank --insecure get state` or setting the environment variable `export ANK_INSECURE=true`.
 
 This page describes how to create certificates and **enable mTLS**.
 
@@ -28,7 +28,7 @@ mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/ankaios"
 
 ## Generate CA keys and certificate
 
-Construct an [OpenSSL configuration file](https://www.openssl.org/docs/manmaster/man5/config.html) named `ca.cnf`. You are welcome to include additional fields if necessary:
+Construct an [OpenSSL configuration file](<https://www.openssl.org/docs/manmaster/man5/config.html>) named `ca.cnf`. You are welcome to include additional fields if necessary:
 
 ca.cnf
 
@@ -55,7 +55,7 @@ sudo openssl req -config "./ca.cnf" -new -x509 -key "./ca-key.pem" -out "/etc/an
 
 ## Generate key and certificate for `ank-server`
 
-Construct an [OpenSSL configuration file](https://www.openssl.org/docs/manmaster/man5/config.html) named `ank-server.cnf`. You are welcome to include additional fields if necessary:
+Construct an [OpenSSL configuration file](<https://www.openssl.org/docs/manmaster/man5/config.html>) named `ank-server.cnf`. You are welcome to include additional fields if necessary:
 
 ank-server.cnf
 
@@ -96,7 +96,7 @@ sudo openssl x509 -req -in "./ank-server.csr" -CA "/etc/ankaios/certs/ca.pem" -C
 
 ## Generate key and certificate for `ank-agent`
 
-Construct an [OpenSSL configuration file](https://www.openssl.org/docs/manmaster/man5/config.html) named `ank-agent.cnf`. You are welcome to include additional fields if necessary:
+Construct an [OpenSSL configuration file](<https://www.openssl.org/docs/manmaster/man5/config.html>) named `ank-agent.cnf`. You are welcome to include additional fields if necessary:
 
 ank-agent.cnf
 
@@ -141,7 +141,7 @@ sudo openssl x509 -req -in "./ank-agent.csr" -CA "/etc/ankaios/certs/ca.pem" -CA
 
 ## Generate key and certificate for the CLI `ank`
 
-Construct an [OpenSSL configuration file](https://www.openssl.org/docs/manmaster/man5/config.html) named `ank.cnf`. You are welcome to include additional fields if necessary:
+Construct an [OpenSSL configuration file](<https://www.openssl.org/docs/manmaster/man5/config.html>) named `ank.cnf`. You are welcome to include additional fields if necessary:
 
 ank.cnf
 
@@ -205,9 +205,9 @@ crt_pem = '/etc/ankaios/certs/ank-agent.pem'
 key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
 ```
 
-For more information on how the server, agent and CLI can be configured please consult [configuration files](https://eclipse-ankaios.github.io/ankaios/main/reference/config-files/index.md).
+For more information on how the server, agent and CLI can be configured please consult [configuration files](<https://eclipse-ankaios.github.io/ankaios/main/reference/config-files/index.md>).
 
-Start the Ankaios server and an Ankaios agent as described in the [Quickstart](https://eclipse-ankaios.github.io/ankaios/main/usage/quickstart/index.md) and continue below to configure the CLI with mTLS.
+Start the Ankaios server and an Ankaios agent as described in the [Quickstart](<https://eclipse-ankaios.github.io/ankaios/main/usage/quickstart/index.md>) and continue below to configure the CLI with mTLS.
 
 ### Configure the `ank` CLI with mTLS certificates
 

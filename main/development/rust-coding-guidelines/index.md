@@ -8,13 +8,13 @@ The following chapters describe rules and concepts to fit clean code expectation
 
 ## Clean code
 
-We like our code clean and thus use the "Clean Code" rules from "uncle Bob". A short summary can be found [here](https://gist.github.com/wojteklu/73c6914cc446146b8b533c0988cf8d29).
+We like our code clean and thus use the "Clean Code" rules from "uncle Bob". A short summary can be found [here](<https://gist.github.com/wojteklu/73c6914cc446146b8b533c0988cf8d29>).
 
 As rust could get a bit messy, feel free to add some additional code comments to blocks that cannot be made readable using the clean code rules.
 
 ## Naming conventions
 
-We follow the standard [Rust naming conventions](https://github.com/rust-lang/rfcs/blob/master/text/0430-finalizing-naming-conventions.md).
+We follow the standard [Rust naming conventions](<https://github.com/rust-lang/rfcs/blob/master/text/0430-finalizing-naming-conventions.md>).
 
 Names of components, classes , functions, etc. in code should also follow the prescriptions in SW design. Before thinking of new names, please make sure that we have not named the beast already.
 
@@ -37,7 +37,7 @@ If you want to call tests of the "container create" function, you can call:
 cargo nextest run container_create
 ```
 
-More information about calling unit tests is in [The Rust Programming Language](https://doc.rust-lang.org/book/ch11-02-running-tests.html).
+More information about calling unit tests is in [The Rust Programming Language](<https://doc.rust-lang.org/book/ch11-02-running-tests.html>).
 
 ## Logging conventions
 
@@ -69,13 +69,13 @@ This ensures that the log messages are formatted correctly and simplifies writin
 
 ### Choose a suitable log severity
 
-| Severity | Use Case                                                                                                                                              |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Trace    | A log that is useful for diagnostic purposes and/or more granular than severity debug.                                                                |
-| Debug    | A log that is useful for developers meant for debugging purposes or hit very often.                                                                   |
-| Info     | A log communicating important information like important states of an application suitable for any kind of user and that does not pollute the output. |
-| Warn     | A log communicating wrong preconditions or occurrences of something unexpected but do not lead to a panic of the application.                         |
-| Error    | A log communicating failures and consequences causing a potential panic of the application.                                                           |
+| Severity | Use Case |
+| --- | --- |
+| Trace | A log that is useful for diagnostic purposes and/or more granular than severity debug. |
+| Debug | A log that is useful for developers meant for debugging purposes or hit very often. |
+| Info | A log communicating important information like important states of an application suitable for any kind of user and that does not pollute the output. |
+| Warn | A log communicating wrong preconditions or occurrences of something unexpected but do not lead to a panic of the application. |
+| Error | A log communicating failures and consequences causing a potential panic of the application. |
 
 ## Unit test convenience rules
 
@@ -83,7 +83,7 @@ The following chapter describes important rules about how to write unit tests.
 
 ### Test mock/object generation
 
-When writing tests, one of the most tedious task is to setup the environment and create the necessary objects and/or mocks to be able to test the desired functionality. Following the [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) principle and trying to save some effort, we shall always place the code that generates a test or mock object in the same module/file where the mock of the object is defined.
+When writing tests, one of the most tedious task is to setup the environment and create the necessary objects and/or mocks to be able to test the desired functionality. Following the [DRY](<https://en.wikipedia.org/wiki/Don%27t_repeat_yourself>) principle and trying to save some effort, we shall always place the code that generates a test or mock object in the same module/file where the mock of the object is defined.
 
 For example, when you would like to **generate and reuse** a mock for the `Directory` structure located in the `agent/src/control_interface/directory.rs` file, **you shall**
 
@@ -172,7 +172,7 @@ fn read_from_file(filepath: &str) -> Result<String, io::Error> {
 }
 ```
 
-In case of mismatching error types, provide a custom [From-Trait](https://doc.rust-lang.org/rust-by-example/conversion/from_into.html) implementation to convert between error types to keep the benefits of using the `?` operator. But keep in mind that error conversion shall be used wisely (e.g. for abstracting third party library error types or if there is a benefit to introduce a common and reusable error type). The code base shall not be spammed with From-Trait implementations to replace each single match or conditional.
+In case of mismatching error types, provide a custom [From-Trait](<https://doc.rust-lang.org/rust-by-example/conversion/from_into.html>) implementation to convert between error types to keep the benefits of using the `?` operator. But keep in mind that error conversion shall be used wisely (e.g. for abstracting third party library error types or if there is a benefit to introduce a common and reusable error type). The code base shall not be spammed with From-Trait implementations to replace each single match or conditional.
 
 Error propagation shall also be preferred when converting between `Result<T,E>` and `Option<T>`.
 
@@ -239,7 +239,7 @@ let result = division(10, 0).unwrap_or(0.);
 
 Exceptions:
 
-In some cases terminating a program might be necessary. To make a good decision when to panic a program or not, the official rust book might help: [To panic! or Not to panic!](https://doc.rust-lang.org/book/ch09-03-to-panic-or-not-to-panic.html)
+In some cases terminating a program might be necessary. To make a good decision when to panic a program or not, the official rust book might help: [To panic! or Not to panic!](<https://doc.rust-lang.org/book/ch09-03-to-panic-or-not-to-panic.html>)
 
 When writing unit tests using `unwrap` helps to keep tests short and to concentrate on the `assert!` statements:
 
@@ -374,15 +374,15 @@ fn list_books(&self) -> Option<Vec<String>> {
 }
 ```
 
-As an alternative, when dealing with `Option<T>` or `Result<T,E>` use Rust's powerful [combinators](https://doc.rust-lang.org/rust-by-example/error/option_unwrap/map.html) to keep the code readable.
+As an alternative, when dealing with `Option<T>` or `Result<T,E>` use Rust's powerful [combinators](<https://doc.rust-lang.org/rust-by-example/error/option_unwrap/map.html>) to keep the code readable.
 
 ### Follow common Rust principles and idioms
 
-Understanding and practicing important Rust idioms help to write code in an idiomatic way, meaning resolving a task by following the conventions of a given language. Writing idiomatic Rust code ensures a clean and consistent code base. Thus, please follow the guidelines of [Idiomatic Rust](https://github.com/mre/idiomatic-rust).
+Understanding and practicing important Rust idioms help to write code in an idiomatic way, meaning resolving a task by following the conventions of a given language. Writing idiomatic Rust code ensures a clean and consistent code base. Thus, please follow the guidelines of [Idiomatic Rust](<https://github.com/mre/idiomatic-rust>).
 
 ### Avoid common anti-patterns
 
-There are a lot of Rust anti-patterns that shall not be used in general. To get more details about anti-patterns, see [here](https://rust-unofficial.github.io/patterns/anti_patterns/index.html).
+There are a lot of Rust anti-patterns that shall not be used in general. To get more details about anti-patterns, see [here](<https://rust-unofficial.github.io/patterns/anti_patterns/index.html>).
 
 ### Don't make sync code async
 
@@ -414,6 +414,6 @@ Mixing sync and async code can lead to a number of problems, including performan
 
 ## Further Readings
 
-- <https://rustc-dev-guide.rust-lang.org/conventions.html>
-- <https://www.kernel.org/doc/html/next/rust/coding-guidelines.html>
-- <https://rust-lang.github.io/api-guidelines/about.html>
+- [https://rustc-dev-guide.rust-lang.org/conventions.html](<https://rustc-dev-guide.rust-lang.org/conventions.html>)
+- [https://www.kernel.org/doc/html/next/rust/coding-guidelines.html](<https://www.kernel.org/doc/html/next/rust/coding-guidelines.html>)
+- [https://rust-lang.github.io/api-guidelines/about.html](<https://rust-lang.github.io/api-guidelines/about.html>)

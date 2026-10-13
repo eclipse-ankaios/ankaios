@@ -29,7 +29,7 @@ workloads:
    ...
 ```
 
-For more details on the setup required for using the runtime, please consult the [user documentation](https://eclipse-ankaios.github.io/ankaios/latest/usage/installation/#containerd).
+For more details on the setup required for using the runtime, please consult the [user documentation](<https://eclipse-ankaios.github.io/ankaios/latest/usage/installation/#containerd>).
 
 ### Podman-kube control interface
 

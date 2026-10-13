@@ -1,6 +1,6 @@
 # Quickstart
 
-If you have not installed Ankaios, please follow the instructions [here](https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md). The following examples assumes that the installation script has been used with default options.
+If you have not installed Ankaios, please follow the instructions [here](<https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md>). The following examples assumes that the installation script has been used with default options.
 
 You can start workloads in Ankaios in a number of ways. For example, you can define a file with the startup configuration and use systemd to start Ankaios. The startup manifest file contains all of the workloads and their configuration that you want to be started by Ankaios.
 
@@ -89,7 +89,7 @@ WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO
 nginx           agent_A   podman    Running(Ok)
 ```
 
-Ankaios also supports adding and removing workloads dynamically. The following command assumes that the `containerd` runtime is installed according to the [installation instructions](https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md).
+Ankaios also supports adding and removing workloads dynamically. The following command assumes that the `containerd` runtime is installed according to the [installation instructions](<https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md>).
 
 To add another workload call:
 
@@ -117,8 +117,8 @@ As the workload had a one time job its state is `Succeeded(Ok)` and we can delet
 ank delete workload helloworld
 ```
 
-Note
+> [!NOTE]
+>
+> Workload names shall not be longer then 63 symbols and can contain only regular characters, digits, the "-" and "\_" symbols.
 
-Workload names shall not be longer then 63 symbols and can contain only regular characters, digits, the "-" and "\_" symbols.
-
-For next steps follow the [tutorial on sending and receiving vehicle data](https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-vehicle-signals/index.md) with workloads orchestrated by Ankaios. Then also check the reference documentation for the [startup configuration](https://eclipse-ankaios.github.io/ankaios/main/reference/startup-configuration/index.md) including the `podman-kube` runtime and also working with the [complete state data structure](https://eclipse-ankaios.github.io/ankaios/main/reference/complete-state/index.md).
+For next steps follow the [tutorial on sending and receiving vehicle data](<https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-vehicle-signals/index.md>) with workloads orchestrated by Ankaios. Then also check the reference documentation for the [startup configuration](<https://eclipse-ankaios.github.io/ankaios/main/reference/startup-configuration/index.md>) including the `podman-kube` runtime and also working with the [complete state data structure](<https://eclipse-ankaios.github.io/ankaios/main/reference/complete-state/index.md>).

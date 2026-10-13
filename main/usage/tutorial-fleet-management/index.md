@@ -2,13 +2,13 @@
 
 ## Introduction
 
-This tutorial will show you how to manage a fleet of vehicles running Ankaios. We will remotely start new workloads on a vehicle and update existing ones. This tutorial assumes that the reader is familiar with the basics of Ankaios showcased in the tutorial [Sending and Receiving Vehicle Signals](https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-vehicle-signals/index.md).
+This tutorial will show you how to manage a fleet of vehicles running Ankaios. We will remotely start new workloads on a vehicle and update existing ones. This tutorial assumes that the reader is familiar with the basics of Ankaios showcased in the tutorial [Sending and Receiving Vehicle Signals](<https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-vehicle-signals/index.md>).
 
 To connect the vehicles to the cloud, we use an MQTT connection. Each vehicle connects to a central MQTT broker. The connection from the vehicle is established by a fleet connector workload managed by Ankaios. The benefit of using an Ankaios workload is that workloads have direct access to the Ankaios control interface, allowing them to start, stop and update other workloads.
 
 Fleet management overview
 
-To complete this tutorial, you will need a Linux platform, which can be a WSL2, RaspberryPi, a Linux PC or a virtual machine. It's also assumed that the Ankaios setup has been performed using the default [installation](https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md) script.
+To complete this tutorial, you will need a Linux platform, which can be a WSL2, RaspberryPi, a Linux PC or a virtual machine. It's also assumed that the Ankaios setup has been performed using the default [installation](<https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md>) script.
 
 ## MQTT broker
 
@@ -39,9 +39,9 @@ For now no messages will be shown in this window, but keep it open for the durat
 The fleet connector is a containerized workload managed by Ankaios. It will have two connections:
 
 1. MQTT connection to the cloud in order to receive messages for starting, stopping and updating workloads in the vehicle and to return the response.
-1. Connection to the Ankaios' [control interface](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md) in order to execute the instructions to start, stop and update workloads.
+2. Connection to the Ankaios' [control interface](<https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md>) in order to execute the instructions to start, stop and update workloads.
 
-The control interface is made available to each workload via named pipes (FIFO) using a protobuf IDL. In this tutorial, we will use the Ankaios SDK for Python, [ank-sdk-python](https://github.com/eclipse-ankaios/ank-sdk-python), which provides a convenient way to access the control interface.
+The control interface is made available to each workload via named pipes (FIFO) using a protobuf IDL. In this tutorial, we will use the Ankaios SDK for Python, [ank-sdk-python](<https://github.com/eclipse-ankaios/ank-sdk-python>), which provides a convenient way to access the control interface.
 
 Let's take a look at the Fleet Connector implementation:
 
@@ -133,13 +133,11 @@ the script will listen for incoming MQTT messages.
   ```
   ret = ankaios.apply_manifest(manifest)
   ```
-
 - **`vehicle/<VIN>/manifest/delete/req`**: This topic allows a remote operator to send an Ankaios manifest that will be deleted by the fleet connector using
 
   ```
   ret = ankaios.delete_manifest(manifest)
   ```
-
 - **`vehicle/<VIN>/state/req`**: Using this topic a remote operator can request the current Ankaios state from the fleet connector using
 
   ```
@@ -148,11 +146,11 @@ the script will listen for incoming MQTT messages.
 
   The field mask must be provided in JSON format in the message. We will see an example later in this tutorial.
 
-The full source code for the fleet connector is available in the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorials/fleet_management/fleet-connector). The Ankaios SDK for python provides many more features as shown in its [documentation](https://eclipse-ankaios.github.io/ank-sdk-python/). Be sure to use the correct version of the SDK that matches the version of Ankaios you are using.
+The full source code for the fleet connector is available in the [Ankaios repository](<https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorials/fleet_management/fleet-connector>). The Ankaios SDK for python provides many more features as shown in its [documentation](<https://eclipse-ankaios.github.io/ank-sdk-python/>). Be sure to use the correct version of the SDK that matches the version of Ankaios you are using.
 
 ## Deploying the fleet connector
 
-If you have not yet installed Ankaios, please follow the instructions [here](https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md). The following examples assume that the installation script was used with the default options.
+If you have not yet installed Ankaios, please follow the instructions [here](<https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md>). The following examples assume that the installation script was used with the default options.
 
 We want the fleet connector to run when the vehicle is started and Ankaios is started. Therefore, we add the fleet connector to the startup configuration for Ankaios. Modify `/etc/ankaios/state.yaml` to include:
 
@@ -176,7 +174,7 @@ workloads:
       commandOptions: [ "--net=host", "-e", "VIN=1"]
 ```
 
-Since the fleet connector needs to access the Ankaios control interface, we need to allow this with the `controlInterfaceAccess` section in the manifest. See the [reference documentation](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#controlinterfaceaccess) for more information on that.
+Since the fleet connector needs to access the Ankaios control interface, we need to allow this with the `controlInterfaceAccess` section in the manifest. See the [reference documentation](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#controlinterfaceaccess>) for more information on that.
 
 Now we start Ankaios with:
 
@@ -192,7 +190,7 @@ ank get workloads
 
 ## Remote installation of a vehicle data sender
 
-Now we want to use the fleet connector to remotely install a new containerized workload on the vehicle. The workload is called `vehicle-data-sender`. It will send a (random) speed value to the MQTT broker in the cloud. The full source code of the vehicle data sender is available in the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorials/fleet_management/vehicle-data-sender).
+Now we want to use the fleet connector to remotely install a new containerized workload on the vehicle. The workload is called `vehicle-data-sender`. It will send a (random) speed value to the MQTT broker in the cloud. The full source code of the vehicle data sender is available in the [Ankaios repository](<https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorials/fleet_management/vehicle-data-sender>).
 
 First, we need to create a manifest and name that file `vehicle-data-sender.yaml`:
 
@@ -228,7 +226,7 @@ configs:
         value: "1"
 ```
 
-In this manifest, we separate the config from the workload so that we can easily update them separately later. The config items can be referenced in the `agent` and `runtimeConfig` workload fields using the [handlebars template language](https://handlebarsjs.com). For all supported fields and syntax, see the corresponding chapter in the [reference documentation](https://eclipse-ankaios.github.io/ankaios/main/reference/startup-configuration/).
+In this manifest, we separate the config from the workload so that we can easily update them separately later. The config items can be referenced in the `agent` and `runtimeConfig` workload fields using the [handlebars template language](<https://handlebarsjs.com>). For all supported fields and syntax, see the corresponding chapter in the [reference documentation](<https://eclipse-ankaios.github.io/ankaios/main/reference/startup-configuration/>).
 
 Then we send this file via MQTT to the `vehicle/1/manifest/apply/req` topic:
 
@@ -302,6 +300,6 @@ podman run --rm --net=host -v $PWD/$FILE:/$FILE docker.io/eclipse-mosquitto:2.0.
 
 ## Conclusion
 
-This tutorial presented a simple way to manage a fleet of vehicles using Ankaios as an embedded container and workload orchestrator. A sample fleet connector was created using some of the features of the Ankaios SDK for Python. In addition to that, there is also an [Ankaios SDK for Rust](https://github.com/eclipse-ankaios/ank-sdk-rust).
+This tutorial presented a simple way to manage a fleet of vehicles using Ankaios as an embedded container and workload orchestrator. A sample fleet connector was created using some of the features of the Ankaios SDK for Python. In addition to that, there is also an [Ankaios SDK for Rust](<https://github.com/eclipse-ankaios/ank-sdk-rust>).
 
-If you have questions or want to to discuss a specific use case, you can contact the Ankaios maintainers via [Slack](https://join.slack.com/t/ankaios/shared_invite/zt-38857n3r5-1nXR7gSAMDtTdYjz_LBmzg) or [Github discussions](https://github.com/eclipse-ankaios/ankaios/discussions) (see also [Support](https://eclipse-ankaios.github.io/ankaios/main/support/index.md)).
+If you have questions or want to to discuss a specific use case, you can contact the Ankaios maintainers via [Slack](<https://join.slack.com/t/ankaios/shared_invite/zt-38857n3r5-1nXR7gSAMDtTdYjz_LBmzg>) or [Github discussions](<https://github.com/eclipse-ankaios/ankaios/discussions>) (see also [Support](<https://eclipse-ankaios.github.io/ankaios/main/support/index.md>)).

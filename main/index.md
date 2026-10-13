@@ -1,6 +1,6 @@
 Eclipse Ankaios is a workload orchestrator purpose-built for embedded and automotive platforms. Designed to meet the unique demands of resource-constrained environments and High-Performance Computing (HPC) systems in vehicles, Ankaios delivers reliable workload management where it matters most.
 
-[Get Started →](https://eclipse-ankaios.github.io/ankaios/main/usage/quickstart/index.md) [View on GitHub](https://github.com/eclipse-ankaios/ankaios)
+[Get Started →](<https://eclipse-ankaios.github.io/ankaios/main/usage/quickstart/index.md>) [View on GitHub](<https://github.com/eclipse-ankaios/ankaios>)
 
 ### 🚀 Flexible runtime support
 
@@ -54,36 +54,36 @@ Native SDKs allow workloads to communicate with Ankaios programmatically. Applic
 
 ## Getting started
 
-**📦 Installation**\
-Get Ankaios up and running on your system\
-[Installation guide →](https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md)
+**📦 Installation**  
+Get Ankaios up and running on your system  
+[Installation guide →](<https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md>)
 
-**🚀 Quick start**\
-Deploy your first workload in minutes\
-[Quick start tutorial →](https://eclipse-ankaios.github.io/ankaios/main/usage/quickstart/index.md)
+**🚀 Quick start**  
+Deploy your first workload in minutes  
+[Quick start tutorial →](<https://eclipse-ankaios.github.io/ankaios/main/usage/quickstart/index.md>)
 
-**🏗️ Architecture**\
-Understand how Ankaios works under the hood\
-[Architecture overview →](https://eclipse-ankaios.github.io/ankaios/main/architecture/index.md)
+**🏗️ Architecture**  
+Understand how Ankaios works under the hood  
+[Architecture overview →](<https://eclipse-ankaios.github.io/ankaios/main/architecture/index.md>)
 
-**📡 Vehicle signals**\
-Send and receive vehicle signals with workloads\
-[Vehicle signals tutorial →](https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-vehicle-signals/index.md)
+**📡 Vehicle signals**  
+Send and receive vehicle signals with workloads  
+[Vehicle signals tutorial →](<https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-vehicle-signals/index.md>)
 
-**☁️ Fleet management**\
-Manage vehicle fleets from the cloud\
-[Fleet management tutorial →](https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-fleet-management/index.md)
+**☁️ Fleet management**  
+Manage vehicle fleets from the cloud  
+[Fleet management tutorial →](<https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-fleet-management/index.md>)
 
-**📚 API reference**\
-Explore the complete API documentation\
-[API reference →](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md)
+**📚 API reference**  
+Explore the complete API documentation  
+[API reference →](<https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md>)
 
-## Community & Resources
+## Community &amp; Resources
 
-[▶ Eclipse Ankaios playlist](https://youtube.com/playlist?list=PLXGqib0ZinZFwXpqN9pdFBrtflJVZ--_p)
+[▶ Eclipse Ankaios playlist](<https://youtube.com/playlist?list=PLXGqib0ZinZFwXpqN9pdFBrtflJVZ--_p>)
 
-[⭐ Awesome Ankaios](https://eclipse-ankaios.github.io/ankaios/main/usage/awesome-ankaios/index.md)
+[⭐ Awesome Ankaios](<https://eclipse-ankaios.github.io/ankaios/main/usage/awesome-ankaios/index.md>)
 
-[💬 Get support](https://eclipse-ankaios.github.io/ankaios/main/support/index.md)
+[💬 Get support](<https://eclipse-ankaios.github.io/ankaios/main/support/index.md>)
 
-[🔧 Contributing guide](https://eclipse-ankaios.github.io/ankaios/main/development/build/index.md)
+[🔧 Contributing guide](<https://eclipse-ankaios.github.io/ankaios/main/development/build/index.md>)

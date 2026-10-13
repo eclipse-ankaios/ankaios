@@ -8,7 +8,7 @@
       
       
       
-        <link rel="canonical" href="https://eclipse-ankaios.github.io/ankaios/main/usage/installation/">
+        <link rel="canonical" href="https://eclipse-ankaios.github.io/main/usage/installation/">
       
       
         <link rel="prev" href="../../architecture/">
@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/favicon128x128.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="zensical-0.0.68">
     
     
       
@@ -29,10 +29,15 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/classic/main.3d7537f3.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/classic/palette.031959be.min.css">
       
       
 
@@ -46,30 +51,29 @@
         
         
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,500,500i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
     
       <link rel="stylesheet" href="../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
     
       
 
     
     
-  
-<meta property="og:type" content="website" />
+  <meta property="og:type" content="website" />
 <meta property="og:title" content="Installation - Eclipse Ankaios" />
-<meta property="og:image" content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/usage/installation.png" />
+<meta property="og:image" content="https://eclipse-ankaios.github.io/main/assets/images/social/usage/installation.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:url" content="https://eclipse-ankaios.github.io/ankaios/main/usage/installation/" />
+<meta property="og:url" content="https://eclipse-ankaios.github.io/main/usage/installation/" />
 <meta property="twitter:card" content="summary_large_image" />
 <meta property="twitter:title" content="Installation - Eclipse Ankaios" />
-<meta property="twitter:image" content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/usage/installation.png" />
+<meta property="twitter:image" content="https://eclipse-ankaios.github.io/main/assets/images/social/usage/installation.png" />
 </head>
   
   
@@ -85,14 +89,11 @@
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
-    <label class="md-overlay" for="__drawer"></label>
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
     <div data-md-component="skip">
-      
-        
-        <a href="#installation" class="md-skip">
-          Skip to content
-        </a>
-      
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
     </div>
     <div data-md-component="announce">
       
@@ -121,10 +122,10 @@
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href="../.." title="Eclipse Ankaios" class="md-header__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
       
-  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
+  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="Eclipse Ankaios">
 
     </a>
-    <label class="md-header__button md-icon" for="__drawer">
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
     </label>
@@ -188,57 +189,30 @@
     
       
       
-        <label class="md-header__button md-icon" for="__search">
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
         </label>
-        <div class="md-search" data-md-component="search" role="dialog">
-  <label class="md-search__overlay" for="__search"></label>
-  <div class="md-search__inner" role="search">
-    <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
-      <label class="md-search__icon md-icon" for="__search">
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-      </label>
-      <nav class="md-search__options" aria-label="Search">
-        
-        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
-          
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-        </button>
-      </nav>
-      
-    </form>
-    <div class="md-search__output">
-      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
-        <div class="md-search-result" data-md-component="search-result">
-          <div class="md-search-result__meta">
-            Initializing search
-          </div>
-          <ol class="md-search-result__list" role="presentation"></ol>
-        </div>
-      </div>
-    </div>
-  </div>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
 </div>
       
     
-    
-      <div class="md-header__source">
+    <div class="md-header__source">
+      
         <a href="https://github.com/eclipse-ankaios/ankaios" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
     eclipse-ankaios/ankaios
   </div>
 </a>
-      </div>
-    
+      
+    </div>
   </nav>
   
 </header>
@@ -262,9 +236,6 @@
       <a href="../.." class="md-tabs__link">
         
   
-  
-    
-  
   Welcome
 
       </a>
@@ -281,9 +252,6 @@
       <a href="../../architecture/" class="md-tabs__link">
         
   
-  
-    
-  
   Architecture
 
       </a>
@@ -299,11 +267,13 @@
   
   
     
+      
+    
+    
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+        <a href="././" class="md-tabs__link">
           
-  
   
   Usage
 
@@ -319,11 +289,13 @@
   
   
     
+      
+    
+    
     
       <li class="md-tabs__item">
         <a href="../../reference/startup-configuration/" class="md-tabs__link">
           
-  
   
   Reference
 
@@ -339,11 +311,13 @@
   
   
     
+      
+    
+    
     
       <li class="md-tabs__item">
         <a href="../../development/build/" class="md-tabs__link">
           
-  
   
   Contributing
 
@@ -361,9 +335,6 @@
     <li class="md-tabs__item">
       <a href="../../support/" class="md-tabs__link">
         
-  
-  
-    
   
   Support
 
@@ -396,7 +367,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../.." title="Eclipse Ankaios" class="md-nav__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
       
-  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
+  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="Eclipse Ankaios">
 
     </a>
     Eclipse Ankaios
@@ -406,7 +377,7 @@
       <a href="https://github.com/eclipse-ankaios/ankaios" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
     eclipse-ankaios/ankaios
@@ -430,8 +401,7 @@
   <span class="md-ellipsis">
     
   
-    Welcome
-  
+  Welcome
 
     
   </span>
@@ -457,8 +427,7 @@
   <span class="md-ellipsis">
     
   
-    Architecture
-  
+  Architecture
 
     
   </span>
@@ -505,8 +474,7 @@
   <span class="md-ellipsis">
     
   
-    Usage
-  
+  Usage
 
     
   </span>
@@ -516,19 +484,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_3">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Usage
-  
+  Usage
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
     
@@ -537,7 +505,9 @@
   
     <li class="md-nav__item md-nav__item--active">
       
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+        <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
       
       
         
@@ -550,8 +520,7 @@
   <span class="md-ellipsis">
     
   
-    Installation
-  
+  Installation
 
     
   </span>
@@ -561,15 +530,14 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="./" class="md-nav__link md-nav__link--active">
+      <a href="././" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    Installation
-  
+  Installation
 
     
   </span>
@@ -580,7 +548,8 @@
       
         
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
   
@@ -589,16 +558,16 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      On this page
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
   <a href="#express-installation" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Express installation
-      
+      </span>
     </span>
   </a>
   
@@ -607,9 +576,9 @@
         <li class="md-nav__item">
   <a href="#system-requirements" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         System requirements
-      
+      </span>
     </span>
   </a>
   
@@ -618,9 +587,9 @@
         <li class="md-nav__item">
   <a href="#container-runtime" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Container runtime
-      
+      </span>
     </span>
   </a>
   
@@ -630,9 +599,9 @@
           <li class="md-nav__item">
   <a href="#podman" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Podman
-      
+      </span>
     </span>
   </a>
   
@@ -641,9 +610,9 @@
           <li class="md-nav__item">
   <a href="#containerd" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Containerd
-      
+      </span>
     </span>
   </a>
   
@@ -657,9 +626,9 @@
         <li class="md-nav__item">
   <a href="#installation-methods" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Installation methods
-      
+      </span>
     </span>
   </a>
   
@@ -669,9 +638,9 @@
           <li class="md-nav__item">
   <a href="#install-script" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Install script
-      
+      </span>
     </span>
   </a>
   
@@ -680,9 +649,9 @@
           <li class="md-nav__item">
   <a href="#apt-debian-ubuntu" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         APT (Debian / Ubuntu)
-      
+      </span>
     </span>
   </a>
   
@@ -691,9 +660,9 @@
           <li class="md-nav__item">
   <a href="#aur-arch-linux" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         AUR (Arch Linux)
-      
+      </span>
     </span>
   </a>
   
@@ -702,9 +671,9 @@
           <li class="md-nav__item">
   <a href="#manual-download" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Manual download
-      
+      </span>
     </span>
   </a>
   
@@ -713,9 +682,9 @@
           <li class="md-nav__item">
   <a href="#build-from-source" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Build from source
-      
+      </span>
     </span>
   </a>
   
@@ -733,10 +702,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -749,8 +718,7 @@
   <span class="md-ellipsis">
     
   
-    Quickstart
-  
+  Quickstart
 
     
   </span>
@@ -761,10 +729,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -777,8 +745,7 @@
   <span class="md-ellipsis">
     
   
-    Tutorial: Sending and receiving vehicle signals
-  
+  Tutorial: Sending and receiving vehicle signals
 
     
   </span>
@@ -789,10 +756,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -805,8 +772,7 @@
   <span class="md-ellipsis">
     
   
-    Tutorial: Manage a fleet of vehicles from the cloud
-  
+  Tutorial: Manage a fleet of vehicles from the cloud
 
     
   </span>
@@ -817,10 +783,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -833,8 +799,7 @@
   <span class="md-ellipsis">
     
   
-    Tutorial: Registering for events
-  
+  Tutorial: Registering for events
 
     
   </span>
@@ -845,10 +810,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -861,8 +826,7 @@
   <span class="md-ellipsis">
     
   
-    Awesome Ankaios
-  
+  Awesome Ankaios
 
     
   </span>
@@ -873,10 +837,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -889,8 +853,7 @@
   <span class="md-ellipsis">
     
   
-    Setting up Ankaios with mTLS
-  
+  Setting up Ankaios with mTLS
 
     
   </span>
@@ -901,10 +864,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -917,8 +880,7 @@
   <span class="md-ellipsis">
     
   
-    Shell completion
-  
+  Shell completion
 
     
   </span>
@@ -929,10 +891,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -964,8 +926,7 @@
   <span class="md-ellipsis">
     
   
-    Manifest
-  
+  Manifest
 
     
   </span>
@@ -975,19 +936,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_9">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3_9">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Manifest
-  
+  Manifest
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -1000,8 +961,7 @@
   <span class="md-ellipsis">
     
   
-    Config objects
-  
+  Config objects
 
     
   </span>
@@ -1012,10 +972,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1028,8 +988,7 @@
   <span class="md-ellipsis">
     
   
-    Workload files
-  
+  Workload files
 
     
   </span>
@@ -1040,18 +999,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1083,8 +1043,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading
-  
+  Upgrading
 
     
   </span>
@@ -1094,19 +1053,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_10">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3_10">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Upgrading
-  
+  Upgrading
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -1119,8 +1078,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading v0.7 to v1.0
-  
+  Upgrading v0.7 to v1.0
 
     
   </span>
@@ -1131,10 +1089,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1147,8 +1105,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading v0.6 to v0.7
-  
+  Upgrading v0.6 to v0.7
 
     
   </span>
@@ -1159,10 +1116,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1175,8 +1132,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading v0.5 to v0.6
-  
+  Upgrading v0.5 to v0.6
 
     
   </span>
@@ -1187,10 +1143,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1203,8 +1159,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading v0.4 to v0.5
-  
+  Upgrading v0.4 to v0.5
 
     
   </span>
@@ -1215,10 +1170,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1231,8 +1186,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading v0.3 to v0.4
-  
+  Upgrading v0.3 to v0.4
 
     
   </span>
@@ -1243,10 +1197,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1259,8 +1213,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading v0.2 to v0.3
-  
+  Upgrading v0.2 to v0.3
 
     
   </span>
@@ -1271,18 +1224,20 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
@@ -1318,8 +1273,7 @@
   <span class="md-ellipsis">
     
   
-    Reference
-  
+  Reference
 
     
   </span>
@@ -1329,19 +1283,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Reference
-  
+  Reference
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -1354,8 +1308,7 @@
   <span class="md-ellipsis">
     
   
-    Startup manifest
-  
+  Startup manifest
 
     
   </span>
@@ -1366,10 +1319,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1382,8 +1335,7 @@
   <span class="md-ellipsis">
     
   
-    Interacting with Ankaios
-  
+  Interacting with Ankaios
 
     
   </span>
@@ -1394,10 +1346,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1426,8 +1378,7 @@
   <span class="md-ellipsis">
     
   
-    Control Interface
-  
+  Control Interface
 
     
   </span>
@@ -1437,19 +1388,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_3">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_3">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Control Interface
-  
+  Control Interface
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -1462,8 +1413,7 @@
   <span class="md-ellipsis">
     
   
-    Control interface
-  
+  Control interface
 
     
   </span>
@@ -1474,10 +1424,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1490,8 +1440,7 @@
   <span class="md-ellipsis">
     
   
-    Working with CompleteState
-  
+  Working with CompleteState
 
     
   </span>
@@ -1502,10 +1451,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1518,8 +1467,7 @@
   <span class="md-ellipsis">
     
   
-    Events
-  
+  Events
 
     
   </span>
@@ -1530,18 +1478,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1554,8 +1503,7 @@
   <span class="md-ellipsis">
     
   
-    Inter-workload dependencies
-  
+  Inter-workload dependencies
 
     
   </span>
@@ -1566,10 +1514,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1582,8 +1530,7 @@
   <span class="md-ellipsis">
     
   
-    Restart Policy
-  
+  Restart Policy
 
     
   </span>
@@ -1594,10 +1541,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1610,8 +1557,7 @@
   <span class="md-ellipsis">
     
   
-    Resource usage
-  
+  Resource usage
 
     
   </span>
@@ -1622,10 +1568,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1638,8 +1584,7 @@
   <span class="md-ellipsis">
     
   
-    Comparing container orchestrators
-  
+  Comparing container orchestrators
 
     
   </span>
@@ -1650,10 +1595,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1666,8 +1611,7 @@
   <span class="md-ellipsis">
     
   
-    Glossary
-  
+  Glossary
 
     
   </span>
@@ -1678,10 +1622,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1694,8 +1638,7 @@
   <span class="md-ellipsis">
     
   
-    Configuration files
-  
+  Configuration files
 
     
   </span>
@@ -1706,10 +1649,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1722,8 +1665,7 @@
   <span class="md-ellipsis">
     
   
-    Protobuf data structures
-  
+  Protobuf data structures
 
     
   </span>
@@ -1734,10 +1676,11 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
@@ -1773,8 +1716,7 @@
   <span class="md-ellipsis">
     
   
-    Contributing
-  
+  Contributing
 
     
   </span>
@@ -1784,19 +1726,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Contributing
-  
+  Contributing
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -1809,8 +1751,7 @@
   <span class="md-ellipsis">
     
   
-    Build
-  
+  Build
 
     
   </span>
@@ -1821,10 +1762,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1837,8 +1778,7 @@
   <span class="md-ellipsis">
     
   
-    Rust coding guidelines
-  
+  Rust coding guidelines
 
     
   </span>
@@ -1849,10 +1789,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1865,8 +1805,7 @@
   <span class="md-ellipsis">
     
   
-    Changing the API
-  
+  Changing the API
 
     
   </span>
@@ -1877,10 +1816,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1893,8 +1832,7 @@
   <span class="md-ellipsis">
     
   
-    Unit verification
-  
+  Unit verification
 
     
   </span>
@@ -1905,10 +1843,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1921,8 +1859,7 @@
   <span class="md-ellipsis">
     
   
-    Unit tests with cargo-nextest
-  
+  Unit tests with cargo-nextest
 
     
   </span>
@@ -1933,10 +1870,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1949,8 +1886,7 @@
   <span class="md-ellipsis">
     
   
-    Test coverage
-  
+  Test coverage
 
     
   </span>
@@ -1961,10 +1897,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1977,8 +1913,7 @@
   <span class="md-ellipsis">
     
   
-    System tests
-  
+  System tests
 
     
   </span>
@@ -1989,10 +1924,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2005,8 +1940,7 @@
   <span class="md-ellipsis">
     
   
-    Requirement tracing
-  
+  Requirement tracing
 
     
   </span>
@@ -2017,10 +1951,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2033,8 +1967,7 @@
   <span class="md-ellipsis">
     
   
-    Requirement description template
-  
+  Requirement description template
 
     
   </span>
@@ -2045,10 +1978,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2061,8 +1994,7 @@
   <span class="md-ellipsis">
     
   
-    Extending the dev container
-  
+  Extending the dev container
 
     
   </span>
@@ -2073,10 +2005,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2089,8 +2021,7 @@
   <span class="md-ellipsis">
     
   
-    CI/CD
-  
+  CI/CD
 
     
   </span>
@@ -2101,10 +2032,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2117,8 +2048,7 @@
   <span class="md-ellipsis">
     
   
-    CI/CD - Release
-  
+  CI/CD - Release
 
     
   </span>
@@ -2129,10 +2059,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2145,8 +2075,7 @@
   <span class="md-ellipsis">
     
   
-    Eclipse self-service
-  
+  Eclipse self-service
 
     
   </span>
@@ -2157,10 +2086,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2173,8 +2102,7 @@
   <span class="md-ellipsis">
     
   
-    Documentation guidelines
-  
+  Documentation guidelines
 
     
   </span>
@@ -2185,10 +2113,11 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
@@ -2208,8 +2137,7 @@
   <span class="md-ellipsis">
     
   
-    Support
-  
+  Support
 
     
   </span>
@@ -2231,10 +2159,12 @@
               
               <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
                 <div class="md-sidebar__scrollwrap">
+                  
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
   
@@ -2243,16 +2173,16 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      On this page
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
   <a href="#express-installation" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Express installation
-      
+      </span>
     </span>
   </a>
   
@@ -2261,9 +2191,9 @@
         <li class="md-nav__item">
   <a href="#system-requirements" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         System requirements
-      
+      </span>
     </span>
   </a>
   
@@ -2272,9 +2202,9 @@
         <li class="md-nav__item">
   <a href="#container-runtime" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Container runtime
-      
+      </span>
     </span>
   </a>
   
@@ -2284,9 +2214,9 @@
           <li class="md-nav__item">
   <a href="#podman" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Podman
-      
+      </span>
     </span>
   </a>
   
@@ -2295,9 +2225,9 @@
           <li class="md-nav__item">
   <a href="#containerd" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Containerd
-      
+      </span>
     </span>
   </a>
   
@@ -2311,9 +2241,9 @@
         <li class="md-nav__item">
   <a href="#installation-methods" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Installation methods
-      
+      </span>
     </span>
   </a>
   
@@ -2323,9 +2253,9 @@
           <li class="md-nav__item">
   <a href="#install-script" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Install script
-      
+      </span>
     </span>
   </a>
   
@@ -2334,9 +2264,9 @@
           <li class="md-nav__item">
   <a href="#apt-debian-ubuntu" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         APT (Debian / Ubuntu)
-      
+      </span>
     </span>
   </a>
   
@@ -2345,9 +2275,9 @@
           <li class="md-nav__item">
   <a href="#aur-arch-linux" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         AUR (Arch Linux)
-      
+      </span>
     </span>
   </a>
   
@@ -2356,9 +2286,9 @@
           <li class="md-nav__item">
   <a href="#manual-download" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Manual download
-      
+      </span>
     </span>
   </a>
   
@@ -2367,9 +2297,9 @@
           <li class="md-nav__item">
   <a href="#build-from-source" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Build from source
-      
+      </span>
     </span>
   </a>
   
@@ -2392,9 +2322,9 @@
             <div class="md-content" data-md-component="content">
               
               <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
                 
                   
-
 
   
     <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/usage/installation.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
@@ -2527,8 +2457,8 @@ file generation if required.</p>
 <hr />
 <h3 id="apt-debian-ubuntu">APT (Debian / Ubuntu)<a class="headerlink" href="#apt-debian-ubuntu" title="Permanent link">&para;</a></h3>
 <p>Add the Ankaios signing key and repository:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>curl<span class="w"> </span>-L<span class="w"> </span><span class="s2">&quot;https://keyserver.ubuntu.com/pks/lookup?op=get&amp;search=ankaios-dev@eclipse.org&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>gpg<span class="w"> </span>--dearmor<span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/usr/share/keyrings/ankaios.gpg<span class="w"> </span>&gt;<span class="w"> </span>/dev/null
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;deb [signed-by=/usr/share/keyrings/ankaios.gpg] https://repo.eclipse.org/repository/ankaios-apt/ stable main&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/etc/apt/sources.list.d/ankaios.list
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>curl<span class="w"> </span>-L<span class="w"> </span><span class="s2">"https://keyserver.ubuntu.com/pks/lookup?op=get&amp;search=ankaios-dev@eclipse.org"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>gpg<span class="w"> </span>--dearmor<span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/usr/share/keyrings/ankaios.gpg<span class="w"> </span>&gt;<span class="w"> </span>/dev/null
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">"deb [signed-by=/usr/share/keyrings/ankaios.gpg] https://repo.eclipse.org/repository/ankaios-apt/ stable main"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/etc/apt/sources.list.d/ankaios.list
 </code></pre></div>
 <p>Then install the desired package:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>update
@@ -2679,6 +2609,8 @@ This is useful if the automatic detection of the platform is failing in case of 
 
 
 
+
+
                 
               </article>
             </div>
@@ -2751,8 +2683,8 @@ This is useful if the automatic detection of the platform is failing in case of 
   
   
     Made with
-    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
-      Material for MkDocs
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
     </a>
   
 </div>
@@ -2785,7 +2717,7 @@ This is useful if the automatic detection of the platform is failing in case of 
   </footer>
 
     </div>
-    <div class="md-dialog" data-md-component="dialog">
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
@@ -2793,10 +2725,14 @@ This is useful if the automatic detection of the platform is failing in case of 
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "navigation.top", "content.code.copy", "content.code.annotate", "content.action.edit", "content.tabs.link", "navigation.footer"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["navigation.instant","navigation.sections","navigation.tabs","navigation.top","content.code.copy","content.code.annotate","content.action.edit","content.tabs.link","navigation.footer"],"redirect":null,"search":"../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.3c842f4c.min.js"></script>
       
     
   </body>

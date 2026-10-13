@@ -2,13 +2,13 @@
 
 ## Introduction
 
-In this tutorial, you will learn how a workload can register for events. We will create a simple console dashboard, showing the state of all workloads. This tutorial assumes that the reader is familiar with the basics of Ankaios showcased in the tutorial [Sending and Receiving Vehicle Signals](https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-vehicle-signals/index.md).
+In this tutorial, you will learn how a workload can register for events. We will create a simple console dashboard, showing the state of all workloads. This tutorial assumes that the reader is familiar with the basics of Ankaios showcased in the tutorial [Sending and Receiving Vehicle Signals](<https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-vehicle-signals/index.md>).
 
-To complete this tutorial, you will need a Linux platform, which can be a WSL2, RaspberryPi, a Linux PC or a virtual machine. It's also assumed that the Ankaios setup has been performed using the default [installation](https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md) script.
+To complete this tutorial, you will need a Linux platform, which can be a WSL2, RaspberryPi, a Linux PC or a virtual machine. It's also assumed that the Ankaios setup has been performed using the default [installation](<https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md>) script.
 
 ## Workload
 
-This workload uses the [Python SDK for Eclipse Ankaios](https://eclipse-ankaios.github.io/ank-sdk-python). It subscribes to the field mask `workloadStates.*.*.*.state` which corresponds to the execution state of all workloads in the system. It will receive the initial state for this field mask upon registration, and then will receive updates the state of a workload changes (including adding and removing workloads).
+This workload uses the [Python SDK for Eclipse Ankaios](<https://eclipse-ankaios.github.io/ank-sdk-python>). It subscribes to the field mask `workloadStates.*.*.*.state` which corresponds to the execution state of all workloads in the system. It will receive the initial state for this field mask upon registration, and then will receive updates the state of a workload changes (including adding and removing workloads).
 
 ### Source code
 
@@ -156,7 +156,7 @@ sudo podman build -t ank_simple_dashboard:latest .
 
 ## Deployment
 
-If you have not yet installed Ankaios, please follow the instructions [here](https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md). The following examples assume that the installation script was used with the default options.
+If you have not yet installed Ankaios, please follow the instructions [here](<https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md>). The following examples assume that the installation script was used with the default options.
 
 To start the dashboard when Ankaios is started, add the dashboard to the startup configuration.
 

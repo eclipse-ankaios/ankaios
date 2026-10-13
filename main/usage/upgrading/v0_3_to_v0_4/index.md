@@ -40,7 +40,7 @@ Workload {
 }
 ```
 
-Please review the examples from [the Ankaios repository](https://github.com/eclipse-ankaios/ankaios) for more information on the topic.
+Please review the examples from [the Ankaios repository](<https://github.com/eclipse-ankaios/ankaios>) for more information on the topic.
 
 ## Removed top level attribute `startupState`
 
@@ -57,7 +57,7 @@ To upgrade to the new version v0.4, use the new `control_api.proto` file and the
 
 The new messages currently support requests and responses to and from Ankaios and will later support other functionality. The `Request` and `Response` messages and their content remain the same, but are now located in the `ank_base.proto` file.
 
-A sample how the new definition of the Control Interface is used can be found in the examples from [the Ankaios repository](https://github.com/eclipse-ankaios/ankaios).
+A sample how the new definition of the Control Interface is used can be found in the examples from [the Ankaios repository](<https://github.com/eclipse-ankaios/ankaios>).
 
 The reason for splitting some messages into the dedicated file `ank_base.proto`, is that they are also used for the gRPC API of the Ankaios server. This API is mainly used by the Ankaios agents and the `ank` CLI, but could also be used by third party applications to directly communicate with the Ankaios server. The following chapter details the changes needed to upgrade to v0.4 in case you are using this API.
 
@@ -86,7 +86,7 @@ desiredState:
               - "desiredState.workloads.watchdog"
 ```
 
-More information on the control interface authorization can be found in the [reference documentation](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/#authorization).
+More information on the control interface authorization can be found in the [reference documentation](<https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/#authorization>).
 
 ## gRPC API of the Ankaios server
 

@@ -8,7 +8,7 @@
       
       
       
-        <link rel="canonical" href="https://eclipse-ankaios.github.io/ankaios/main/development/rust-coding-guidelines/">
+        <link rel="canonical" href="https://eclipse-ankaios.github.io/main/development/rust-coding-guidelines/">
       
       
         <link rel="prev" href="../build/">
@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/favicon128x128.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="zensical-0.0.68">
     
     
       
@@ -29,10 +29,15 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/classic/main.3d7537f3.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/classic/palette.031959be.min.css">
       
       
 
@@ -46,30 +51,29 @@
         
         
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,500,500i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
     
       <link rel="stylesheet" href="../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
     
       
 
     
     
-  
-<meta property="og:type" content="website" />
+  <meta property="og:type" content="website" />
 <meta property="og:title" content="Rust coding guidelines - Eclipse Ankaios" />
-<meta property="og:image" content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/development/rust-coding-guidelines.png" />
+<meta property="og:image" content="https://eclipse-ankaios.github.io/main/assets/images/social/development/rust-coding-guidelines.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:url" content="https://eclipse-ankaios.github.io/ankaios/main/development/rust-coding-guidelines/" />
+<meta property="og:url" content="https://eclipse-ankaios.github.io/main/development/rust-coding-guidelines/" />
 <meta property="twitter:card" content="summary_large_image" />
 <meta property="twitter:title" content="Rust coding guidelines - Eclipse Ankaios" />
-<meta property="twitter:image" content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/development/rust-coding-guidelines.png" />
+<meta property="twitter:image" content="https://eclipse-ankaios.github.io/main/assets/images/social/development/rust-coding-guidelines.png" />
 </head>
   
   
@@ -85,14 +89,11 @@
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
-    <label class="md-overlay" for="__drawer"></label>
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
     <div data-md-component="skip">
-      
-        
-        <a href="#rust-coding-guidelines" class="md-skip">
-          Skip to content
-        </a>
-      
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
     </div>
     <div data-md-component="announce">
       
@@ -121,10 +122,10 @@
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href="../.." title="Eclipse Ankaios" class="md-header__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
       
-  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
+  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="Eclipse Ankaios">
 
     </a>
-    <label class="md-header__button md-icon" for="__drawer">
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
     </label>
@@ -188,57 +189,30 @@
     
       
       
-        <label class="md-header__button md-icon" for="__search">
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
         </label>
-        <div class="md-search" data-md-component="search" role="dialog">
-  <label class="md-search__overlay" for="__search"></label>
-  <div class="md-search__inner" role="search">
-    <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
-      <label class="md-search__icon md-icon" for="__search">
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-      </label>
-      <nav class="md-search__options" aria-label="Search">
-        
-        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
-          
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-        </button>
-      </nav>
-      
-    </form>
-    <div class="md-search__output">
-      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
-        <div class="md-search-result" data-md-component="search-result">
-          <div class="md-search-result__meta">
-            Initializing search
-          </div>
-          <ol class="md-search-result__list" role="presentation"></ol>
-        </div>
-      </div>
-    </div>
-  </div>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
 </div>
       
     
-    
-      <div class="md-header__source">
+    <div class="md-header__source">
+      
         <a href="https://github.com/eclipse-ankaios/ankaios" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
     eclipse-ankaios/ankaios
   </div>
 </a>
-      </div>
-    
+      
+    </div>
   </nav>
   
 </header>
@@ -262,9 +236,6 @@
       <a href="../.." class="md-tabs__link">
         
   
-  
-    
-  
   Welcome
 
       </a>
@@ -281,9 +252,6 @@
       <a href="../../architecture/" class="md-tabs__link">
         
   
-  
-    
-  
   Architecture
 
       </a>
@@ -297,11 +265,13 @@
   
   
     
+      
+    
+    
     
       <li class="md-tabs__item">
         <a href="../../usage/installation/" class="md-tabs__link">
           
-  
   
   Usage
 
@@ -317,11 +287,13 @@
   
   
     
+      
+    
+    
     
       <li class="md-tabs__item">
         <a href="../../reference/startup-configuration/" class="md-tabs__link">
           
-  
   
   Reference
 
@@ -339,11 +311,13 @@
   
   
     
+      
+    
+    
     
       <li class="md-tabs__item md-tabs__item--active">
         <a href="../build/" class="md-tabs__link">
           
-  
   
   Contributing
 
@@ -361,9 +335,6 @@
     <li class="md-tabs__item">
       <a href="../../support/" class="md-tabs__link">
         
-  
-  
-    
   
   Support
 
@@ -396,7 +367,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href="../.." title="Eclipse Ankaios" class="md-nav__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
       
-  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
+  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="Eclipse Ankaios">
 
     </a>
     Eclipse Ankaios
@@ -406,7 +377,7 @@
       <a href="https://github.com/eclipse-ankaios/ankaios" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
     eclipse-ankaios/ankaios
@@ -430,8 +401,7 @@
   <span class="md-ellipsis">
     
   
-    Welcome
-  
+  Welcome
 
     
   </span>
@@ -457,8 +427,7 @@
   <span class="md-ellipsis">
     
   
-    Architecture
-  
+  Architecture
 
     
   </span>
@@ -500,8 +469,7 @@
   <span class="md-ellipsis">
     
   
-    Usage
-  
+  Usage
 
     
   </span>
@@ -511,19 +479,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Usage
-  
+  Usage
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -536,8 +504,7 @@
   <span class="md-ellipsis">
     
   
-    Installation
-  
+  Installation
 
     
   </span>
@@ -548,10 +515,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -564,8 +531,7 @@
   <span class="md-ellipsis">
     
   
-    Quickstart
-  
+  Quickstart
 
     
   </span>
@@ -576,10 +542,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -592,8 +558,7 @@
   <span class="md-ellipsis">
     
   
-    Tutorial: Sending and receiving vehicle signals
-  
+  Tutorial: Sending and receiving vehicle signals
 
     
   </span>
@@ -604,10 +569,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -620,8 +585,7 @@
   <span class="md-ellipsis">
     
   
-    Tutorial: Manage a fleet of vehicles from the cloud
-  
+  Tutorial: Manage a fleet of vehicles from the cloud
 
     
   </span>
@@ -632,10 +596,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -648,8 +612,7 @@
   <span class="md-ellipsis">
     
   
-    Tutorial: Registering for events
-  
+  Tutorial: Registering for events
 
     
   </span>
@@ -660,10 +623,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -676,8 +639,7 @@
   <span class="md-ellipsis">
     
   
-    Awesome Ankaios
-  
+  Awesome Ankaios
 
     
   </span>
@@ -688,10 +650,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -704,8 +666,7 @@
   <span class="md-ellipsis">
     
   
-    Setting up Ankaios with mTLS
-  
+  Setting up Ankaios with mTLS
 
     
   </span>
@@ -716,10 +677,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -732,8 +693,7 @@
   <span class="md-ellipsis">
     
   
-    Shell completion
-  
+  Shell completion
 
     
   </span>
@@ -744,10 +704,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -776,8 +736,7 @@
   <span class="md-ellipsis">
     
   
-    Manifest
-  
+  Manifest
 
     
   </span>
@@ -787,19 +746,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_9">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3_9">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Manifest
-  
+  Manifest
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -812,8 +771,7 @@
   <span class="md-ellipsis">
     
   
-    Config objects
-  
+  Config objects
 
     
   </span>
@@ -824,10 +782,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -840,8 +798,7 @@
   <span class="md-ellipsis">
     
   
-    Workload files
-  
+  Workload files
 
     
   </span>
@@ -852,18 +809,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -892,8 +850,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading
-  
+  Upgrading
 
     
   </span>
@@ -903,19 +860,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_10">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3_10">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Upgrading
-  
+  Upgrading
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -928,8 +885,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading v0.7 to v1.0
-  
+  Upgrading v0.7 to v1.0
 
     
   </span>
@@ -940,10 +896,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -956,8 +912,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading v0.6 to v0.7
-  
+  Upgrading v0.6 to v0.7
 
     
   </span>
@@ -968,10 +923,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -984,8 +939,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading v0.5 to v0.6
-  
+  Upgrading v0.5 to v0.6
 
     
   </span>
@@ -996,10 +950,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1012,8 +966,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading v0.4 to v0.5
-  
+  Upgrading v0.4 to v0.5
 
     
   </span>
@@ -1024,10 +977,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1040,8 +993,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading v0.3 to v0.4
-  
+  Upgrading v0.3 to v0.4
 
     
   </span>
@@ -1052,10 +1004,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1068,8 +1020,7 @@
   <span class="md-ellipsis">
     
   
-    Upgrading v0.2 to v0.3
-  
+  Upgrading v0.2 to v0.3
 
     
   </span>
@@ -1080,18 +1031,20 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
@@ -1127,8 +1080,7 @@
   <span class="md-ellipsis">
     
   
-    Reference
-  
+  Reference
 
     
   </span>
@@ -1138,19 +1090,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Reference
-  
+  Reference
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -1163,8 +1115,7 @@
   <span class="md-ellipsis">
     
   
-    Startup manifest
-  
+  Startup manifest
 
     
   </span>
@@ -1175,10 +1126,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1191,8 +1142,7 @@
   <span class="md-ellipsis">
     
   
-    Interacting with Ankaios
-  
+  Interacting with Ankaios
 
     
   </span>
@@ -1203,10 +1153,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1235,8 +1185,7 @@
   <span class="md-ellipsis">
     
   
-    Control Interface
-  
+  Control Interface
 
     
   </span>
@@ -1246,19 +1195,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_3">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_3">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Control Interface
-  
+  Control Interface
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -1271,8 +1220,7 @@
   <span class="md-ellipsis">
     
   
-    Control interface
-  
+  Control interface
 
     
   </span>
@@ -1283,10 +1231,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1299,8 +1247,7 @@
   <span class="md-ellipsis">
     
   
-    Working with CompleteState
-  
+  Working with CompleteState
 
     
   </span>
@@ -1311,10 +1258,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1327,8 +1274,7 @@
   <span class="md-ellipsis">
     
   
-    Events
-  
+  Events
 
     
   </span>
@@ -1339,18 +1285,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1363,8 +1310,7 @@
   <span class="md-ellipsis">
     
   
-    Inter-workload dependencies
-  
+  Inter-workload dependencies
 
     
   </span>
@@ -1375,10 +1321,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1391,8 +1337,7 @@
   <span class="md-ellipsis">
     
   
-    Restart Policy
-  
+  Restart Policy
 
     
   </span>
@@ -1403,10 +1348,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1419,8 +1364,7 @@
   <span class="md-ellipsis">
     
   
-    Resource usage
-  
+  Resource usage
 
     
   </span>
@@ -1431,10 +1375,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1447,8 +1391,7 @@
   <span class="md-ellipsis">
     
   
-    Comparing container orchestrators
-  
+  Comparing container orchestrators
 
     
   </span>
@@ -1459,10 +1402,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1475,8 +1418,7 @@
   <span class="md-ellipsis">
     
   
-    Glossary
-  
+  Glossary
 
     
   </span>
@@ -1487,10 +1429,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1503,8 +1445,7 @@
   <span class="md-ellipsis">
     
   
-    Configuration files
-  
+  Configuration files
 
     
   </span>
@@ -1515,10 +1456,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1531,8 +1472,7 @@
   <span class="md-ellipsis">
     
   
-    Protobuf data structures
-  
+  Protobuf data structures
 
     
   </span>
@@ -1543,10 +1483,11 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
@@ -1587,8 +1528,7 @@
   <span class="md-ellipsis">
     
   
-    Contributing
-  
+  Contributing
 
     
   </span>
@@ -1598,19 +1538,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_5">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Contributing
-  
+  Contributing
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -1623,8 +1563,7 @@
   <span class="md-ellipsis">
     
   
-    Build
-  
+  Build
 
     
   </span>
@@ -1635,10 +1574,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
     
@@ -1647,7 +1586,9 @@
   
     <li class="md-nav__item md-nav__item--active">
       
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+        <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
       
       
         
@@ -1660,8 +1601,7 @@
   <span class="md-ellipsis">
     
   
-    Rust coding guidelines
-  
+  Rust coding guidelines
 
     
   </span>
@@ -1671,15 +1611,14 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="./" class="md-nav__link md-nav__link--active">
+      <a href="././" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    Rust coding guidelines
-  
+  Rust coding guidelines
 
     
   </span>
@@ -1690,7 +1629,8 @@
       
         
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
   
@@ -1699,16 +1639,16 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      On this page
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
   <a href="#clean-code" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Clean code
-      
+      </span>
     </span>
   </a>
   
@@ -1717,9 +1657,9 @@
         <li class="md-nav__item">
   <a href="#naming-conventions" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Naming conventions
-      
+      </span>
     </span>
   </a>
   
@@ -1728,9 +1668,9 @@
         <li class="md-nav__item">
   <a href="#logging-conventions" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Logging conventions
-      
+      </span>
     </span>
   </a>
   
@@ -1740,9 +1680,9 @@
           <li class="md-nav__item">
   <a href="#log-format-of-internal-objects" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Log format of internal objects
-      
+      </span>
     </span>
   </a>
   
@@ -1751,9 +1691,9 @@
           <li class="md-nav__item">
   <a href="#log-format-of-multiline-log-messages" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Log format of multiline log messages
-      
+      </span>
     </span>
   </a>
   
@@ -1762,9 +1702,9 @@
           <li class="md-nav__item">
   <a href="#choose-a-suitable-log-severity" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Choose a suitable log severity
-      
+      </span>
     </span>
   </a>
   
@@ -1778,9 +1718,9 @@
         <li class="md-nav__item">
   <a href="#unit-test-convenience-rules" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Unit test convenience rules
-      
+      </span>
     </span>
   </a>
   
@@ -1790,9 +1730,9 @@
           <li class="md-nav__item">
   <a href="#test-mockobject-generation" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Test mock/object generation
-      
+      </span>
     </span>
   </a>
   
@@ -1806,9 +1746,9 @@
         <li class="md-nav__item">
   <a href="#advanced-rules" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Advanced rules
-      
+      </span>
     </span>
   </a>
   
@@ -1818,9 +1758,9 @@
           <li class="md-nav__item">
   <a href="#don-t-reinvent-the-wheel" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Don' t reinvent the wheel
-      
+      </span>
     </span>
   </a>
   
@@ -1829,9 +1769,9 @@
           <li class="md-nav__item">
   <a href="#prefer-error-propagation" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Prefer error propagation
-      
+      </span>
     </span>
   </a>
   
@@ -1840,9 +1780,9 @@
           <li class="md-nav__item">
   <a href="#avoid-unwrap-and-expect" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Avoid unwrap and expect
-      
+      </span>
     </span>
   </a>
   
@@ -1851,9 +1791,9 @@
           <li class="md-nav__item">
   <a href="#prefer-while-let-over-match-in-loops" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Prefer while-let over match in loops
-      
+      </span>
     </span>
   </a>
   
@@ -1862,9 +1802,9 @@
           <li class="md-nav__item">
   <a href="#prefer-lazily-evaluated-functional-chaining" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Prefer lazily evaluated functional chaining
-      
+      </span>
     </span>
   </a>
   
@@ -1873,9 +1813,9 @@
           <li class="md-nav__item">
   <a href="#avoid-exhaustive-nested-code" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Avoid exhaustive nested code
-      
+      </span>
     </span>
   </a>
   
@@ -1884,9 +1824,9 @@
           <li class="md-nav__item">
   <a href="#follow-common-rust-principles-and-idioms" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Follow common Rust principles and idioms
-      
+      </span>
     </span>
   </a>
   
@@ -1895,9 +1835,9 @@
           <li class="md-nav__item">
   <a href="#avoid-common-anti-patterns" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Avoid common anti-patterns
-      
+      </span>
     </span>
   </a>
   
@@ -1906,9 +1846,9 @@
           <li class="md-nav__item">
   <a href="#dont-make-sync-code-async" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Don't make sync code async
-      
+      </span>
     </span>
   </a>
   
@@ -1917,9 +1857,9 @@
           <li class="md-nav__item">
   <a href="#dont-mix-sync-and-async-code-without-proper-consideration" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Don’t mix sync and async code without proper consideration
-      
+      </span>
     </span>
   </a>
   
@@ -1933,9 +1873,9 @@
         <li class="md-nav__item">
   <a href="#further-readings" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Further Readings
-      
+      </span>
     </span>
   </a>
   
@@ -1948,10 +1888,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1964,8 +1904,7 @@
   <span class="md-ellipsis">
     
   
-    Changing the API
-  
+  Changing the API
 
     
   </span>
@@ -1976,10 +1915,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1992,8 +1931,7 @@
   <span class="md-ellipsis">
     
   
-    Unit verification
-  
+  Unit verification
 
     
   </span>
@@ -2004,10 +1942,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2020,8 +1958,7 @@
   <span class="md-ellipsis">
     
   
-    Unit tests with cargo-nextest
-  
+  Unit tests with cargo-nextest
 
     
   </span>
@@ -2032,10 +1969,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2048,8 +1985,7 @@
   <span class="md-ellipsis">
     
   
-    Test coverage
-  
+  Test coverage
 
     
   </span>
@@ -2060,10 +1996,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2076,8 +2012,7 @@
   <span class="md-ellipsis">
     
   
-    System tests
-  
+  System tests
 
     
   </span>
@@ -2088,10 +2023,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2104,8 +2039,7 @@
   <span class="md-ellipsis">
     
   
-    Requirement tracing
-  
+  Requirement tracing
 
     
   </span>
@@ -2116,10 +2050,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2132,8 +2066,7 @@
   <span class="md-ellipsis">
     
   
-    Requirement description template
-  
+  Requirement description template
 
     
   </span>
@@ -2144,10 +2077,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2160,8 +2093,7 @@
   <span class="md-ellipsis">
     
   
-    Extending the dev container
-  
+  Extending the dev container
 
     
   </span>
@@ -2172,10 +2104,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2188,8 +2120,7 @@
   <span class="md-ellipsis">
     
   
-    CI/CD
-  
+  CI/CD
 
     
   </span>
@@ -2200,10 +2131,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2216,8 +2147,7 @@
   <span class="md-ellipsis">
     
   
-    CI/CD - Release
-  
+  CI/CD - Release
 
     
   </span>
@@ -2228,10 +2158,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2244,8 +2174,7 @@
   <span class="md-ellipsis">
     
   
-    Eclipse self-service
-  
+  Eclipse self-service
 
     
   </span>
@@ -2256,10 +2185,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2272,8 +2201,7 @@
   <span class="md-ellipsis">
     
   
-    Documentation guidelines
-  
+  Documentation guidelines
 
     
   </span>
@@ -2284,10 +2212,11 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
@@ -2307,8 +2236,7 @@
   <span class="md-ellipsis">
     
   
-    Support
-  
+  Support
 
     
   </span>
@@ -2330,10 +2258,12 @@
               
               <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
                 <div class="md-sidebar__scrollwrap">
+                  
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
   
@@ -2342,16 +2272,16 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      On this page
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
   <a href="#clean-code" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Clean code
-      
+      </span>
     </span>
   </a>
   
@@ -2360,9 +2290,9 @@
         <li class="md-nav__item">
   <a href="#naming-conventions" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Naming conventions
-      
+      </span>
     </span>
   </a>
   
@@ -2371,9 +2301,9 @@
         <li class="md-nav__item">
   <a href="#logging-conventions" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Logging conventions
-      
+      </span>
     </span>
   </a>
   
@@ -2383,9 +2313,9 @@
           <li class="md-nav__item">
   <a href="#log-format-of-internal-objects" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Log format of internal objects
-      
+      </span>
     </span>
   </a>
   
@@ -2394,9 +2324,9 @@
           <li class="md-nav__item">
   <a href="#log-format-of-multiline-log-messages" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Log format of multiline log messages
-      
+      </span>
     </span>
   </a>
   
@@ -2405,9 +2335,9 @@
           <li class="md-nav__item">
   <a href="#choose-a-suitable-log-severity" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Choose a suitable log severity
-      
+      </span>
     </span>
   </a>
   
@@ -2421,9 +2351,9 @@
         <li class="md-nav__item">
   <a href="#unit-test-convenience-rules" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Unit test convenience rules
-      
+      </span>
     </span>
   </a>
   
@@ -2433,9 +2363,9 @@
           <li class="md-nav__item">
   <a href="#test-mockobject-generation" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Test mock/object generation
-      
+      </span>
     </span>
   </a>
   
@@ -2449,9 +2379,9 @@
         <li class="md-nav__item">
   <a href="#advanced-rules" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Advanced rules
-      
+      </span>
     </span>
   </a>
   
@@ -2461,9 +2391,9 @@
           <li class="md-nav__item">
   <a href="#don-t-reinvent-the-wheel" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Don' t reinvent the wheel
-      
+      </span>
     </span>
   </a>
   
@@ -2472,9 +2402,9 @@
           <li class="md-nav__item">
   <a href="#prefer-error-propagation" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Prefer error propagation
-      
+      </span>
     </span>
   </a>
   
@@ -2483,9 +2413,9 @@
           <li class="md-nav__item">
   <a href="#avoid-unwrap-and-expect" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Avoid unwrap and expect
-      
+      </span>
     </span>
   </a>
   
@@ -2494,9 +2424,9 @@
           <li class="md-nav__item">
   <a href="#prefer-while-let-over-match-in-loops" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Prefer while-let over match in loops
-      
+      </span>
     </span>
   </a>
   
@@ -2505,9 +2435,9 @@
           <li class="md-nav__item">
   <a href="#prefer-lazily-evaluated-functional-chaining" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Prefer lazily evaluated functional chaining
-      
+      </span>
     </span>
   </a>
   
@@ -2516,9 +2446,9 @@
           <li class="md-nav__item">
   <a href="#avoid-exhaustive-nested-code" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Avoid exhaustive nested code
-      
+      </span>
     </span>
   </a>
   
@@ -2527,9 +2457,9 @@
           <li class="md-nav__item">
   <a href="#follow-common-rust-principles-and-idioms" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Follow common Rust principles and idioms
-      
+      </span>
     </span>
   </a>
   
@@ -2538,9 +2468,9 @@
           <li class="md-nav__item">
   <a href="#avoid-common-anti-patterns" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Avoid common anti-patterns
-      
+      </span>
     </span>
   </a>
   
@@ -2549,9 +2479,9 @@
           <li class="md-nav__item">
   <a href="#dont-make-sync-code-async" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Don't make sync code async
-      
+      </span>
     </span>
   </a>
   
@@ -2560,9 +2490,9 @@
           <li class="md-nav__item">
   <a href="#dont-mix-sync-and-async-code-without-proper-consideration" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Don’t mix sync and async code without proper consideration
-      
+      </span>
     </span>
   </a>
   
@@ -2576,9 +2506,9 @@
         <li class="md-nav__item">
   <a href="#further-readings" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Further Readings
-      
+      </span>
     </span>
   </a>
   
@@ -2596,9 +2526,9 @@
             <div class="md-content" data-md-component="content">
               
               <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
                 
                   
-
 
   
     <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/development/rust-coding-guidelines.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
@@ -2639,15 +2569,15 @@ This simplifies reading and understanding the intention of the code and helps ma
 <p>The following chapters describe rules for creating log messages.</p>
 <h3 id="log-format-of-internal-objects">Log format of internal objects<a class="headerlink" href="#log-format-of-internal-objects" title="Permanent link">&para;</a></h3>
 <p>When writing log messages that reference internal objects, the objects shall be surrounded in single quotes, e.g.:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">log</span><span class="p">::</span><span class="n">info</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;This is about object &#39;{}&#39;.&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">object</span><span class="p">.</span><span class="n">name</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">log</span><span class="p">::</span><span class="n">info</span><span class="o">!</span><span class="p">(</span><span class="s">"This is about object '{}'."</span><span class="p">,</span><span class="w"> </span><span class="n">object</span><span class="p">.</span><span class="n">name</span><span class="p">)</span>
 </code></pre></div>
 <p>This helps differentiate static from dynamic data in the log message.</p>
 <h3 id="log-format-of-multiline-log-messages">Log format of multiline log messages<a class="headerlink" href="#log-format-of-multiline-log-messages" title="Permanent link">&para;</a></h3>
 <p>Multi line log messages shall be created with the <code>concat!</code> macro, e.g.:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">log</span><span class="p">::</span><span class="n">debug</span><span class="o">!</span><span class="p">(</span><span class="fm">concat!</span><span class="p">(</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="s">&quot;First line of a log message that lists something:</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="s">&quot;   flowers are: &#39;{}&#39;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="s">&quot;   weather is: {}&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="s">"First line of a log message that lists something:</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="s">"   flowers are: '{}'</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="s">"   weather is: {}"</span><span class="p">)</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="n">color</span><span class="p">,</span><span class="w"> </span><span class="n">current_weather</span><span class="p">);</span>
 </code></pre></div>
 <p>This ensures that the log messages are formatted correctly and simplifies writing the message.</p>
@@ -2786,14 +2716,14 @@ Applications that are often terminated directly in case of errors are considered
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
 <a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="c1">// conditional check before accessing the value</span>
 <a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="k">match</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{value}&quot;</span><span class="p">),</span>
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="nb">Err</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;{e}&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">println!</span><span class="p">(</span><span class="s">"{value}"</span><span class="p">),</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="nb">Err</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">"{e}"</span><span class="p">)</span>
 <a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="p">}</span>
 </code></pre></div>
 <p>or with if-let condition when match is awkward:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1">// access value only on success</span>
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">division</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{value}&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">"{value}"</span><span class="p">)</span>
 <a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="p">}</span>
 </code></pre></div>
 <p>or if possible continue with some default value in case of an error:</p>
@@ -2807,11 +2737,11 @@ Applications that are often terminated directly in case of errors are considered
 <a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="k">match</span><span class="w"> </span><span class="n">container</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="nb">Some</span><span class="p">(</span><span class="n">container</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">container</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="o">&amp;</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">            </span><span class="nb">Some</span><span class="p">(</span><span class="n">value_of_0</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">value_of_0</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="s">&quot;hello world&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">()),</span>
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Test xy failed, no entry.&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">            </span><span class="nb">Some</span><span class="p">(</span><span class="n">value_of_0</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">value_of_0</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="s">"hello world"</span><span class="p">.</span><span class="n">to_string</span><span class="p">()),</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="fm">panic!</span><span class="p">(</span><span class="s">"Test xy failed, no entry."</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
 <a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="w">        </span><span class="p">}</span>
 <a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="w">    </span><span class="p">},</span>
-<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">    </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Test xy failed, no container.&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">    </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="fm">panic!</span><span class="p">(</span><span class="s">"Test xy failed, no container."</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
 <a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="p">}</span>
 </code></pre></div>
 <p>Good:</p>
@@ -2820,14 +2750,14 @@ It is shorter and the <code>assert!</code> statement is directly eye-catching.</
 <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kd">let</span><span class="w"> </span><span class="n">container</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">HashMap</span><span class="o">&lt;</span><span class="kt">i32</span><span class="p">,</span><span class="w"> </span><span class="nb">String</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">operation_under_test</span><span class="p">();</span>
 <a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="kd">let</span><span class="w"> </span><span class="n">value_of_0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">container</span><span class="p">.</span><span class="n">unwrap</span><span class="p">().</span><span class="n">remove</span><span class="p">(</span><span class="o">&amp;</span><span class="mi">0</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w"> </span><span class="c1">// the test is failing on error</span>
 <a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">value_of_0</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;hello world&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">());</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">value_of_0</span><span class="p">,</span><span class="w"> </span><span class="s">"hello world"</span><span class="p">.</span><span class="n">to_string</span><span class="p">());</span>
 </code></pre></div>
 <h3 id="prefer-while-let-over-match-in-loops">Prefer while-let over match in loops<a class="headerlink" href="#prefer-while-let-over-match-in-loops" title="Permanent link">&para;</a></h3>
 <p>Use the shorter and cleaner while-let expression to eliminate exhaustive match sequences in loops:</p>
 <p>Bad:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">loop</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">generate</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{value}&quot;</span><span class="p">),</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">println!</span><span class="p">(</span><span class="s">"{value}"</span><span class="p">),</span>
 <a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="p">},</span>
 <a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">    </span><span class="p">}</span>
 <a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="p">}</span>
@@ -2836,7 +2766,7 @@ It is shorter and the <code>assert!</code> statement is directly eye-catching.</
 <div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1">// if success use the value else break</span>
 <a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="c1">// ...or while let Ok(value) in case of Result&lt;T,E&gt; instead of Option&lt;T&gt;</span>
 <a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="k">while</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">generate</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{value}&quot;</span><span class="p">)</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">"{value}"</span><span class="p">)</span>
 <a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="p">}</span>
 </code></pre></div>
 <h3 id="prefer-lazily-evaluated-functional-chaining">Prefer lazily evaluated functional chaining<a class="headerlink" href="#prefer-lazily-evaluated-functional-chaining" title="Permanent link">&para;</a></h3>
@@ -2870,13 +2800,13 @@ are preferred if the alternatives provide costly operations.</p>
 <a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">admin</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">get_list_of_books</span><span class="p">());</span>
 <a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">                </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;Expected login as admin.&quot;</span><span class="p">);</span>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">                </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">"Expected login as admin."</span><span class="p">);</span>
 <a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">            </span><span class="p">}</span>
 <a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="w">            </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;Expected login.&quot;</span><span class="p">);</span>
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="w">            </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">"Expected login."</span><span class="p">);</span>
 <a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="w">        </span><span class="p">}</span>
 <a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a><span class="w">        </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;Expected connection.&quot;</span><span class="p">);</span>
+<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a><span class="w">        </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">"Expected connection."</span><span class="p">);</span>
 <a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a><span class="w">    </span><span class="p">}</span>
 <a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a><span class="w">    </span><span class="nb">None</span>
 <a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a><span class="p">}</span>
@@ -2886,17 +2816,17 @@ are preferred if the alternatives provide costly operations.</p>
 Use early-exit pattern to reduce the nest level and to separate error handling code from code doing the actual logic.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">fn</span><span class="w"> </span><span class="nf">list_books</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="bp">self</span><span class="p">.</span><span class="n">wifi</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">        </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;Expected connection.&quot;</span><span class="p">);</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">        </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">"Expected connection."</span><span class="p">);</span>
 <a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span>
 <a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">    </span><span class="p">}</span>
 <a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>
 <a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="bp">self</span><span class="p">.</span><span class="n">login</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="w">        </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;Expected login.&quot;</span><span class="p">);</span>
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="w">        </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">"Expected login."</span><span class="p">);</span>
 <a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span>
 <a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a><span class="w">    </span><span class="p">}</span>
 <a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a>
 <a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="bp">self</span><span class="p">.</span><span class="n">admin</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a><span class="w">        </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;Expected login as admin.&quot;</span><span class="p">);</span>
+<a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a><span class="w">        </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">"Expected login as admin."</span><span class="p">);</span>
 <a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span>
 <a id="__codelineno-22-15" name="__codelineno-22-15" href="#__codelineno-22-15"></a><span class="w">    </span><span class="p">}</span>
 <a id="__codelineno-22-16" name="__codelineno-22-16" href="#__codelineno-22-16"></a>
@@ -2940,6 +2870,8 @@ Avoid mixing async with sync code unless there is a good reason to do so.</p>
 <li><a href="https://www.kernel.org/doc/html/next/rust/coding-guidelines.html">https://www.kernel.org/doc/html/next/rust/coding-guidelines.html</a></li>
 <li><a href="https://rust-lang.github.io/api-guidelines/about.html">https://rust-lang.github.io/api-guidelines/about.html</a></li>
 </ul>
+
+
 
 
 
@@ -3024,8 +2956,8 @@ Avoid mixing async with sync code unless there is a good reason to do so.</p>
   
   
     Made with
-    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
-      Material for MkDocs
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
     </a>
   
 </div>
@@ -3058,7 +2990,7 @@ Avoid mixing async with sync code unless there is a good reason to do so.</p>
   </footer>
 
     </div>
-    <div class="md-dialog" data-md-component="dialog">
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
@@ -3066,10 +2998,14 @@ Avoid mixing async with sync code unless there is a good reason to do so.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "navigation.top", "content.code.copy", "content.code.annotate", "content.action.edit", "content.tabs.link", "navigation.footer"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["navigation.instant","navigation.sections","navigation.tabs","navigation.top","content.code.copy","content.code.annotate","content.action.edit","content.tabs.link","navigation.footer"],"redirect":null,"search":"../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.3c842f4c.min.js"></script>
       
     
   </body>

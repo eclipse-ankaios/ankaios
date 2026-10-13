@@ -6,17 +6,17 @@ The restart policy of a workload enables the user to determine whether a workloa
 
 The following restart policies are available for a workload:
 
-| Restart Policy | Description                                                                               | Restart on ExecutionState           |
-| -------------- | ----------------------------------------------------------------------------------------- | ----------------------------------- |
-| NEVER          | The workload is never restarted. Once the workload exits, it remains in the exited state. | -                                   |
-| ON_FAILURE     | If the workload exits with a non-zero exit code, it will be restarted.                    | Failed(ExecFailed)                  |
-| ALWAYS         | The workload is restarted upon termination, regardless of the exit code.                  | Succeeded(Ok) or Failed(ExecFailed) |
+| Restart Policy | Description | Restart on ExecutionState |
+| --- | --- | --- |
+| NEVER | The workload is never restarted. Once the workload exits, it remains in the exited state. | \- |
+| ON\_FAILURE | If the workload exits with a non-zero exit code, it will be restarted. | Failed(ExecFailed) |
+| ALWAYS | The workload is restarted upon termination, regardless of the exit code. | Succeeded(Ok) or Failed(ExecFailed) |
 
 Ankaios restarts the workload when the workload has exited and the configured restart policy aligns with the workload's `ExecutionState`, as detailed in the aforementioned table. It does not restart the workload if the user explicitly deletes the workload via the Ankaios CLI or if Ankaios receives a delete request for that workload via the Control Interface.
 
-Note
-
-Ankaios does not consider inter-workload dependencies when restarting a workload because it was already running before it has exited.
+> [!NOTE]
+>
+> Ankaios does not consider inter-workload dependencies when restarting a workload because it was already running before it has exited.
 
 ## Configure Restart Policies
 
@@ -61,5 +61,5 @@ workloads:
 ```
 
 1. This workload is always restarted upon termination.
-1. This workload is never restarted regardless of the exit code.
-1. This workload is restarted only when it exits with a non-zero exit code.
+2. This workload is never restarted regardless of the exit code.
+3. This workload is restarted only when it exits with a non-zero exit code.

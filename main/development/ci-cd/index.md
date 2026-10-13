@@ -1,6 +1,6 @@
 # CI/CD
 
-As CI/CD environment GitHub Actions is used. Merge verifications in case of opening a pull request and release builds are fully covered into GitHub Action workflows. For information about release builds, see [CI/CD - Release](https://eclipse-ankaios.github.io/ankaios/main/development/ci-cd-release/index.md) section.
+As CI/CD environment GitHub Actions is used. Merge verifications in case of opening a pull request and release builds are fully covered into GitHub Action workflows. For information about release builds, see [CI/CD - Release](<https://eclipse-ankaios.github.io/ankaios/main/development/ci-cd-release/index.md>) section.
 
 ## Merge verification
 
@@ -24,8 +24,8 @@ To add a new merge verification job adjust the workflow defined inside `.github/
 Select a GitHub runner image matching your purposes or in case of adding a cross-build first make sure that the build works locally within the dev container.
 
 1. Add a new build job under the `jobs` jobs section and define a job name.
-1. Add the necessary steps to the job to build the artifact(s).
-1. Append a use clause to the build steps to upload the artifacts to GitHub. If a new platform build is added name the artifact according to the naming convention `ankaios-<os>-<platform>-bin` (e.g. ankaios-linux-amd64-bin) otherwise define a custom name. If the artifact is needed inside a release the artifact is referenced with this name inside the release workflow.
+2. Add the necessary steps to the job to build the artifact(s).
+3. Append a use clause to the build steps to upload the artifacts to GitHub. If a new platform build is added name the artifact according to the naming convention `ankaios-<os>-<platform>-bin` (e.g. ankaios-linux-amd64-bin) otherwise define a custom name. If the artifact is needed inside a release the artifact is referenced with this name inside the release workflow.
 
 ```
  ...
@@ -36,9 +36,9 @@ Select a GitHub runner image matching your purposes or in case of adding a cross
  ...
 ```
 
-Note
-
-GitHub Actions only runs workflow definitions from main (default) branch. That means when a workflow has been changed and a PR has been created for that, the change will not become effective before the PR is merged in main branch. For local testing the [act](https://github.com/nektos/act) tool can be used.
+> [!NOTE]
+>
+> GitHub Actions only runs workflow definitions from main (default) branch. That means when a workflow has been changed and a PR has been created for that, the change will not become effective before the PR is merged in main branch. For local testing the [act](<https://github.com/nektos/act>) tool can be used.
 
 ## Adding a new GitHub action
 
@@ -78,6 +78,6 @@ jobs:
 ...
 ```
 
-Note
-
-Beside being a best practice, giving a job a name is needed to reference it from the [self-service repository](https://github.com/eclipse-ankaios/.eclipsefdn) in order to configure the job as a required status check.
+> [!NOTE]
+>
+> Beside being a best practice, giving a job a name is needed to reference it from the [self-service repository](<https://github.com/eclipse-ankaios/.eclipsefdn>) in order to configure the job as a required status check.

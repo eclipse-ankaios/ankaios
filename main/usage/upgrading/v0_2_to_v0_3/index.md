@@ -24,8 +24,8 @@ Application using the control interface or communicating directly with the Ankai
 
 The two main messages have been renamed:
 
-- `StateChangeRequest` -> `ToServer`
-- `ExecutionRequest` -> `FromServer`
+- `StateChangeRequest` -\> `ToServer`
+- `ExecutionRequest` -\> `FromServer`
 
 A new type of `ToServer` message, `Request`, has been introduced. Every `Request` to the server requires a `requestId` which is used by the server for the response message. Request IDs allow sending multiple parallel requests to the server. The two messages `UpdateStateRequest` and `CompleteStateRequest` have been moved to the new `Request` message.
 

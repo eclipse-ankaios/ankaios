@@ -1,6 +1,6 @@
 # Control interface
 
-The [control interface](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md) allows the [workload](https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#workload) developers to easily integrate the communication between the Ankaios system and their applications.
+The [control interface](<https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md>) allows the [workload](<https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#workload>) developers to easily integrate the communication between the Ankaios system and their applications.
 
 ## Overview
 
@@ -19,7 +19,7 @@ flowchart TD
     s <--> a2 <-->|Control Interface| w3 & w4
 ```
 
-The [control interface](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md) enables a [workload](https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#workload) to communicate with the Ankaios system by interacting with the Ankaios server through writing/reading communication data to/from the provided FIFO files in the [FIFO mount point](#fifo-mount-point).
+The [control interface](<https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md>) enables a [workload](<https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#workload>) to communicate with the Ankaios system by interacting with the Ankaios server through writing/reading communication data to/from the provided FIFO files in the [FIFO mount point](<#fifo-mount-point>).
 
 ## Authorization
 
@@ -29,7 +29,7 @@ Ankaios authorizes each workload's request to the control interface based on its
 
 `LogRule`s authorize requesting logs of workloads. A `LogRule` defines the names of workloads that it targets, where a wildcard can be used to match multiple names with a single statement. If only a wildcard is specified, i.e., `*`, all workload names match. Prefixes and/or suffixes can be matched by specifying multiple characters and a wildcard, where only a single wildcard is allowed per statement, e.g., "ivi\_\*"
 
-The following example shows the manifest for the workload `watchdog` with read access to all workload tags beside "ivi_updater" and log access to all workloads starting with "ivi\_" beside "ivi_updater":
+The following example shows the manifest for the workload `watchdog` with read access to all workload tags beside "ivi\_updater" and log access to all workloads starting with "ivi\_" beside "ivi\_updater":
 
 ```
 apiVersion: v1
@@ -68,7 +68,7 @@ flowchart TD
     s <--> a1 <-->|"/run/ankaios/control_interface/{input,output}"| w1 & w2
 ```
 
-The [control interface](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md) relies on [FIFO](https://en.wikipedia.org/wiki/Named_pipe) (also known as [named pipes](https://en.wikipedia.org/wiki/Named_pipe)) to enable a [workload](https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#workload) to communicate with the Ankaios system. For that purpose, Ankaios creates a mount point for each [workload](https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#workload) to store the FIFO files. At the mount point `/run/ankaios/control_interface/` the [workload](https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#workload) developer can find the FIFO files `input` and `output` and use them for the communication with the Ankaios server. Ankaios uses its own communication protocol described in [protocol documentation](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#control_apiproto) as a [protobuf IDL](https://protobuf.com/docs/language-spec) which allows the client code to be generated in any programming language supported by the [protobuf compiler](https://protobuf.dev/reference/). The generated client code can then be integrated and used in a [workload](#communication-between-ankaios-and-workloads).
+The [control interface](<https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md>) relies on [FIFO](<https://en.wikipedia.org/wiki/Named_pipe>) (also known as [named pipes](<https://en.wikipedia.org/wiki/Named_pipe>)) to enable a [workload](<https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#workload>) to communicate with the Ankaios system. For that purpose, Ankaios creates a mount point for each [workload](<https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#workload>) to store the FIFO files. At the mount point `/run/ankaios/control_interface/` the [workload](<https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/#workload>) developer can find the FIFO files `input` and `output` and use them for the communication with the Ankaios server. Ankaios uses its own communication protocol described in [protocol documentation](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#control_apiproto>) as a [protobuf IDL](<https://protobuf.com/docs/language-spec>) which allows the client code to be generated in any programming language supported by the [protobuf compiler](<https://protobuf.dev/reference/>). The generated client code can then be integrated and used in a [workload](<#communication-between-ankaios-and-workloads>).
 
 In the case of workloads using the `podman-kube` runtime, the FIFO files are mounted to the pod and container specified in the `controlInterfaceTarget` field of the runtime config in the startup manifest. The `controlInterfaceTarget` field must be a string in the format `<pod_name>/<container_name>`, where:
 
@@ -87,29 +87,29 @@ flowchart TD
     workload-->|uses| gen_code
 ```
 
-In order to enable the communication between a workload and the Ankaios system, the workload needs to make use of the control interface by sending and processing serialized messages defined in `ankaios.proto` via writing to and reading from the provided FIFO files `output` and `input` found in the mount point `/run/ankaios/control_interface/`. By using the [protobuf compiler (protoc)](https://protobuf.dev/reference/) code in any programming language supported by the protobuf compiler can be generated. The generated code contains functions for serializing and deserializing the messages to and from the Protocol Buffers binary format.
+In order to enable the communication between a workload and the Ankaios system, the workload needs to make use of the control interface by sending and processing serialized messages defined in `ankaios.proto` via writing to and reading from the provided FIFO files `output` and `input` found in the mount point `/run/ankaios/control_interface/`. By using the [protobuf compiler (protoc)](<https://protobuf.dev/reference/>) code in any programming language supported by the protobuf compiler can be generated. The generated code contains functions for serializing and deserializing the messages to and from the Protocol Buffers binary format.
 
 ## Length-delimited protobuf message layout
 
-The messages are encoded using the [length-delimited wire type format](https://protobuf.dev/programming-guides/encoding/#length-types) and layout inside the FIFO file according to the following visualization:
+The messages are encoded using the [length-delimited wire type format](<https://protobuf.dev/programming-guides/encoding/#length-types>) and layout inside the FIFO file according to the following visualization:
 
-Every protobuf message is prefixed with its byte length telling the reader how much bytes to read to consume the protobuf message. The byte length has a dynamic length and is encoded as [VARINT](https://protobuf.dev/programming-guides/encoding/#length-types).
+Every protobuf message is prefixed with its byte length telling the reader how much bytes to read to consume the protobuf message. The byte length has a dynamic length and is encoded as [VARINT](<https://protobuf.dev/programming-guides/encoding/#length-types>).
 
 ## Exchanged messages
 
-The workload writes messages of type [ToAnkaios](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#toankaios) to `output`. Ankaios only writes messages of type [FromAnkaios](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#fromankaios) to `input`. For each request from the workload, Ankaios sends at least one response back.
+The workload writes messages of type [ToAnkaios](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#toankaios>) to `output`. Ankaios only writes messages of type [FromAnkaios](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#fromankaios>) to `input`. For each request from the workload, Ankaios sends at least one response back.
 
 When the workload sends a request, it chooses a unique ID for the request. Responses to this request will use the same ID to allow the workload to match responses to requests.
 
 ## Control interface examples
 
-The subfolder `examples` inside the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios) contains example workload applications in various programming languages that are using the control interface. They demonstrate how to easily use the control interface in self-developed workloads. All examples share the same behavior regardless of the programming language and are simplified to focus on the usage of the control interface. Please note that the examples are not are not optimized for production usage.
+The subfolder `examples` inside the [Ankaios repository](<https://github.com/eclipse-ankaios/ankaios>) contains example workload applications in various programming languages that are using the control interface. They demonstrate how to easily use the control interface in self-developed workloads. All examples share the same behavior regardless of the programming language and are simplified to focus on the usage of the control interface. Please note that the examples are not are not optimized for production usage.
 
 The following sections showcase in Rust some important parts of the communication with the Ankaios cluster using the control interface. The same concepts are also used in all of the example workload applications.
 
 ### Sending request message from a workload to Ankaios server
 
-To send out a request message from the workload to the Ankaios server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [ToAnkaios](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#toankaios).
+To send out a request message from the workload to the Ankaios server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](<#length-delimited-protobuf-message-layout>) and then written directly into the `output` FIFO file. The type of request message is [ToAnkaios](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#toankaios>).
 
 ```
 flowchart TD
@@ -129,7 +129,7 @@ flowchart TD
 
 Send request message via control interface
 
-Code snippet in [Rust](https://www.rust-lang.org/) for sending request message via control interface:
+Code snippet in [Rust](<https://www.rust-lang.org/>) for sending request message via control interface:
 
 ```
 use ankaios_api::ank_base::{
@@ -221,7 +221,7 @@ fn main() {
 
 ### Processing response message from Ankaios server
 
-To process a response message from the Ankaios server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [FromAnkaios](https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#fromankaios).
+To process a response message from the Ankaios server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded as [length-delimited protobuf message](<#length-delimited-protobuf-message-layout>) with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [FromAnkaios](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#fromankaios>).
 
 ```
 flowchart TD
@@ -241,7 +241,7 @@ flowchart TD
 
 Read response message via control interface
 
-Code Snippet in [Rust](https://www.rust-lang.org/) for reading response message via control interface:
+Code Snippet in [Rust](<https://www.rust-lang.org/>) for reading response message via control interface:
 
 ```
 use ankaios_api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};

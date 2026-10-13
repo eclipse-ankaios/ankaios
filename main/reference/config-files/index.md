@@ -3,10 +3,10 @@
 Ankaios now supports configuration files to manage settings more efficiently. These configuration files are optional but provide a convenient way to manage parameters that you may not want to pass as command-line arguments. The priority for parameters is as follows:
 
 1. Command-line arguments
-1. Environment variables
-1. Configuration file
+2. Environment variables
+3. Configuration file
 
-The configuration files are formatted in [TOML](https://toml.io/), which is easy to parse and fast to process.
+The configuration files are formatted in [TOML](<https://toml.io/>), which is easy to parse and fast to process.
 
 ## Configuration File Locations
 
@@ -186,7 +186,7 @@ key_pem = '/home/ankaios/.config/ankaios/ank-key.pem'
 
 ## Using the Configuration Files
 
-To use the configuration files, just place a config file at the default location specified [above](#configuration-file-locations), or specify the path to the configuration file using the `-x` command-line argument:
+To use the configuration files, just place a config file at the default location specified [above](<#configuration-file-locations>), or specify the path to the configuration file using the `-x` command-line argument:
 
 ```
 ank-server -x /path/to/ank-server.conf

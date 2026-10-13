@@ -1,12 +1,12 @@
 # Config objects
 
-Ankaios supports the definition of configurations separated from workloads using them. This allows users to update configurations independent of workloads, which is helpful when maintaining a large number of workloads. You can define templates in the [handlebars](https://github.com/sunng87/handlebars-rust) templating syntax which are expanded with the referenced configuration objects. The following workload configuration fields currently support template expansion:
+Ankaios supports the definition of configurations separated from workloads using them. This allows users to update configurations independent of workloads, which is helpful when maintaining a large number of workloads. You can define templates in the [handlebars](<https://github.com/sunng87/handlebars-rust>) templating syntax which are expanded with the referenced configuration objects. The following workload configuration fields currently support template expansion:
 
 - `agent`
 - `runtimeConfig`
 - the subfields `data` and `binaryData` within the `files` field
 
-For a basic example of separating configurations from workloads, see [here](https://eclipse-ankaios.github.io/ankaios/main/reference/startup-configuration/index.md). For detailed information about using the `files` field, see [here](https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/workload-files/index.md).
+For a basic example of separating configurations from workloads, see [here](<https://eclipse-ankaios.github.io/ankaios/main/reference/startup-configuration/index.md>). For detailed information about using the `files` field, see [here](<https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/workload-files/index.md>).
 
 ## Indentation for multi-line configuration
 
