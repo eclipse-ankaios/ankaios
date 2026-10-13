@@ -76,7 +76,7 @@ workloads:
     runtime: podman
     agent: agent_A
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.3
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.4
       commandOptions:
         - "--net=host"
 ```
@@ -225,7 +225,7 @@ workloads:
     runtime: podman
     agent: agent_A
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.3
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.4
       commandOptions:
         - "--net=host"
         - "-e"
@@ -281,7 +281,7 @@ workloads:
     dependencies:
       databroker: ADD_COND_RUNNING
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.3
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.4
       commandOptions:
         - "--net=host"
         - "-e"
