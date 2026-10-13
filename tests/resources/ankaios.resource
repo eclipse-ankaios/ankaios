@@ -331,9 +331,13 @@ Ankaios agent with name "${name}" is terminated
 
 Podman has deleted all existing containers
     Run Process    podman    rm    --all    --force    --time    2    timeout=20    shell=True
+    # Removes orphaned container storage
+    Run Process    podman    rm    --storage    --all    timeout=20    shell=True
 
 Podman has deleted all existing pods
     Run Process    podman    pod    rm    --all    --force    --time    2    timeout=20    shell=True
+    # Removes orphaned container storage left behind by pod member containers
+    Run Process    podman    rm    --storage    --all    timeout=20    shell=True
 
 Podman has deleted all existing volumes
     Run Process    podman    volume    rm    --all    --force    timeout=20    shell=True
