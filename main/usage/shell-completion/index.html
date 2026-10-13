@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://eclipse-ankaios.github.io/main/usage/shell-completion/">
       
       
-        <link rel="prev" href="../mtls-setup/">
+        <link rel="prev" href="../mtls-setup.md">
       
       
         <link rel="next" href="../manifest/config-objects/">
@@ -664,14 +664,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../mtls-setup/" class="md-nav__link">
+      <a href="../mtls-setup.md" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  Setting up Ankaios with mTLS
+  none
 
     
   </span>
@@ -2183,9 +2183,8 @@
 <p>Ankaios supports command completion for the <code>ank</code> CLI in various shells.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>For dynamic completion (workloads etc.) to work, the <code>ank</code> CLI must be configured via environment variables.
-To use a non-default server URL, provide <code>ANK_SERVER_URL</code>.
-Also provide either <code>ANK_INSECURE=true</code> or <code>ANK_CA_PEM</code>, <code>ANK_CRT_PEM</code> and <code>ANK_KEY_PEM</code>.</p>
+<p>Dynamic completion (workloads etc.) invokes the <code>ank</code> CLI internally and therefore requires the
+<code>ank</code> CLI to be able to connect to the Ankaios server (see <a href="../../reference/config-files/">configuration files</a>).</p>
 </div>
 <h2 id="bash">Bash<a class="headerlink" href="#bash" title="Permanent link">&para;</a></h2>
 <p>Add the following lines to your <code>~/.bashrc</code>:</p>
@@ -2252,7 +2251,7 @@ Also provide either <code>ANK_INSECURE=true</code> or <code>ANK_CA_PEM</code>, <
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../mtls-setup/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Setting up Ankaios with mTLS">
+          <a href="../mtls-setup.md" class="md-footer__link md-footer__link--prev" aria-label="Previous: none">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2262,7 +2261,7 @@ Also provide either <code>ANK_INSECURE=true</code> or <code>ANK_CA_PEM</code>, <
                 Previous
               </span>
               <div class="md-ellipsis">
-                Setting up Ankaios with mTLS
+                none
               </div>
             </div>
           </a>

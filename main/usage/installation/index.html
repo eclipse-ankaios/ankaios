@@ -695,6 +695,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#post-installation-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Post-installation steps
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -846,14 +857,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../mtls-setup/" class="md-nav__link">
+      <a href="../mtls-setup.md" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  Setting up Ankaios with mTLS
+  none
 
     
   </span>
@@ -2310,6 +2321,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#post-installation-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Post-installation steps
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2344,14 +2366,7 @@
 </code></pre></div>
 <p>Ankaios works with most Linux distributions and has been tested with Ubuntu 22.04, 24.04 and 26.04.</p>
 <p>Detailed installation steps, including instructions on setting up container runtimes, choosing an installation method, and installing specific Ankaios versions, are provided below.</p>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>The express installation does not enable any authentication for access to
-the Ankaios server (see <a href="../mtls-setup/">Setting up Ankaios with mTLS</a>).
-Since the server is typically run as root (e.g. via <code>sudo systemctl</code>),
-any client that can reach it could start workloads with root privileges.
-For this reason, only use this setup for development purposes.</p>
-</div>
+<p>See also the <a href="#post-installation-steps">post-installation steps</a>.</p>
 <h2 id="system-requirements">System requirements<a class="headerlink" href="#system-requirements" title="Permanent link">&para;</a></h2>
 <p>Ankaios currently requires a Linux OS and is available for x86_64 and arm64
 targets.</p>
@@ -2387,7 +2402,8 @@ For using the <code>podman</code> runtime, Podman version 3.4.2 is sufficient bu
 <p>For using the Ankaios <code>containerd</code> runtime, follow the <a href="https://github.com/containerd/containerd/blob/main/docs/getting-started.md#installing-containerd">containerd installation instructions</a> to install the containerd daemon.</p>
 <p>Ankaios uses the <code>nerdctl</code> command-line interface (CLI) to manage containers with the containerd runtime. Install a compatible version of the <code>nerdctl</code> CLI for the containerd runtime, or install the full <code>nerdctl</code> package, including dependencies such as containerd, runc, and CNI. Note that if you are not using the version distributed by your package manager, you must check the platform compatibility of containerd. Download and install the <code>nerdctl</code> package from the <a href="https://github.com/containerd/nerdctl/releases">official nerdctl releases</a>.</p>
 <h2 id="installation-methods">Installation methods<a class="headerlink" href="#installation-methods" title="Permanent link">&para;</a></h2>
-<p>For setting up Ankaios in a production environment with mutual transport layer security (mTLS), follow the <a href="../mtls-setup/">mTLS setup instructions</a> after installing Ankaios.</p>
+<p>By default, the server, agent and CLI communicate over a local Unix domain socket, which relies on filesystem permissions and only works when all components run on the same host.
+For a multi-node setup communication over the network has to be used. Follow the <a href="../network-setup/">network setup instructions</a> after installing Ankaios.</p>
 <h3 id="install-script">Install script<a class="headerlink" href="#install-script" title="Permanent link">&para;</a></h3>
 <p>The recommended way to install Ankaios is using the installation script.
 To install the latest release version of Ankaios, please run the following command:</p>
@@ -2431,7 +2447,8 @@ file generation if required.</p>
 <p>To install a specific version run the following command and substitute <code>&lt;version&gt;</code> with a specific version tag e.g. <code>v0.1.0</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/download/&lt;version&gt;/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash<span class="w"> </span>-s<span class="w"> </span>--<span class="w"> </span>-v<span class="w"> </span>&lt;version&gt;
 </code></pre></div>
-<p>For available versions see the <a href="https://github.com/eclipse-ankaios/ankaios/tags">list of releases</a>.</p>
+<p>For available versions see the <a href="https://github.com/eclipse-ankaios/ankaios/tags">list of releases</a>
+and also check the <a href="#post-installation-steps">post-installation steps</a>.</p>
 <h4 id="set-the-log-level-for-ank-server-and-ank-agent-services">Set the log level for <code>ank-server</code> and <code>ank-agent</code> services<a class="headerlink" href="#set-the-log-level-for-ank-server-and-ank-agent-services" title="Permanent link">&para;</a></h4>
 <p>To configure the log levels for <code>ank-server</code> and <code>ank-agent</code> during the installation process using the provided environment variables, follow these steps:</p>
 <ol>
@@ -2491,16 +2508,8 @@ file generation if required.</p>
 </tr>
 </tbody>
 </table>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>The APT package installation does not enable any authentication for access to
-the Ankaios server (see <a href="../mtls-setup/">Setting up Ankaios with mTLS</a>).
-Since the  <code>ank-server</code> and <code>ank-agent</code> systemd services are started
-automatically after installation, any client that can reach the <code>ank-server</code>
-could start workloads with root privileges. For this reason, only use this
-setup for development purposes.</p>
-</div>
 <p>The packages are compatible with Ubuntu 22.04+, Debian 12+ and other distributions based on glibc 2.35 or later.</p>
+<p>See also the <a href="#post-installation-steps">post-installation steps</a>.</p>
 <h4 id="uninstall_1">Uninstall<a class="headerlink" href="#uninstall_1" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>remove<span class="w"> </span>ankaios
 </code></pre></div>
@@ -2578,14 +2587,7 @@ This is expected because the <code>ankaios</code> meta-package builds and instal
 <p>If <code>ankaios-server</code> and <code>ankaios-agent</code> are installed, you can enable and start the services with:</p>
 <p><code>sudo systemctl enable --now ank-server ank-agent</code></p>
 </div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>The AUR package installation does not enable any authentication for access to the Ankaios server
-(see <a href="../mtls-setup/">Setting up Ankaios with mTLS</a>).
-After starting the <code>ank-server</code> and <code>ank-agent</code> systemd services,
-any client that can reach the <code>ank-server</code> could start workloads with root privileges.
-For this reason, only use this setup for development purposes.</p>
-</div>
+<p>See also the <a href="#post-installation-steps">post-installation steps</a>.</p>
 <h4 id="uninstall_2">Uninstall<a class="headerlink" href="#uninstall_2" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>sudo<span class="w"> </span>pacman<span class="w"> </span>-Rns<span class="w"> </span>ankaios
 </code></pre></div>
@@ -2597,6 +2599,11 @@ This is useful if the automatic detection of the platform is failing in case of 
 <hr />
 <h3 id="build-from-source">Build from source<a class="headerlink" href="#build-from-source" title="Permanent link">&para;</a></h3>
 <p>For building Ankaios from source see <a href="../../development/build/">Build</a>.</p>
+<h2 id="post-installation-steps">Post-installation steps<a class="headerlink" href="#post-installation-steps" title="Permanent link">&para;</a></h2>
+<p>Installing <code>ankaios-server</code> creates the system group <code>ankaios</code>, which owns the default Unix domain socket. Add your user to this group so that the <code>ank</code> CLI can connect without <code>sudo</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>sudo<span class="w"> </span>usermod<span class="w"> </span>-aG<span class="w"> </span>ankaios<span class="w"> </span><span class="s2">"</span><span class="nv">$USER</span><span class="s2">"</span>
+</code></pre></div>
+<p>Log out and log back in so that your group membership is re-evaluated.</p>
 
 
 

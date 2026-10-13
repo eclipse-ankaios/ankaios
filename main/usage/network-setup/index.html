@@ -8,13 +8,9 @@
       
       
       
-        <link rel="canonical" href="https://eclipse-ankaios.github.io/main/usage/mtls-setup/">
+        <link rel="canonical" href="https://eclipse-ankaios.github.io/main/usage/network-setup/">
       
       
-        <link rel="prev" href="../awesome-ankaios/">
-      
-      
-        <link rel="next" href="../shell-completion/">
       
       
         
@@ -25,7 +21,7 @@
     
     
       
-        <title>Setting up Ankaios with mTLS - Eclipse Ankaios</title>
+        <title>Connecting Ankaios components over the network - Eclipse Ankaios</title>
       
     
     
@@ -65,15 +61,15 @@
     
     
   <meta property="og:type" content="website" />
-<meta property="og:title" content="Setting up Ankaios with mTLS - Eclipse Ankaios" />
-<meta property="og:image" content="https://eclipse-ankaios.github.io/main/assets/images/social/usage/mtls-setup.png" />
+<meta property="og:title" content="Connecting Ankaios components over the network - Eclipse Ankaios" />
+<meta property="og:image" content="https://eclipse-ankaios.github.io/main/assets/images/social/usage/network-setup.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:url" content="https://eclipse-ankaios.github.io/main/usage/mtls-setup/" />
+<meta property="og:url" content="https://eclipse-ankaios.github.io/main/usage/network-setup/" />
 <meta property="twitter:card" content="summary_large_image" />
-<meta property="twitter:title" content="Setting up Ankaios with mTLS - Eclipse Ankaios" />
-<meta property="twitter:image" content="https://eclipse-ankaios.github.io/main/assets/images/social/usage/mtls-setup.png" />
+<meta property="twitter:title" content="Connecting Ankaios components over the network - Eclipse Ankaios" />
+<meta property="twitter:image" content="https://eclipse-ankaios.github.io/main/assets/images/social/usage/network-setup.png" />
 </head>
   
   
@@ -139,7 +135,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Setting up Ankaios with mTLS
+              Connecting Ankaios components over the network
             
           </span>
         </div>
@@ -263,15 +259,13 @@
   
   
   
-    
-  
   
     
       
     
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../installation/" class="md-tabs__link">
           
   
@@ -443,31 +437,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
@@ -485,7 +474,7 @@
           </label>
         
         
-          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
             <label class="md-nav__title" for="__nav_3">
               <span class="md-nav__icon md-icon"></span>
               
@@ -661,45 +650,17 @@
                   
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      
-        <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  Setting up Ankaios with mTLS
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="././" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../mtls-setup.md" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  Setting up Ankaios with mTLS
+  none
 
     
   </span>
@@ -707,132 +668,6 @@
   
 
       </a>
-      
-        
-
-
-<nav class="md-nav md-nav--secondary" aria-label="On this page">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      On this page
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Prerequisites
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#set-up-directories" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Set up directories
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#generate-ca-keys-and-certificate" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Generate CA keys and certificate
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#generate-key-and-certificate-for-ank-server" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Generate key and certificate for <code>ank-server</code>
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#generate-key-and-certificate-for-ank-agent" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Generate key and certificate for <code>ank-agent</code>
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#generate-key-and-certificate-for-the-cli-ank" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Generate key and certificate for the CLI <code>ank</code>
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#perform-ankaios-installation-with-mtls-support" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Perform Ankaios installation with mTLS support
-      </span>
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Perform Ankaios installation with mTLS support">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#install-ank-server-and-ank-agent-with-mtls-certificates" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Install <code>ank-server</code> and <code>ank-agent</code> with mTLS certificates
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#configure-the-ank-cli-with-mtls-certificates" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Configure the <code>ank</code> CLI with mTLS certificates
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -878,20 +713,17 @@
       
       
         
-          
-          
-        
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
         
           
-          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
             
   
   
@@ -995,20 +827,17 @@
       
       
         
-          
-          
-        
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_10" >
         
           
-          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
             
   
   
@@ -2150,6 +1979,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#secure-the-connection-with-mtls" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Secure the connection with mTLS
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Secure the connection with mTLS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -2159,8 +2000,8 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#set-up-directories" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -2170,8 +2011,8 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#generate-ca-keys-and-certificate" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -2181,8 +2022,8 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#generate-key-and-certificate-for-ank-server" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -2192,8 +2033,8 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#generate-key-and-certificate-for-ank-agent" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -2203,8 +2044,8 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#generate-key-and-certificate-for-the-cli-ank" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -2214,35 +2055,12 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#perform-ankaios-installation-with-mtls-support" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Perform Ankaios installation with mTLS support
-      </span>
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Perform Ankaios installation with mTLS support">
-      <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#install-ank-server-and-ank-agent-with-mtls-certificates" class="md-nav__link">
+  <a href="#switch-to-network-communication-with-mtls-support" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Install <code>ank-server</code> and <code>ank-agent</code> with mTLS certificates
-      </span>
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#configure-the-ank-cli-with-mtls-certificates" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Configure the <code>ank</code> CLI with mTLS certificates
+        Switch to network communication with mTLS support
       </span>
     </span>
   </a>
@@ -2251,6 +2069,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-network-communication-without-tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Use network communication without TLS
+      </span>
+    </span>
+  </a>
   
 </li>
       
@@ -2271,7 +2100,7 @@
                   
 
   
-    <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/usage/mtls-setup.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/usage/network-setup.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2279,24 +2108,30 @@
   
 
 
-<h1 id="setting-up-ankaios-with-mtls">Setting up Ankaios with mTLS<a class="headerlink" href="#setting-up-ankaios-with-mtls" title="Permanent link">&para;</a></h1>
-<p>Mutual TLS (mTLS) is a security protocol that verifies both the client and server identities before establishing a connection. In Ankaios mTLS can be used to secure communication between the server, agent and ank CLI.</p>
-<p>The standard <a href="../installation/">installation</a> <strong>disables mTLS</strong> for server, agent and CLI in the respective <a href="../../reference/config-files/">configuration files</a> with <code>insecure = true</code>.
- Besides that, mTLS can also be disabled for the CLI as command argument like <code>ank --insecure get state</code> or setting the environment variable <code>export ANK_INSECURE=true</code>.</p>
-<p>This page describes how to create certificates and <strong>enable mTLS</strong>.</p>
-<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
+<h1 id="connecting-ankaios-components-over-the-network">Connecting Ankaios components over the network<a class="headerlink" href="#connecting-ankaios-components-over-the-network" title="Permanent link">&para;</a></h1>
+<p>The standard <a href="../installation/">installation</a> configures the server, agent and CLI to communicate over a local Unix domain socket (see the respective <a href="../../reference/config-files/">configuration files</a>), which relies on filesystem permissions and only works when all components run on the same host.
+ To connect an agent or the CLI from a different host, or simply to reach the server over the network, the <code>address</code> in the server configuration file and the <code>server_url</code> in the agent and CLI configuration files need to be switched from a <code>unix://</code> address to a network address (<code>&lt;host&gt;:&lt;port&gt;</code>).</p>
+<div class="admonition info">
+<p class="admonition-title">Info</p>
+<p>For a quicker setup without certificates, intended only for isolated test environments such as VMs or containers set up for this purpose, see <a href="#use-network-communication-without-tls">Use network communication without TLS</a> below. For anything else, secure the connection with mTLS as described next.</p>
+</div>
+<h2 id="secure-the-connection-with-mtls">Secure the connection with mTLS<a class="headerlink" href="#secure-the-connection-with-mtls" title="Permanent link">&para;</a></h2>
+<p>Mutual TLS (mTLS) is a security protocol that verifies both the client and server identities before establishing a connection. In Ankaios mTLS can be used to secure communication between the server, agent and ank CLI over the network.
+ The CLI can also connect over the network without mTLS; see <a href="#use-network-communication-without-tls">Use network communication without TLS</a> below.</p>
+<p>This section describes how to switch to network communication, create certificates and <strong>enable mTLS</strong>.</p>
+<h3 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h3>
 <ul>
 <li>OpenSSL 3.0 or newer</li>
 </ul>
-<h2 id="set-up-directories">Set up directories<a class="headerlink" href="#set-up-directories" title="Permanent link">&para;</a></h2>
+<h3 id="set-up-directories">Set up directories<a class="headerlink" href="#set-up-directories" title="Permanent link">&para;</a></h3>
 <p>To set up mTLS with OpenSSL, perform the following actions:</p>
 <p>First we need to create a folder to keep certificates and keys for <code>ank-server</code> and <code>ank-agent</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>sudo<span class="w"> </span>mkdir<span class="w"> </span>-p<span class="w"> </span>/etc/ankaios/certs
 </code></pre></div>
 <p>Then we need to create a folder to keep certificates and keys for the <code>ank</code> CLI:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mkdir<span class="w"> </span>-p<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span><span class="s2">/ankaios"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mkdir<span class="w"> </span>-p<span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/.config/ankaios"</span>
 </code></pre></div>
-<h2 id="generate-ca-keys-and-certificate">Generate CA keys and certificate<a class="headerlink" href="#generate-ca-keys-and-certificate" title="Permanent link">&para;</a></h2>
+<h3 id="generate-ca-keys-and-certificate">Generate CA keys and certificate<a class="headerlink" href="#generate-ca-keys-and-certificate" title="Permanent link">&para;</a></h3>
 <p>Construct an <a href="https://www.openssl.org/docs/manmaster/man5/config.html">OpenSSL configuration file</a> named <code>ca.cnf</code>. You are welcome to include additional fields if necessary:</p>
 <div class="highlight"><span class="filename">ca.cnf</span><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[req]</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="na">distinguished_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">req_distinguished_name</span>
@@ -2311,7 +2146,7 @@
 <p>Generate CA certificate:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>sudo<span class="w"> </span>openssl<span class="w"> </span>req<span class="w"> </span>-config<span class="w"> </span><span class="s2">"./ca.cnf"</span><span class="w"> </span>-new<span class="w"> </span>-x509<span class="w"> </span>-key<span class="w"> </span><span class="s2">"./ca-key.pem"</span><span class="w"> </span>-out<span class="w"> </span><span class="s2">"/etc/ankaios/certs/ca.pem"</span>
 </code></pre></div>
-<h2 id="generate-key-and-certificate-for-ank-server">Generate key and certificate for <code>ank-server</code><a class="headerlink" href="#generate-key-and-certificate-for-ank-server" title="Permanent link">&para;</a></h2>
+<h3 id="generate-key-and-certificate-for-ank-server">Generate key and certificate for <code>ank-server</code><a class="headerlink" href="#generate-key-and-certificate-for-ank-server" title="Permanent link">&para;</a></h3>
 <p>Construct an <a href="https://www.openssl.org/docs/manmaster/man5/config.html">OpenSSL configuration file</a> named <code>ank-server.cnf</code>. You are welcome to include additional fields if necessary:</p>
 <div class="highlight"><span class="filename">ank-server.cnf</span><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[req]</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="na">distinguished_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">req_distinguished_name</span>
@@ -2337,7 +2172,7 @@
 <p>Generate ank-server certificate:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>sudo<span class="w"> </span>openssl<span class="w"> </span>x509<span class="w"> </span>-req<span class="w"> </span>-in<span class="w"> </span><span class="s2">"./ank-server.csr"</span><span class="w"> </span>-CA<span class="w"> </span><span class="s2">"/etc/ankaios/certs/ca.pem"</span><span class="w"> </span>-CAkey<span class="w"> </span><span class="s2">"./ca-key.pem"</span><span class="w"> </span>-extensions<span class="w"> </span>v3_req<span class="w"> </span>-extfile<span class="w"> </span><span class="s2">"./ank-server.cnf"</span><span class="w"> </span>-out<span class="w"> </span><span class="s2">"/etc/ankaios/certs/ank-server.pem"</span>
 </code></pre></div>
-<h2 id="generate-key-and-certificate-for-ank-agent">Generate key and certificate for <code>ank-agent</code><a class="headerlink" href="#generate-key-and-certificate-for-ank-agent" title="Permanent link">&para;</a></h2>
+<h3 id="generate-key-and-certificate-for-ank-agent">Generate key and certificate for <code>ank-agent</code><a class="headerlink" href="#generate-key-and-certificate-for-ank-agent" title="Permanent link">&para;</a></h3>
 <p>Construct an <a href="https://www.openssl.org/docs/manmaster/man5/config.html">OpenSSL configuration file</a> named <code>ank-agent.cnf</code>. You are welcome to include additional fields if necessary:</p>
 <div class="highlight"><span class="filename">ank-agent.cnf</span><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">[req]</span>
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="na">distinguished_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">req_distinguished_name</span>
@@ -2358,6 +2193,10 @@
 <a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="na">DNS.1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">agent_A</span>
 <a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="na">DNS.2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">agent_B</span>
 </code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This example shares one certificate between <code>agent_A</code> and <code>agent_B</code> to keep the tutorial short; for production use, issue a separate certificate per agent, each with a single <code>DNS.1</code> entry matching the agent's <code>--name</code>, so that an agent cannot connect under another agent's name.</p>
+</div>
 <p>Generate ank-agent key:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>sudo<span class="w"> </span>openssl<span class="w"> </span>genpkey<span class="w"> </span>-algorithm<span class="w"> </span>ED25519<span class="w"> </span>-out<span class="w"> </span><span class="s2">"/etc/ankaios/certs/ank-agent-key.pem"</span>
 </code></pre></div>
@@ -2367,7 +2206,7 @@
 <p>Generate ank-agent certificate:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>sudo<span class="w"> </span>openssl<span class="w"> </span>x509<span class="w"> </span>-req<span class="w"> </span>-in<span class="w"> </span><span class="s2">"./ank-agent.csr"</span><span class="w"> </span>-CA<span class="w"> </span><span class="s2">"/etc/ankaios/certs/ca.pem"</span><span class="w"> </span>-CAkey<span class="w"> </span><span class="s2">"./ca-key.pem"</span><span class="w"> </span>-extensions<span class="w"> </span>v3_req<span class="w"> </span>-extfile<span class="w"> </span><span class="s2">"./ank-agent.cnf"</span><span class="w"> </span>-out<span class="w"> </span><span class="s2">"/etc/ankaios/certs/ank-agent.pem"</span>
 </code></pre></div>
-<h2 id="generate-key-and-certificate-for-the-cli-ank">Generate key and certificate for the CLI <code>ank</code><a class="headerlink" href="#generate-key-and-certificate-for-the-cli-ank" title="Permanent link">&para;</a></h2>
+<h3 id="generate-key-and-certificate-for-the-cli-ank">Generate key and certificate for the CLI <code>ank</code><a class="headerlink" href="#generate-key-and-certificate-for-the-cli-ank" title="Permanent link">&para;</a></h3>
 <p>Construct an <a href="https://www.openssl.org/docs/manmaster/man5/config.html">OpenSSL configuration file</a> named <code>ank.cnf</code>. You are welcome to include additional fields if necessary:</p>
 <div class="highlight"><span class="filename">ank.cnf</span><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">[req]</span>
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="na">distinguished_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">req_distinguished_name</span>
@@ -2384,48 +2223,74 @@
 <a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="na">DNS.1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">ank</span>
 </code></pre></div>
 <p>Generate ank key:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>openssl<span class="w"> </span>genpkey<span class="w"> </span>-algorithm<span class="w"> </span>ED25519<span class="w"> </span>-out<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span><span class="s2">/ankaios/ank-key.pem"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>openssl<span class="w"> </span>genpkey<span class="w"> </span>-algorithm<span class="w"> </span>ED25519<span class="w"> </span>-out<span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/.config/ankaios/ank-key.pem"</span>
 </code></pre></div>
 <p>Generate ank certificate signing request:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>openssl<span class="w"> </span>req<span class="w"> </span>-config<span class="w"> </span><span class="s2">"./ank.cnf"</span><span class="w"> </span>-new<span class="w"> </span>-key<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span><span class="s2">/ankaios/ank-key.pem"</span><span class="w"> </span>-out<span class="w"> </span><span class="s2">"./ank.csr"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>openssl<span class="w"> </span>req<span class="w"> </span>-config<span class="w"> </span><span class="s2">"./ank.cnf"</span><span class="w"> </span>-new<span class="w"> </span>-key<span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/.config/ankaios/ank-key.pem"</span><span class="w"> </span>-out<span class="w"> </span><span class="s2">"./ank.csr"</span>
 </code></pre></div>
 <p>Generate ank certificate:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>sudo<span class="w"> </span>openssl<span class="w"> </span>x509<span class="w"> </span>-req<span class="w"> </span>-in<span class="w"> </span><span class="s2">"./ank.csr"</span><span class="w"> </span>-CA<span class="w"> </span><span class="s2">"/etc/ankaios/certs/ca.pem"</span><span class="w"> </span>-CAkey<span class="w"> </span><span class="s2">"./ca-key.pem"</span><span class="w"> </span>-extensions<span class="w"> </span>v3_req<span class="w"> </span>-extfile<span class="w"> </span><span class="s2">"./ank.cnf"</span><span class="w"> </span>-out<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span><span class="s2">/ankaios/ank.pem"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>sudo<span class="w"> </span>openssl<span class="w"> </span>x509<span class="w"> </span>-req<span class="w"> </span>-in<span class="w"> </span><span class="s2">"./ank.csr"</span><span class="w"> </span>-CA<span class="w"> </span><span class="s2">"/etc/ankaios/certs/ca.pem"</span><span class="w"> </span>-CAkey<span class="w"> </span><span class="s2">"./ca-key.pem"</span><span class="w"> </span>-extensions<span class="w"> </span>v3_req<span class="w"> </span>-extfile<span class="w"> </span><span class="s2">"./ank.cnf"</span><span class="w"> </span>-out<span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/.config/ankaios/ank.pem"</span>
 </code></pre></div>
-<h2 id="perform-ankaios-installation-with-mtls-support">Perform Ankaios installation with mTLS support<a class="headerlink" href="#perform-ankaios-installation-with-mtls-support" title="Permanent link">&para;</a></h2>
-<p>To set up Ankaios with mTLS support, you need to supply the necessary mTLS certificates to the <code>ank-server</code>, <code>ank-agent</code>, and <code>ank</code> CLI components. Here's a step-by-step guide:</p>
-<h3 id="install-ank-server-and-ank-agent-with-mtls-certificates">Install <code>ank-server</code> and <code>ank-agent</code> with mTLS certificates<a class="headerlink" href="#install-ank-server-and-ank-agent-with-mtls-certificates" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>All private key files (<code>*-key.pem</code>) should be readable only by their owner, e.g. with <code>chmod 600</code>.</p>
+</div>
+<h3 id="switch-to-network-communication-with-mtls-support">Switch to network communication with mTLS support<a class="headerlink" href="#switch-to-network-communication-with-mtls-support" title="Permanent link">&para;</a></h3>
+<p>To set up Ankaios with mTLS support, you need to supply the necessary mTLS certificates to the already installed <code>ank-server</code>, <code>ank-agent</code>, and <code>ank</code> CLI components. Here's a step-by-step guide:</p>
+<h4 id="configure-ank-server-and-ank-agent-with-mtls-certificates">Configure <code>ank-server</code> and <code>ank-agent</code> with mTLS certificates<a class="headerlink" href="#configure-ank-server-and-ank-agent-with-mtls-certificates" title="Permanent link">&para;</a></h4>
+<p>Replace the default <code>address</code> in <code>/etc/ankaios/ank-server.conf</code> with a network address and remove <code>socket_group</code>, which only applies to Unix domain sockets:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'0.0.0.0:25551'</span>
 </code></pre></div>
 <p>To use the CA, certificate and key for the server, add the following lines to <code>/etc/ankaios/ank-server.conf</code> and set the <code>insecure</code> flag inside it to <code>false</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">ca_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'/etc/ankaios/certs/ca.pem'</span>
 <a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">crt_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'/etc/ankaios/certs/ank-server.pem'</span>
 <a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">key_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'/etc/ankaios/certs/ank-server-key.pem'</span>
 </code></pre></div>
-<p>For the agent add the following lines to <code>/etc/ankaios/ank-agent.conf</code> and set the <code>insecure</code> flag inside it to <code>false</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">ca_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'/etc/ankaios/certs/ca.pem'</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">crt_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'/etc/ankaios/certs/ank-agent.pem'</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="n">key_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'/etc/ankaios/certs/ank-agent-key.pem'</span>
+<p>Similarly, switch <code>/etc/ankaios/ank-agent.conf</code> to the network address of the server, using the <code>https://</code> scheme, and set <code>insecure</code> to <code>false</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">server_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'https://127.0.0.1:25551'</span>
+</code></pre></div>
+<p>For the agent add the following lines to <code>/etc/ankaios/ank-agent.conf</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">ca_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'/etc/ankaios/certs/ca.pem'</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">crt_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'/etc/ankaios/certs/ank-agent.pem'</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">key_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'/etc/ankaios/certs/ank-agent-key.pem'</span>
 </code></pre></div>
 <p>For more information on how the server, agent and CLI can be configured please consult <a href="../../reference/config-files/">configuration files</a>.</p>
 <p>Start the Ankaios server and an Ankaios agent as described in the <a href="../quickstart/">Quickstart</a> and continue below to configure the CLI with mTLS.</p>
-<h3 id="configure-the-ank-cli-with-mtls-certificates">Configure the <code>ank</code> CLI with mTLS certificates<a class="headerlink" href="#configure-the-ank-cli-with-mtls-certificates" title="Permanent link">&para;</a></h3>
+<h4 id="configure-the-ank-cli-with-mtls-certificates">Configure the <code>ank</code> CLI with mTLS certificates<a class="headerlink" href="#configure-the-ank-cli-with-mtls-certificates" title="Permanent link">&para;</a></h4>
 <p>To make it easier, we will set the mTLS certificates for the <code>ank</code> CLI by using environment variables:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANK_CA_PEM</span><span class="o">=</span>/etc/ankaios/certs/ca.pem
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANK_CRT_PEM</span><span class="o">=</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span>/ankaios/ank.pem
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANK_KEY_PEM</span><span class="o">=</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span>/ankaios/ank-key.pem
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANK_CA_PEM</span><span class="o">=</span>/etc/ankaios/certs/ca.pem
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANK_CRT_PEM</span><span class="o">=</span><span class="nv">$HOME</span>/.config/ankaios/ank.pem
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANK_KEY_PEM</span><span class="o">=</span><span class="nv">$HOME</span>/.config/ankaios/ank-key.pem
 </code></pre></div>
 <p>Now you can use the <code>ank</code> CLI as follows:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>ank<span class="w"> </span>get<span class="w"> </span>workloads
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>ank<span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <p>Or in a single line call:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nv">ANK_CA_PEM</span><span class="o">=</span>/etc/ankaios/certs/ca.pem<span class="w"> </span><span class="nv">ANK_CRT_PEM</span><span class="o">=</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span>/ankaios/ank.pem<span class="w"> </span><span class="nv">ANK_KEY_PEM</span><span class="o">=</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span>/ankaios/ank-key.pem<span class="w"> </span>ank<span class="w"> </span>get<span class="w"> </span>workloads
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nv">ANK_CA_PEM</span><span class="o">=</span>/etc/ankaios/certs/ca.pem<span class="w"> </span><span class="nv">ANK_CRT_PEM</span><span class="o">=</span><span class="nv">$HOME</span>/.config/ankaios/ank.pem<span class="w"> </span><span class="nv">ANK_KEY_PEM</span><span class="o">=</span><span class="nv">$HOME</span>/.config/ankaios/ank-key.pem<span class="w"> </span>ank<span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <p>Alternatively, you can pass the mTLS certificates as command line arguments:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>ank<span class="w"> </span>--ca_pem<span class="o">=</span>/etc/ankaios/certs/ca.pem<span class="w"> </span>--crt_pem<span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span><span class="s2">/ankaios/ank.pem"</span><span class="w"> </span>--key_pem<span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span><span class="s2">/ankaios/ank-key.pem"</span><span class="w"> </span>get<span class="w"> </span>workloads
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>ank<span class="w"> </span>--ca_pem<span class="o">=</span>/etc/ankaios/certs/ca.pem<span class="w"> </span>--crt_pem<span class="o">=</span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/.config/ankaios/ank.pem"</span><span class="w"> </span>--key_pem<span class="o">=</span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/.config/ankaios/ank-key.pem"</span><span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <p>Or you can also configure the mTLS certificates in the CLI configuration file <code>~/.config/ankaios/ank.conf</code>.
-In any case you should set <code>insecure = false</code> in there to prevent a warning when mTLS certificates are provided.</p>
+In any case, make sure the <code>server_url</code> in there is set to the network address of the server (e.g. <code>https://127.0.0.1:25551</code>) and <code>insecure = false</code> is set to prevent a warning when mTLS certificates are provided.</p>
+<h2 id="use-network-communication-without-tls">Use network communication without TLS<a class="headerlink" href="#use-network-communication-without-tls" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Network communication without TLS is neither authenticated nor encrypted. Since <code>ank-server</code> typically runs as root (e.g. via <code>sudo systemctl</code>), <strong>any program or user that can reach the port</strong> - every local user on the machine, and every host on the network if the port is not otherwise firewalled - can act as an agent or CLI against the server and start workloads with root privileges. Only use network communication without TLS in isolated test environments such as VMs or containers set up for this purpose. For anything else, secure the connection with mTLS as described above.</p>
+</div>
+<p>Replace the default <code>address</code> in <code>/etc/ankaios/ank-server.conf</code> and remove <code>socket_group</code>, which only applies to Unix domain sockets:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="n">address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'0.0.0.0:25551'</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="n">insecure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</code></pre></div>
+<p>Replace the default <code>server_url</code> in <code>/etc/ankaios/ank-agent.conf</code> with the network address of the server and mark the connection as insecure:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="n">server_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'http://&lt;SERVER_IP&gt;:25551'</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="n">insecure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</code></pre></div>
+<p>Do the same in the CLI configuration file <code>~/.config/ankaios/ank.conf</code>, or instead pass <code>ank --insecure -s http://&lt;SERVER_IP&gt;:25551 get state</code> or set <code>export ANK_INSECURE=true</code> and <code>export ANK_SERVER_URL=http://&lt;SERVER_IP&gt;:25551</code>.</p>
+<p>Restart the server and agent to apply the new configuration:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>ank-server
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>ank-agent
+</code></pre></div>
 
 
 
@@ -2462,44 +2327,6 @@ In any case you should set <code>insecure = false</code> in there to prevent a w
   
         <footer class="md-footer">
   
-    
-      
-      <nav class="md-footer__inner md-grid" aria-label="Footer" >
-        
-          
-          <a href="../awesome-ankaios/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Awesome Ankaios">
-            <div class="md-footer__button md-icon">
-              
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-            </div>
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              <div class="md-ellipsis">
-                Awesome Ankaios
-              </div>
-            </div>
-          </a>
-        
-        
-          
-          <a href="../shell-completion/" class="md-footer__link md-footer__link--next" aria-label="Next: Shell completion">
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              <div class="md-ellipsis">
-                Shell completion
-              </div>
-            </div>
-            <div class="md-footer__button md-icon">
-              
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
-            </div>
-          </a>
-        
-      </nav>
     
   
   <div class="md-footer-meta md-typeset">

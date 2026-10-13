@@ -136,9 +136,7 @@ Ankaios works with most Linux distributions and has been tested with Ubuntu 22.0
 
 Detailed installation steps, including instructions on setting up container runtimes, choosing an installation method, and installing specific Ankaios versions, are provided below.
 
-> [!WARNING]
->
-> The express installation does not enable any authentication for access to the Ankaios server (see [Setting up Ankaios with mTLS](<https://eclipse-ankaios.github.io/ankaios/main/usage/mtls-setup/index.md>)). Since the server is typically run as root (e.g. via `sudo systemctl`), any client that can reach it could start workloads with root privileges. For this reason, only use this setup for development purposes.
+See also the [post-installation steps](<#post-installation-steps>).
 
 ## System requirements
 
@@ -167,7 +165,7 @@ Ankaios uses the `nerdctl` command-line interface (CLI) to manage containers wit
 
 ## Installation methods
 
-For setting up Ankaios in a production environment with mutual transport layer security (mTLS), follow the [mTLS setup instructions](<https://eclipse-ankaios.github.io/ankaios/main/usage/mtls-setup/index.md>) after installing Ankaios.
+By default, the server, agent and CLI communicate over a local Unix domain socket, which relies on filesystem permissions and only works when all components run on the same host. For a multi-node setup communication over the network has to be used. Follow the [network setup instructions](<https://eclipse-ankaios.github.io/ankaios/main/usage/network-setup/index.md>) after installing Ankaios.
 
 ### Install script
 
@@ -202,7 +200,7 @@ To install a specific version run the following command and substitute `<version
 curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/<version>/install.sh | bash -s -- -v <version>
 ```
 
-For available versions see the [list of releases](<https://github.com/eclipse-ankaios/ankaios/tags>).
+For available versions see the [list of releases](<https://github.com/eclipse-ankaios/ankaios/tags>) and also check the [post-installation steps](<#post-installation-steps>).
 
 #### Set the log level for `ank-server` and `ank-agent` services
 
@@ -262,11 +260,9 @@ The `ankaios` meta-package installs all components. Individual packages can be i
 | `ank-agent` | Ankaios agent |
 | `ank` | Ankaios CLI |
 
-> [!WARNING]
->
-> The APT package installation does not enable any authentication for access to the Ankaios server (see [Setting up Ankaios with mTLS](<https://eclipse-ankaios.github.io/ankaios/main/usage/mtls-setup/index.md>)). Since the `ank-server` and `ank-agent` systemd services are started automatically after installation, any client that can reach the `ank-server` could start workloads with root privileges. For this reason, only use this setup for development purposes.
-
 The packages are compatible with Ubuntu 22.04+, Debian 12+ and other distributions based on glibc 2.35 or later.
+
+See also the [post-installation steps](<#post-installation-steps>).
 
 #### Uninstall
 
@@ -327,9 +323,7 @@ You can also install:
 >
 > `sudo systemctl enable --now ank-server ank-agent`
 
-> [!WARNING]
->
-> The AUR package installation does not enable any authentication for access to the Ankaios server (see [Setting up Ankaios with mTLS](<https://eclipse-ankaios.github.io/ankaios/main/usage/mtls-setup/index.md>)). After starting the `ank-server` and `ank-agent` systemd services, any client that can reach the `ank-server` could start workloads with root privileges. For this reason, only use this setup for development purposes.
+See also the [post-installation steps](<#post-installation-steps>).
 
 #### Uninstall
 
@@ -350,6 +344,16 @@ As an alternative to the installation script, the pre-built binaries can be down
 ### Build from source
 
 For building Ankaios from source see [Build](<https://eclipse-ankaios.github.io/ankaios/main/development/build/index.md>).
+
+## Post-installation steps
+
+Installing `ankaios-server` creates the system group `ankaios`, which owns the default Unix domain socket. Add your user to this group so that the `ank` CLI can connect without `sudo`:
+
+```
+sudo usermod -aG ankaios "$USER"
+```
+
+Log out and log back in so that your group membership is re-evaluated.
 
 # Quickstart
 
@@ -987,7 +991,7 @@ In this tutorial, we will show you how to use Ankaios to set up workloads that p
 
 Overview of workloads
 
-To run this tutorial you will need a Linux platform, which can be a RaspberryPi or a Linux PC or virtual machine. Additionally, it's assumed that the Ankaios setup is done with mutual TLS (mTLS) disabled or using its default installation settings.
+To run this tutorial you will need a Linux platform, which can be a RaspberryPi or a Linux PC or virtual machine.
 
 ## Start the databroker
 
@@ -1052,7 +1056,7 @@ workloads:
     runtime: podman
     agent: agent_A
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.3
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.4
       commandOptions:
         - "--net=host"
 ```
@@ -1078,16 +1082,18 @@ Speed provider web UI
 
 ## Add an agent
 
-We currently have an agent running as part of the Ankaios cluster, running the databroker and the speed provider. The next workload we want to start is a speed consumer that consumes vehicle speed values. A speed consumer such as a navigation system typically runs on a separate node for infotainment. A separate node requires a new Ankaios agent. Let's create another Ankaios agent to connect to the existing server. For this tutorial we can either use a separate Linux host or use the existing one. Start a new agent with:
+We currently have an agent running as part of the Ankaios cluster, running the databroker and the speed provider. The next workload we want to start is a speed consumer that consumes vehicle speed values. A speed consumer such as a navigation system typically runs on a separate node for infotainment. A separate node requires a new Ankaios agent. Let's create another Ankaios agent to connect to the existing server. For this tutorial we can either use a separate Linux host or use the existing one.
+
+> [!NOTE]
+>
+> **Info**
+>
+> For a genuine multi-node setup, i.e. running the new agent on a separate host from the server, read [Connecting Ankaios components over the network](<https://eclipse-ankaios.github.io/ankaios/main/usage/network-setup/index.md>) and follow it to set up the cluster with network communication, ideally secured with mTLS, then start an agent named `infotainment` on the separate host. Keep in mind that the agent's certificate needs to be generated for that name.
+
+If you run the new agent on the same host as the existing Ankaios server and agent, no further configuration is needed, since the standard installation already configures agents to connect to the server over the local Unix domain socket. Simply start the new agent with:
 
 ```
-ank-agent --name infotainment --server-url http://<SERVER_IP>:25551
-```
-
-If the agent is started on the same host as the existing Ankaios server and agent, then we will call it as follows:
-
-```
-ank-agent --name infotainment --server-url http://127.0.0.1:25551
+ank-agent --name infotainment
 ```
 
 As the first agent was started by systemd, it runs as root and therefore calls podman as root. The second agent is started by a non-root user and therefore also uses podman in user mode. Ankaios does not need root privileges and can be started as any user.
@@ -1147,18 +1153,7 @@ ank apply --agent infotainment speed-consumer.yaml
 
 > [!NOTE]
 >
-> If you are running the ank command on a host that is different from the host on which the Ankaios server is running, you need to add a parameter `-s <SERVER_URL>` like:
->
-> ```
-> ank apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
-> ```
->
-> Optionally the server URL can also be provided via environment variable:
->
-> ```
-> export ANK_SERVER_URL=http://127.0.0.1:25551
-> ank apply --agent infotainment speed-consumer.yaml
-> ```
+> If you are running the `ank` CLI on a host that is different from the host on which the Ankaios server is running, you need to configure it to connect over the network, as described in [Connecting Ankaios components over the network](<https://eclipse-ankaios.github.io/ankaios/main/usage/network-setup/index.md>). Once configured, you can start it as described above.
 
 The command waits until speed consumer is running. It should print:
 
@@ -1203,7 +1198,7 @@ workloads:
     runtime: podman
     agent: agent_A
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.3
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.4
       commandOptions:
         - "--net=host"
         - "-e"
@@ -1259,7 +1254,7 @@ workloads:
     dependencies:
       databroker: ADD_COND_RUNNING
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.3
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.4
       commandOptions:
         - "--net=host"
         - "-e"
@@ -1310,254 +1305,13 @@ If you have some missing resources, please feel free to open a [pull request](<h
 - [Forget the conventional - Shift to SDV](<https://github.com/Eclipse-SDV-Hackathon-Chapter-Two/challenge-shift-to-sdv>) has been a challenge during the Eclipse SDV Hackathon Chapter Two in November 2024.
 - [Mission Update Possible](<https://github.com/Eclipse-SDV-Hackathon-Chapter-Three/challenge-mission-update-possible>) has been a challenge during the Eclipse SDV Hackathon Chapter Three in October 2025.
 
-# Setting up Ankaios with mTLS
-
-Mutual TLS (mTLS) is a security protocol that verifies both the client and server identities before establishing a connection. In Ankaios mTLS can be used to secure communication between the server, agent and ank CLI.
-
-The standard [installation](<https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md>) **disables mTLS** for server, agent and CLI in the respective [configuration files](<https://eclipse-ankaios.github.io/ankaios/main/reference/config-files/index.md>) with `insecure = true`. Besides that, mTLS can also be disabled for the CLI as command argument like `ank --insecure get state` or setting the environment variable `export ANK_INSECURE=true`.
-
-This page describes how to create certificates and **enable mTLS**.
-
-## Prerequisites
-
-- OpenSSL 3.0 or newer
-
-## Set up directories
-
-To set up mTLS with OpenSSL, perform the following actions:
-
-First we need to create a folder to keep certificates and keys for `ank-server` and `ank-agent`:
-
-```
-sudo mkdir -p /etc/ankaios/certs
-```
-
-Then we need to create a folder to keep certificates and keys for the `ank` CLI:
-
-```
-mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/ankaios"
-```
-
-## Generate CA keys and certificate
-
-Construct an [OpenSSL configuration file](<https://www.openssl.org/docs/manmaster/man5/config.html>) named `ca.cnf`. You are welcome to include additional fields if necessary:
-
-ca.cnf
-
-```
-[req]
-distinguished_name = req_distinguished_name
-prompt = no
-
-[req_distinguished_name]
-CN = ankaios-ca
-```
-
-Generate CA key:
-
-```
-sudo openssl genpkey -algorithm ED25519 -out "./ca-key.pem"
-```
-
-Generate CA certificate:
-
-```
-sudo openssl req -config "./ca.cnf" -new -x509 -key "./ca-key.pem" -out "/etc/ankaios/certs/ca.pem"
-```
-
-## Generate key and certificate for `ank-server`
-
-Construct an [OpenSSL configuration file](<https://www.openssl.org/docs/manmaster/man5/config.html>) named `ank-server.cnf`. You are welcome to include additional fields if necessary:
-
-ank-server.cnf
-
-```
-[req]
-distinguished_name = req_distinguished_name
-req_extensions = v3_req
-prompt = no
-
-[req_distinguished_name]
-CN = ank-server
-
-[v3_req]
-subjectAltName = @alt_names
-extendedKeyUsage = serverAuth
-
-[alt_names]
-DNS.1 = ank-server
-```
-
-Generate ank-server key:
-
-```
-sudo openssl genpkey -algorithm ED25519 -out "/etc/ankaios/certs/ank-server-key.pem"
-```
-
-Generate ank-server certificate signing request:
-
-```
-sudo openssl req -config "./ank-server.cnf" -new -key "/etc/ankaios/certs/ank-server-key.pem" -out "./ank-server.csr"
-```
-
-Generate ank-server certificate:
-
-```
-sudo openssl x509 -req -in "./ank-server.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "./ca-key.pem" -extensions v3_req -extfile "./ank-server.cnf" -out "/etc/ankaios/certs/ank-server.pem"
-```
-
-## Generate key and certificate for `ank-agent`
-
-Construct an [OpenSSL configuration file](<https://www.openssl.org/docs/manmaster/man5/config.html>) named `ank-agent.cnf`. You are welcome to include additional fields if necessary:
-
-ank-agent.cnf
-
-```
-[req]
-distinguished_name = req_distinguished_name
-req_extensions = v3_req
-prompt = no
-
-[req_distinguished_name]
-CN = ank-agent
-
-[v3_req]
-subjectAltName = @alt_names
-extendedKeyUsage = clientAuth
-
-[alt_names]
-# This certificate can only be used for agents with the names 'agent_A' or 'agent_B'
-# To allow the usage for any agent use the character '*'
-# like: DNS.1 = *
-DNS.1 = agent_A
-DNS.2 = agent_B
-```
-
-Generate ank-agent key:
-
-```
-sudo openssl genpkey -algorithm ED25519 -out "/etc/ankaios/certs/ank-agent-key.pem"
-```
-
-Generate ank-agent certificate signing request:
-
-```
-sudo openssl req -config "./ank-agent.cnf" -new -key "/etc/ankaios/certs/ank-agent-key.pem" -out "./ank-agent.csr"
-```
-
-Generate ank-agent certificate:
-
-```
-sudo openssl x509 -req -in "./ank-agent.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "./ca-key.pem" -extensions v3_req -extfile "./ank-agent.cnf" -out "/etc/ankaios/certs/ank-agent.pem"
-```
-
-## Generate key and certificate for the CLI `ank`
-
-Construct an [OpenSSL configuration file](<https://www.openssl.org/docs/manmaster/man5/config.html>) named `ank.cnf`. You are welcome to include additional fields if necessary:
-
-ank.cnf
-
-```
-[req]
-distinguished_name = req_distinguished_name
-req_extensions = v3_req
-prompt = no
-[req_distinguished_name]
-CN = ank
-
-[v3_req]
-subjectAltName = @alt_names
-extendedKeyUsage = clientAuth
-
-[alt_names]
-DNS.1 = ank
-```
-
-Generate ank key:
-
-```
-openssl genpkey -algorithm ED25519 -out "${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank-key.pem"
-```
-
-Generate ank certificate signing request:
-
-```
-openssl req -config "./ank.cnf" -new -key "${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank-key.pem" -out "./ank.csr"
-```
-
-Generate ank certificate:
-
-```
-sudo openssl x509 -req -in "./ank.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "./ca-key.pem" -extensions v3_req -extfile "./ank.cnf" -out "${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank.pem"
-```
-
-## Perform Ankaios installation with mTLS support
-
-To set up Ankaios with mTLS support, you need to supply the necessary mTLS certificates to the `ank-server`, `ank-agent`, and `ank` CLI components. Here's a step-by-step guide:
-
-### Install `ank-server` and `ank-agent` with mTLS certificates
-
-```
-curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash
-```
-
-To use the CA, certificate and key for the server, add the following lines to `/etc/ankaios/ank-server.conf` and set the `insecure` flag inside it to `false`:
-
-```
-ca_pem = '/etc/ankaios/certs/ca.pem'
-crt_pem = '/etc/ankaios/certs/ank-server.pem'
-key_pem = '/etc/ankaios/certs/ank-server-key.pem'
-```
-
-For the agent add the following lines to `/etc/ankaios/ank-agent.conf` and set the `insecure` flag inside it to `false`:
-
-```
-ca_pem = '/etc/ankaios/certs/ca.pem'
-crt_pem = '/etc/ankaios/certs/ank-agent.pem'
-key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
-```
-
-For more information on how the server, agent and CLI can be configured please consult [configuration files](<https://eclipse-ankaios.github.io/ankaios/main/reference/config-files/index.md>).
-
-Start the Ankaios server and an Ankaios agent as described in the [Quickstart](<https://eclipse-ankaios.github.io/ankaios/main/usage/quickstart/index.md>) and continue below to configure the CLI with mTLS.
-
-### Configure the `ank` CLI with mTLS certificates
-
-To make it easier, we will set the mTLS certificates for the `ank` CLI by using environment variables:
-
-```
-export ANK_CA_PEM=/etc/ankaios/certs/ca.pem
-export ANK_CRT_PEM=${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank.pem
-export ANK_KEY_PEM=${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank-key.pem
-```
-
-Now you can use the `ank` CLI as follows:
-
-```
-ank get workloads
-```
-
-Or in a single line call:
-
-```
-ANK_CA_PEM=/etc/ankaios/certs/ca.pem ANK_CRT_PEM=${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank.pem ANK_KEY_PEM=${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank-key.pem ank get workloads
-```
-
-Alternatively, you can pass the mTLS certificates as command line arguments:
-
-```
-ank --ca_pem=/etc/ankaios/certs/ca.pem --crt_pem="${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank.pem" --key_pem="${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank-key.pem" get workloads
-```
-
-Or you can also configure the mTLS certificates in the CLI configuration file `~/.config/ankaios/ank.conf`. In any case you should set `insecure = false` in there to prevent a warning when mTLS certificates are provided.
-
 # Shell completion
 
 Ankaios supports command completion for the `ank` CLI in various shells.
 
 > [!NOTE]
 >
-> For dynamic completion (workloads etc.) to work, the `ank` CLI must be configured via environment variables. To use a non-default server URL, provide `ANK_SERVER_URL`. Also provide either `ANK_INSECURE=true` or `ANK_CA_PEM`, `ANK_CRT_PEM` and `ANK_KEY_PEM`.
+> Dynamic completion (workloads etc.) invokes the `ank` CLI internally and therefore requires the `ank` CLI to be able to connect to the Ankaios server (see [configuration files](<https://eclipse-ankaios.github.io/ankaios/main/reference/config-files/index.md>)).
 
 ## Bash
 
@@ -2690,7 +2444,7 @@ The Ankaios configuration files are per default loaded from the following locati
 
 ## Configuration File Structure
 
-The following three examples show how the Ankaios configuration files look like:
+The following three examples show how the Ankaios configuration files look like. By default, the standard [installation](<https://eclipse-ankaios.github.io/ankaios/main/usage/installation/index.md>) configures the server, agent and CLI to communicate over a local Unix domain socket at `/run/ankaios.sock`, as shown in the examples below. For communication over the network instead, see [Connecting Ankaios components over the network](<https://eclipse-ankaios.github.io/ankaios/main/usage/network-setup/index.md>).
 
 ### Ankaios Server Configuration (`ank-server.conf`)
 
@@ -2705,22 +2459,30 @@ version = 'v1'
 # By default, no startup configuration manifest is used.
 startup_manifest = '/etc/ankaios/state.yaml'
 
-# The address, including the port, to which the server should listen.
-address = '127.0.0.1:25551'
+# The address to which the server should listen, either a TCP socket
+# address including the port (`<host>:<port>`) or a Unix domain socket
+# address (`unix://<absolute-path>`).
+address = 'unix:///run/ankaios.sock'
+
+# Optional group applied to the Unix domain socket file's group ownership.
+# This option is only valid with 'unix://' addresses.
+socket_group = 'ankaios'
 
 # The flag to disable TLS communication between
 # the Ankaios server, agents and the ank CLI.
 # If set to 'true' and the certificates are not provided, then the server shall not use TLS.
-insecure = false
+# This option must not be used with 'unix://' addresses.
+# insecure = false
 
 # The path to ca certificate pem file.
-ca_pem = '/etc/ankaios/certs/ca.pem'
+# TLS options are only valid with TCP addresses.
+# ca_pem = '/etc/ankaios/certs/ca.pem'
 
 # The path to server certificate pem file.
-crt_pem = '/etc/ankaios/certs/ank-server.pem'
+# crt_pem = '/etc/ankaios/certs/ank-server.pem'
 
 # The path to server key pem file.
-key_pem = '/etc/ankaios/certs/ank-server-key.pem'
+# key_pem = '/etc/ankaios/certs/ank-server-key.pem'
 
 # The content of the ca certificate pem file.
 # You can either provide key_pem or key_pem_content, but not both.
@@ -2741,6 +2503,10 @@ key_pem = '/etc/ankaios/certs/ank-server-key.pem'
 # -----END PRIVATE KEY-----'''
 ```
 
+> [!NOTE]
+>
+> If no `address` is configured and no configuration file is used, the Ankaios server defaults to the TCP address `127.0.0.1:25551`.
+
 ### Ankaios Agent Configuration (`ank-agent.toml`)
 
 ```
@@ -2756,27 +2522,30 @@ version = 'v1'
 # (a-z and A-Z), numbers and the symbols "-" and "_".
 name = 'agent_1'
 
-# The server URL.
-server_url = 'https://127.0.0.1:25551'
+# The server URL, either a TCP address (`https://<host>:<port>`) or a
+# Unix domain socket address (`unix://<absolute-path>`).
+server_url = 'unix:///run/ankaios.sock'
 
 # An existing path where to manage the fifo files.
 # If not set, defaults to '$TMPDIR/ankaios/' (falls back to '/tmp/ankaios/' if TMPDIR is not set).
 # If the path already exists, it must be owned by the user running the agent and must not be
 # accessible by other users or groups; otherwise, the agent prevents startup to protect against insecure permissions.
-run_folder = '/tmp/ankaios/'
+# run_folder = '/tmp/ankaios/'
 
 # The flag to disable TLS communication with the server.
 # If set to 'true', then the agent shall not use TLS.
-insecure = false
+# This option must not be used with 'unix://' addresses.
+# insecure = true
 
 # The path to the ca certificate pem file.
-ca_pem = '/etc/ankaios/certs/ca.pem'
+# TLS options are only valid with TCP addresses.
+# ca_pem = '/etc/ankaios/certs/ca.pem'
 
 # The path to agent certificate pem file.
-crt_pem = '/etc/ankaios/certs/ank-agent.pem'
+# crt_pem = '/etc/ankaios/certs/ank-agent.pem'
 
 # The path to agent key pem file.
-key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
+# key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
 
 # The content of the ca certificate pem file.
 # You can either provide ca_pem or ca_pem_content, but not both
@@ -2797,6 +2566,10 @@ key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
 # -----END PRIVATE KEY-----'''
 ```
 
+> [!NOTE]
+>
+> If no `server_url` is configured and no configuration file is used, the Ankaios agent defaults to the TCP address `https://127.0.0.1:25551`.
+
 ### Ankaios CLI Configuration (`ank.conf`)
 
 ```
@@ -2807,35 +2580,39 @@ key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
 version = 'v1'
 
 # The timeout in milliseconds to wait for a response from the ank-server.
-response_timeout = 3000  # milliseconds
+# response_timeout = 3000  # milliseconds
 
 # The flag to enable verbose output.
-verbose = false
+# verbose = false
 
 # The flag to disable all output.
-quiet = false
+# quiet = false
 
 # The flag that enables waiting for workloads to be created/deleted.
-no_wait = false
+# no_wait = false
 
 [default]
-# The URL to Ankaios server.
+# The URL of the Ankaios server, either a TCP address
+# (`https://<host>:<port>`) or a Unix domain socket address
+# (`unix://<absolute-path>`).
 # If started in insecure mode then the HTTP protocol shall be used,
 # otherwise the HTTPS protocol shall be used.
-server_url = 'https://127.0.0.1:25551'
+server_url = 'unix:///run/ankaios.sock'
 
 # The flag to disable TLS communication with the server.
 # If set to 'true', then the CLI shall not use TLS.
-insecure = false
+# This option must not be used with 'unix://' addresses.
+# insecure = true
 
 # The path to the ca certificate pem file.
-ca_pem = '/etc/ankaios/certs/ca.pem'
+# TLS options are only valid with TCP addresses.
+# ca_pem = '/etc/ankaios/certs/ca.pem'
 
 # The path to CLI certificate pem file.
-crt_pem = '/home/ankaios/.config/ankaios/ank.pem'
+# crt_pem = '/home/ankaios/.config/ankaios/ank.pem'
 
 # The path to CLI key pem file.
-key_pem = '/home/ankaios/.config/ankaios/ank-key.pem'
+# key_pem = '/home/ankaios/.config/ankaios/ank-key.pem'
 
 # The content of the ca certificate pem file.
 # You can either provide ca_pem or ca_pem_content, but not both.

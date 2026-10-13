@@ -12,9 +12,7 @@ Ankaios works with most Linux distributions and has been tested with Ubuntu 22.0
 
 Detailed installation steps, including instructions on setting up container runtimes, choosing an installation method, and installing specific Ankaios versions, are provided below.
 
-> [!WARNING]
->
-> The express installation does not enable any authentication for access to the Ankaios server (see [Setting up Ankaios with mTLS](<https://eclipse-ankaios.github.io/ankaios/main/usage/mtls-setup/index.md>)). Since the server is typically run as root (e.g. via `sudo systemctl`), any client that can reach it could start workloads with root privileges. For this reason, only use this setup for development purposes.
+See also the [post-installation steps](<#post-installation-steps>).
 
 ## System requirements
 
@@ -43,7 +41,7 @@ Ankaios uses the `nerdctl` command-line interface (CLI) to manage containers wit
 
 ## Installation methods
 
-For setting up Ankaios in a production environment with mutual transport layer security (mTLS), follow the [mTLS setup instructions](<https://eclipse-ankaios.github.io/ankaios/main/usage/mtls-setup/index.md>) after installing Ankaios.
+By default, the server, agent and CLI communicate over a local Unix domain socket, which relies on filesystem permissions and only works when all components run on the same host. For a multi-node setup communication over the network has to be used. Follow the [network setup instructions](<https://eclipse-ankaios.github.io/ankaios/main/usage/network-setup/index.md>) after installing Ankaios.
 
 ### Install script
 
@@ -78,7 +76,7 @@ To install a specific version run the following command and substitute `<version
 curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/<version>/install.sh | bash -s -- -v <version>
 ```
 
-For available versions see the [list of releases](<https://github.com/eclipse-ankaios/ankaios/tags>).
+For available versions see the [list of releases](<https://github.com/eclipse-ankaios/ankaios/tags>) and also check the [post-installation steps](<#post-installation-steps>).
 
 #### Set the log level for `ank-server` and `ank-agent` services
 
@@ -138,11 +136,9 @@ The `ankaios` meta-package installs all components. Individual packages can be i
 | `ank-agent` | Ankaios agent |
 | `ank` | Ankaios CLI |
 
-> [!WARNING]
->
-> The APT package installation does not enable any authentication for access to the Ankaios server (see [Setting up Ankaios with mTLS](<https://eclipse-ankaios.github.io/ankaios/main/usage/mtls-setup/index.md>)). Since the `ank-server` and `ank-agent` systemd services are started automatically after installation, any client that can reach the `ank-server` could start workloads with root privileges. For this reason, only use this setup for development purposes.
-
 The packages are compatible with Ubuntu 22.04+, Debian 12+ and other distributions based on glibc 2.35 or later.
+
+See also the [post-installation steps](<#post-installation-steps>).
 
 #### Uninstall
 
@@ -203,9 +199,7 @@ You can also install:
 >
 > `sudo systemctl enable --now ank-server ank-agent`
 
-> [!WARNING]
->
-> The AUR package installation does not enable any authentication for access to the Ankaios server (see [Setting up Ankaios with mTLS](<https://eclipse-ankaios.github.io/ankaios/main/usage/mtls-setup/index.md>)). After starting the `ank-server` and `ank-agent` systemd services, any client that can reach the `ank-server` could start workloads with root privileges. For this reason, only use this setup for development purposes.
+See also the [post-installation steps](<#post-installation-steps>).
 
 #### Uninstall
 
@@ -226,3 +220,13 @@ As an alternative to the installation script, the pre-built binaries can be down
 ### Build from source
 
 For building Ankaios from source see [Build](<https://eclipse-ankaios.github.io/ankaios/main/development/build/index.md>).
+
+## Post-installation steps
+
+Installing `ankaios-server` creates the system group `ankaios`, which owns the default Unix domain socket. Add your user to this group so that the `ank` CLI can connect without `sudo`:
+
+```
+sudo usermod -aG ankaios "$USER"
+```
+
+Log out and log back in so that your group membership is re-evaluated.

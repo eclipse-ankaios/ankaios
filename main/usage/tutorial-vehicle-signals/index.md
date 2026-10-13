@@ -6,7 +6,7 @@ In this tutorial, we will show you how to use Ankaios to set up workloads that p
 
 Overview of workloads
 
-To run this tutorial you will need a Linux platform, which can be a RaspberryPi or a Linux PC or virtual machine. Additionally, it's assumed that the Ankaios setup is done with mutual TLS (mTLS) disabled or using its default installation settings.
+To run this tutorial you will need a Linux platform, which can be a RaspberryPi or a Linux PC or virtual machine.
 
 ## Start the databroker
 
@@ -71,7 +71,7 @@ workloads:
     runtime: podman
     agent: agent_A
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.3
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.4
       commandOptions:
         - "--net=host"
 ```
@@ -97,16 +97,18 @@ Speed provider web UI
 
 ## Add an agent
 
-We currently have an agent running as part of the Ankaios cluster, running the databroker and the speed provider. The next workload we want to start is a speed consumer that consumes vehicle speed values. A speed consumer such as a navigation system typically runs on a separate node for infotainment. A separate node requires a new Ankaios agent. Let's create another Ankaios agent to connect to the existing server. For this tutorial we can either use a separate Linux host or use the existing one. Start a new agent with:
+We currently have an agent running as part of the Ankaios cluster, running the databroker and the speed provider. The next workload we want to start is a speed consumer that consumes vehicle speed values. A speed consumer such as a navigation system typically runs on a separate node for infotainment. A separate node requires a new Ankaios agent. Let's create another Ankaios agent to connect to the existing server. For this tutorial we can either use a separate Linux host or use the existing one.
+
+> [!NOTE]
+>
+> **Info**
+>
+> For a genuine multi-node setup, i.e. running the new agent on a separate host from the server, read [Connecting Ankaios components over the network](<https://eclipse-ankaios.github.io/ankaios/main/usage/network-setup/index.md>) and follow it to set up the cluster with network communication, ideally secured with mTLS, then start an agent named `infotainment` on the separate host. Keep in mind that the agent's certificate needs to be generated for that name.
+
+If you run the new agent on the same host as the existing Ankaios server and agent, no further configuration is needed, since the standard installation already configures agents to connect to the server over the local Unix domain socket. Simply start the new agent with:
 
 ```
-ank-agent --name infotainment --server-url http://<SERVER_IP>:25551
-```
-
-If the agent is started on the same host as the existing Ankaios server and agent, then we will call it as follows:
-
-```
-ank-agent --name infotainment --server-url http://127.0.0.1:25551
+ank-agent --name infotainment
 ```
 
 As the first agent was started by systemd, it runs as root and therefore calls podman as root. The second agent is started by a non-root user and therefore also uses podman in user mode. Ankaios does not need root privileges and can be started as any user.
@@ -166,18 +168,7 @@ ank apply --agent infotainment speed-consumer.yaml
 
 > [!NOTE]
 >
-> If you are running the ank command on a host that is different from the host on which the Ankaios server is running, you need to add a parameter `-s <SERVER_URL>` like:
->
-> ```
-> ank apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
-> ```
->
-> Optionally the server URL can also be provided via environment variable:
->
-> ```
-> export ANK_SERVER_URL=http://127.0.0.1:25551
-> ank apply --agent infotainment speed-consumer.yaml
-> ```
+> If you are running the `ank` CLI on a host that is different from the host on which the Ankaios server is running, you need to configure it to connect over the network, as described in [Connecting Ankaios components over the network](<https://eclipse-ankaios.github.io/ankaios/main/usage/network-setup/index.md>). Once configured, you can start it as described above.
 
 The command waits until speed consumer is running. It should print:
 
@@ -222,7 +213,7 @@ workloads:
     runtime: podman
     agent: agent_A
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.3
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.4
       commandOptions:
         - "--net=host"
         - "-e"
@@ -278,7 +269,7 @@ workloads:
     dependencies:
       databroker: ADD_COND_RUNNING
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.3
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.4
       commandOptions:
         - "--net=host"
         - "-e"
