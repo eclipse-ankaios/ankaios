@@ -67,7 +67,7 @@ fn detect_api_version(obj: &Object, obj_paths: &[Path]) -> Result<Option<&'stati
 // [impl->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
 // [impl->swdd~cli-apply-manifest-accepts-v01-api-version~1]
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
-    let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
+    let state_obj_parsing_check: yaml_serde::Value = yaml_serde::from_reader(&mut manifest.1)
         .map_err(|err| format!("Invalid manifest data provided: {err}"))?;
 
     // [impl->swdd~cli-validates-manifest-against-schema~1]
@@ -114,7 +114,7 @@ pub fn handle_agent_overwrite(
                 state_obj
                     .set(
                         &workload_agent_mask,
-                        serde_yaml::Value::String(agent_name.to_owned()),
+                        yaml_serde::Value::String(agent_name.to_owned()),
                     )
                     .map_err(|_| "Could not find workload to update.".to_owned())?;
             } else if state_obj.get(&workload_agent_mask).is_none() {
@@ -272,7 +272,7 @@ mod tests {
     };
 
     use mockall::predicate::eq;
-    use serde_yaml::Value;
+    use yaml_serde::Value;
     use std::io::{Cursor, Read};
 
     mockall::lazy_static! {
@@ -468,7 +468,7 @@ mod tests {
     #[test]
     fn utest_update_request_obj_ok() {
         let mut req_obj = Object::default();
-        let content_value: Value = serde_yaml::from_str(
+        let content_value: Value = yaml_serde::from_str(
             r#"
         workloads:
          simple:
@@ -491,7 +491,7 @@ mod tests {
 
     #[test]
     fn utest_update_request_obj_failed_same_workload_names() {
-        let content_value: Value = serde_yaml::from_str(
+        let content_value: Value = yaml_serde::from_str(
             r#"
         workloads:
          same_workload_name: {}
@@ -511,7 +511,7 @@ mod tests {
     #[test]
     fn utest_update_request_obj_delete_mode_on_ok() {
         let mut req_obj = Object::default();
-        let content_value: Value = serde_yaml::from_str(
+        let content_value: Value = yaml_serde::from_str(
             r#"
         workloads:
          simple:
@@ -711,7 +711,7 @@ mod tests {
         let _ = manifest_content.clone().read_to_string(&mut data);
 
         let expected_complete_state_obj = CompleteState {
-            desired_state: serde_yaml::from_str(&data).unwrap(),
+            desired_state: yaml_serde::from_str(&data).unwrap(),
             ..Default::default()
         };
 
@@ -903,7 +903,7 @@ mod tests {
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
         let updated_state = CompleteState {
-            desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
+            desired_state: yaml_serde::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
 
@@ -1015,7 +1015,7 @@ mod tests {
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
         let updated_state = CompleteState {
-            desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
+            desired_state: yaml_serde::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
         println!("Expected new state: {updated_state:?}");
@@ -1130,7 +1130,7 @@ mod tests {
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
         let updated_state = CompleteState {
-            desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
+            desired_state: yaml_serde::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
 

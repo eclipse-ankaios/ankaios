@@ -169,18 +169,18 @@ fn annotate_workload(builder: Builder) -> Builder {
         .field_attribute(
             "Files.files",
             // Yes, this is not a map, but this is the only way to get the desired serialization behavior without ! in the YAML and a custom serializer
-            "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
+            "#[serde(with = \"yaml_serde::with::singleton_map_recursive\")]",
         )
         .field_attribute("File.FileContent", "#[serde(flatten)]")
         .enum_attribute("File.FileContent", "#[serde(rename_all = \"camelCase\")]")
         // Control Interface Access
         .field_attribute(
             "ControlInterfaceAccess.allowRules",
-            "#[serde(default, with = \"serde_yaml::with::singleton_map_recursive\", skip_serializing_if = \"Vec::is_empty\")]",
+            "#[serde(default, with = \"yaml_serde::with::singleton_map_recursive\", skip_serializing_if = \"Vec::is_empty\")]",
         )
         .field_attribute(
             "ControlInterfaceAccess.denyRules",
-            "#[serde(default, with = \"serde_yaml::with::singleton_map_recursive\", skip_serializing_if = \"Vec::is_empty\")]",
+            "#[serde(default, with = \"yaml_serde::with::singleton_map_recursive\", skip_serializing_if = \"Vec::is_empty\")]",
         )
         // The alias to filterMask is added to support the deprecated apiVersions: v0.1
         .field_attribute("StateRule.filterMasks", "#[serde(alias = \"filterMask\")]")

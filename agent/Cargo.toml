@@ -27,7 +27,7 @@ tokio = { version = "1.41", features = [
 nix = { version = "0.31", features = ["fs", "user"] }
 async-trait = "0.1"
 serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.9"
+yaml_serde = "0.10"
 clap = { version = "4.5", features = ["derive", "env"] }
 futures-util = "0.3"
 serde_json = "1.0"
