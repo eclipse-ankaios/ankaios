@@ -23,7 +23,7 @@ fn terminal_width() -> usize {
 use common::std_extensions::UnreachableOption;
 use tabled::{
     Table, Tabled,
-    grid::config::Entity,
+    grid::config::Position,
     settings::{Modify, Padding, Style, Width, object::Columns},
 };
 
@@ -89,7 +89,7 @@ where
         let available_column_width = self.column_width_for_terminal(column_position)?;
 
         self.table.with(
-            Modify::new(Columns::single(column_position)).with(Width::wrap(available_column_width)),
+            Modify::new(Columns::one(column_position)).with(Width::wrap(available_column_width)),
         );
         Ok(self.table.to_string())
     }
@@ -104,7 +104,7 @@ where
 
         let available_column_width = self.column_width_for_terminal(column_position)?;
         self.table.with(
-            Modify::new(Columns::single(column_position)).with(
+            Modify::new(Columns::one(column_position)).with(
                 Width::truncate(available_column_width).suffix(Self::TRUNCATED_COLUMN_SUFFIX),
             ),
         );
@@ -121,7 +121,7 @@ where
         let first_column_default_padding = self
             .table
             .get_config()
-            .get_padding(Entity::Column(Self::FIRST_COLUMN_POS));
+            .get_padding(Position::new(0, Self::FIRST_COLUMN_POS));
 
         /* Set the left padding of the first and the right padding of the last column to zero
         to align the table content to the full terminal width for better output quality. */
@@ -136,7 +136,7 @@ where
         let last_column_default_padding = self
             .table
             .get_config()
-            .get_padding(Entity::Column(last_column_pos));
+            .get_padding(Position::new(0, last_column_pos));
 
         self.table
             .with(Modify::new(Columns::last()).with(Padding::new(
