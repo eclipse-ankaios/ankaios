@@ -32,8 +32,8 @@ pub mod test_helper;
 
 // [impl->swdd~server-validates-startup-manifest-tags-format~1]
 fn validate_tags_format_in_manifest(data: &str) -> Result<(), String> {
-    let yaml_value: serde_yaml::Value =
-        serde_yaml::from_str(data).map_err(|e| format!("Failed to parse YAML: {e}"))?;
+    let yaml_value: yaml_serde::Value =
+        yaml_serde::from_str(data).map_err(|e| format!("Failed to parse YAML: {e}"))?;
 
     let api_version = yaml_value
         .get("apiVersion")
@@ -90,7 +90,7 @@ async fn main() {
 
             // [impl->swdd~server-state-in-memory~1]
             // [impl->swdd~server-loads-startup-state-file~3]
-            let state: StateSpec = serde_yaml::from_str(&data)
+            let state: StateSpec = yaml_serde::from_str(&data)
                 .unwrap_or_exit("Parsing start config failed with error");
             log::trace!(
                 "The state is initialized with the following workloads: {:?}",

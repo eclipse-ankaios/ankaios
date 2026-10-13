@@ -21,7 +21,7 @@ use crate::{CONSTRAINT_FIELD_DESCRIPTION, CURRENT_API_VERSION, PREVIOUS_API_VERS
 
 use serde::{Deserialize, Serialize};
 
-use serde_yaml::Value;
+use yaml_serde::Value;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
@@ -279,7 +279,7 @@ mod tests {
             DeleteCondition::DelCondNotPendingNorRunning,
         );
 
-        let serialized_deleted_workload = serde_yaml::to_string(&deleted_workload).unwrap();
+        let serialized_deleted_workload = yaml_serde::to_string(&deleted_workload).unwrap();
         let indices = [
             serialized_deleted_workload
                 .find(fixtures::WORKLOAD_NAMES[0])

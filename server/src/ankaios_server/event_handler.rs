@@ -28,7 +28,7 @@ use common::{
 use ankaios_api::ank_base::{AgentMapSpec, CompleteStateRequest, WorkloadStatesMapSpec};
 use std::collections::HashMap;
 
-use serde_yaml::Value;
+use yaml_serde::Value;
 
 #[cfg(test)]
 use mockall::automock;
@@ -215,12 +215,12 @@ impl EventHandler {
 // [impl->swdd~event-handler-creates-altered-fields-using-full-difference-tree~1]
 // [impl->swdd~event-handler-creates-altered-fields-using-full-difference-tree-for-updated-fields~1]
 fn create_altered_fields_matching_subscriber_masks(
-    extended_difference_tree: &serde_yaml::Mapping,
-    difference_tree: &serde_yaml::Mapping,
+    extended_difference_tree: &yaml_serde::Mapping,
+    difference_tree: &yaml_serde::Mapping,
     subscriber_field_masks: &[Path],
 ) -> Vec<String> {
     let mut altered_field_masks = Vec::new();
-    let empty_mapping = serde_yaml::Mapping::new();
+    let empty_mapping = yaml_serde::Mapping::new();
 
     // [impl->swdd~event-handler-uses-first-difference-tree-upon-empty-subscriber-mask~1]
     if subscriber_field_masks.is_empty() {
@@ -260,7 +260,7 @@ fn create_altered_fields_matching_subscriber_masks(
                         match (
                             current_node
                                 .get(next_extended_key)
-                                .unwrap_or(&serde_yaml::Value::Null),
+                                .unwrap_or(&yaml_serde::Value::Null),
                             next_extended_tree_level,
                         ) {
                             (Value::Mapping(next_node), Value::Mapping(next_extended_node)) => {
@@ -806,11 +806,11 @@ mod tests {
             child2: null
         "#;
 
-        let first_difference_tree: serde_yaml::Mapping =
-            serde_yaml::from_str(first_difference_tree_yaml).unwrap();
+        let first_difference_tree: yaml_serde::Mapping =
+            yaml_serde::from_str(first_difference_tree_yaml).unwrap();
 
-        let full_difference_tree: serde_yaml::Mapping =
-            serde_yaml::from_str(full_difference_tree_yaml).unwrap();
+        let full_difference_tree: yaml_serde::Mapping =
+            yaml_serde::from_str(full_difference_tree_yaml).unwrap();
 
         // case 1: without wildcard
         let altered_fields = create_altered_fields_matching_subscriber_masks(
@@ -856,11 +856,11 @@ mod tests {
             child2: null
         "#;
 
-        let first_difference_tree: serde_yaml::Mapping =
-            serde_yaml::from_str(first_difference_tree_yaml).unwrap();
+        let first_difference_tree: yaml_serde::Mapping =
+            yaml_serde::from_str(first_difference_tree_yaml).unwrap();
 
-        let full_difference_tree: serde_yaml::Mapping =
-            serde_yaml::from_str(full_difference_tree_yaml).unwrap();
+        let full_difference_tree: yaml_serde::Mapping =
+            yaml_serde::from_str(full_difference_tree_yaml).unwrap();
 
         // case 1: without wildcard
         let altered_fields = create_altered_fields_matching_subscriber_masks(
@@ -901,11 +901,11 @@ mod tests {
             child2: null
         "#;
 
-        let first_difference_tree: serde_yaml::Mapping =
-            serde_yaml::from_str(first_difference_tree_yaml).unwrap();
+        let first_difference_tree: yaml_serde::Mapping =
+            yaml_serde::from_str(first_difference_tree_yaml).unwrap();
 
-        let full_difference_tree: serde_yaml::Mapping =
-            serde_yaml::from_str(full_difference_tree_yaml).unwrap();
+        let full_difference_tree: yaml_serde::Mapping =
+            yaml_serde::from_str(full_difference_tree_yaml).unwrap();
 
         // case 1: without wildcard
         let altered_fields = create_altered_fields_matching_subscriber_masks(
@@ -943,11 +943,11 @@ mod tests {
                 grandchild1: null
         "#;
 
-        let first_difference_tree: serde_yaml::Mapping =
-            serde_yaml::from_str(first_difference_tree_yaml).unwrap();
+        let first_difference_tree: yaml_serde::Mapping =
+            yaml_serde::from_str(first_difference_tree_yaml).unwrap();
 
-        let full_difference_tree: serde_yaml::Mapping =
-            serde_yaml::from_str(full_difference_tree_yaml).unwrap();
+        let full_difference_tree: yaml_serde::Mapping =
+            yaml_serde::from_str(full_difference_tree_yaml).unwrap();
 
         let altered_fields = create_altered_fields_matching_subscriber_masks(
             &full_difference_tree,
@@ -978,11 +978,11 @@ mod tests {
                     great_grandchild: null
         "#;
 
-        let first_difference_tree: serde_yaml::Mapping =
-            serde_yaml::from_str(first_difference_tree_yaml).unwrap();
+        let first_difference_tree: yaml_serde::Mapping =
+            yaml_serde::from_str(first_difference_tree_yaml).unwrap();
 
-        let full_difference_tree: serde_yaml::Mapping =
-            serde_yaml::from_str(full_difference_tree_yaml).unwrap();
+        let full_difference_tree: yaml_serde::Mapping =
+            yaml_serde::from_str(full_difference_tree_yaml).unwrap();
 
         // empty subscriber masks should return all paths from the first difference tree
         let altered_fields = create_altered_fields_matching_subscriber_masks(

@@ -13,7 +13,7 @@ spec_macros = { path = "../spec_macros" }
 prost = "0.14"
 tonic = "0.14"
 serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.9"
+yaml_serde = "0.10"
 serde_json = "1.0"
 sha256 = "1.5"
 regex = "1.12"

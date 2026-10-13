@@ -16,7 +16,7 @@ use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
 use crate::runtime_connectors::{RuntimeError, podman_cli::API_PIPES_MOUNT_POINT};
 
 use serde::Deserialize;
-use serde_yaml::{Deserializer, Mapping, Value};
+use yaml_serde::{Deserializer, Mapping, Value};
 use std::path::Path;
 
 const TARGET_PATH_LENGTH: usize = 2;
@@ -279,7 +279,7 @@ fn create_control_interface_volume(control_interface_path: &Path) -> Value {
 }
 
 fn serialize_yaml_manifest(manifest: &Value) -> Result<String, RuntimeError> {
-    serde_yaml::to_string(manifest)
+    yaml_serde::to_string(manifest)
         .map_err(|e| RuntimeError::Unsupported(format!("Failed to serialize manifest: {e}")))
 }
 
@@ -306,7 +306,7 @@ mod tests {
         generate_test_workload_with_runtime_config,
     };
 
-    use serde_yaml::Value;
+    use yaml_serde::Value;
 
     #[test]
     fn utest_control_interface_target_valid() {
@@ -483,7 +483,7 @@ metadata:
 
     #[test]
     fn utest_get_metadata_name_success() {
-        let manifest = serde_yaml::from_str::<Value>(
+        let manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -499,7 +499,7 @@ metadata:
 
     #[test]
     fn utest_get_metadata_name_missing_metadata() {
-        let manifest = serde_yaml::from_str::<Value>(
+        let manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -514,7 +514,7 @@ kind: Pod
 
     #[test]
     fn utest_get_metadata_name_missing_name() {
-        let manifest = serde_yaml::from_str::<Value>(
+        let manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -531,7 +531,7 @@ metadata:
 
     #[test]
     fn utest_get_metadata_name_name_not_string() {
-        let manifest = serde_yaml::from_str::<Value>(
+        let manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -550,7 +550,7 @@ metadata:
     // [utest->swdd~podman-kube-injects-control-interface-volume~1]
     #[test]
     fn utest_should_inject_control_interface_not_pod_kind() {
-        let manifest = serde_yaml::from_str::<Value>(
+        let manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Service
@@ -568,7 +568,7 @@ metadata:
     // [utest->swdd~podman-kube-mounts-control-interface~2]
     #[test]
     fn utest_should_inject_control_interface_wrong_pod_name() {
-        let manifest = serde_yaml::from_str::<Value>(
+        let manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -586,7 +586,7 @@ metadata:
     // [utest->swdd~podman-kube-mounts-control-interface~2]
     #[test]
     fn utest_should_inject_control_interface_matching_pod() {
-        let manifest = serde_yaml::from_str::<Value>(
+        let manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -603,7 +603,7 @@ metadata:
 
     #[test]
     fn utest_should_inject_control_interface_matching_deployment() {
-        let manifest = serde_yaml::from_str::<Value>(
+        let manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Deployment
@@ -620,7 +620,7 @@ metadata:
 
     #[test]
     fn utest_should_inject_control_interface_wrong_deployment_name() {
-        let manifest = serde_yaml::from_str::<Value>(
+        let manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Deployment
@@ -637,7 +637,7 @@ metadata:
 
     #[test]
     fn utest_should_inject_control_interface_missing_kind() {
-        let manifest = serde_yaml::from_str::<Value>(
+        let manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 metadata:
@@ -653,7 +653,7 @@ metadata:
 
     #[test]
     fn utest_find_containers_spec_pod_returns_spec() {
-        let mut manifest = serde_yaml::from_str::<Value>(
+        let mut manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -676,7 +676,7 @@ spec:
 
     #[test]
     fn utest_find_containers_spec_deployment_returns_template_spec() {
-        let mut manifest = serde_yaml::from_str::<Value>(
+        let mut manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: apps/v1
 kind: Deployment
@@ -702,7 +702,7 @@ spec:
 
     #[test]
     fn utest_find_containers_spec_none_when_missing_spec() {
-        let mut manifest = serde_yaml::from_str::<Value>(
+        let mut manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -717,7 +717,7 @@ metadata:
 
     #[test]
     fn utest_find_containers_spec_none_when_no_containers_and_no_template_spec() {
-        let mut manifest = serde_yaml::from_str::<Value>(
+        let mut manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -789,7 +789,7 @@ spec:
                 .contains("control-interface-volume")
         );
 
-        let parsed: Value = serde_yaml::from_str(&workload_config.manifest).unwrap();
+        let parsed: Value = yaml_serde::from_str(&workload_config.manifest).unwrap();
         let vol_mounts = &parsed["spec"]["containers"][0]["volumeMounts"];
         assert!(!vol_mounts.as_sequence().unwrap().is_empty());
 
@@ -800,7 +800,7 @@ spec:
     // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
     #[test]
     fn utest_inject_volume_mount_success() {
-        let mut manifest = serde_yaml::from_str::<Value>(
+        let mut manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -832,7 +832,7 @@ spec:
     // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
     #[test]
     fn utest_inject_volume_mount_missing_containers() {
-        let mut manifest = serde_yaml::from_str::<Value>(
+        let mut manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -850,7 +850,7 @@ spec:
     // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
     #[test]
     fn utest_inject_volume_mount_container_missing_name() {
-        let mut manifest = serde_yaml::from_str::<Value>(
+        let mut manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -870,7 +870,7 @@ spec:
     // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
     #[test]
     fn utest_inject_volume_mount_target_container_not_found() {
-        let mut manifest = serde_yaml::from_str::<Value>(
+        let mut manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -894,7 +894,7 @@ spec:
     // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
     #[test]
     fn utest_add_control_interface_mount_with_existing_mounts() {
-        let mut container = serde_yaml::from_str::<Value>(
+        let mut container = yaml_serde::from_str::<Value>(
             r#"
 name: test-container
 volumeMounts:
@@ -915,7 +915,7 @@ volumeMounts:
     // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
     #[test]
     fn utest_add_control_interface_mount_no_volume_mounts() {
-        let mut container = serde_yaml::from_str::<Value>(
+        let mut container = yaml_serde::from_str::<Value>(
             r#"
 name: test-container
 image: test-image
@@ -934,7 +934,7 @@ image: test-image
     // [utest->swdd~podman-kube-injects-control-interface-volume~1]
     #[test]
     fn utest_inject_control_volume_success_with_existing_volume_wl() {
-        let mut manifest = serde_yaml::from_str::<Value>(
+        let mut manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -961,7 +961,7 @@ spec:
     // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
     #[test]
     fn utest_inject_control_volume_success_with_missing_volume_wl() {
-        let mut manifest = serde_yaml::from_str::<Value>(
+        let mut manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -1001,7 +1001,7 @@ spec:
 
     #[test]
     fn utest_serialize_yaml_manifest_success() {
-        let manifest = serde_yaml::from_str::<Value>(
+        let manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -1023,7 +1023,7 @@ metadata:
     // [utest->swdd~podman-kube-injects-control-interface-volume~1]
     #[test]
     fn utest_process_manifest_list_mixed_manifests() {
-        let pod_manifest = serde_yaml::from_str::<Value>(
+        let pod_manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod
@@ -1039,7 +1039,7 @@ spec:
         )
         .unwrap();
 
-        let service_manifest = serde_yaml::from_str::<Value>(
+        let service_manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Service
@@ -1099,7 +1099,7 @@ spec:
 
     #[test]
     fn utest_add_control_interface_in_correct_manifest_fails_when_target_pod_not_found() {
-        let pod_manifest = serde_yaml::from_str::<Value>(
+        let pod_manifest = yaml_serde::from_str::<Value>(
             r#"
 apiVersion: v1
 kind: Pod

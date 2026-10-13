@@ -49,7 +49,7 @@ impl TryFrom<&WorkloadSpec> for PodmanRuntimeConfig {
                 workload_spec.runtime
             ));
         }
-        match serde_yaml::from_str(workload_spec.runtime_config.as_str()) {
+        match yaml_serde::from_str(workload_spec.runtime_config.as_str()) {
             Ok(workload_cfg) => Ok(workload_cfg),
             Err(e) => Err(e.to_string()),
         }
@@ -71,7 +71,7 @@ mod tests {
         podman::podman_runtime::PODMAN_RUNTIME_NAME, podman_cli::PodmanRunConfig,
     };
 
-    use ankaios_api::test_utils::{generate_test_workload_with_params, fixtures};
+    use ankaios_api::test_utils::{fixtures, generate_test_workload_with_params};
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
 

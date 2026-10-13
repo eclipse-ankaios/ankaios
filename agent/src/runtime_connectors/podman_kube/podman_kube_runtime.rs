@@ -99,7 +99,7 @@ impl PodmanKubeWorkloadInfoStore {
                 .await
                 .map_err(|err| format!("Could not read config from volume: {err:?}"))
                 .and_then(|json| {
-                    serde_yaml::from_str::<PodmanKubeRuntimeConfig>(&json)
+                    yaml_serde::from_str::<PodmanKubeRuntimeConfig>(&json)
                         .map_err(|err| format!("Could not parse config read from volume: {err:?}"))
                 })
                 .map_err(RuntimeError::Create)?;

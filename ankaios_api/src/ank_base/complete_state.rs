@@ -140,7 +140,7 @@ mod tests {
         let ankaios_state = generate_test_state();
 
         // serialize to sorted output
-        let sorted_state_string = serde_yaml::to_string(&ankaios_state).unwrap();
+        let sorted_state_string = yaml_serde::to_string(&ankaios_state).unwrap();
 
         let index_workload1 = sorted_state_string
             .find(fixtures::WORKLOAD_NAMES[0])
@@ -204,7 +204,7 @@ mod tests {
         assert_eq!(state_ankaios_no_version.api_version, "".to_string());
 
         let file_without_api_version = "";
-        let deserialization_result = serde_yaml::from_str::<StateSpec>(file_without_api_version)
+        let deserialization_result = yaml_serde::from_str::<StateSpec>(file_without_api_version)
             .unwrap_err()
             .to_string();
         assert_eq!(deserialization_result, "missing field `apiVersion`");
