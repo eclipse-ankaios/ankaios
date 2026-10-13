@@ -194,13 +194,13 @@ mod tests {
             key: String,
         }
 
-        let deserialized: TestStruct = serde_yaml::from_str(yaml).unwrap();
+        let deserialized: TestStruct = yaml_serde::from_str(yaml).unwrap();
         assert_eq!(deserialized.key, "some value");
     }
 
     #[test]
     fn utest_serialize_to_ordered_map() {
-        let mut serializer = serde_yaml::Serializer::new(Vec::new());
+        let mut serializer = yaml_serde::Serializer::new(Vec::new());
 
         let mut map = HashMap::new();
         map.insert("b".to_string(), 2);
@@ -219,9 +219,9 @@ mod tests {
             key2: value2
         "#;
 
-        let deserialized_map: HashMap<String, String> = serde_yaml::from_str(yaml_map).unwrap();
+        let deserialized_map: HashMap<String, String> = yaml_serde::from_str(yaml_map).unwrap();
         let adapted_map =
-            tag_adapter_deserializer(serde_yaml::Deserializer::from_str(yaml_map)).unwrap();
+            tag_adapter_deserializer(yaml_serde::Deserializer::from_str(yaml_map)).unwrap();
         assert_eq!(deserialized_map, adapted_map);
 
         let yaml_vec = r#"
@@ -232,7 +232,7 @@ mod tests {
         "#;
 
         let adapted_map_vec =
-            tag_adapter_deserializer(serde_yaml::Deserializer::from_str(yaml_vec)).unwrap();
+            tag_adapter_deserializer(yaml_serde::Deserializer::from_str(yaml_vec)).unwrap();
         assert_eq!(deserialized_map, adapted_map_vec);
     }
 

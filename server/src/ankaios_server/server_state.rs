@@ -266,7 +266,7 @@ impl ServerState {
                 }
             }
 
-            return_state.try_into().map_err(|err: serde_yaml::Error| {
+            return_state.try_into().map_err(|err: yaml_serde::Error| {
                 format!("The result for CompleteState is invalid: '{err}'")
             })
         } else {

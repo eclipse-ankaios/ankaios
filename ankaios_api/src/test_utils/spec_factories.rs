@@ -211,7 +211,7 @@ pub fn generate_test_agent_tags() -> TagsSpec {
 // ## ConfigMapSpec fixtures ##
 
 pub fn generate_test_config_map() -> ConfigMapSpec {
-    serde_yaml::from_str(
+    yaml_serde::from_str(
         format!(
             "
         config_1:

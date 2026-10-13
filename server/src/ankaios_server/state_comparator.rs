@@ -17,7 +17,7 @@ use common::{
     state_manipulation::{Object, Path},
     std_extensions::{IllegalStateResult, UnreachableOption},
 };
-use serde_yaml::{Mapping, Value};
+use yaml_serde::{Mapping, Value};
 use std::collections::HashSet;
 
 #[cfg(test)]
@@ -40,13 +40,13 @@ pub enum StackTask<'a> {
 impl StateComparator {
     pub fn new(old_state_spec: CompleteStateSpec, new_state_spec: CompleteStateSpec) -> Self {
         let old_state =
-            serde_yaml::to_value(ankaios_api::ank_base::CompleteState::from(old_state_spec))
+            yaml_serde::to_value(ankaios_api::ank_base::CompleteState::from(old_state_spec))
                 .unwrap_or_illegal_state()
                 .as_mapping()
                 .unwrap_or_unreachable()
                 .to_owned();
         let new_state =
-            serde_yaml::to_value(ankaios_api::ank_base::CompleteState::from(new_state_spec))
+            yaml_serde::to_value(ankaios_api::ank_base::CompleteState::from(new_state_spec))
                 .unwrap_or_illegal_state()
                 .as_mapping()
                 .unwrap_or_unreachable()
@@ -99,7 +99,7 @@ impl StateComparator {
                             StateDifferenceTree::insert_path(
                                 &mut state_difference_tree.added_tree.first_difference_tree,
                                 Path::from(added_field_mask.clone()),
-                                serde_yaml::Value::Null,
+                                yaml_serde::Value::Null,
                             );
 
                             StateDifferenceTree::insert_path(
@@ -123,7 +123,7 @@ impl StateComparator {
                             StateDifferenceTree::insert_path(
                                 &mut state_difference_tree.removed_tree.first_difference_tree,
                                 Path::from(removed_field_mask.clone()),
-                                serde_yaml::Value::Null,
+                                yaml_serde::Value::Null,
                             );
 
                             StateDifferenceTree::insert_path(
@@ -170,7 +170,7 @@ impl StateComparator {
                                                 .added_tree
                                                 .first_difference_tree,
                                             Path::from(sequence_field_mask),
-                                            serde_yaml::Value::Null,
+                                            yaml_serde::Value::Null,
                                         );
                                     } else if !old_state_sequence.is_empty()
                                         && new_state_sequence.is_empty()
@@ -180,7 +180,7 @@ impl StateComparator {
                                                 .removed_tree
                                                 .first_difference_tree,
                                             Path::from(sequence_field_mask),
-                                            serde_yaml::Value::Null,
+                                            yaml_serde::Value::Null,
                                         );
                                     } else if old_state_sequence != new_state_sequence {
                                         StateDifferenceTree::insert_path(
@@ -188,7 +188,7 @@ impl StateComparator {
                                                 .updated_tree
                                                 .full_difference_tree,
                                             Path::from(sequence_field_mask),
-                                            serde_yaml::Value::Null,
+                                            yaml_serde::Value::Null,
                                         );
                                     }
                                 }
@@ -201,7 +201,7 @@ impl StateComparator {
                                                 .updated_tree
                                                 .full_difference_tree,
                                             Path::from(updated_field_mask),
-                                            serde_yaml::Value::Null,
+                                            yaml_serde::Value::Null,
                                         );
                                     }
                                 }
@@ -307,7 +307,7 @@ impl StateDifferenceTree {
 
 #[cfg(test)]
 pub fn generate_difference_tree_from_paths(new_tree_paths: &[Vec<String>]) -> Object {
-    let mut mapping = serde_yaml::Mapping::new();
+    let mut mapping = yaml_serde::Mapping::new();
     for tree_path in new_tree_paths {
         let mut current_map = &mut mapping;
         let last = tree_path.last();
@@ -317,7 +317,7 @@ pub fn generate_difference_tree_from_paths(new_tree_paths: &[Vec<String>]) -> Ob
             }
             current_map.insert(
                 Value::String(part.clone()),
-                serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
+                yaml_serde::Value::Mapping(yaml_serde::Mapping::new()),
             );
             current_map = current_map
                 .get_mut(Value::String(part.to_owned()))
@@ -326,10 +326,10 @@ pub fn generate_difference_tree_from_paths(new_tree_paths: &[Vec<String>]) -> Ob
                 .unwrap_or_unreachable();
         }
         if let Some(last) = last {
-            current_map.insert(Value::String(last.to_owned()), serde_yaml::Value::Null);
+            current_map.insert(Value::String(last.to_owned()), yaml_serde::Value::Null);
         }
     }
-    Object::from(serde_yaml::Value::Mapping(mapping))
+    Object::from(yaml_serde::Value::Mapping(mapping))
 }
 
 // [utest->swdd~server-calculates-state-differences~1]
@@ -350,14 +350,14 @@ mod tests {
         let state_comparator = StateComparator::new(old_state_spec.clone(), new_state_spec.clone());
 
         let expected_new_state =
-            serde_yaml::to_value(ankaios_api::ank_base::CompleteState::from(new_state_spec))
+            yaml_serde::to_value(ankaios_api::ank_base::CompleteState::from(new_state_spec))
                 .unwrap()
                 .as_mapping()
                 .unwrap()
                 .to_owned();
 
         let expected_old_state =
-            serde_yaml::to_value(ankaios_api::ank_base::CompleteState::from(old_state_spec))
+            yaml_serde::to_value(ankaios_api::ank_base::CompleteState::from(old_state_spec))
                 .unwrap()
                 .as_mapping()
                 .unwrap()
@@ -388,7 +388,7 @@ mod tests {
             key_1_2: value_1_2
         "#;
 
-        let old_state: Mapping = serde_yaml::from_str(old_state_yaml).unwrap();
+        let old_state: Mapping = yaml_serde::from_str(old_state_yaml).unwrap();
 
         let state_comparator = StateComparator {
             old_state: old_state.clone(),
@@ -417,8 +417,8 @@ mod tests {
         "#;
 
         let state_comparator = StateComparator {
-            old_state: serde_yaml::from_str(old_state_yaml).unwrap(),
-            new_state: serde_yaml::from_str(new_state_yaml).unwrap(),
+            old_state: yaml_serde::from_str(old_state_yaml).unwrap(),
+            new_state: yaml_serde::from_str(new_state_yaml).unwrap(),
         };
 
         let state_difference_tree = state_comparator.state_differences();
@@ -436,12 +436,12 @@ mod tests {
             key_1_2: null
         "#;
         let expected_first_level_difference_tree = Object::from(
-            serde_yaml::from_str::<serde_yaml::Value>(expected_first_level_change_tree_yaml)
+            yaml_serde::from_str::<yaml_serde::Value>(expected_first_level_change_tree_yaml)
                 .unwrap(),
         );
 
         let expected_full_difference_tree = Object::from(
-            serde_yaml::from_str::<serde_yaml::Value>(expected_full_change_tree_yaml).unwrap(),
+            yaml_serde::from_str::<yaml_serde::Value>(expected_full_change_tree_yaml).unwrap(),
         );
 
         assert_eq!(
@@ -471,8 +471,8 @@ mod tests {
         "#;
 
         let state_comparator = StateComparator {
-            old_state: serde_yaml::from_str(old_state_yaml).unwrap(),
-            new_state: serde_yaml::from_str(new_state_yaml).unwrap(),
+            old_state: yaml_serde::from_str(old_state_yaml).unwrap(),
+            new_state: yaml_serde::from_str(new_state_yaml).unwrap(),
         };
 
         let state_difference_tree = state_comparator.state_differences();
@@ -482,7 +482,7 @@ mod tests {
               key_2_1: null
         "#;
         let expected_updated_tree = Object::from(
-            serde_yaml::from_str::<serde_yaml::Value>(expected_updated_tree_yaml).unwrap(),
+            yaml_serde::from_str::<yaml_serde::Value>(expected_updated_tree_yaml).unwrap(),
         );
 
         assert_eq!(
@@ -510,8 +510,8 @@ mod tests {
         "#;
 
         let state_comparator = StateComparator {
-            old_state: serde_yaml::from_str(old_state_yaml).unwrap(),
-            new_state: serde_yaml::from_str(new_state_yaml).unwrap(),
+            old_state: yaml_serde::from_str(old_state_yaml).unwrap(),
+            new_state: yaml_serde::from_str(new_state_yaml).unwrap(),
         };
 
         let state_difference_tree = state_comparator.state_differences();
@@ -522,7 +522,7 @@ mod tests {
               key_3_1: null
         "#;
         let expected_removed_first_difference_tree = Object::from(
-            serde_yaml::from_str::<serde_yaml::Value>(expected_removed_first_difference_tree_yaml)
+            yaml_serde::from_str::<yaml_serde::Value>(expected_removed_first_difference_tree_yaml)
                 .unwrap(),
         );
 
@@ -534,7 +534,7 @@ mod tests {
         "#;
 
         let expected_removed_full_difference_tree = Object::from(
-            serde_yaml::from_str::<serde_yaml::Value>(expected_removed_full_difference_tree_yaml)
+            yaml_serde::from_str::<yaml_serde::Value>(expected_removed_full_difference_tree_yaml)
                 .unwrap(),
         );
 
@@ -563,8 +563,8 @@ mod tests {
         "#;
 
         let state_comparator = StateComparator {
-            old_state: serde_yaml::from_str(old_state_yaml).unwrap(),
-            new_state: serde_yaml::from_str(new_state_yaml).unwrap(),
+            old_state: yaml_serde::from_str(old_state_yaml).unwrap(),
+            new_state: yaml_serde::from_str(new_state_yaml).unwrap(),
         };
 
         let state_difference_tree = state_comparator.state_differences();
@@ -572,7 +572,7 @@ mod tests {
             key_1_1: null
         "#;
         let expected_removed_tree = Object::from(
-            serde_yaml::from_str::<serde_yaml::Value>(expected_removed_tree_yaml).unwrap(),
+            yaml_serde::from_str::<yaml_serde::Value>(expected_removed_tree_yaml).unwrap(),
         );
 
         assert_eq!(
@@ -599,8 +599,8 @@ mod tests {
         "#;
 
         let state_comparator = StateComparator {
-            old_state: serde_yaml::from_str(old_state_yaml).unwrap(),
-            new_state: serde_yaml::from_str(new_state_yaml).unwrap(),
+            old_state: yaml_serde::from_str(old_state_yaml).unwrap(),
+            new_state: yaml_serde::from_str(new_state_yaml).unwrap(),
         };
 
         let state_difference_tree = state_comparator.state_differences();
@@ -609,7 +609,7 @@ mod tests {
             key_1: null
         "#;
         let expected_added_tree = Object::from(
-            serde_yaml::from_str::<serde_yaml::Value>(expected_added_tree_yaml).unwrap(),
+            yaml_serde::from_str::<yaml_serde::Value>(expected_added_tree_yaml).unwrap(),
         );
 
         assert_eq!(
@@ -638,8 +638,8 @@ mod tests {
         "#;
 
         let state_comparator = StateComparator {
-            old_state: serde_yaml::from_str(old_state_yaml).unwrap(),
-            new_state: serde_yaml::from_str(new_state_yaml).unwrap(),
+            old_state: yaml_serde::from_str(old_state_yaml).unwrap(),
+            new_state: yaml_serde::from_str(new_state_yaml).unwrap(),
         };
 
         let state_difference_tree = state_comparator.state_differences();
@@ -648,7 +648,7 @@ mod tests {
             key_1: null
         "#;
         let expected_updated_tree = Object::from(
-            serde_yaml::from_str::<serde_yaml::Value>(expected_updated_tree_yaml).unwrap(),
+            yaml_serde::from_str::<yaml_serde::Value>(expected_updated_tree_yaml).unwrap(),
         );
 
         assert_eq!(
@@ -675,8 +675,8 @@ mod tests {
         "#;
 
         let state_comparator = StateComparator {
-            old_state: serde_yaml::from_str(old_state_yaml).unwrap(),
-            new_state: serde_yaml::from_str(new_state_yaml).unwrap(),
+            old_state: yaml_serde::from_str(old_state_yaml).unwrap(),
+            new_state: yaml_serde::from_str(new_state_yaml).unwrap(),
         };
 
         let state_difference_tree = state_comparator.state_differences();
@@ -687,7 +687,7 @@ mod tests {
                 key_3: null
         "#;
         let expected_removed_tree = Object::from(
-            serde_yaml::from_str::<serde_yaml::Value>(expected_removed_tree_yaml).unwrap(),
+            yaml_serde::from_str::<yaml_serde::Value>(expected_removed_tree_yaml).unwrap(),
         );
 
         assert_eq!(
@@ -709,7 +709,7 @@ mod tests {
         "#;
 
         let state_comparator = StateComparator {
-            old_state: serde_yaml::from_str(old_state_yaml).unwrap(),
+            old_state: yaml_serde::from_str(old_state_yaml).unwrap(),
             new_state: Mapping::default(),
         };
 
@@ -719,7 +719,7 @@ mod tests {
             "20": null
         "#;
         let expected_removed_tree = Object::from(
-            serde_yaml::from_str::<serde_yaml::Value>(expected_removed_tree_yaml).unwrap(),
+            yaml_serde::from_str::<yaml_serde::Value>(expected_removed_tree_yaml).unwrap(),
         );
         assert_eq!(
             state_difference_tree.removed_tree.first_difference_tree,
@@ -741,7 +741,7 @@ mod tests {
 
         let state_comparator = StateComparator {
             old_state: Mapping::default(),
-            new_state: serde_yaml::from_str(old_state_yaml).unwrap(),
+            new_state: yaml_serde::from_str(old_state_yaml).unwrap(),
         };
 
         let state_difference_tree = state_comparator.state_differences();
@@ -761,31 +761,31 @@ mod tests {
         StateDifferenceTree::insert_path(
             &mut state_difference_tree.added_tree.first_difference_tree,
             Path::from(path_to_first_change.clone()),
-            serde_yaml::Value::Null,
+            yaml_serde::Value::Null,
         );
 
         StateDifferenceTree::insert_path(
             &mut state_difference_tree.added_tree.full_difference_tree,
             Path::from(full_change_path.clone()),
-            serde_yaml::Value::Null,
+            yaml_serde::Value::Null,
         );
 
         StateDifferenceTree::insert_path(
             &mut state_difference_tree.removed_tree.first_difference_tree,
             Path::from(path_to_first_change),
-            serde_yaml::Value::Null,
+            yaml_serde::Value::Null,
         );
 
         StateDifferenceTree::insert_path(
             &mut state_difference_tree.removed_tree.full_difference_tree,
             Path::from(full_change_path.clone()),
-            serde_yaml::Value::Null,
+            yaml_serde::Value::Null,
         );
 
         StateDifferenceTree::insert_path(
             &mut state_difference_tree.updated_tree.full_difference_tree,
             Path::from(full_change_path),
-            serde_yaml::Value::Null,
+            yaml_serde::Value::Null,
         );
 
         let expected_first_difference_tree_yaml = r#"
@@ -793,7 +793,7 @@ mod tests {
               level_2: null
         "#;
         let expected_first_difference_tree = Object::from(
-            serde_yaml::from_str::<serde_yaml::Value>(expected_first_difference_tree_yaml).unwrap(),
+            yaml_serde::from_str::<yaml_serde::Value>(expected_first_difference_tree_yaml).unwrap(),
         );
 
         let expected_full_difference_tree_yaml = r#"
@@ -802,7 +802,7 @@ mod tests {
                 level_3: null
         "#;
         let expected_full_difference_tree = Object::from(
-            serde_yaml::from_str::<serde_yaml::Value>(expected_full_difference_tree_yaml).unwrap(),
+            yaml_serde::from_str::<yaml_serde::Value>(expected_full_difference_tree_yaml).unwrap(),
         );
 
         assert_eq!(
@@ -835,7 +835,7 @@ mod tests {
         let empty_tree = StateDifferenceTree {
             added_tree: AddedTree::default(),
             removed_tree: RemovedTree {
-                first_difference_tree: Object::from(serde_yaml::Value::Mapping(Mapping::new())),
+                first_difference_tree: Object::from(yaml_serde::Value::Mapping(Mapping::new())),
                 full_difference_tree: Object::default(),
             },
             updated_tree: UpdatedTree::default(),
@@ -844,12 +844,12 @@ mod tests {
         assert!(empty_tree.is_empty());
 
         let new_tree = Mapping::from_iter([(
-            serde_yaml::Value::String("key".to_owned()),
-            serde_yaml::Value::String("value".to_owned()),
+            yaml_serde::Value::String("key".to_owned()),
+            yaml_serde::Value::String("value".to_owned()),
         )]);
         let non_empty_tree = StateDifferenceTree {
             added_tree: AddedTree {
-                first_difference_tree: Object::from(serde_yaml::Value::Mapping(new_tree)),
+                first_difference_tree: Object::from(yaml_serde::Value::Mapping(new_tree)),
                 full_difference_tree: Object::default(),
             },
             removed_tree: RemovedTree::default(),

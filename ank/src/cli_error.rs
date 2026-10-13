@@ -38,8 +38,8 @@ impl fmt::Display for CliError {
     }
 }
 
-impl From<serde_yaml::Error> for CliError {
-    fn from(value: serde_yaml::Error) -> Self {
+impl From<yaml_serde::Error> for CliError {
+    fn from(value: yaml_serde::Error) -> Self {
         CliError::YamlSerialization(format!("{value}"))
     }
 }

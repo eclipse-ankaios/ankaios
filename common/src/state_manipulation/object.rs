@@ -19,7 +19,7 @@ use ankaios_api::ank_base::{
     CompleteState, CompleteStateSpec, State, StateSpec, WILDCARD_SYMBOL, validate_field_pattern,
 };
 
-use serde_yaml::{
+use yaml_serde::{
     Mapping, Value, from_value,
     mapping::Entry::{Occupied, Vacant},
     to_value,
@@ -39,8 +39,8 @@ impl Default for Object {
     }
 }
 
-impl From<serde_yaml::Value> for Object {
-    fn from(data: serde_yaml::Value) -> Self {
+impl From<yaml_serde::Value> for Object {
+    fn from(data: yaml_serde::Value) -> Self {
         Object { data }
     }
 }
@@ -56,7 +56,7 @@ impl TryFrom<&toml::Value> for Object {
 }
 
 impl TryFrom<&StateSpec> for Object {
-    type Error = serde_yaml::Error;
+    type Error = yaml_serde::Error;
 
     fn try_from(value: &StateSpec) -> Result<Self, Self::Error> {
         Ok(Object {
@@ -66,7 +66,7 @@ impl TryFrom<&StateSpec> for Object {
 }
 
 impl TryFrom<StateSpec> for Object {
-    type Error = serde_yaml::Error;
+    type Error = yaml_serde::Error;
 
     fn try_from(value: StateSpec) -> Result<Self, Self::Error> {
         (&value).try_into()
@@ -74,7 +74,7 @@ impl TryFrom<StateSpec> for Object {
 }
 
 impl TryFrom<CompleteStateSpec> for Object {
-    type Error = serde_yaml::Error;
+    type Error = yaml_serde::Error;
 
     fn try_from(value: CompleteStateSpec) -> Result<Self, Self::Error> {
         Ok(Object {
@@ -84,7 +84,7 @@ impl TryFrom<CompleteStateSpec> for Object {
 }
 
 impl TryFrom<CompleteState> for Object {
-    type Error = serde_yaml::Error;
+    type Error = yaml_serde::Error;
 
     fn try_from(value: CompleteState) -> Result<Self, Self::Error> {
         Ok(Object {
@@ -94,7 +94,7 @@ impl TryFrom<CompleteState> for Object {
 }
 
 impl TryFrom<&CompleteStateSpec> for Object {
-    type Error = serde_yaml::Error;
+    type Error = yaml_serde::Error;
 
     fn try_from(value: &CompleteStateSpec) -> Result<Self, Self::Error> {
         Ok(Object {
@@ -104,7 +104,7 @@ impl TryFrom<&CompleteStateSpec> for Object {
 }
 
 impl TryFrom<State> for Object {
-    type Error = serde_yaml::Error;
+    type Error = yaml_serde::Error;
 
     fn try_from(value: State) -> Result<Self, Self::Error> {
         Ok(Object {
@@ -114,7 +114,7 @@ impl TryFrom<State> for Object {
 }
 
 impl TryInto<StateSpec> for Object {
-    type Error = serde_yaml::Error;
+    type Error = yaml_serde::Error;
 
     fn try_into(self) -> Result<StateSpec, Self::Error> {
         from_value(self.data)
@@ -122,7 +122,7 @@ impl TryInto<StateSpec> for Object {
 }
 
 impl TryInto<CompleteStateSpec> for Object {
-    type Error = serde_yaml::Error;
+    type Error = yaml_serde::Error;
 
     fn try_into(self) -> Result<CompleteStateSpec, Self::Error> {
         from_value(self.data)
@@ -130,7 +130,7 @@ impl TryInto<CompleteStateSpec> for Object {
 }
 
 impl TryInto<State> for Object {
-    type Error = serde_yaml::Error;
+    type Error = yaml_serde::Error;
 
     fn try_into(self) -> Result<State, Self::Error> {
         from_value(self.data)
@@ -138,14 +138,14 @@ impl TryInto<State> for Object {
 }
 
 impl TryInto<CompleteState> for Object {
-    type Error = serde_yaml::Error;
+    type Error = yaml_serde::Error;
 
     fn try_into(self) -> Result<CompleteState, Self::Error> {
         from_value(self.data)
     }
 }
 
-impl TryFrom<Object> for serde_yaml::Mapping {
+impl TryFrom<Object> for yaml_serde::Mapping {
     type Error = String;
 
     fn try_from(value: Object) -> Result<Self, Self::Error> {
@@ -172,7 +172,7 @@ fn generate_paths_from_yaml_node(
                         key_str.to_owned()
                     }
                     Value::Number(key_number) if key_number.is_i64() || key_number.is_u64() => {
-                        serde_yaml::to_string(key_number)
+                        yaml_serde::to_string(key_number)
                             .unwrap()
                             .strip_suffix('\n')
                             .unwrap()
@@ -272,7 +272,7 @@ impl Object {
     }
 
     //[impl->swdd~common-state-manipulation-remove~1]
-    pub fn remove(&mut self, path: &Path) -> Result<Option<serde_yaml::Value>, String> {
+    pub fn remove(&mut self, path: &Path) -> Result<Option<yaml_serde::Value>, String> {
         let (path_head, path_last) = path.split_last()?;
 
         Ok(self
@@ -407,7 +407,7 @@ mod tests {
         generate_test_workload_named, generate_test_workload_states_map_with_data,
     };
 
-    use serde_yaml::{Mapping, Value};
+    use yaml_serde::{Mapping, Value};
     use std::collections::HashSet;
 
     #[test]
@@ -753,7 +753,7 @@ mod tests {
             data.get(&format!("workloads.{}.restartPolicy", fixtures::WORKLOAD_NAMES[0]).into());
 
         assert!(res.is_some());
-        assert_eq!(res.expect(""), &serde_yaml::Value::from("ALWAYS"));
+        assert_eq!(res.expect(""), &yaml_serde::Value::from("ALWAYS"));
     }
 
     //[utest->swdd~common-state-manipulation-get~1]
@@ -978,7 +978,7 @@ mod tests {
     }
 
     mod object {
-        use serde_yaml::Value;
+        use yaml_serde::Value;
 
         use ankaios_api::CURRENT_API_VERSION;
         use ankaios_api::ank_base::ConfigHash;
@@ -1112,7 +1112,7 @@ mod tests {
         }
 
         pub fn generate_test_value_object() -> Value {
-            serde_yaml::from_str(
+            yaml_serde::from_str(
                 r#"
                 A:
                  AA: aaa
@@ -1125,7 +1125,7 @@ mod tests {
         }
 
         pub fn generate_test_value_object_for_wildcards() -> Value {
-            serde_yaml::from_str(
+            yaml_serde::from_str(
                 r#"
                 A:
                     a:

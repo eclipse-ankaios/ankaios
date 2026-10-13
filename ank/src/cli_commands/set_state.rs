@@ -35,7 +35,7 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<O
                     "Could not read the state object from stdin.\nError: '{error}'"
                 ))
             })?;
-            let value: serde_yaml::Value = serde_yaml::from_str(&stdin).map_err(|error| {
+            let value: yaml_serde::Value = yaml_serde::from_str(&stdin).map_err(|error| {
                 CliError::YamlSerialization(format!(
                     "Could not convert stdin input to yaml.\nError: '{error}'"
                 ))
@@ -49,8 +49,8 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<O
                         "Could not read the state object file '{state_object_file}'.\nError: '{error}'"
                     ))
                 })?;
-            let value: serde_yaml::Value =
-                serde_yaml::from_str(&state_object_data).map_err(|error| {
+            let value: yaml_serde::Value =
+                yaml_serde::from_str(&state_object_data).map_err(|error| {
                     CliError::YamlSerialization(format!(
                         "Could not convert state object file to yaml.\nError: '{error}'"
                     ))
@@ -105,7 +105,7 @@ mod tests {
         CompleteState, RestartPolicy, State, UpdateStateSuccess, Workload, WorkloadMap,
     };
     use mockall::predicate::eq;
-    use serde_yaml::Value;
+    use yaml_serde::Value;
     use std::{collections::HashMap, io::Cursor};
 
     pub fn read_to_string_mock(_file: String) -> io::Result<String> {
@@ -135,7 +135,7 @@ mod tests {
 
         let temp_obj = process_inputs(reader, &state_object_file).await.unwrap();
 
-        let value: Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
+        let value: Value = yaml_serde::from_str(SAMPLE_CONFIG).unwrap();
         let expected_obj = value.into();
 
         assert_eq!(temp_obj, expected_obj);
@@ -150,7 +150,7 @@ mod tests {
             .await
             .unwrap();
 
-        let value: Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
+        let value: Value = yaml_serde::from_str(SAMPLE_CONFIG).unwrap();
         let expected_obj = value.into();
 
         assert_eq!(temp_obj, expected_obj);
@@ -187,7 +187,7 @@ mod tests {
         };
 
         let update_mask = vec!["desiredState.workloads.nginx.restartPolicy".to_string()];
-        let state_object_file = serde_yaml::to_string(&updated_state).unwrap();
+        let state_object_file = yaml_serde::to_string(&updated_state).unwrap();
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection

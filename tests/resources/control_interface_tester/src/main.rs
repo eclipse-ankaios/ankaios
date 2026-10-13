@@ -184,7 +184,7 @@ fn main() {
         exit(1);
     });
 
-    let commands: Vec<Command> = serde_yaml::from_reader(commands_json).unwrap_or_else(|err| {
+    let commands: Vec<Command> = yaml_serde::from_reader(commands_json).unwrap_or_else(|err| {
         logging::log(&format!("Could not parse commands argument: '{err}'"));
         exit(1)
     });
@@ -767,6 +767,6 @@ fn read_yaml_file<T: DeserializeOwned>(path: &Path) -> Result<T, String> {
     let file = File::open(path)
         .map_err(|err| format!("Error: cannot open '{}': '{}'", path.to_str().unwrap(), err))?;
 
-    serde_yaml::from_reader(file)
+    yaml_serde::from_reader(file)
         .map_err(|err| format!("Could not parse '{}': {}", path.to_str().unwrap(), err))
 }

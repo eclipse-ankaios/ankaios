@@ -98,7 +98,7 @@ mod event_output {
         ) -> Result<(), super::CliError> {
             match output_format {
                 OutputFormat::Yaml => {
-                    let yaml_output = serde_yaml::to_string(&event)
+                    let yaml_output = yaml_serde::to_string(&event)
                         .map_err(|err| CliError::ExecutionError(err.to_string()))?;
                     output!("---\n{}", yaml_output.trim_end());
                 }

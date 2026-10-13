@@ -47,7 +47,7 @@ impl TryFrom<&WorkloadSpec> for PodmanKubeRuntimeConfig {
             ));
         }
 
-        match serde_yaml::from_str(workload.runtime_config.as_str()) {
+        match yaml_serde::from_str(workload.runtime_config.as_str()) {
             Ok(workload_cfg) => Ok(workload_cfg),
             Err(e) => Err(e.to_string()),
         }
@@ -66,7 +66,7 @@ impl TryFrom<&WorkloadSpec> for PodmanKubeRuntimeConfig {
 mod tests {
     use super::{PODMAN_KUBE_RUNTIME_NAME, PodmanKubeRuntimeConfig};
 
-    use ankaios_api::test_utils::{generate_test_workload_with_params, fixtures};
+    use ankaios_api::test_utils::{fixtures, generate_test_workload_with_params};
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
     const MANIFEST_CONTENT: &str = "kube, man";

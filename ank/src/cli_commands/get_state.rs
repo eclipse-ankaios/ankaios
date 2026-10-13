@@ -42,7 +42,7 @@ impl CliCommands {
 
         match output_format {
             // [impl -> swdd~cli-shall-support-desired-state-yaml~1]
-            OutputFormat::Yaml => Ok(serde_yaml::to_string(&filtered_complete_state)?),
+            OutputFormat::Yaml => Ok(yaml_serde::to_string(&filtered_complete_state)?),
             // [impl -> swdd~cli-shall-support-desired-state-json~1]
             OutputFormat::Json => Ok(serde_json::to_string_pretty(&filtered_complete_state)?),
         }
@@ -120,7 +120,7 @@ mod tests {
         };
 
         let cmd_text = cmd.get_state(vec![], OutputFormat::Yaml).await.unwrap();
-        let expected_text = serde_yaml::to_string(&test_data).unwrap();
+        let expected_text = yaml_serde::to_string(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
     }
 
@@ -182,7 +182,7 @@ mod tests {
             .await
             .unwrap();
 
-        let expected_single_field_result_text = serde_yaml::to_string(&test_data).unwrap();
+        let expected_single_field_result_text = yaml_serde::to_string(&test_data).unwrap();
 
         assert_eq!(cmd_text, expected_single_field_result_text);
     }
@@ -235,7 +235,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let expected_text = serde_yaml::to_string(&test_data).unwrap();
+        let expected_text = yaml_serde::to_string(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
     }
 
@@ -262,7 +262,7 @@ mod tests {
             .await
             .unwrap();
 
-        let expected_text = serde_yaml::to_string(&test_data).unwrap();
+        let expected_text = yaml_serde::to_string(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
     }
 }
