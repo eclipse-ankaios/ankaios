@@ -1,9 +1,7 @@
 template: |
   ## What's Changed
-  
-  $CHANGES
 
-  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+  $CHANGES
 
 change-template: '- $TITLE (#$NUMBER)'
 
@@ -18,7 +16,7 @@ categories:
     label: documentation
   - title: Other Changes
     label: chore
-      
+
 # Version resolution
 version-resolver:
   major:
@@ -36,9 +34,12 @@ version-resolver:
       - 'fix'
   default: patch
 
-# Name template includes branch context
 name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 
 exclude-labels:
   - 'ignore-for-release'
+
+# Each target maintains its own stable draft.
+filter-by-commitish: true
+tag-prefix: 'v'
