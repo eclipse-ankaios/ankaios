@@ -1,0 +1,3 @@
+_extends: release-drafter.yml
+# Only dry-run version calculation uses the highest published release across targets.
+filter-by-commitish: false
