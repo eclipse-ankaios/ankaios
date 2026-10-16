@@ -17,6 +17,7 @@ Use this documentation to understand the architecture, configure manifests, inte
 - [Tutorial: Manage a fleet of vehicles from the cloud](<https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-fleet-management/index.md>)
 - [Tutorial: Sending and receiving vehicle signals](<https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-vehicle-signals/index.md>)
 - [Awesome Ankaios](<https://eclipse-ankaios.github.io/ankaios/main/usage/awesome-ankaios/index.md>)
+- [Connecting Ankaios components over the network](<https://eclipse-ankaios.github.io/ankaios/main/usage/network-setup/index.md>)
 - [Shell completion](<https://eclipse-ankaios.github.io/ankaios/main/usage/shell-completion/index.md>)
 - [Config objects](<https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/config-objects/index.md>)
 - [Workload files](<https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/workload-files/index.md>)
