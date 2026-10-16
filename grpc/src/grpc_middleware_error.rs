@@ -77,7 +77,21 @@ impl From<tonic::Status> for GrpcMiddlewareError {
 
 impl From<tonic::transport::Error> for GrpcMiddlewareError {
     fn from(err: tonic::transport::Error) -> Self {
-        GrpcMiddlewareError::ServerNotAvailable(err.to_string())
+        let mut previous = err.to_string();
+        let mut message = previous.clone();
+        let mut source = std::error::Error::source(&err);
+
+        while let Some(cause) = source {
+            let detail = cause.to_string();
+            if detail != previous {
+                message.push_str(": ");
+                message.push_str(&detail);
+            }
+            previous = detail;
+            source = cause.source();
+        }
+
+        GrpcMiddlewareError::ServerNotAvailable(message)
     }
 }
 

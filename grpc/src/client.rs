@@ -138,7 +138,14 @@ impl CommunicationsClient for GRPCCommunicationsClient {
 
             match self.connection_type {
                 ConnectionType::Agent => {
-                    log::warn!("Connection to server interrupted: '{result:?}'");
+                    match result {
+                        Err(err) => {
+                            log::warn!("Connection to server interrupted: '{}'", err);
+                        }
+                        _ => {
+                            log::warn!("Connection to server closed.");
+                        }
+                    }
 
                     use tokio::time::{Duration, sleep};
                     sleep(Duration::from_secs(RECONNECT_TIMEOUT_SECONDS)).await;
@@ -149,7 +156,7 @@ impl CommunicationsClient for GRPCCommunicationsClient {
                         Err(GrpcMiddlewareError::ServerNotAvailable(err)) => {
                             log::debug!("No connection to the server: '{err}'");
                             return Err(CommunicationMiddlewareError(format!(
-                                "Could not connect to Ankaios server on '{}'.",
+                                "Could not connect to Ankaios server on '{}', error: '{err}'.",
                                 self.server_url
                             )));
                         }
