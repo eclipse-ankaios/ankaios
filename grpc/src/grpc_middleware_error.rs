@@ -75,6 +75,7 @@ impl From<tonic::Status> for GrpcMiddlewareError {
     }
 }
 
+// [impl->swdd~grpc-client-outputs-error-server-unavailability-for-cli-connection~1]
 impl From<tonic::transport::Error> for GrpcMiddlewareError {
     fn from(err: tonic::transport::Error) -> Self {
         let mut previous = err.to_string();
@@ -121,6 +122,129 @@ impl fmt::Display for GrpcMiddlewareError {
             GrpcMiddlewareError::VersionMismatch(message) => {
                 write!(f, "Version mismatch: '{message}'")
             }
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::GrpcMiddlewareError;
+    use hyper_util::rt::TokioIo;
+    use std::{error::Error, fmt, io, time::Duration};
+    use tokio::io::DuplexStream;
+    use tonic::transport::Endpoint;
+    use tower::service_fn;
+
+    const TEST_ENDPOINT_URI: &str = "http://unused";
+    const INVALID_USER_AGENT: &str = "\n";
+    const CONNECTOR_TIMEOUT: Duration = Duration::from_secs(5);
+    const CONNECTION_FAILURE_MESSAGE: &str = "connection failed";
+    const ACCESS_DENIED_MESSAGE: &str = "access denied";
+
+    // [utest->swdd~grpc-client-outputs-error-server-unavailability-for-cli-connection~1]
+    #[test]
+    fn utest_transport_error_without_source() {
+        let error = Endpoint::from_static(TEST_ENDPOINT_URI)
+            .user_agent(INVALID_USER_AGENT)
+            .unwrap_err();
+        assert!(error.source().is_none());
+
+        let converted = GrpcMiddlewareError::from(error);
+
+        assert!(matches!(
+            converted,
+            GrpcMiddlewareError::ServerNotAvailable(message)
+                if message == "user agent is not a valid header value"
+        ));
+    }
+
+    // [utest->swdd~grpc-client-outputs-error-server-unavailability-for-cli-connection~1]
+    #[tokio::test]
+    async fn utest_transport_error_preserves_permission_denied_without_duplicates() {
+        let error = connector_error(|| io::Error::from(io::ErrorKind::PermissionDenied)).await;
+        let detail = io::Error::from(io::ErrorKind::PermissionDenied).to_string();
+
+        let converted = GrpcMiddlewareError::from(error);
+
+        assert!(matches!(
+            &converted,
+            GrpcMiddlewareError::ServerNotAvailable(message)
+                if message == &format!("transport error: {detail}")
+        ));
+        let public_error =
+            common::communications_error::CommunicationMiddlewareError::from(converted);
+        assert_eq!(
+            public_error.to_string(),
+            format!("Could not connect to the server: 'transport error: {detail}'")
+        );
+    }
+
+    // [utest->swdd~grpc-client-outputs-error-server-unavailability-for-cli-connection~1]
+    #[tokio::test]
+    async fn utest_transport_error_preserves_distinct_causes_after_duplicate() {
+        let error = connector_error(|| TestError {
+            message: CONNECTION_FAILURE_MESSAGE,
+            source: Some(Box::new(TestError {
+                message: CONNECTION_FAILURE_MESSAGE,
+                source: Some(Box::new(TestError {
+                    message: ACCESS_DENIED_MESSAGE,
+                    source: None,
+                })),
+            })),
+        })
+        .await;
+
+        let converted = GrpcMiddlewareError::from(error);
+
+        assert!(matches!(
+            converted,
+            GrpcMiddlewareError::ServerNotAvailable(message)
+                if message == format!(
+                    "transport error: {CONNECTION_FAILURE_MESSAGE}: {ACCESS_DENIED_MESSAGE}"
+                )
+        ));
+    }
+
+    async fn connector_error<E>(
+        make_error: impl Fn() -> E + Send + 'static,
+    ) -> tonic::transport::Error
+    where
+        E: Error + Send + Sync + 'static,
+    {
+        tokio::time::timeout(
+            CONNECTOR_TIMEOUT,
+            Endpoint::from_static(TEST_ENDPOINT_URI).connect_with_connector(service_fn(
+                move |_| std::future::ready(Err::<TokioIo<DuplexStream>, _>(make_error())),
+            )),
+        )
+        .await
+        .expect("connector failure must not hang")
+        .unwrap_err()
+    }
+
+    #[derive(Debug)]
+    struct TestError {
+        message: &'static str,
+        source: Option<Box<Self>>,
+    }
+
+    impl fmt::Display for TestError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str(self.message)
+        }
+    }
+
+    impl Error for TestError {
+        fn source(&self) -> Option<&(dyn Error + 'static)> {
+            self.source.as_deref().map(|source| source as &dyn Error)
         }
     }
 }
