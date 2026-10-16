@@ -247,6 +247,42 @@ Needs:
 - impl
 - utest
 
+### Path security
+
+Helpers used to safely turn an untrusted name (e.g. a workload name) into a filesystem path, preventing path traversal and symlink-escape attacks.
+
+#### Path security validates safe file names
+`swdd~common-path-security-validate-name~1`
+
+Status: approved
+
+The Common library shall provide a function to validate that a name is safe for use as a file path component by rejecting empty names, path separators, parent/current directory references, null bytes, names longer than 255 characters, and characters other than alphanumeric, hyphen, underscore, and period.
+
+Rationale: Workload and persisted-file names can originate from user-controlled input (e.g. a workload name from a manifest); validating them before use in a filesystem path prevents path traversal attacks.
+
+Tags:
+- PathSecurity
+
+Needs:
+- impl
+- utest
+
+#### Path security prevents escaping a base directory
+`swdd~common-path-security-safe-join~1`
+
+Status: approved
+
+The Common library shall provide a function to join a validated name to a base directory and reject the result if, after canonicalization, it does not resolve to a path under the canonicalized base directory.
+
+Rationale: Canonicalizing both the base directory and the resulting path before comparing them prevents a symlink placed under the base directory from redirecting file operations outside of it, even when the final path component does not yet exist on disk.
+
+Tags:
+- PathSecurity
+
+Needs:
+- impl
+- utest
+
 ## Data view
 
 ## Error management view
