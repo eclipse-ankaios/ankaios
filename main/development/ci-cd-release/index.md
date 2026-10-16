@@ -110,6 +110,18 @@ run: |
 
 The release notes are generated automatically as a draft release by [Release Drafter](<https://github.com/release-drafter/release-drafter>). The procedure uses the filters for pull request labels configured inside `.github/release-drafter.yml`.
 
+Release Drafter v7 compares Git refs rather than using a release-date cutoff. The workflow maintains a separate stable draft for `main` and each release branch using `filter-by-commitish: true`. Runs on one branch do not retarget or overwrite another branch's draft. Stable `vX.Y.Z` releases are selected by version rather than publication date; drafts and prereleases are not baselines.
+
+On `main`, the comparison baseline is the highest published stable version, regardless of its target branch. Release Drafter calculates major, minor, or patch increments from PR labels in dry-run mode using `.github/release-drafter-preview.yml`. This small configuration extends the shared configuration but disables target filtering only for version calculation. The actual draft update uses target filtering and changes only the `main` draft.
+
+On `release-X.Y`, the latest published stable version in the X.Y line is the baseline and the next patch version is selected automatically. Labels still categorize and exclude PRs, but cannot change the release line. A new branch with no published release in its line prepares `X.Y.0`, comparing against the highest stable version below `X.Y.0`.
+
+For example, pending patches on `release-1.1` and `release-1.2` create independent drafts, each based on its own published release, while an enhancement on `main` can prepare a separate next-minor preview. Creating `release-1.3` prepares a new draft for that branch without transferring the preview from `main`. Both drafts may temporarily have tag/name `v1.3.0`; the target branch distinguishes them. Publish the release-branch draft, not the main preview.
+
+Pushes update the triggering branch, and release-branch creation prepares that branch's first draft. Release publication refreshes the preview on `main`. Runs are serialized per target, so independent release branches can run in parallel. An empty comparison leaves the existing draft untouched. Multiple stable drafts on the same target cause a failure; drafts on different targets are expected. No drafts are deleted automatically.
+
+To override the automatic choices, select `Release Drafter` in Actions, click `Run workflow`, choose the branch, and enter the optional `from` and `version` fields. The chosen branch determines the draft target. A version override is supported for the `main` preview; release branches enforce their automatically selected version. Manual baselines apply only to that run; later pushes use automatic selection. The Full Changelog link uses the same baseline as the comparison. The workflow never publishes releases. The updated workflow and configuration must be present on `main` and on release branches. A workflow on an older branch can otherwise still use the previous behavior. Publication through the GitHub UI triggers the refresh; publication using a workflow's `GITHUB_TOKEN` does not trigger another workflow.
+
 ## Preparing a release
 
 The following steps shall be done before the actual release build is triggered.
