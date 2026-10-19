@@ -308,7 +308,7 @@ impl NerdctlCli {
             .as_ref()
             .container_states
             .as_ref()
-            .map_err(|err| err.to_owned())?;
+            .map_err(ToOwned::to_owned)?;
         Ok(all_containers_states
             .get(workload_id)
             .map(ToOwned::to_owned))

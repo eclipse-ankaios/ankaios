@@ -43,7 +43,7 @@ impl<'a> CliCommand<'a> {
 
     pub fn args(&mut self, args: &[&str]) -> &mut Self {
         self.command.args(args);
-        self.args = args.iter().map(|s| s.to_string()).collect();
+        self.args = args.iter().map(ToString::to_string).collect();
         self
     }
 
