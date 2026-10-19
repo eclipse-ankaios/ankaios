@@ -17,8 +17,8 @@ use common::{
     state_manipulation::{Object, Path},
     std_extensions::{IllegalStateResult, UnreachableOption},
 };
-use yaml_serde::{Mapping, Value};
 use std::collections::HashSet;
+use yaml_serde::{Mapping, Value};
 
 #[cfg(test)]
 use mockall::automock;
@@ -260,7 +260,6 @@ impl AddedTree {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-
 pub struct RemovedTree {
     pub first_difference_tree: Object,
     pub full_difference_tree: Object,

@@ -479,7 +479,6 @@ impl RuntimeStateGetter for PodmanKubeRuntime {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
-
 // [impl->swdd~podman-kube-state-getter-removed-if-no-container~1]
 enum OrderedExecutionState {
     Failed(String),
