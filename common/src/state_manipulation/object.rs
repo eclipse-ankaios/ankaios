@@ -19,12 +19,12 @@ use ankaios_api::ank_base::{
     CompleteState, CompleteStateSpec, State, StateSpec, WILDCARD_SYMBOL, validate_field_pattern,
 };
 
+use std::collections::{HashSet, VecDeque};
 use yaml_serde::{
     Mapping, Value, from_value,
     mapping::Entry::{Occupied, Vacant},
     to_value,
 };
-use std::collections::{HashSet, VecDeque};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Object {
@@ -366,14 +366,13 @@ impl Object {
                     }
 
                     break;
+                }
+                current_prefix.push(path_element.clone());
+                current_value = if let Some(next_element) = current_value.get(path_element) {
+                    next_element
                 } else {
-                    current_prefix.push(path_element.clone());
-                    current_value = if let Some(next_element) = current_value.get(path_element) {
-                        next_element
-                    } else {
-                        current_result_valid = false;
-                        break;
-                    }
+                    current_result_valid = false;
+                    break;
                 }
             }
             if current_result_valid {
@@ -407,8 +406,8 @@ mod tests {
         generate_test_workload_named, generate_test_workload_states_map_with_data,
     };
 
-    use yaml_serde::{Mapping, Value};
     use std::collections::HashSet;
+    use yaml_serde::{Mapping, Value};
 
     #[test]
     fn utest_object_from_state() {
@@ -1019,11 +1018,12 @@ mod tests {
                             .entry("tags", Mapping::default().entry("type", "agent")),
                     ),
                 )
-                .entry("effectiveState",
+                .entry(
+                    "effectiveState",
                     Mapping::default()
                         .entry("apiVersion", CURRENT_API_VERSION)
                         .entry("workloads", Mapping::default())
-                        .entry("configs", Mapping::default())
+                        .entry("configs", Mapping::default()),
                 )
         }
 
