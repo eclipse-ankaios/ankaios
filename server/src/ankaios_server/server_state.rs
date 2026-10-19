@@ -180,10 +180,10 @@ fn include_both_state_and_substate_filters(filters: &mut Vec<String>) {
 
 #[cfg_attr(test, automock)]
 impl ServerState {
-    const API_VERSION_FILTER_MASK: &'static str = "desiredState.apiVersion";
-    const EFFECTIVE_STATE_API_VERSION_FILTER_MASK: &'static str = "effectiveState.apiVersion";
-    const DESIRED_STATE_FIELD_MASK_PART: &'static str = "desiredState";
-    const EFFECTIVE_STATE_FIELD_MASK_PART: &'static str = "effectiveState";
+    const API_VERSION_FILTER_MASK: &str = "desiredState.apiVersion";
+    const EFFECTIVE_STATE_API_VERSION_FILTER_MASK: &str = "effectiveState.apiVersion";
+    const DESIRED_STATE_FIELD_MASK_PART: &str = "desiredState";
+    const EFFECTIVE_STATE_FIELD_MASK_PART: &str = "effectiveState";
 
     pub fn desired_state(&self) -> StateSpec {
         self.state.desired_state.clone()
@@ -246,7 +246,7 @@ impl ServerState {
                 current_complete_state.try_into().unwrap_or_illegal_state();
             let mut return_state = Object::default();
 
-            let filters = filters.into_iter().map(|f| f.into()).collect::<Vec<Path>>();
+            let filters = filters.into_iter().map(Into::into).collect::<Vec<Path>>();
             //[impl->swdd~server-filters-get-complete-state-result-with-wildcards~1]
             let filters = current_complete_state.expand_wildcards(&filters);
 
