@@ -289,11 +289,10 @@ impl CliCommands {
         if changed_workloads.is_empty() {
             output!("Apply successful. No workloads updated.");
             return Ok(());
-        } else {
-            output!(
-                "Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n"
-            );
         }
+        output!(
+            "Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n"
+        );
 
         let request_details = CompleteStateRequestDetails::default();
         let mut new_complete_state = self

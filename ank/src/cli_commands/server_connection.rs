@@ -256,10 +256,9 @@ impl ServerConnection {
             };
             if let FromServer::UpdateWorkloadState(update_workload_state) = server_message {
                 break Ok(update_workload_state);
-            } else {
-                // [impl->swdd~cli-stores-unexpected-message~1]
-                self.missed_from_server_messages.push(server_message);
             }
+            // [impl->swdd~cli-stores-unexpected-message~1]
+            self.missed_from_server_messages.push(server_message);
         }
     }
 

@@ -79,16 +79,14 @@ impl<T: GetOutputStreams + std::fmt::Debug + Send + 'static> LogFetcher for Gene
                 (Some(stdout), None) => {
                     if let Some(lines) = stdout.next_lines().await {
                         return NextLinesResult::Stdout(lines);
-                    } else {
-                        return NextLinesResult::EoF;
                     }
+                    return NextLinesResult::EoF;
                 }
                 (None, Some(stderr)) => {
                     if let Some(lines) = stderr.next_lines().await {
                         return NextLinesResult::Stderr(lines);
-                    } else {
-                        return NextLinesResult::EoF;
                     }
+                    return NextLinesResult::EoF;
                 }
                 (None, None) => {
                     return NextLinesResult::EoF;
@@ -118,9 +116,8 @@ impl<T: AsyncRead + std::fmt::Debug + std::marker::Unpin> GenericSingleLogFetche
             Ok(0) => {
                 if start_byte == 0 {
                     return None;
-                } else {
-                    return Some(vec![convert_to_string(self.read_data.split())]);
                 }
+                return Some(vec![convert_to_string(self.read_data.split())]);
             }
             Err(err) => {
                 log::warn!("Failed to read log lines: {err:?}");

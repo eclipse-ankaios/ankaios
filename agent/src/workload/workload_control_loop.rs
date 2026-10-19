@@ -424,12 +424,11 @@ impl WorkloadControlLoop {
                 control_loop_state.workload_id = Some(old_id);
 
                 return Some(control_loop_state);
-            } else {
-                if let Some(old_checker) = control_loop_state.state_checker.take() {
-                    old_checker.stop_checker().await;
-                }
-                log::debug!("Stop workload complete");
             }
+            if let Some(old_checker) = control_loop_state.state_checker.take() {
+                old_checker.stop_checker().await;
+            }
+            log::debug!("Stop workload complete");
         } else {
             // [impl->swdd~agent-workload-control-loop-delete-broken-allowed~1]
             log::debug!(
