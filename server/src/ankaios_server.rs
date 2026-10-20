@@ -423,9 +423,10 @@ impl AnkaiosServer {
                                 continue;
                             };
                             let update_mask = update_state_request.update_mask;
+                            let dry_run = update_state_request.dry_run;
 
                             log::debug!(
-                                "Received UpdateState. State '{new_state:?}', update mask '{update_mask:?}'"
+                                "Received UpdateState. State '{new_state:?}', update mask '{update_mask:?}', dry run '{dry_run}'"
                             );
 
                             let old_desired_state = self.server_state.desired_state();
@@ -467,6 +468,17 @@ impl AnkaiosServer {
                                     .error(request_id, error_message)
                                     .await
                                     .unwrap_or_illegal_state();
+                                continue;
+                            }
+
+                            // [impl->swdd~server-update-state-dry-run~1]
+                            // [impl->swdd~server-update-state-dry-run-no-side-effects~1]
+                            if dry_run {
+                                self.handle_dry_run_update(
+                                    request_id,
+                                    &state_generation_result.new_desired_state,
+                                )
+                                .await;
                                 continue;
                             }
 
@@ -727,6 +739,43 @@ impl AnkaiosServer {
         for (agent_name, new_agent_attributes) in &agent_map.agents {
             if let Some(existing_agent) = self.agent_map.agents.get_mut(agent_name) {
                 existing_agent.tags = new_agent_attributes.tags.to_owned();
+            }
+        }
+    }
+
+    // [impl->swdd~server-update-state-dry-run-success-response~1]
+    // [impl->swdd~server-update-state-dry-run-error-response~1]
+    async fn handle_dry_run_update(&self, request_id: String, new_desired_state: &StateSpec) {
+        match self.server_state.dry_run_update(new_desired_state) {
+            Ok(added_deleted_workloads) => {
+                let added_deleted_workloads = added_deleted_workloads.unwrap_or_default();
+                let added_workloads = added_deleted_workloads
+                    .added_workloads
+                    .iter()
+                    .map(|x| x.instance_name.to_string())
+                    .collect();
+                let deleted_workloads = added_deleted_workloads
+                    .deleted_workloads
+                    .iter()
+                    .map(|x| x.instance_name.to_string())
+                    .collect();
+
+                log::debug!(
+                    "Dry run: workloads to add '{added_workloads:?}', workloads to delete '{deleted_workloads:?}'"
+                );
+
+                self.to_agents
+                    .update_state_success(request_id, added_workloads, deleted_workloads)
+                    .await
+                    .unwrap_or_illegal_state();
+            }
+            Err(error_msg) => {
+                let rejection_message = format!("Update rejected: '{error_msg}'");
+                log::info!("Dry run: {rejection_message}");
+                self.to_agents
+                    .error(request_id, rejection_message)
+                    .await
+                    .unwrap_or_illegal_state();
             }
         }
     }
@@ -1781,6 +1830,243 @@ mod tests {
             )
             .await
             .is_err()
+        );
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-update-state-dry-run~1]
+    // [utest->swdd~server-update-state-dry-run-no-side-effects~1]
+    // [utest->swdd~server-update-state-dry-run-success-response~1]
+    #[tokio::test]
+    async fn utest_server_update_state_dry_run_responds_without_side_effects() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+
+        let new_desired_state = StateSpec {
+            workloads: WorkloadMapSpec {
+                workloads: HashMap::from([(
+                    fixtures::WORKLOAD_NAMES[0].to_owned(),
+                    w1.workload.clone(),
+                )]),
+            },
+            ..Default::default()
+        };
+        let update_mask = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[0]
+        )];
+
+        let original_tags = TagsSpec {
+            tags: HashMap::from([("location".to_string(), "online".to_string())]),
+        };
+        let changed_agent_map = AgentMapSpec {
+            agents: [(
+                AGENT_NAMES[0].to_string(),
+                AgentAttributesSpec {
+                    tags: TagsSpec {
+                        tags: HashMap::from([("location".to_string(), "on-car".to_string())]),
+                    },
+                    ..Default::default()
+                },
+            )]
+            .into(),
+        };
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
+        server.agent_map.agents.insert(
+            AGENT_NAMES[0].to_string(),
+            AgentAttributesSpec {
+                tags: original_tags.clone(),
+                ..Default::default()
+            },
+        );
+
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
+        let generated_desired_state = new_desired_state.clone();
+        mock_server_state
+            .expect_generate_new_state()
+            .once()
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: generated_desired_state.clone(),
+                    new_agent_map: changed_agent_map.clone(),
+                })
+            });
+        mock_server_state
+            .expect_dry_run_update()
+            .with(predicate::eq(new_desired_state.clone()))
+            .once()
+            .return_const(Ok(Some(AddedDeletedWorkloads {
+                added_workloads: vec![w1.clone()],
+                deleted_workloads: vec![],
+            })));
+        mock_server_state.expect_update().never();
+
+        let captured_state = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let captured_state_clone = captured_state.clone();
+        mock_server_state
+            .expect_get_complete_state_by_field_mask()
+            .once()
+            .returning(move |_, workload_states, agents| {
+                *captured_state_clone.lock().unwrap() =
+                    Some((workload_states.clone(), agents.clone()));
+                Ok(CompleteState::default())
+            });
+        server.server_state = mock_server_state;
+
+        server.event_handler.expect_has_subscribers().never();
+
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        let update_state_result = to_server
+            .update_state(
+                fixtures::REQUEST_ID.to_string(),
+                CompleteStateSpec {
+                    desired_state: new_desired_state,
+                    ..Default::default()
+                }
+                .into(),
+                update_mask,
+                true,
+            )
+            .await;
+        assert!(update_state_result.is_ok());
+
+        // the first message is the response, no UpdateWorkload message is sent to the agents
+        assert_eq!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id: fixtures::REQUEST_ID.to_string(),
+                response_content: Some(ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                    added_workloads: vec![w1.instance_name.to_string()],
+                    deleted_workloads: vec![],
+                })),
+            })
+        );
+
+        let request_complete_state_result = to_server
+            .request_complete_state(
+                SECOND_REQUEST_ID.to_string(),
+                CompleteStateRequest {
+                    field_mask: vec![],
+                    subscribe_for_events: false,
+                },
+            )
+            .await;
+        assert!(request_complete_state_result.is_ok());
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id,
+                response_content: Some(ResponseContent::CompleteStateResponse(_)),
+            }) if request_id == SECOND_REQUEST_ID
+        ));
+
+        let (workload_states, agents) = captured_state.lock().unwrap().take().unwrap();
+        assert_eq!(workload_states, WorkloadStatesMapSpec::default());
+        assert_eq!(agents.agents[AGENT_NAMES[0]].tags, original_tags);
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-update-state-dry-run-error-response~1]
+    #[tokio::test]
+    async fn utest_server_update_state_dry_run_responds_with_error_on_rejected_state() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let w1 = generate_test_workload_with_params(
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        let new_desired_state = StateSpec {
+            workloads: WorkloadMapSpec {
+                workloads: HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), w1)]),
+            },
+            ..Default::default()
+        };
+        let update_mask = vec![format!(
+            "desiredState.workloads.{}",
+            fixtures::WORKLOAD_NAMES[0]
+        )];
+
+        let rejection = UpdateStateError::CycleInDependencies(fixtures::WORKLOAD_NAMES[0].into());
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents, vec![]);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_desired_state()
+            .once()
+            .return_const(StateSpec::default());
+        mock_server_state
+            .expect_build_effective_state()
+            .once()
+            .return_const(StateSpec::default());
+        let generated_desired_state = new_desired_state.clone();
+        mock_server_state
+            .expect_generate_new_state()
+            .once()
+            .returning(move |_, _| {
+                Ok(StateGenerationResult {
+                    new_desired_state: generated_desired_state.clone(),
+                    ..Default::default()
+                })
+            });
+        mock_server_state
+            .expect_dry_run_update()
+            .once()
+            .return_const(Err(rejection.clone()));
+        mock_server_state.expect_update().never();
+        server.server_state = mock_server_state;
+
+        server.event_handler.expect_has_subscribers().never();
+
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        let update_state_result = to_server
+            .update_state(
+                fixtures::REQUEST_ID.to_string(),
+                CompleteStateSpec {
+                    desired_state: new_desired_state,
+                    ..Default::default()
+                }
+                .into(),
+                update_mask,
+                true,
+            )
+            .await;
+        assert!(update_state_result.is_ok());
+
+        // same message as for a regular update that is rejected
+        assert_eq!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id: fixtures::REQUEST_ID.to_string(),
+                response_content: Some(ResponseContent::Error(Error {
+                    message: format!("Update rejected: '{rejection}'"),
+                })),
+            })
         );
 
         server_task.abort();
