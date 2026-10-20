@@ -89,6 +89,31 @@ fn extract_added_and_deleted_workloads(
     }
 }
 
+// [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
+fn check_cyclic_dependencies(
+    new_desired_state: &StateSpec,
+    added_workloads: &[WorkloadNamed],
+) -> Result<(), UpdateStateError> {
+    let start_nodes: Vec<&str> = added_workloads
+        .iter()
+        .filter_map(|w| {
+            if !w.workload.dependencies.dependencies.is_empty() {
+                Some(w.instance_name.workload_name())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if let Some(workload_part_of_cycle) = cycle_check::dfs(new_desired_state, Some(start_nodes)) {
+        return Err(UpdateStateError::CycleInDependencies(
+            workload_part_of_cycle,
+        ));
+    }
+
+    Ok(())
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum UpdateStateError {
     FieldNotFound(String),
@@ -303,10 +328,53 @@ impl ServerState {
     ) -> Result<Option<AddedDeletedWorkloads>, UpdateStateError> {
         // [impl->swdd~update-desired-state-with-update-mask~1]
         // [impl->swdd~update-desired-state-empty-update-mask~1]
-        // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
         // println!("call 1: {:#?}", new_desired_state.workloads.workloads);
         // println!("call 2: {:#?}", self.state.desired_state.configs.configs);
 
+        let (new_rendered_workloads, added_deleted_workloads) =
+            self.calculate_workload_changes(&new_desired_state)?;
+
+        if let Some(mut added_deleted_workloads) = added_deleted_workloads {
+            let pre_hook_rendered_workloads = new_rendered_workloads.clone();
+            let mut new_rendered_workloads = new_rendered_workloads;
+            // [impl->swdd~server-applies-mutated-workloads-to-effective-state~1]
+            // [impl->swdd~server-removes-dropped-workloads-from-effective-state~1]
+            // [impl->swdd~server-restores-undeleted-workloads-in-effective-state~1]
+            update_effective_state(
+                hooks_registry,
+                &mut added_deleted_workloads,
+                &mut new_rendered_workloads,
+                &self.rendered_workloads,
+            )?;
+
+            let added_workloads = &added_deleted_workloads.added_workloads;
+
+            check_cyclic_dependencies(&new_desired_state, added_workloads)?;
+
+            // [impl->swdd~server-state-stores-delete-condition~1]
+            self.delete_graph.insert(added_workloads);
+
+            // [impl->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
+            self.delete_graph
+                .apply_delete_conditions_to(&mut added_deleted_workloads.deleted_workloads);
+
+            self.set_desired_state(new_desired_state);
+            self.pre_hook_rendered_workloads = pre_hook_rendered_workloads;
+            self.rendered_workloads = new_rendered_workloads;
+            Ok(Some(added_deleted_workloads))
+        } else {
+            // update state with changed fields not affecting workloads, e.g. config items
+            // [impl->swdd~server-state-updates-state-on-unmodified-workloads~1]
+            self.set_desired_state(new_desired_state);
+            Ok(None)
+        }
+    }
+
+    fn calculate_workload_changes(
+        &self,
+        new_desired_state: &StateSpec,
+    ) -> Result<(RenderedWorkloads, Option<AddedDeletedWorkloads>), UpdateStateError> {
+        // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
         let new_rendered_workloads = self
             .config_renderer
             .render_workloads(
@@ -326,58 +394,7 @@ impl ServerState {
             &new_rendered_workloads,
         );
 
-        if let Some(mut added_deleted_workloads) = added_deleted_workloads {
-            let pre_hook_rendered_workloads = new_rendered_workloads.clone();
-            let mut new_rendered_workloads = new_rendered_workloads;
-            // [impl->swdd~server-applies-mutated-workloads-to-effective-state~1]
-            // [impl->swdd~server-removes-dropped-workloads-from-effective-state~1]
-            // [impl->swdd~server-restores-undeleted-workloads-in-effective-state~1]
-            update_effective_state(
-                hooks_registry,
-                &mut added_deleted_workloads,
-                &mut new_rendered_workloads,
-                &self.rendered_workloads,
-            )?;
-
-            let added_workloads = &added_deleted_workloads.added_workloads;
-
-            let start_nodes: Vec<&str> = added_workloads
-                .iter()
-                .filter_map(|w| {
-                    if !w.workload.dependencies.dependencies.is_empty() {
-                        Some(w.instance_name.workload_name())
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-
-            // [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
-            if let Some(workload_part_of_cycle) =
-                cycle_check::dfs(&new_desired_state, Some(start_nodes))
-            {
-                return Err(UpdateStateError::CycleInDependencies(
-                    workload_part_of_cycle,
-                ));
-            }
-
-            // [impl->swdd~server-state-stores-delete-condition~1]
-            self.delete_graph.insert(added_workloads);
-
-            // [impl->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
-            self.delete_graph
-                .apply_delete_conditions_to(&mut added_deleted_workloads.deleted_workloads);
-
-            self.set_desired_state(new_desired_state);
-            self.pre_hook_rendered_workloads = pre_hook_rendered_workloads;
-            self.rendered_workloads = new_rendered_workloads;
-            Ok(Some(added_deleted_workloads))
-        } else {
-            // update state with changed fields not affecting workloads, e.g. config items
-            // [impl->swdd~server-state-updates-state-on-unmodified-workloads~1]
-            self.set_desired_state(new_desired_state);
-            Ok(None)
-        }
+        Ok((new_rendered_workloads, added_deleted_workloads))
     }
 
     // [impl->swdd~server-effective-state-read-only~1]
