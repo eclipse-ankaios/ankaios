@@ -680,6 +680,13 @@ the last command shall list the config "${config_name}"
 the last command shall not list the config "${config_name}"
     Run Keyword And Expect Error    Config name ${config_name} does not exist in the list    the last command shall list the config "${config_name}"
 
+the dry run result shall contain the workload "${workload_name}" on agent "${agent_name}" with action "${action}"
+    @{list_result}=    table to list    ${CURRENT_RESULT.stdout}
+    &{dry_run_table}=    table to dict    ${list_result}    WORKLOAD NAME
+    Dictionary Should Contain Key    ${dry_run_table}    ${workload_name}    msg=Workload '${workload_name}' is not part of the dry run result!
+    Should Be Equal    ${dry_run_table}[${workload_name}][AGENT]    ${agent_name}
+    Should Be Equal    ${dry_run_table}[${workload_name}][ACTION]    ${action}
+
 the last command shall contain the workload "${workload_name}"
     ${list_result}=    Json To Dict    ${CURRENT_RESULT.stdout}
     ${desired_state}=    Get From Dictionary    ${list_result}    desiredState
