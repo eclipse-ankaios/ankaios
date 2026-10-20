@@ -66,6 +66,7 @@ impl CliCommands {
         &mut self,
         object_field_mask: Vec<String>,
         state_object_file: String,
+        dry_run: bool,
     ) -> Result<(), CliError> {
         output_debug!(
             "Got: object_field_mask={:?} state_object_file={:?}",
@@ -82,9 +83,15 @@ impl CliCommands {
             new_complete_state
         );
 
-        // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
-        self.update_state_and_wait_for_complete(new_complete_state, object_field_mask)
-            .await
+        if dry_run {
+            // [impl->swdd~cli-sends-update-state-dry-run~1]
+            self.dry_run_update_state(new_complete_state, object_field_mask)
+                .await
+        } else {
+            // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
+            self.update_state_and_wait_for_complete(new_complete_state, object_field_mask)
+                .await
+        }
     }
 }
 
@@ -203,6 +210,45 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        cmd.set_state(update_mask, state_object_file).await.unwrap();
+        cmd.set_state(update_mask, state_object_file, false).await.unwrap();
+    }
+
+    // [utest->swdd~cli-sends-update-state-dry-run~1]
+    #[tokio::test]
+    async fn utest_set_state_dry_run_ok() {
+        let workload = Workload {
+            restart_policy: Some(RestartPolicy::Always as i32),
+            ..Default::default()
+        };
+        let updated_state = CompleteState {
+            desired_state: Some(State {
+                api_version: CURRENT_API_VERSION.to_string(),
+                workloads: Some(WorkloadMap {
+                    workloads: HashMap::from([("nginx".to_string(), workload)]),
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let update_mask = vec!["desiredState.workloads.nginx.restartPolicy".to_string()];
+        let state_object_file = yaml_serde::to_string(&updated_state).unwrap();
+
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection.expect_get_complete_state().never();
+        mock_server_connection
+            .expect_update_state()
+            .with(eq(updated_state), eq(update_mask.clone()), eq(true))
+            .once()
+            .return_once(|_, _, _| Ok(UpdateStateSuccess::default()));
+
+        let mut cmd = CliCommands {
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        cmd.set_state(update_mask, state_object_file, true)
+            .await
+            .unwrap();
     }
 }

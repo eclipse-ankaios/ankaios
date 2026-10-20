@@ -326,6 +326,10 @@ pub enum SetCommands {
         /// A file containing the new State Object Description in yaml format
         #[arg(required = true, value_hint = ValueHint::FilePath)]
         state_object_file: String,
+        // [impl->swdd~cli-provides-dry-run-option~1]
+        /// Show which workloads would be added, updated or deleted without applying the changes
+        #[arg(long = "dry-run")]
+        dry_run: bool,
     },
 }
 
@@ -401,6 +405,10 @@ pub struct ApplyArgs {
     /// Delete mode activated
     #[arg(short)]
     pub delete_mode: bool,
+    // [impl->swdd~cli-provides-dry-run-option~1]
+    /// Show which workloads would be added, updated or deleted without applying the changes
+    #[arg(long = "dry-run")]
+    pub dry_run: bool,
 }
 
 /// Fetch the logs of workloads
