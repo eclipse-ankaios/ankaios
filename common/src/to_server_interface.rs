@@ -65,6 +65,7 @@ pub trait ToServerInterface {
         request_id: String,
         new_state: CompleteState,
         update_mask: Vec<String>,
+        dry_run: bool,
     ) -> Result<(), ToServerError>;
     async fn update_workload_state(
         &self,
@@ -130,6 +131,7 @@ impl ToServerInterface for ToServerSender {
         request_id: String,
         new_state: CompleteState,
         update_mask: Vec<String>,
+        dry_run: bool,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::Request(Request {
@@ -138,6 +140,7 @@ impl ToServerInterface for ToServerSender {
                     UpdateStateRequest {
                         new_state: Some(new_state),
                         update_mask,
+                        dry_run,
                     },
                 ))),
             }))
@@ -348,7 +351,8 @@ mod tests {
             tx.update_state(
                 fixtures::REQUEST_ID.to_string(),
                 complete_state.clone(),
-                vec![FIELD_MASK.to_string()]
+                vec![FIELD_MASK.to_string()],
+                true
             )
             .await
             .is_ok()
@@ -361,7 +365,8 @@ mod tests {
                 request_content: Some(RequestContent::UpdateStateRequest(Box::new(
                     UpdateStateRequest {
                         new_state: Some(complete_state),
-                        update_mask: vec![FIELD_MASK.to_string()]
+                        update_mask: vec![FIELD_MASK.to_string()],
+                        dry_run: true,
                     },
                 ))),
             })

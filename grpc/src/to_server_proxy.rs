@@ -73,11 +73,12 @@ pub async fn forward_from_proto_to_ankaios(
                         let UpdateStateRequest {
                             new_state,
                             update_mask,
+                            dry_run,
                         } = *update_state_request;
                         log::debug!("Received UpdateStateRequest from '{agent_name}'");
                         match new_state {
                             Some(new_state) => {
-                                sink.update_state(request_id, new_state, update_mask)
+                                sink.update_state(request_id, new_state, update_mask, dry_run)
                                     .await?;
                             }
                             None => {
@@ -432,6 +433,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_owned(),
                 input_state.clone(),
                 update_mask.clone(),
+                true,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -448,7 +450,7 @@ mod tests {
         assert!(matches!(
             result.to_server_enum,
             Some(ToServerEnum::Request(Request{request_id, request_content: Some(RequestContent::UpdateStateRequest(update_state_request))}))
-            if request_id == fixtures::REQUEST_ID && update_state_request.new_state == Some(input_state) && update_state_request.update_mask == update_mask));
+            if request_id == fixtures::REQUEST_ID && update_state_request.new_state == Some(input_state) && update_state_request.update_mask == update_mask && update_state_request.dry_run));
     }
 
     // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
@@ -565,6 +567,7 @@ mod tests {
                             UpdateStateRequest {
                                 new_state: None,
                                 update_mask: ankaios_update_mask.clone(),
+                                dry_run: false,
                             },
                         ))),
                     })),
@@ -603,6 +606,7 @@ mod tests {
                             UpdateStateRequest {
                                 new_state: Some(ankaios_state.clone()),
                                 update_mask: ankaios_update_mask.clone(),
+                                dry_run: true,
                             },
                         ))),
                     })),
@@ -630,7 +634,7 @@ mod tests {
                 request_id,
                 request_content: Some(RequestContent::UpdateStateRequest(update_request)),
             })
-            if request_id == expected_prefixed_my_request_id && update_request.new_state.clone().unwrap() == ankaios_state && update_request.update_mask == ankaios_update_mask));
+            if request_id == expected_prefixed_my_request_id && update_request.new_state.clone().unwrap() == ankaios_state && update_request.update_mask == ankaios_update_mask && update_request.dry_run));
     }
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
