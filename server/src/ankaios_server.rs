@@ -1170,7 +1170,8 @@ mod tests {
                 .update_state(
                     fixtures::REQUEST_ID.to_string(),
                     new_state.clone().into(),
-                    update_mask.clone()
+                    update_mask.clone(),
+                    false
                 )
                 .await
                 .is_ok()
@@ -1190,7 +1191,8 @@ mod tests {
                 .update_state(
                     fixtures::REQUEST_ID.to_string(),
                     fixed_state.clone().into(),
-                    update_mask
+                    update_mask,
+                    false
                 )
                 .await
                 .is_ok()
@@ -1546,6 +1548,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -1659,6 +1662,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -1757,6 +1761,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -2460,6 +2465,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask.clone(),
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -2651,6 +2657,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -2722,6 +2729,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state_ankaios_no_version.into(),
                 update_mask,
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -2852,6 +2860,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state,
                 update_mask.clone(),
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -2970,6 +2979,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state,
                 update_mask.clone(),
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -3223,6 +3233,7 @@ mod tests {
                         "desiredState.workloads.{}",
                         fixtures::WORKLOAD_NAMES[0]
                     )],
+                    false,
                 )
                 .await
                 .is_ok()
@@ -3842,6 +3853,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -3953,6 +3965,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -4406,6 +4419,7 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());

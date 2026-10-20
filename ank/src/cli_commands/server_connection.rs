@@ -201,11 +201,12 @@ impl ServerConnection {
         &mut self,
         new_state: CompleteState,
         update_mask: Vec<String>,
+        dry_run: bool,
     ) -> Result<UpdateStateSuccess, ServerConnectionError> {
         let request_id = Uuid::new_v4().to_string();
         output_debug!("Sending the new state {:?}", new_state);
         self.to_server
-            .update_state(request_id.clone(), new_state, update_mask)
+            .update_state(request_id.clone(), new_state, update_mask, dry_run)
             .await
             .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
 
@@ -1006,6 +1007,7 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
+                dry_run: true,
             })),
         );
         sim.will_send_response(
@@ -1018,6 +1020,7 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
+                true,
             )
             .await;
 
@@ -1038,6 +1041,7 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
+                false,
             )
             .await;
 
@@ -1052,6 +1056,7 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
+                dry_run: false,
             })),
         );
 
@@ -1061,6 +1066,7 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
+                false,
             )
             .await;
 
@@ -1075,6 +1081,7 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
+                dry_run: false,
             })),
         );
         sim.will_send_response(
@@ -1088,6 +1095,7 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
+                false,
             )
             .await;
 
@@ -1104,6 +1112,7 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
+                dry_run: false,
             })),
         );
 
@@ -1116,6 +1125,7 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
+                false,
             )
             .await;
 
@@ -1155,6 +1165,7 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
+                dry_run: false,
             })),
         );
         sim.will_send_message(other_response.clone());
@@ -1168,6 +1179,7 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
+                false,
             )
             .await;
 
@@ -1197,6 +1209,7 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
+                dry_run: false,
             })),
         );
         sim.will_send_message(other_message.clone());
@@ -1210,6 +1223,7 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
+                false,
             )
             .await;
 

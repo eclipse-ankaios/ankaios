@@ -195,8 +195,8 @@ mod tests {
             .returning(|_| Ok(CompleteState::default()));
         mock_server_connection
             .expect_update_state()
-            .with(eq(updated_state), eq(update_mask.clone()))
-            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
+            .with(eq(updated_state), eq(update_mask.clone()), eq(false))
+            .return_once(|_, _, _| Ok(UpdateStateSuccess::default()));
 
         let mut cmd = CliCommands {
             no_wait: true,
