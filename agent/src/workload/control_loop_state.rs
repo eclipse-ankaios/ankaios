@@ -14,7 +14,7 @@
 
 #[cfg_attr(test, mockall_double::double)]
 use super::retry_manager::RetryManager;
-use crate::BUFFER_SIZE;
+use crate::agent_builder::BUFFER_SIZE;
 use crate::control_interface::ControlInterfacePath;
 use crate::runtime_connectors::{RuntimeConnector, RuntimeWorkloadId, StateCheckerHandle};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
