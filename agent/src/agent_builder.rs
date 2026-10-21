@@ -30,7 +30,6 @@ use common::{
 use crate::runtime_connectors::{GenericRuntimeFacade, RuntimeFacade};
 
 use grpc::client::GRPCCommunicationsClient;
-use grpc::security::TLSConfig;
 use std::collections::HashMap;
 
 pub(crate) const BUFFER_SIZE: usize = 20;
@@ -39,14 +38,17 @@ pub(crate) const BUFFER_SIZE: usize = 20;
 ///
 /// Config is resolved by the caller (e.g. via `AgentConfig::load()`) before building runtimes or
 /// a communications client, so both can be constructed from the resolved `AgentConfig`.
-#[derive(Default)]
 pub struct AgentBuilder {
     available_runtimes: RuntimeRegistry,
+    communications_client: Box<dyn CommunicationsClient>,
 }
 
 impl AgentBuilder {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(communications_client: Box<dyn CommunicationsClient>) -> Self {
+        Self {
+            available_runtimes: RuntimeRegistry::default(),
+            communications_client,
+        }
     }
 
     pub fn with_runtime(mut self, runtime: Box<dyn OwnableRuntime>) -> Self {
@@ -54,7 +56,23 @@ impl AgentBuilder {
         self
     }
 
-    pub async fn run(self, agent_config: AgentConfig) {
+    // [impl->swdd~agent-default-communication-grpc~1]
+    pub fn default_communications_client(
+        agent_config: &AgentConfig,
+    ) -> Box<dyn CommunicationsClient> {
+        let tls_config = agent_config.build_tls_config();
+        Box::new(
+            GRPCCommunicationsClient::new_agent_communication(
+                agent_config.name.clone(),
+                agent_config.server_url.clone(),
+                agent_config.tags.clone(),
+                tls_config,
+            )
+            .unwrap_or_exit("Failed to create communications client."),
+        )
+    }
+
+    pub async fn run(mut self, agent_config: AgentConfig) {
         log::debug!(
             "Starting the Ankaios agent with \n\tname: '{}', \n\tserver url: '{}', \n\trun directory: '{}'",
             agent_config.name,
@@ -113,38 +131,6 @@ impl AgentBuilder {
             workload_state_sender,
         );
 
-        let tls_config = if agent_config.server_url.is_unix() {
-            None
-        } else {
-            if let Err(err_message) = TLSConfig::is_config_conflicting(
-                agent_config.insecure,
-                &agent_config.ca_pem_content,
-                &agent_config.crt_pem_content,
-                &agent_config.key_pem_content,
-            ) {
-                log::warn!("{err_message}");
-            }
-
-            // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
-            // [impl->swdd~agent-provides-file-paths-to-communication-middleware~1]
-            // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-            TLSConfig::new(
-                agent_config.insecure,
-                agent_config.ca_pem_content,
-                agent_config.crt_pem_content,
-                agent_config.key_pem_content,
-            )
-            .unwrap_or_exit("Missing certificate files")
-        };
-
-        let mut communications_client = GRPCCommunicationsClient::new_agent_communication(
-            agent_config.name.clone(),
-            agent_config.server_url,
-            agent_config.tags,
-            tls_config,
-        )
-        .unwrap_or_exit("Failed to create communications client.");
-
         let mut agent_manager = AgentManager::new(
             agent_config.name.clone(),
             manager_receiver,
@@ -155,8 +141,7 @@ impl AgentBuilder {
 
         tokio::select! {
             // [impl->swdd~agent-sends-hello~1]
-            // [impl->swdd~agent-default-communication-grpc~1]
-            communication_result = communications_client.run(server_receiver, to_manager) => {
+            communication_result = self.communications_client.run(server_receiver, to_manager) => {
                 communication_result.unwrap_or_exit("agent error")
             }
             _agent_mgr_result = agent_manager.start() => {
@@ -178,15 +163,34 @@ impl AgentBuilder {
 mod tests {
     use super::{AgentBuilder, OwnableRuntime};
     use crate::runtime_connectors::test::MockRuntimeConnector;
+    use common::communications_client::CommunicationsClient;
+    use common::communications_error::CommunicationMiddlewareError;
+    use common::from_server_interface::FromServerSender;
+    use common::to_server_interface::ToServerReceiver;
 
     #[test]
     fn utest_with_runtime_registers_runtime() {
-        let builder = AgentBuilder::new()
-            .with_runtime(Box::new(MockRuntimeConnector::new()) as Box<dyn OwnableRuntime>);
+        let builder =
+            AgentBuilder::new(Box::new(FakeCommunicationsClient) as Box<dyn CommunicationsClient>)
+                .with_runtime(Box::new(MockRuntimeConnector::new()) as Box<dyn OwnableRuntime>);
 
         let selected = builder
             .available_runtimes
             .select(&["mock-runtime".to_string()]);
         assert_eq!(selected.len(), 1);
+    }
+
+    #[derive(Debug, Default)]
+    struct FakeCommunicationsClient;
+
+    #[async_trait::async_trait]
+    impl CommunicationsClient for FakeCommunicationsClient {
+        async fn run(
+            &mut self,
+            _receiver: ToServerReceiver,
+            _manager_interface: FromServerSender,
+        ) -> Result<(), CommunicationMiddlewareError> {
+            Ok(())
+        }
     }
 }

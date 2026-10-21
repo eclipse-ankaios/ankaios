@@ -20,8 +20,9 @@ use ank_agent::{AgentBuilder, AgentConfig};
 #[tokio::main]
 async fn main() {
     let agent_config = AgentConfig::load();
+    let communications_client = AgentBuilder::default_communications_client(&agent_config);
 
-    AgentBuilder::new()
+    AgentBuilder::new(communications_client)
         // [impl->swdd~agent-supports-podman~2]
         .with_runtime(Box::new(PodmanRuntime {}))
         // [impl->swdd~agent-supports-podman-kube-runtime~1]
