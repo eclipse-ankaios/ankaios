@@ -16,11 +16,11 @@ mod cli_command;
 
 mod podman_cli;
 
-pub(crate) mod podman;
+pub mod podman;
 
-pub(crate) mod podman_kube;
+pub mod podman_kube;
 
-pub(crate) mod containerd;
+pub mod containerd;
 
 pub(crate) mod unsupported;
 
