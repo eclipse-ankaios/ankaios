@@ -12,13 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cli::Arguments;
+use crate::cli::{self, Arguments};
 use crate::io_utils::default_run_folder_string;
 
 use common::config::{
-    CONFIG_VERSION, ConfigFile, ConversionErrors, ServerUrl, get_default_url,
+    CONFIG_VERSION, ConfigFile, ConversionErrors, ServerUrl, get_default_url, handle_config,
 };
-use common::std_extensions::UnreachableOption;
+use common::std_extensions::{GracefulExitResult, UnreachableOption};
 
 use grpc::security::PemFileType;
 
@@ -79,6 +79,41 @@ impl Default for AgentConfig {
     }
 }
 
+impl AgentConfig {
+    fn finish_loading_from_file(&mut self) -> Result<(), ConversionErrors> {
+        if self.version != CONFIG_VERSION {
+            return Err(ConversionErrors::WrongVersion(self.version.clone()));
+        }
+
+        if (self.ca_pem.is_some() && self.ca_pem_content.is_some())
+            || (self.crt_pem.is_some() && self.crt_pem_content.is_some())
+            || (self.key_pem.is_some() && self.key_pem_content.is_some())
+        {
+            return Err(ConversionErrors::ConflictingCertificates(
+                "Certificate paths and certificate content are both set".to_string(),
+            ));
+        }
+
+        if let Some(ca_pem_path) = &self.ca_pem {
+            let ca_pem_content = read_pem_file(ca_pem_path, PemFileType::Certificate)
+                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
+            self.ca_pem_content = Some(ca_pem_content);
+        }
+        if let Some(crt_pem_path) = &self.crt_pem {
+            let crt_pem_content = read_pem_file(crt_pem_path, PemFileType::Certificate)
+                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
+            self.crt_pem_content = Some(crt_pem_content);
+        }
+        if let Some(key_pem_path) = &self.key_pem {
+            let key_pem_content = read_pem_file(key_pem_path, PemFileType::PrivateKey)
+                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
+            self.key_pem_content = Some(key_pem_content);
+        }
+
+        Ok(())
+    }
+}
+
 // [impl->swdd~agent-loads-config-file~2]
 impl ConfigFile for AgentConfig {
     fn from_file(file_path: PathBuf) -> Result<AgentConfig, ConversionErrors> {
@@ -87,35 +122,7 @@ impl ConfigFile for AgentConfig {
         let mut agent_config: AgentConfig = from_str(&agent_config_content)
             .map_err(|err| ConversionErrors::InvalidConfig(err.to_string()))?;
 
-        if agent_config.version != CONFIG_VERSION {
-            return Err(ConversionErrors::WrongVersion(agent_config.version));
-        }
-
-        if (agent_config.ca_pem.is_some() && agent_config.ca_pem_content.is_some())
-            || (agent_config.crt_pem.is_some() && agent_config.crt_pem_content.is_some())
-            || (agent_config.key_pem.is_some() && agent_config.key_pem_content.is_some())
-        {
-            return Err(ConversionErrors::ConflictingCertificates(
-                "Certificate paths and certificate content are both set".to_string(),
-            ));
-        }
-
-        if let Some(ca_pem_path) = &agent_config.ca_pem {
-            let ca_pem_content = read_pem_file(ca_pem_path, PemFileType::Certificate)
-                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
-            agent_config.ca_pem_content = Some(ca_pem_content);
-        }
-        if let Some(crt_pem_path) = &agent_config.crt_pem {
-            let crt_pem_content = read_pem_file(crt_pem_path, PemFileType::Certificate)
-                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
-            agent_config.crt_pem_content = Some(crt_pem_content);
-        }
-        if let Some(key_pem_path) = &agent_config.key_pem {
-            let key_pem_content = read_pem_file(key_pem_path, PemFileType::PrivateKey)
-                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
-            agent_config.key_pem_content = Some(key_pem_content);
-        }
-
+        agent_config.finish_loading_from_file()?;
         validate_socket_configuration(&agent_config).map_err(ConversionErrors::InvalidConfig)?;
 
         Ok(agent_config)
@@ -123,6 +130,27 @@ impl ConfigFile for AgentConfig {
 }
 
 impl AgentConfig {
+    /// Resolves the config file path and CLI arguments into a validated, ready-to-use config.
+    // [impl->swdd~agent-loads-config-file~2]
+    pub fn load() -> Self {
+        env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
+        let args = cli::parse();
+
+        let mut agent_config: AgentConfig =
+            handle_config(&args.config_path, &DEFAULT_AGENT_CONFIG_FILE_PATH)
+                .unwrap_or_exit("Config file could not be parsed");
+
+        agent_config
+            .update_with_args(&args)
+            .unwrap_or_exit("Failed to load certificate files!");
+
+        crate::validate_agent_name(&agent_config.name)
+            .unwrap_or_exit("Error encountered while checking agent name!");
+
+        agent_config
+    }
+
     pub fn update_with_args(&mut self, args: &Arguments) -> Result<(), String> {
         if let Some(name) = &args.agent_name {
             self.name = name.to_string();
@@ -234,7 +262,7 @@ mod tests {
     // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_default_agent_config() {
-        let default_agent_config = AgentConfig::default();
+        let default_agent_config: AgentConfig = AgentConfig::default();
 
         assert_eq!(default_agent_config.server_url, get_default_url());
         assert!(!default_agent_config.insecure);
@@ -251,7 +279,8 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{agent_config_content}").unwrap();
 
-        let agent_config = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let agent_config: Result<AgentConfig, _> =
+            AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
         assert_eq!(
             agent_config,
@@ -275,7 +304,8 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{agent_config_content}").unwrap();
 
-        let agent_config = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let agent_config: Result<AgentConfig, _> =
+            AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
         assert_eq!(
             agent_config,
@@ -289,7 +319,7 @@ mod tests {
     #[test]
     fn utest_agent_config_update_with_args() {
         let default_run_folder = default_run_folder_string();
-        let mut agent_config = AgentConfig::default();
+        let mut agent_config: AgentConfig = AgentConfig::default();
         let args = Arguments {
             config_path: None,
             agent_name: Some(fixtures::AGENT_NAMES[0].to_string()),
@@ -353,7 +383,7 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{agent_config_content}").unwrap();
 
-        let mut agent_config =
+        let mut agent_config: AgentConfig =
             AgentConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
         let args = Arguments {
             config_path: None,
@@ -408,7 +438,8 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{agent_config_content}").unwrap();
 
-        let agent_config_res = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let agent_config_res: Result<AgentConfig, _> =
+            AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
         assert!(agent_config_res.is_ok());
 
@@ -437,7 +468,7 @@ mod tests {
 
     #[test]
     fn utest_agent_config_update_with_tags_from_cli() {
-        let mut agent_config = AgentConfig::default();
+        let mut agent_config: AgentConfig = AgentConfig::default();
 
         agent_config
             .tags
@@ -477,7 +508,8 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{agent_config_content}").unwrap();
 
-        let result = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let result: Result<AgentConfig, _> =
+            AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
         assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
     }
 
@@ -493,7 +525,8 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{agent_config_content}").unwrap();
 
-        let result = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let result: Result<AgentConfig, _> =
+            AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
         assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
     }
 }

@@ -8,6 +8,14 @@ documentation = "https://eclipse-ankaios.github.io/ankaios"
 authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
 repository = "https://github.com/eclipse-ankaios/ankaios"
 
+[lib]
+name = "ank_agent"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ank-agent"
+path = "src/main.rs"
+
 [dependencies]
 ankaios-api = { path = "../ankaios_api" }
 common = { path = "../common" }
