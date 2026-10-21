@@ -15,12 +15,14 @@
 use crate::cli::{self, Arguments};
 use crate::io_utils::default_run_folder_string;
 
+use ankaios_api::ALLOWED_CHAR_SET;
 use common::config::{
     CONFIG_VERSION, ConfigFile, ConversionErrors, ServerUrl, get_default_url, handle_config,
 };
-use common::std_extensions::{GracefulExitResult, UnreachableOption};
+use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableOption};
+use regex::Regex;
 
-use grpc::security::PemFileType;
+use grpc::security::{PemFileType, TLSConfig};
 
 #[cfg(not(test))]
 use grpc::security::read_pem_file;
@@ -145,7 +147,7 @@ impl AgentConfig {
             .update_with_args(&args)
             .unwrap_or_exit("Failed to load certificate files!");
 
-        crate::validate_agent_name(&agent_config.name)
+        validate_agent_name(&agent_config.name)
             .unwrap_or_exit("Error encountered while checking agent name!");
 
         agent_config
@@ -195,6 +197,32 @@ impl AgentConfig {
 
         Ok(())
     }
+
+    pub fn build_tls_config(&self) -> Option<TLSConfig> {
+        if self.server_url.is_unix() {
+            None
+        } else {
+            if let Err(err_message) = TLSConfig::is_config_conflicting(
+                self.insecure,
+                &self.ca_pem_content,
+                &self.crt_pem_content,
+                &self.key_pem_content,
+            ) {
+                log::warn!("{err_message}");
+            }
+
+            // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
+            // [impl->swdd~agent-provides-file-paths-to-communication-middleware~1]
+            // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+            TLSConfig::new(
+                self.insecure,
+                self.ca_pem_content.clone(),
+                self.crt_pem_content.clone(),
+                self.key_pem_content.clone(),
+            )
+            .unwrap_or_exit("Missing certificate files")
+        }
+    }
 }
 
 fn validate_socket_configuration(agent_config: &AgentConfig) -> Result<(), String> {
@@ -213,6 +241,26 @@ fn validate_socket_configuration(agent_config: &AgentConfig) -> Result<(), Strin
         .map_err(|err| format!("Invalid agent config: {err}"))
 }
 
+// [impl->swdd~agent-naming-convention~1]
+fn validate_agent_name(agent_name: &str) -> Result<(), String> {
+    const EXPECTED_AGENT_NAME_FORMAT: &str = "It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.";
+    if agent_name.is_empty() {
+        return Err(format!(
+            "Empty agent name is not allowed. {EXPECTED_AGENT_NAME_FORMAT}"
+        ));
+    }
+
+    let re = Regex::new(&format!(r"^{ALLOWED_CHAR_SET}+$")).unwrap_or_illegal_state();
+
+    if re.is_match(agent_name) {
+        Ok(())
+    } else {
+        Err(format!(
+            "Agent name '{agent_name}' is invalid. {EXPECTED_AGENT_NAME_FORMAT}",
+        ))
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -223,7 +271,7 @@ fn validate_socket_configuration(agent_config: &AgentConfig) -> Result<(), Strin
 
 #[cfg(test)]
 mod tests {
-    use super::{AgentConfig, CONFIG_VERSION};
+    use super::{AgentConfig, CONFIG_VERSION, validate_agent_name};
     use crate::cli::Arguments;
     use crate::io_utils::default_run_folder_string;
     use common::config::{ConfigFile, ConversionErrors, ServerUrl, get_default_url};
@@ -528,5 +576,35 @@ mod tests {
         let result: Result<AgentConfig, _> =
             AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
         assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
+    }
+
+    // [utest->swdd~agent-naming-convention~1]
+    #[test]
+    fn utest_validate_agent_name_ok() {
+        let name = "test_AgEnt-name1_56";
+        assert!(validate_agent_name(name).is_ok());
+    }
+
+    // [utest->swdd~agent-naming-convention~1]
+    #[test]
+    fn utest_validate_agent_name_fail() {
+        let invalid_agent_names = ["a.b", "a_b_%#", "a b"];
+        for name in invalid_agent_names {
+            let result = validate_agent_name(name);
+            assert!(result.is_err());
+            assert!(
+                result
+                    .unwrap_err()
+                    .contains(&format!("Agent name '{name}' is invalid.",))
+            );
+        }
+
+        let result = validate_agent_name("");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("Empty agent name is not allowed.")
+        );
     }
 }
