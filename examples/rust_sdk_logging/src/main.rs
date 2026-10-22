@@ -22,7 +22,7 @@ async fn main() {
 
     // Create a new Ankaios object.
     // The connection to the control interface is automatically done at this step.
-    let mut ank = Ankaios::new().await.expect("Failed to initialize");
+    let mut ank = Ankaios::builder().control_interface().connect().await.expect("Failed to initialize");
 
     // Get the workload instance names of the workloads running on the system
     let mut screamer_instance_name = None;
