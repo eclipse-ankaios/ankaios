@@ -1,4 +1,4 @@
-# Upgrading v0.7 to v1.0
+# Upgrading v0.7 to v1
 
 We are proud to present the first stable API version of Eclipse Ankaios. This documents describes the necessary changes required to update to the new stable API version of Ankaios.
 

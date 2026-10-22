@@ -44,7 +44,7 @@ Use this documentation to understand the architecture, configure manifests, inte
 - [Upgrading v0.4 to v0.5](<https://eclipse-ankaios.github.io/ankaios/1.1/usage/upgrading/v0_4_to_v0_5/index.md>)
 - [Upgrading v0.5 to v0.6](<https://eclipse-ankaios.github.io/ankaios/1.1/usage/upgrading/v0_5_to_v0_6/index.md>)
 - [Upgrading v0.6 to v0.7](<https://eclipse-ankaios.github.io/ankaios/1.1/usage/upgrading/v0_6_to_v0_7/index.md>)
-- [Upgrading v0.7 to v1.0](<https://eclipse-ankaios.github.io/ankaios/1.1/usage/upgrading/v0_7_to_v1_0/index.md>)
+- [Upgrading v0.7 to v1](<https://eclipse-ankaios.github.io/ankaios/1.1/usage/upgrading/v0_7_to_v1/index.md>)
 
 ## Contributing
 
