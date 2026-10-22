@@ -34,7 +34,9 @@ pub use control_interface_access::WILDCARD_SYMBOL;
 
 pub(crate) mod workload;
 
-pub use workload::{DeleteCondition, DeletedWorkload, WorkloadNamed, validate_tags};
+pub use workload::{
+    DeleteCondition, DeletedWorkload, WorkloadNamed, validate_tags, validate_workload_name_format,
+};
 
 pub(crate) mod workload_state;
 pub use execution_state::{ExecutionStateEnum, ExecutionStateEnumSpec};
