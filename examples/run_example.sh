@@ -2,8 +2,7 @@
 set -e
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-ANKAIOS_SERVER_SOCKET="0.0.0.0:25551"
-ANKAIOS_SERVER_URL="http://${ANKAIOS_SERVER_SOCKET}"
+ANKAIOS_SERVER_URL="unix:///tmp/ankaios.sock"
 DEFAULT_ANKAIOS_BIN_PATH="/usr/local/bin"
 MANIFEST_FILE="manifest.yaml"
 
@@ -70,16 +69,19 @@ run_ankaios() {
     fi
 
     # Apply a new manifest file
-    ${ANK_BIN_DIR}/ank --insecure apply ${SCRIPT_DIR}/${EXAMPLE}/${MANIFEST_FILE}
+    ${ANK_BIN_DIR}/ank --server-url ${ANKAIOS_SERVER_URL} apply ${SCRIPT_DIR}/${EXAMPLE}/${MANIFEST_FILE}
   else
+    # Remove a stale socket file left over from a previous, uncleanly stopped run
+    rm -f "${ANKAIOS_SERVER_URL#unix://}"
+
     # Start the Ankaios server
     echo "Starting Ankaios server located in '${ANK_BIN_DIR}'."
-    RUST_LOG=debug ${ANK_BIN_DIR}/ank-server --insecure --startup-manifest ${SCRIPT_DIR}/${EXAMPLE}/${MANIFEST_FILE} --address ${ANKAIOS_SERVER_SOCKET} > ${ANKAIOS_LOG_DIR}/ankaios-server.log 2>&1 &
+    RUST_LOG=debug ${ANK_BIN_DIR}/ank-server --startup-manifest ${SCRIPT_DIR}/${EXAMPLE}/${MANIFEST_FILE} --address ${ANKAIOS_SERVER_URL} > ${ANKAIOS_LOG_DIR}/ankaios-server.log 2>&1 &
 
     sleep 2
     # Start an Ankaios agent
     echo "Starting Ankaios agent agent_A located in '${ANK_BIN_DIR}'."
-    RUST_LOG=debug ${ANK_BIN_DIR}/ank-agent --insecure --name agent_A --server-url ${ANKAIOS_SERVER_URL} > ${ANKAIOS_LOG_DIR}/ankaios-agent_A.log 2>&1 &
+    RUST_LOG=debug ${ANK_BIN_DIR}/ank-agent --name agent_A --server-url ${ANKAIOS_SERVER_URL} > ${ANKAIOS_LOG_DIR}/ankaios-agent_A.log 2>&1 &
 
     # Wait for any process to exit
     wait -n
