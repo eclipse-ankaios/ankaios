@@ -80,6 +80,18 @@ agents:
   agent_A:
     cpuUsage: 2
     freeMemory: 7989682176
+effectiveState:
+  apiVersion: v1
+  workloads:
+    nginx:
+      agent: agent_A
+      restartPolicy: ALWAYS
+      tags:
+        owner: Ankaios team
+      runtime: podman
+      runtimeConfig: |-
+        image: docker.io/nginx:latest
+        commandOptions: ["-p", "8081:80"]
 ```
 
 or
