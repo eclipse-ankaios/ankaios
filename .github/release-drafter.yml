@@ -12,11 +12,13 @@ categories:
   - title: ✨ Features
     label: enhancement
   - title: 🐛 Bug Fixes
-    label: bug
+    when:
+      labels:
+        - bug
+        - minor
   - title: 📚 Documentation
     label: documentation
   - title: Other Changes
-    label: chore
 
 # Version resolution
 version-resolver:
