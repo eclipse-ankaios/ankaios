@@ -1,43 +1,46 @@
 ---
 name: requirement-tracing
-description: Manage requirement tracing — write new or update existing requirements/design decisions, link implementations and tests to existing ones, and maintain tracing consistency. Applies automatically when implementing features or fixing bugs.
+description: Manage requirement tracing — write new or update existing requirements/design decisions, link implementations and tests to existing ones, and maintain tracing consistency. Applies automatically when implementing product features or fixing product bugs; examples are exempt.
 ---
 
-# Requirement Tracing Skill
+# Requirement Tracing
 
-This skill describes how to write, link, and maintain requirements and design decisions in the Ankaios project.
-
-## Overview
-
-Ankaios uses OpenFastTrace for bidirectional requirement tracing. Every feature must be traceable from its software design decision (swdd) through implementation and tests.
-
-The tracing chain is:
+Ankaios uses OpenFastTrace (OFT) to trace product implementations and tests directly to software requirements/design decisions (`swdd`):
 
 ```text
-swdd (requirement/design decision)
-  ← impl (source code)
-  ← utest (unit test)
-  ← itest (integration test)
-  ← stest (system test)
+impl  --\
+utest ---\
+itest ----> swdd
+stest ---/
 ```
+
+`Needs` selects the required coverage types; not every requirement needs every test layer. Code under `examples/` is exempt from requirement tracing.
+
+## Workflow
+
+1. Search the relevant SW design document and existing anchors for the behavior being changed.
+2. Reuse a requirement when it already describes the intended behavior, including bug fixes that restore that behavior. Update it when its specified behavior changes; add one when no existing requirement covers a new behavior, constraint, or validation rule.
+3. Record a design decision for a non-obvious architectural choice with significant alternatives or long-term trade-offs.
+4. Trace the implementing blocks and relevant unit, integration, and system tests using the anchor rules below.
+5. Review semantic coverage, then validate the tracing report and comparison against main.
 
 ## Requirement locations
 
 Requirements and design decisions live in the SW design document of the crate they belong to:
 
-| Crate       | File                                |
-|-------------|-------------------------------------|
-| server      | `server/doc/swdesign/README.md`     |
-| agent       | `agent/doc/swdesign/README.md`      |
-| common      | `common/doc/swdesign/README.md`     |
-| ank (CLI)   | `ank/doc/swdesign/README.md`        |
-| grpc        | `grpc/doc/swdesign/README.md`       |
-| ank_schema  | `ank_schema/doc/swdesign/README.md` |
-| ankaios_api | `ankaios_api/doc/swdesign/README.md`|
+| Crate       | SW design document                                         |
+| ----------- | ---------------------------------------------------------- |
+| server      | [server](../../../server/doc/swdesign/README.md)           |
+| agent       | [agent](../../../agent/doc/swdesign/README.md)             |
+| common      | [common](../../../common/doc/swdesign/README.md)           |
+| ank (CLI)   | [ank](../../../ank/doc/swdesign/README.md)                 |
+| grpc        | [grpc](../../../grpc/doc/swdesign/README.md)               |
+| ank_schema  | [ank_schema](../../../ank_schema/doc/swdesign/README.md)   |
+| ankaios_api | [ankaios_api](../../../ankaios_api/doc/swdesign/README.md) |
 
 ## Requirement format
 
-Each requirement is a Markdown section with this structure:
+Use the project's [requirement template](../../../doc/docs/development/requirement-template.md):
 
 ```markdown
 #### Human-readable title
@@ -45,13 +48,10 @@ Each requirement is a Markdown section with this structure:
 
 Status: approved
 
-[When <condition separated by and>,] <object> shall <do something>.
-
-Comment:
-<Optional additional context.>
+[When <condition>,] <object> shall <action>.
 
 Rationale:
-<Optional explanation of why this requirement exists.>
+<Why this requirement exists; omit if it adds no information.>
 
 Tags:
 - <UnitName>
@@ -61,39 +61,19 @@ Needs:
 - utest
 ```
 
-### Wording rules
+### Wording and scope
 
-- Requirements **shall** use "shall" — never "should", "will", "is", etc.
-- Only **one object** (subject) is allowed per requirement.
-- Use the pattern: `[When <condition>,] <object> shall <action>.`
-- When a requirement describes a sequence of actions by the same object, use one "shall" statement followed by an ordered list:
-
-  ```markdown
-  When X happens, the server shall do Y by performing the following actions in order:
-
-  1. First action
-  2. Second action
-  3. Third action
-  ```
-
-- When a requirement describes multiple independent behaviors, split into separate requirements.
-- Attributes of a configurable entity can be listed:
-
-  ```markdown
-  The server shall support configuring X with the following attributes:
-
-  - `name` — description (required)
-  - `prio` — description (optional, default `0`)
-  ```
-
-- Comment and Rationale sections are optional; omit them only when the reason is obvious and the rationale would not add new information. In all other cases, include a Rationale.
-- Avoid term shadowing: do not reuse a term in a different requirement with a different meaning. For example, if "veto" means rejecting an entire state update, do not use "vetoed workloads" to describe individual workloads dropped from a list.
+- Use "shall" and one subject per requirement.
+- Split independent behaviors into separate requirements. For an ordered sequence by one subject, use one "shall" statement followed by a numbered list.
+- List configurable attributes with their required/optional status and defaults.
+- Add `Comment:` for useful context and `Rationale:` unless the reason is obvious and adds no information.
+- Use terms consistently across requirements; do not give an established term a different meaning.
 
 ### ID naming conventions
 
-- Prefix with the crate/component: `server-`, `agent-`, `cli-`, `grpc-`, `common-`, `ank-schema-`
-- Use lowercase kebab-case for the descriptive part
-- Version starts at `1` and increments when the requirement text changes materially
+- Follow the component's existing prefix: `server-`, `agent-`, `cli-`, `grpc-`, `common-`, `ank-schema-`, or `api-`.
+- Use lowercase kebab-case for the descriptive part.
+- Start at version `1`; follow the versioning rules below for updates.
 
 ### Needs field
 
@@ -108,26 +88,24 @@ Specify which artifact types must cover this requirement:
 
 ### Tags field
 
-Tags reference the structural unit(s) (from the "Structural view" section of the swdesign doc) that implement this requirement. Use PascalCase unit names. Add tags to the Structural view in case new units are added with the implementation.
+Use the implementing unit names from the document's "Structural view", following its naming conventions. Add new units there when the implementation introduces them.
 
 ## Design decisions
 
-Design decisions use the same format but add the following fields between Rationale or Comment and Needs:
+Use the same format, adding assumptions and considered alternatives. Follow the surrounding document's field order:
 
 ```markdown
-
 Assumptions:
 <What was assumed to be true.>
 
 Considered alternatives:
 - **Alternative A**: <description and why rejected>
 - **Alternative B**: <description and why rejected>
-
 ```
 
-## Linking implementation to requirements
+## Anchor rules
 
-In source code, add a tracing comment **on the line(s) that implement** the requirement:
+Place implementation anchors directly above the implementing block. For a whole Rust file, place them after the `use` statements:
 
 ```rust
 // [impl->swdd~server-loads-startup-state-file~3]
@@ -136,136 +114,60 @@ fn load_startup_state(path: &Path) -> Result<State> {
 }
 ```
 
-Rules:
-
-- Place the comment directly above the line(s) that satisfy the requirement
-- If the whole code in a `.rs` file implements the requirement, place the tracing anchor after the `use` statements
-- One comment per requirement per logical block (don't repeat on every line)
-- Multiple requirements can be traced from the same code block using separate comments:
-
-  ```rust
-  // [impl->swdd~server-validates-desired-state-api-version~1]
-  // [impl->swdd~server-fails-on-invalid-startup-state~1]
-  ```
-
-## Linking unit tests to requirements
-
-In test functions, add a tracing comment directly above the test:
+Place unit and integration test anchors directly above the test:
 
 ```rust
 // [utest->swdd~server-loads-startup-state-file~3]
 #[test]
-fn test_loads_startup_state() {
+fn utest_loads_startup_state() {
+    // Test body omitted.
+}
 
-    let result = load_startup_state(&path);
-    assert!(result.is_ok());
+// [itest->swdd~server-loads-startup-state-file~3]
+#[test]
+fn itest_loads_startup_state() {
+    // Test body omitted.
 }
 ```
 
-If a test covers multiple requirements, add multiple comments.
-
-## Linking system tests to requirements
-
-In Robot Framework `.robot` files, add a tracing comment above or inside the test case:
+In Robot Framework, place the system test anchor immediately above or inside the test case:
 
 ```robot
-# [stest->swdd~server-loads-startup-state-file~3]
 *** Test Cases ***
+# [stest->swdd~server-loads-startup-state-file~3]
 Server loads startup state from file
     [Documentation]    Verify server loads state from YAML file
     ...
 ```
 
-## When to write new requirements
+- Use one anchor per requirement per logical block, not per line. Use separate anchors when a block covers multiple requirements.
+- Each traced block or test must genuinely contribute. Individual artifacts may cover part of a requirement; collectively, they must satisfy its complete behavior and declared `Needs`.
+- For test design and assertion quality, use the [unit-test-development skill](../unit-test-development/SKILL.md).
+- Optional insertion helpers are available in the [VS Code tracing snippets](../../../.vscode/tracing.code-snippets).
 
-Write a **new requirement** when:
+## Versioning
 
-- Implementing new user-visible behavior or a new feature
-- Adding a new constraint or validation rule
-- The behavior is not already described by an existing requirement
+For a material change to a requirement already on `main`, increment its version once relative to that baseline, e.g. `swdd~name~1` to `swdd~name~2`. New requirements and further edits to an unpublished revision keep their version. The baseline is main, not a release.
 
-Write a **new design decision** when:
+Update every anchor targeting the changed requirement (`impl`, `utest`, `itest`, and `stest`) to the new version, and ensure its implementation and tests satisfy the revised behavior.
 
-- Making a non-obvious architectural choice
-- Choosing between multiple viable alternatives
-- The decision has long-term implications or trade-offs
+## Semantic review
 
-## When to link to existing requirements
+Before accepting or tracing a requirement, check:
 
-Link to an **existing requirement without changes** when:
+- The heading and ID summarize the complete normative behavior, not just one supported option.
+- When extending a mechanism, existing options remain documented, either in one general requirement or in separate requirements for independent behaviors.
+- Traced implementations and tests cover every specified option and match `Needs`. Add anchors to existing tests when established behavior becomes part of a broader requirement.
+- The rationale explains the whole requirement, not just one option.
 
-- The implementation satisfies the requirement as written
-- Adding new code that covers an already-documented behavior
-
-**Update an existing requirement** (bump version) when:
-
-- The implementation changes the behavior described by the requirement
-- The requirement text no longer accurately describes what the code does
-- When bumping version: update the version in the ID AND update all existing `[impl->...]`, `[utest->...]`, `[stest->...]` references to the new version
-
-## Version bumping
-
-When updating a requirement:
-
-1. Increment the version number in the ID: `swdd~name~1` → `swdd~name~2`
-2. Update all tracing comments in code/tests that reference the old version
-
-**Important:** Only bump the version when the requirement was already published on the `main` branch. If you are working on a feature branch and the requirement was introduced or last changed on that same branch (i.e., it has not been merged to `main` yet), update the requirement text in place **without** incrementing the version number. Version bumps are reserved for changes to requirements that are already part of the released baseline.
-3. Update the requirement text to match the new behavior
-4. Make sure that the traced implementation and tests are updated to satisfy the new version of the requirement
+OFT checks links and coverage types, not semantic agreement between headings, IDs, bodies, rationales, code, and tests. Perform this review even when tracing reports no issues.
 
 ## Validation
 
-Ankaios uses [OpenFastTrace (OFT)](https://github.com/itsallcode/openfasttrace) to verify that every requirement is covered by the required artifact types (`impl`, `utest`, etc.). OFT scans the `src/`, `doc/` and `tests/` directories, parses requirement IDs from Markdown and tracing comments from source code, and checks coverage.
+1. Run `just trace-requirements` and inspect `build/req/req_tracing_report.html` for unresolved links and missing coverage.
+2. Run `just compare-requirements` and inspect its output for newly uncovered items relative to main. This fetches `origin/main` but uses the local `main` branch for the baseline; ensure it represents the intended baseline.
+3. Resolve tracing issues caused by the change and report any remaining gaps.
 
-### Quick check via just
+Neither command's exit status alone proves complete coverage: the recipes suppress OFT failures, and the comparison script prints findings without failing. The comparison only reports new uncovered items or items that changed from covered to uncovered; it is not a full tracing check.
 
-```bash
-just trace-requirements
-```
-
-This runs `oft trace` and generates an HTML report at `build/req/req_tracing_report.html`.
-
-### Running OFT directly
-
-```bash
-oft trace <directories...> -a <artifact-types> [options]
-```
-
-Key options:
-
-- `-a swdd,impl,utest,itest,stest` — artifact types to include (always use this set)
-- `-v all` — show all requirements, not just problems (default only shows uncovered ones)
-- `-o html -f report.html` — generate an HTML report instead of plain text
-
-Example showing all requirements:
-
-```bash
-oft trace $(find . -type d \( -name 'src' -o -name 'doc' -o -name 'tests' \) -not -path './doc') -a swdd,impl,utest,itest,stest -v all
-```
-
-### Comparing against main
-
-```bash
-just compare-requirements
-```
-
-This compares the tracing report of the current branch against main and prints newly uncovered requirements.
-
-## VS Code snippets
-
-Use the existing code snippets for quick insertion:
-
-- Type `impl` → expands to `// [impl->$1]`
-- Type `utest` → expands to `// [utest->$1]`
-- Type `req` → expands to a full requirement template
-
-## Workflow summary
-
-When implementing a feature:
-
-1. **Check** if a matching requirement already exists in the relevant `doc/swdesign/README.md`
-2. **If yes**: add `// [impl->swdd~requirement-name~version]` tracing comments to implementation code
-3. **If no**: write a new requirement in the appropriate swdesign document, then trace it
-4. **For tests**: add `// [utest->swdd~...]` or `# [stest->swdd~...]` comments
-5. **Verify** with `just trace-requirements` that coverage is complete
+See the [project tracing guide](../../../doc/docs/development/requirement-tracing.md) or `oft help` for direct OFT usage.
