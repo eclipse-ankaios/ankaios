@@ -4,6 +4,7 @@ template: |
   $CHANGES
 
 change-template: '- $TITLE (#$NUMBER)'
+category-template: '### $TITLE'
 
 categories:
   - title: 🛠️ Breaking Changes
