@@ -78,8 +78,9 @@ mod tests {
                     format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]),
                     format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[1]),
                 ]),
+                eq(false),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec![
@@ -170,8 +171,9 @@ mod tests {
             .with(
                 eq(CompleteState::default()),
                 eq(vec!["desiredState.workloads.unknown_workload".to_string()]),
+                eq(false),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec![],

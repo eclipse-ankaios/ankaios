@@ -26,12 +26,14 @@ mod workload_table_row;
 use workload_table_row::WorkloadTableRow;
 mod agent_table_row;
 mod config_table_row;
+mod dry_run_table_row;
 mod wait_list_display;
 
 // CLI commands implemented in another files
 mod apply_manifests;
 mod delete_configs;
 mod delete_workloads;
+mod dry_run;
 mod get_agents;
 mod get_configs;
 mod get_events;
@@ -252,7 +254,7 @@ impl CliCommands {
 
         let update_state_success = self
             .server_connection
-            .update_state(new_state, update_mask)
+            .update_state(new_state, update_mask, false)
             .await?;
 
         output_debug!("Got update success: {:?}", update_state_success);
