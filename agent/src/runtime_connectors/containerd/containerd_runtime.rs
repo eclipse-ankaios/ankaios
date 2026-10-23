@@ -187,8 +187,10 @@ impl RuntimeConnector for ContainerdRuntime {
             Err(err) => {
                 // [impl->swdd~containerd-create-workload-deletes-failed-container~1]
                 log::debug!("Creating/starting container failed, cleaning up. Error: '{err}'");
-                match NerdctlCli::remove_workloads_by_id(&workload_named.instance_name.to_string())
-                    .await
+                match NerdctlCli::remove_workloads_by_id(
+                    &workload_named.instance_name.short_workload_name(),
+                )
+                .await
                 {
                     Ok(()) => log::debug!("The broken container has been deleted successfully"),
                     Err(e) => {
