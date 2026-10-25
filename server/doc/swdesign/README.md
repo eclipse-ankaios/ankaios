@@ -983,8 +983,11 @@ Status: approved
 When the Ankaios Server processes an UpdateStateRequest with the `dryRun` flag set to true, the Ankaios Server shall not:
 * update the agent tags
 * change the workload states
-* send any messages to the Ankaios Agents
+* send the FromServer messages UpdateWorkload and UpdateWorkloadState to the Ankaios Agents
 * send any events to the event subscribers
+
+Comment:
+The Ankaios Server still responds to the request as described in `swdd~server-update-state-dry-run-success-response~1` and `swdd~server-update-state-dry-run-error-response~1`. If the request was sent by a workload via the control interface, the response is forwarded by the Ankaios Agent of that workload.
 
 Tags:
 - AnkaiosServer
