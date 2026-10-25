@@ -429,9 +429,6 @@ impl AnkaiosServer {
                                 "Received UpdateState. State '{new_state:?}', update mask '{update_mask:?}', dry run '{dry_run}'"
                             );
 
-                            let old_desired_state = self.server_state.desired_state();
-                            let old_effective_state = self.server_state.build_effective_state();
-
                             // [impl->swdd~update-desired-state-with-update-mask~1]
                             // [impl->swdd~update-desired-state-empty-update-mask~1]
                             let state_generation_result = match self
@@ -481,6 +478,9 @@ impl AnkaiosServer {
                                 .await;
                                 continue;
                             }
+
+                            let old_desired_state = self.server_state.desired_state();
+                            let old_effective_state = self.server_state.build_effective_state();
 
                             match self.server_state.update(
                                 state_generation_result.new_desired_state.clone(),
