@@ -14,7 +14,7 @@
 
 use tabled::Tabled;
 
-#[derive(Debug, Tabled, Clone, PartialEq, Eq)]
+#[derive(Debug, Tabled, Clone)]
 #[tabled(rename_all = "UPPERCASE")]
 pub struct DryRunTableRow {
     #[tabled(rename = "WORKLOAD NAME")]
