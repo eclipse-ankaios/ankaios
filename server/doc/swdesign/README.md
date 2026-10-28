@@ -924,7 +924,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server gets an UpdateStateRequest with the `dryRun` flag set to true, the Ankaios Server shall determine the workloads that would be added and deleted by the request with the same checks as for a regular UpdateStateRequest, without applying the new state.
+When the Ankaios Server gets an UpdateStateDryRunRequest, the Ankaios Server shall determine the workloads that would be added and deleted by the request with the same checks as for an UpdateStateRequest, without applying the new state.
 
 Comment:
 The checks include applying the update_mask, validating the api version and the desired state field conventions, rendering the workload configurations, validating the workload fields and checking for cyclic dependencies.
@@ -946,10 +946,10 @@ Needs:
 
 Status: approved
 
-When the ServerState determines the workloads that would be added and deleted by an UpdateStateRequest with the `dryRun` flag set to true, the ServerState shall not execute the configured mutating hooks.
+When the ServerState determines the workloads that would be added and deleted by an UpdateStateDryRunRequest, the ServerState shall not execute the configured mutating hooks.
 
 Comment:
-The workloads are determined based on the DesiredState. If mutating hooks are configured, the result of a dry run can differ from the result of the same request without the `dryRun` flag, as a mutating hook can modify, drop or veto workloads.
+The workloads are determined based on the DesiredState. If mutating hooks are configured, the result of a dry run can differ from the result of an UpdateStateRequest with the same content, as a mutating hook can modify, drop or veto workloads.
 
 Rationale:
 Mutating hooks are external programs that might perform changes on the system.
@@ -966,7 +966,7 @@ Needs:
 
 Status: approved
 
-When the ServerState determines the workloads that would be added and deleted by an UpdateStateRequest with the `dryRun` flag set to true, the ServerState shall not modify its DesiredState, its rendered workloads and its delete graph.
+When the ServerState determines the workloads that would be added and deleted by an UpdateStateDryRunRequest, the ServerState shall not modify its DesiredState, its rendered workloads and its delete graph.
 
 Tags:
 - ServerState
@@ -980,7 +980,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server processes an UpdateStateRequest with the `dryRun` flag set to true, the Ankaios Server shall not:
+When the Ankaios Server processes an UpdateStateDryRunRequest, the Ankaios Server shall not:
 * update the agent tags
 * change the workload states
 * send the FromServer messages UpdateWorkload and UpdateWorkloadState to the Ankaios Agents
@@ -1001,7 +1001,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server processes an UpdateStateRequest with the `dryRun` flag set to true and the new state is valid, the Ankaios Server shall respond with an UpdateStateSuccess message containing the instance names of the workloads that would be added and deleted.
+When the Ankaios Server processes an UpdateStateDryRunRequest and the new state is valid, the Ankaios Server shall respond with an UpdateStateSuccess message containing the instance names of the workloads that would be added and deleted.
 
 Rationale:
 Using the same response message as for a regular update allows clients to reuse their response handling.
@@ -1019,7 +1019,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server processes an UpdateStateRequest with the `dryRun` flag set to true and the new state is invalid, the Ankaios Server shall respond with the same error message as for the same UpdateStateRequest without the `dryRun` flag.
+When the Ankaios Server processes an UpdateStateDryRunRequest and the new state is invalid, the Ankaios Server shall respond with the same error message as for an UpdateStateRequest with the same content.
 
 Rationale:
 A dry run is used to check whether an update would be accepted before applying it, so a rejection has to be reported in the same way as for the actual update.
