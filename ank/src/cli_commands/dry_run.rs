@@ -26,6 +26,7 @@ const ACTION_ADDED: &str = "added";
 const ACTION_UPDATED: &str = "updated";
 const ACTION_DELETED: &str = "deleted";
 const NO_CHANGES_MESSAGE: &str = "No workloads would be changed.";
+const UNSCHEDULED_AGENT: &str = "\"\"";
 
 impl CliCommands {
     // [impl->swdd~cli-sends-update-state-dry-run~1]
@@ -84,11 +85,14 @@ fn create_dry_run_table_rows(changed_workloads: ParsedUpdateStateSuccess) -> Vec
 
         // Ankaios updates a workload by deleting it and adding it again
         let (agent, action) = match deleted_workloads.remove(&workload_name) {
-            Some(previous_agent) if previous_agent != new_agent => {
-                // an empty agent (unscheduled workload) would leave a dangling space
-                let agents = format!("{previous_agent} -> {new_agent}");
-                (agents.trim().to_string(), ACTION_UPDATED)
-            }
+            Some(previous_agent) if previous_agent != new_agent => (
+                format!(
+                    "{} -> {}",
+                    agent_or_unscheduled(&previous_agent),
+                    agent_or_unscheduled(&new_agent)
+                ),
+                ACTION_UPDATED,
+            ),
             Some(_) => (new_agent, ACTION_UPDATED),
             None => (new_agent, ACTION_ADDED),
         };
@@ -112,6 +116,14 @@ fn create_dry_run_table_rows(changed_workloads: ParsedUpdateStateSuccess) -> Vec
 
     table_rows.sort_by(|a, b| a.workload_name.cmp(&b.workload_name));
     table_rows
+}
+
+fn agent_or_unscheduled(agent: &str) -> &str {
+    if agent.is_empty() {
+        UNSCHEDULED_AGENT
+    } else {
+        agent
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -169,17 +181,24 @@ mod tests {
 
     // [utest->swdd~cli-presents-dry-run-result~1]
     #[test]
-    fn utest_create_dry_run_output_presents_unscheduled_workload() {
+    fn utest_create_dry_run_output_presents_unscheduled_workloads() {
         let changed_workloads = ParsedUpdateStateSuccess {
-            added_workloads: vec![instance_name("nginx", "")],
-            deleted_workloads: vec![instance_name("nginx", "agent_A")],
+            added_workloads: vec![
+                instance_name("nginx", ""),
+                instance_name("logger", "agent_B"),
+            ],
+            deleted_workloads: vec![
+                instance_name("nginx", "agent_A"),
+                instance_name("logger", ""),
+            ],
         };
 
         let output = create_dry_run_output(changed_workloads);
 
         let expected_output = [
-            "WORKLOAD NAME   AGENT        ACTION ",
-            "nginx           agent_A ->   updated",
+            "WORKLOAD NAME   AGENT           ACTION ",
+            "logger          \"\" -> agent_B   updated",
+            "nginx           agent_A -> \"\"   updated",
         ]
         .join("\n");
         assert_eq!(output, expected_output);
