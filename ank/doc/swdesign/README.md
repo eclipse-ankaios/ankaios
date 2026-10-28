@@ -1095,12 +1095,12 @@ Needs:
 - impl
 - stest
 
-#### CLI sends update state request with dry run
+#### CLI sends update state dry run request
 `swdd~cli-sends-update-state-dry-run~1`
 
 Status: approved
 
-When the user invokes the CLI `set state` or `apply` command with the `--dry-run` option, the CLI shall request an update of the state with the `dryRun` flag set to true without a watch on the updated workloads.
+When the user invokes the CLI `set state` or `apply` command with the `--dry-run` option, the CLI shall send an UpdateStateDryRunRequest to the Ankaios Server without a watch on the updated workloads.
 
 Rationale:
 No workloads are changed during a dry run, so there is nothing to watch.
@@ -1118,7 +1118,7 @@ Needs:
 
 Status: approved
 
-When the CLI receives a successful response with changed workloads to an update state request with the `dryRun` flag set to true, the CLI shall present the changed workloads sorted by workload name as a table with the columns `WORKLOAD NAME`, `AGENT` and `ACTION`, where the action is:
+When the CLI receives a successful response with changed workloads to an UpdateStateDryRunRequest, the CLI shall present the changed workloads sorted by workload name as a table with the columns `WORKLOAD NAME`, `AGENT` and `ACTION`, where the action is:
 * `added`, if the workload is only contained in the added workloads
 * `deleted`, if the workload is only contained in the deleted workloads
 * `updated`, if the workload is contained in both the added and the deleted workloads
@@ -1142,7 +1142,7 @@ Needs:
 
 Status: approved
 
-When the CLI receives a successful response without added and deleted workloads to an update state request with the `dryRun` flag set to true, the CLI shall inform the user that no workloads would be changed.
+When the CLI receives a successful response without added and deleted workloads to an UpdateStateDryRunRequest, the CLI shall inform the user that no workloads would be changed.
 
 Rationale:
 An empty table could be mistaken for a failed request.
@@ -1159,7 +1159,7 @@ Needs:
 
 Status: approved
 
-When the CLI sends an update state request with the `dryRun` flag set to true and the Ankaios Server responds with an error, the CLI shall present the error to the user.
+When the CLI sends an UpdateStateDryRunRequest and the Ankaios Server responds with an error, the CLI shall present the error to the user.
 
 Rationale:
 The user needs to know why the update would be rejected.

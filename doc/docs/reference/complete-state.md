@@ -173,7 +173,7 @@ If the update would not change any workload, the CLI prints `No workloads would 
 
 The option can be combined with the other options of `ank apply`, e.g., `ank apply -d --dry-run manifest.yaml` shows which workloads would be deleted.
 
-Workloads can request a dry run via the [control interface](./control-interface.md) by setting the `dryRun` field of the [UpdateStateRequest](./_ankaios.proto.md#updatestaterequest) to `true`. The response is an [UpdateStateSuccess](./_ankaios.proto.md#updatestatesuccess) message with the instance names of the workloads that would be added and deleted, or an error. A dry run needs the same [write access](./control-interface.md#authorization) as the update itself.
+Workloads can request a dry run via the [control interface](./control-interface.md) by sending an [UpdateStateDryRunRequest](./_ankaios.proto.md#updatestatedryrunrequest) instead of an [UpdateStateRequest](./_ankaios.proto.md#updatestaterequest). Both requests have the same fields. The response is an [UpdateStateSuccess](./_ankaios.proto.md#updatestatesuccess) message with the instance names of the workloads that would be added and deleted, or an error. A dry run needs the same [write access](./control-interface.md#authorization) as the update itself.
 
 !!! Note
 

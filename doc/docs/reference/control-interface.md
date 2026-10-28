@@ -196,7 +196,6 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
                         ..Default::default()
                     }),
                     update_mask: vec!["desiredState.workloads.dynamic_nginx".to_string()],
-                    dry_run: false,
                 },
             ))),
         })),
