@@ -202,8 +202,8 @@ mod tests {
             .returning(|_| Ok(CompleteState::default()));
         mock_server_connection
             .expect_update_state()
-            .with(eq(updated_state), eq(update_mask.clone()), eq(false))
-            .return_once(|_, _, _| Ok(UpdateStateSuccess::default()));
+            .with(eq(updated_state), eq(update_mask.clone()))
+            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
 
         let mut cmd = CliCommands {
             no_wait: true,
@@ -237,10 +237,10 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection.expect_get_complete_state().never();
         mock_server_connection
-            .expect_update_state()
-            .with(eq(updated_state), eq(update_mask.clone()), eq(true))
+            .expect_update_state_dry_run()
+            .with(eq(updated_state), eq(update_mask.clone()))
             .once()
-            .return_once(|_, _, _| Ok(UpdateStateSuccess::default()));
+            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
 
         let mut cmd = CliCommands {
             no_wait: false,

@@ -129,9 +129,8 @@ mod tests {
                     "desiredState.workloads.{}",
                     fixtures::WORKLOAD_NAMES[0]
                 )]),
-                eq(false),
             )
-            .return_once(|_, _, _| {
+            .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![format!(
                         "{}.{}.{}",

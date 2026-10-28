@@ -28,6 +28,7 @@ message Request {
         LogsRequest logsRequest = 4; // A message to Ankaios server to request workload logs.
         LogsCancelRequest logsCancelRequest = 5; // A message to Ankaios server to stop the request for workload logs.
         EventsCancelRequest eventsCancelRequest=6; // A message to Ankaios server to stop a specific event campaign.
+        UpdateStateDryRunRequest updateStateDryRunRequest = 7; // A message to Ankaios server to calculate the changes of a state update without applying them.
     }
 }
 
@@ -144,7 +145,15 @@ message CompleteStateRequest {
 message UpdateStateRequest {
     CompleteState newState = 1; // The new state of the Ankaios system.
     repeated string updateMask = 2; // A list of symbolic field paths within the state message structure, e.g., 'desiredState.workloads.nginx' to specify what to be updated.
-    bool dryRun = 3; // If true, the server only calculates changes of the update without applying them.
+}
+
+/*
+ * A message containing a request to calculate the changes of a state update without applying them.
+ * The fields are the same as in the UpdateStateRequest.
+ */
+message UpdateStateDryRunRequest {
+    CompleteState newState = 1; // The new state of the Ankaios system.
+    repeated string updateMask = 2; // A list of symbolic field paths within the state message structure, e.g., 'desiredState.workloads.nginx' to specify what to be updated.
 }
 
 /*

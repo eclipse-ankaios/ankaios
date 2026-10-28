@@ -836,9 +836,8 @@ mod tests {
                     "desiredState.workloads.{}",
                     fixtures::WORKLOAD_NAMES[0]
                 )]),
-                eq(false),
             )
-            .return_once(|_, _, _| {
+            .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec![deleted_workload],
@@ -938,9 +937,8 @@ mod tests {
                     "desiredState.workloads.{}",
                     fixtures::WORKLOAD_NAMES[0]
                 )]),
-                eq(false),
             )
-            .return_once(|_, _, _| {
+            .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![added_workload],
                     deleted_workloads: vec![],
@@ -1040,9 +1038,8 @@ mod tests {
             .with(
                 eq(updated_state.clone()),
                 eq(vec!["desiredState.configs.config_1".to_string()]),
-                eq(false),
             )
-            .return_once(|_, _, _| Ok(UpdateStateSuccess::default()));
+            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
 
         mock_server_connection
             .expect_get_complete_state()
@@ -1099,14 +1096,13 @@ mod tests {
         };
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
-            .expect_update_state()
+            .expect_update_state_dry_run()
             .with(
                 eq(updated_state.clone()),
                 eq(vec!["desiredState.configs.config_1".to_string()]),
-                eq(true),
             )
             .once()
-            .return_once(|_, _, _| Ok(UpdateStateSuccess::default()));
+            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
         mock_server_connection.expect_get_complete_state().never();
         mock_server_connection
             .expect_take_missed_from_server_messages()
@@ -1225,9 +1221,8 @@ mod tests {
             .with(
                 eq(updated_state.clone()),
                 eq(vec!["desiredState.workloads.simple.manifest1".to_string()]),
-                eq(false),
             )
-            .return_once(|_, _, _| {
+            .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![added_workload],
                     deleted_workloads: vec![],
