@@ -1124,7 +1124,7 @@ When the CLI receives a successful response with changed workloads to an update 
 * `updated`, if the workload is contained in both the added and the deleted workloads
 
 Comment:
-Ankaios updates a workload by deleting it and adding it again. If an updated workload is moved to another agent, the `AGENT` column shows the previous and the new agent, e.g., `agent_A -> agent_B`.
+Ankaios updates a workload by deleting it and adding it again. If an updated workload is moved to another agent, the `AGENT` column shows the previous and the new agent, e.g., `agent_A -> agent_B`. An unscheduled workload is shown with `""` as agent, e.g., `agent_A -> ""`.
 
 Rationale:
 The user needs to see which workloads would be restarted and on which agents.
