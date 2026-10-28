@@ -498,14 +498,14 @@ def internal_controller_wait_milliseconds(milliseconds: str):
     })
 
 @err_logging_decorator
-def internal_add_update_state_command(manifest: str, update_mask: str):
+def internal_add_update_state_command(manifest: str, update_mask: str, command_type: str = "UpdateState"):
     global control_interface_workload_config
 
     update_mask = update_mask.replace(" and ", ", ").split(", ")
     internal_manifest_name = add_to_manifest_list(manifest)
     control_interface_workload_config.append({
         "command": {
-            "type": "UpdateState",
+            "type": command_type,
             "manifest_file": path.join("/data", internal_manifest_name),
             "update_mask": update_mask
         }
@@ -585,6 +585,17 @@ def internal_check_control_interface_workloads_in_last_result(workload_names: st
     control_interface_result_expectations.append({
         "response_number": len(control_interface_workload_config)-1,
         "type": "exact_workloads",
+        "workload_names": workload_names}
+    )
+
+@err_logging_decorator
+def internal_check_control_interface_added_workloads_in_last_result(workload_names: str):
+    global control_interface_result_expectations
+
+    workload_names = [m for m in workload_names.replace(" and ", ", ").split(", ") if m]
+    control_interface_result_expectations.append({
+        "response_number": len(control_interface_workload_config)-1,
+        "type": "exact_added_workloads",
         "workload_names": workload_names}
     )
 
@@ -713,6 +724,14 @@ def internal_check_all_result_expectations_succeeded(tmp_folder):
             except:
                 actual_workload_names = []
             assert set(expected_workload_names) == set(actual_workload_names), f"Expected workloads {expected_workload_names} but found {actual_workload_names}"
+        elif expectation["type"] == "exact_added_workloads":
+            expected_workload_names = expectation["workload_names"]
+            try:
+                # the instance names have the format '<workload name>.<id>.<agent name>'
+                actual_workload_names = [instance_name.split(".")[0] for instance_name in test_result["result"]["value"]["value"]["added_workloads"]]
+            except (KeyError, TypeError):
+                actual_workload_names = []
+            assert set(expected_workload_names) == set(actual_workload_names), f"Expected added workloads {expected_workload_names} but found {actual_workload_names}"
         elif expectation["type"] == "exact_workload_fields":
             workload_name = expectation["workload_name"]
             expected_field_names = expectation["field_names"]

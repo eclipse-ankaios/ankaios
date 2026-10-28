@@ -750,6 +750,9 @@ The controller workload sends initial hello with correct version
 The controller workload updates the state with manifest "${manifest}" and update mask ${update_mask}
     internal_add_update_state_command    ${manifest}    ${update_mask}
 
+The controller workload requests a dry run with manifest "${manifest}" and update mask ${update_mask}
+    internal_add_update_state_command    ${manifest}    ${update_mask}    UpdateStateDryRun
+
 The controller workload gets the state
     The controller workload gets the state of fields ${EMPTY}
 
@@ -764,6 +767,9 @@ The controller workload gets event for fields ${field_mask}
 
 The last result contains exactly the workloads ${workload_names}
     internal_check_control_interface_workloads_in_last_result    ${workload_names}
+
+The last result contains exactly the added workloads ${workload_names}
+    internal_check_control_interface_added_workloads_in_last_result    ${workload_names}
 
 The last result contains no workloads
     internal_check_control_interface_workloads_in_last_result    ${EMPTY}

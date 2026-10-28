@@ -4094,6 +4094,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### LogsRequest allowed if collection of logs for all requested workloads is allowed
 `swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1`

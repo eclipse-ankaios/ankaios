@@ -940,6 +940,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ##### Dry run skips mutating hooks
 `swdd~server-update-state-dry-run-skips-mutating-hooks~1`
