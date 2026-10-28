@@ -76,3 +76,29 @@ Test Ankaios set state dry run shows deleted workloads without applying it
     And the dry run result shall contain the workload "sleepy_from_manifest1" on agent "agent_A" with action "deleted"
     And the workload "sleepy_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios
+
+# [stest->swdd~server-update-state-dry-run~1]
+Test Ankaios control interface dry run shows added workloads without applying them
+    [Setup]           Setup Ankaios for Control Interface test
+
+    # Preconditions
+    Given the controller workload is allowed to write on desiredState.workloads.simple
+    # Actions
+    When the controller workload requests a dry run with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
+    # Asserts
+    Then the last result contains exactly the added workloads simple
+    And the controller workload requests shall all succeed
+    And the workload "simple" shall not exist
+    [Teardown]    Clean up Ankaios
+
+# [stest->swdd~agent-authorizing-update-state-dry-run-request~1]
+Test Ankaios control interface dry run requires write access
+    [Setup]           Setup Ankaios for Control Interface test
+
+    # Preconditions
+    Given the controller workload is allowed to read on desiredState.workloads.simple
+    # Actions
+    When the controller workload requests a dry run with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
+    # Asserts
+    Then the controller workload requests shall all fail
+    [Teardown]    Clean up Ankaios
