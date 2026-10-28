@@ -254,7 +254,7 @@ impl CliCommands {
 
         let update_state_success = self
             .server_connection
-            .update_state(new_state, update_mask, false)
+            .update_state(new_state, update_mask)
             .await?;
 
         output_debug!("Got update success: {:?}", update_state_success);

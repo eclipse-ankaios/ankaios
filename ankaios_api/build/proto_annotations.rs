@@ -31,6 +31,7 @@ pub fn setup_proto_annotations(mut builder: Builder) -> Builder {
 fn annotate_general(builder: Builder) -> Builder {
     builder
         .boxed("Request.RequestContent.updateStateRequest")
+        .boxed("Request.RequestContent.updateStateDryRunRequest")
         .boxed("FromAnkaios.FromAnkaiosEnum.response")
         .boxed("Response.ResponseContent.completeStateResponse")
         .type_attribute(".", "#[derive(serde::Deserialize, serde::Serialize)]")

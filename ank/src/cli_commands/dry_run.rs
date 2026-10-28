@@ -38,7 +38,7 @@ impl CliCommands {
     ) -> Result<(), CliError> {
         let update_state_success = self
             .server_connection
-            .update_state(new_state, update_mask, true)
+            .update_state_dry_run(new_state, update_mask)
             .await?;
 
         output_debug!("Got dry run result: {:?}", update_state_success);
@@ -225,10 +225,10 @@ mod tests {
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
-            .expect_update_state()
-            .with(eq(new_state.clone()), eq(update_mask.clone()), eq(true))
+            .expect_update_state_dry_run()
+            .with(eq(new_state.clone()), eq(update_mask.clone()))
             .once()
-            .return_once(|_, _, _| Ok(UpdateStateSuccess::default()));
+            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
         mock_server_connection.expect_get_complete_state().never();
         mock_server_connection
             .expect_read_next_update_workload_state()
@@ -251,9 +251,9 @@ mod tests {
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
-            .expect_update_state()
+            .expect_update_state_dry_run()
             .once()
-            .return_once(|_, _, _| {
+            .return_once(|_, _| {
                 Err(ServerConnectionError::ExecutionError(
                     ERROR_MESSAGE.to_string(),
                 ))

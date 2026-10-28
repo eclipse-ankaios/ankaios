@@ -26,11 +26,12 @@ mod state_comparator;
 use ankaios_api::ank_base::{
     AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateSpec,
     DeletedWorkload, ExecutionStateSpec, LogsStopResponse, Request, RequestContent, StateSpec,
-    WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
+    UpdateStateDryRunRequest, UpdateStateRequest, WorkloadInstanceName, WorkloadInstanceNameSpec,
+    WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use common::state_manipulation::Path;
 
-use server_state::AddedDeletedWorkloads;
+use server_state::{AddedDeletedWorkloads, StateGenerationResult};
 
 use common::std_extensions::{IllegalStateResult, UnreachableResult};
 
@@ -408,76 +409,21 @@ impl AnkaiosServer {
 
                         // [impl->swdd~server-provides-update-desired-state-interface~1]
                         RequestContent::UpdateStateRequest(update_state_request) => {
-                            let Some(new_state) = update_state_request.new_state else {
-                                log::warn!(
-                                    "The UpdateStateRequest does not contain a new state -> ignoring the request"
-                                );
-                                self.to_agents
-                                    .error(
-                                        request_id,
-                                        "The UpdateStateRequest does not contain a new state"
-                                            .to_string(),
-                                    )
-                                    .await
-                                    .unwrap_or_illegal_state();
-                                continue;
-                            };
-                            let update_mask = update_state_request.update_mask;
-                            let dry_run = update_state_request.dry_run;
+                            let UpdateStateRequest {
+                                new_state,
+                                update_mask,
+                            } = *update_state_request;
 
                             log::debug!(
-                                "Received UpdateState. State '{new_state:?}', update mask '{update_mask:?}', dry run '{dry_run}'"
+                                "Received UpdateState. State '{new_state:?}', update mask '{update_mask:?}'"
                             );
 
-                            // [impl->swdd~update-desired-state-with-update-mask~1]
-                            // [impl->swdd~update-desired-state-empty-update-mask~1]
-                            let state_generation_result = match self
-                                .server_state
-                                .generate_new_state(new_state, update_mask)
-                            {
-                                Ok(state_generation_result) => state_generation_result,
-                                Err(error_msg) => {
-                                    log::error!("Update rejected: '{error_msg}'",);
-                                    self.to_agents
-                                        .error(
-                                            request_id,
-                                            format!("Update rejected: '{error_msg}'"),
-                                        )
-                                        .await
-                                        .unwrap_or_illegal_state();
-                                    continue;
-                                }
+                            let Some(state_generation_result) = self
+                                .generate_new_desired_state(&request_id, new_state, update_mask)
+                                .await
+                            else {
+                                continue;
                             };
-
-                            // [impl->swdd~update-desired-state-with-invalid-version~1]
-                            // [impl->swdd~update-desired-state-with-missing-version~1]
-                            // [impl->swdd~server-desired-state-field-conventions~1]
-                            // [impl->swdd~server-validates-desired-state-api-version~1]
-                            if let Err(error_message) = state_generation_result
-                                .new_desired_state
-                                .validate_pre_rendering()
-                            {
-                                log::warn!(
-                                    "The CompleteState in the request has wrong format. {error_message} -> ignoring the request"
-                                );
-
-                                self.to_agents
-                                    .error(request_id, error_message)
-                                    .await
-                                    .unwrap_or_illegal_state();
-                                continue;
-                            }
-
-                            // [impl->swdd~server-update-state-dry-run~1]
-                            // [impl->swdd~server-update-state-dry-run-no-side-effects~1]
-                            if dry_run {
-                                self.handle_dry_run_update(
-                                    request_id,
-                                    &state_generation_result.new_desired_state,
-                                )
-                                .await;
-                                continue;
-                            }
 
                             let old_desired_state = self.server_state.desired_state();
                             let old_effective_state = self.server_state.build_effective_state();
@@ -566,6 +512,33 @@ impl AnkaiosServer {
                                 }
                             }
                         }
+
+                        // [impl->swdd~server-update-state-dry-run~1]
+                        // [impl->swdd~server-update-state-dry-run-no-side-effects~1]
+                        RequestContent::UpdateStateDryRunRequest(update_state_dry_run_request) => {
+                            let UpdateStateDryRunRequest {
+                                new_state,
+                                update_mask,
+                            } = *update_state_dry_run_request;
+
+                            log::debug!(
+                                "Received UpdateStateDryRun. State '{new_state:?}', update mask '{update_mask:?}'"
+                            );
+
+                            let Some(state_generation_result) = self
+                                .generate_new_desired_state(&request_id, new_state, update_mask)
+                                .await
+                            else {
+                                continue;
+                            };
+
+                            self.handle_dry_run_update(
+                                request_id,
+                                &state_generation_result.new_desired_state,
+                            )
+                            .await;
+                        }
+
                         // [impl->swdd~server-handles-logs-request-message~1]
                         RequestContent::LogsRequest(mut logs_request) => {
                             log::debug!(
@@ -741,6 +714,63 @@ impl AnkaiosServer {
                 existing_agent.tags = new_agent_attributes.tags.to_owned();
             }
         }
+    }
+
+    async fn generate_new_desired_state(
+        &self,
+        request_id: &str,
+        new_state: Option<CompleteState>,
+        update_mask: Vec<String>,
+    ) -> Option<StateGenerationResult> {
+        let Some(new_state) = new_state else {
+            log::warn!("The UpdateStateRequest does not contain a new state -> ignoring the request");
+            self.to_agents
+                .error(
+                    request_id.to_owned(),
+                    "The UpdateStateRequest does not contain a new state".to_string(),
+                )
+                .await
+                .unwrap_or_illegal_state();
+            return None;
+        };
+
+        // [impl->swdd~update-desired-state-with-update-mask~1]
+        // [impl->swdd~update-desired-state-empty-update-mask~1]
+        let state_generation_result = match self
+            .server_state
+            .generate_new_state(new_state, update_mask)
+        {
+            Ok(state_generation_result) => state_generation_result,
+            Err(error_msg) => {
+                log::error!("Update rejected: '{error_msg}'",);
+                self.to_agents
+                    .error(request_id.to_owned(), format!("Update rejected: '{error_msg}'"))
+                    .await
+                    .unwrap_or_illegal_state();
+                return None;
+            }
+        };
+
+        // [impl->swdd~update-desired-state-with-invalid-version~1]
+        // [impl->swdd~update-desired-state-with-missing-version~1]
+        // [impl->swdd~server-desired-state-field-conventions~1]
+        // [impl->swdd~server-validates-desired-state-api-version~1]
+        if let Err(error_message) = state_generation_result
+            .new_desired_state
+            .validate_pre_rendering()
+        {
+            log::warn!(
+                "The CompleteState in the request has wrong format. {error_message} -> ignoring the request"
+            );
+
+            self.to_agents
+                .error(request_id.to_owned(), error_message)
+                .await
+                .unwrap_or_illegal_state();
+            return None;
+        }
+
+        Some(state_generation_result)
     }
 
     // [impl->swdd~server-update-state-dry-run-success-response~1]
@@ -1219,8 +1249,7 @@ mod tests {
                 .update_state(
                     fixtures::REQUEST_ID.to_string(),
                     new_state.clone().into(),
-                    update_mask.clone(),
-                    false
+                    update_mask.clone()
                 )
                 .await
                 .is_ok()
@@ -1240,8 +1269,7 @@ mod tests {
                 .update_state(
                     fixtures::REQUEST_ID.to_string(),
                     fixed_state.clone().into(),
-                    update_mask,
-                    false
+                    update_mask
                 )
                 .await
                 .is_ok()
@@ -1597,7 +1625,6 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
-                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -1711,7 +1738,6 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
-                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -1810,7 +1836,6 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
-                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -1937,7 +1962,7 @@ mod tests {
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         let update_state_result = to_server
-            .update_state(
+            .update_state_dry_run(
                 fixtures::REQUEST_ID.to_string(),
                 CompleteStateSpec {
                     desired_state: new_desired_state,
@@ -1945,7 +1970,6 @@ mod tests {
                 }
                 .into(),
                 update_mask,
-                true,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -2045,7 +2069,7 @@ mod tests {
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         let update_state_result = to_server
-            .update_state(
+            .update_state_dry_run(
                 fixtures::REQUEST_ID.to_string(),
                 CompleteStateSpec {
                     desired_state: new_desired_state,
@@ -2053,7 +2077,6 @@ mod tests {
                 }
                 .into(),
                 update_mask,
-                true,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -2751,7 +2774,6 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask.clone(),
-                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -2943,7 +2965,6 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
-                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -3015,7 +3036,6 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state_ankaios_no_version.into(),
                 update_mask,
-                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -3146,7 +3166,6 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state,
                 update_mask.clone(),
-                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -3265,7 +3284,6 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state,
                 update_mask.clone(),
-                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -3519,7 +3537,6 @@ mod tests {
                         "desiredState.workloads.{}",
                         fixtures::WORKLOAD_NAMES[0]
                     )],
-                    false,
                 )
                 .await
                 .is_ok()
@@ -4139,7 +4156,6 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
-                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -4251,7 +4267,6 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
-                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -4705,7 +4720,6 @@ mod tests {
                 fixtures::REQUEST_ID.to_string(),
                 update_state.into(),
                 update_mask,
-                false,
             )
             .await;
         assert!(update_state_result.is_ok());

@@ -348,7 +348,6 @@ impl Connection {
                 UpdateStateRequest {
                     new_state: Some(state),
                     update_mask: update_state_command.update_mask,
-                    dry_run: false,
                 },
             ))),
         };

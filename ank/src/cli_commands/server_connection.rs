@@ -201,15 +201,37 @@ impl ServerConnection {
         &mut self,
         new_state: CompleteState,
         update_mask: Vec<String>,
-        dry_run: bool,
     ) -> Result<UpdateStateSuccess, ServerConnectionError> {
         let request_id = Uuid::new_v4().to_string();
         output_debug!("Sending the new state {:?}", new_state);
         self.to_server
-            .update_state(request_id.clone(), new_state, update_mask, dry_run)
+            .update_state(request_id.clone(), new_state, update_mask)
             .await
             .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
 
+        self.wait_for_update_state_success(request_id).await
+    }
+
+    // [impl->swdd~cli-sends-update-state-dry-run~1]
+    pub async fn update_state_dry_run(
+        &mut self,
+        new_state: CompleteState,
+        update_mask: Vec<String>,
+    ) -> Result<UpdateStateSuccess, ServerConnectionError> {
+        let request_id = Uuid::new_v4().to_string();
+        output_debug!("Sending the new state {:?} for a dry run", new_state);
+        self.to_server
+            .update_state_dry_run(request_id.clone(), new_state, update_mask)
+            .await
+            .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
+
+        self.wait_for_update_state_success(request_id).await
+    }
+
+    async fn wait_for_update_state_success(
+        &mut self,
+        request_id: String,
+    ) -> Result<UpdateStateSuccess, ServerConnectionError> {
         let poll_update_state_success = async {
             loop {
                 let Some(server_message) = self.from_server.recv().await else {
@@ -649,8 +671,9 @@ mod tests {
         CompleteState, CompleteStateRequest, CompleteStateResponse, ConfigMappings, Dependencies,
         Error, ExecutionStateSpec, LogEntriesResponse, LogEntry, LogsCancelRequest,
         LogsRequestAccepted, LogsStopResponse, RequestContent, Response, ResponseContent,
-        RestartPolicy, State, Tags, UpdateStateRequest, UpdateStateSuccess, Workload,
-        WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap, WorkloadStateSpec,
+        RestartPolicy, State, Tags, UpdateStateDryRunRequest, UpdateStateRequest,
+        UpdateStateSuccess, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap,
+        WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_complete_state_response, generate_test_files,
@@ -1007,7 +1030,6 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
-                dry_run: true,
             })),
         );
         sim.will_send_response(
@@ -1020,7 +1042,40 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
-                true,
+            )
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), update_state_success);
+        checker.check_communication();
+    }
+
+    // [utest->swdd~cli-sends-update-state-dry-run~1]
+    #[tokio::test]
+    async fn utest_update_state_dry_run() {
+        let update_state_success = UpdateStateSuccess {
+            added_workloads: vec![fixtures::WORKLOAD_NAMES[0].into()],
+            deleted_workloads: vec![],
+        };
+
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            fixtures::REQUEST_ID,
+            RequestContent::UpdateStateDryRunRequest(Box::new(UpdateStateDryRunRequest {
+                new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
+                update_mask: vec![FIELD_MASK.into()],
+            })),
+        );
+        sim.will_send_response(
+            fixtures::REQUEST_ID,
+            ResponseContent::UpdateStateSuccess(update_state_success.clone()),
+        );
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .update_state_dry_run(
+                complete_state(fixtures::WORKLOAD_NAMES[0]),
+                vec![FIELD_MASK.into()],
             )
             .await;
 
@@ -1041,7 +1096,6 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
-                false,
             )
             .await;
 
@@ -1056,7 +1110,6 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
-                dry_run: false,
             })),
         );
 
@@ -1066,7 +1119,6 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
-                false,
             )
             .await;
 
@@ -1081,7 +1133,6 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
-                dry_run: false,
             })),
         );
         sim.will_send_response(
@@ -1095,7 +1146,6 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
-                false,
             )
             .await;
 
@@ -1112,7 +1162,6 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
-                dry_run: false,
             })),
         );
 
@@ -1125,7 +1174,6 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
-                false,
             )
             .await;
 
@@ -1165,7 +1213,6 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
-                dry_run: false,
             })),
         );
         sim.will_send_message(other_response.clone());
@@ -1179,7 +1226,6 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
-                false,
             )
             .await;
 
@@ -1209,7 +1255,6 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 new_state: Some(complete_state(fixtures::WORKLOAD_NAMES[0])),
                 update_mask: vec![FIELD_MASK.into()],
-                dry_run: false,
             })),
         );
         sim.will_send_message(other_message.clone());
@@ -1223,7 +1268,6 @@ mod tests {
             .update_state(
                 complete_state(fixtures::WORKLOAD_NAMES[0]),
                 vec![FIELD_MASK.into()],
-                false,
             )
             .await;
 
