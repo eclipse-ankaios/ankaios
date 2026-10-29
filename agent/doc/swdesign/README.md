@@ -4051,6 +4051,25 @@ Needs:
 - impl
 - utest
 
+#### UpdateStateDryRunRequest uses the write rules
+`swdd~agent-authorizing-update-state-dry-run-request~1`
+
+Status: approved
+
+When the Authorizer checks if a Workload is allowed to make an UpdateStateDryRunRequest,
+the Authorizer shall use the `StateRule`s for write access with the update mask of the request in the same way as for an UpdateStateRequest.
+
+Rationale:
+A dry run shows whether an update would be accepted and which workloads would be changed, so it requires the same access rights as the update itself.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+- stest
+
 #### LogsRequest allowed if collection of logs for all requested workloads is allowed
 `swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1`
 

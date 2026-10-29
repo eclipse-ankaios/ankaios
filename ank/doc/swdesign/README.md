@@ -1076,6 +1076,101 @@ Needs:
 - impl
 - utest
 
+### Dry run for `ank set state` and `ank apply`
+
+#### CLI provides a dry run option
+`swdd~cli-provides-dry-run-option~1`
+
+Status: approved
+
+The Ankaios CLI shall provide a `--dry-run` option for the `set state` and the `apply` commands.
+
+Rationale:
+The dry run allows the user to check the effect of a state update before applying it.
+
+Tags:
+- Cli
+
+Needs:
+- impl
+- stest
+
+#### CLI sends update state dry run request
+`swdd~cli-sends-update-state-dry-run~1`
+
+Status: approved
+
+When the user invokes the CLI `set state` or `apply` command with the `--dry-run` option, the CLI shall send an UpdateStateDryRunRequest to the Ankaios Server without a watch on the updated workloads.
+
+Rationale:
+No workloads are changed during a dry run, so there is nothing to watch.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI presents dry run result
+`swdd~cli-presents-dry-run-result~1`
+
+Status: approved
+
+When the CLI receives a successful response with changed workloads to an UpdateStateDryRunRequest, the CLI shall present the changed workloads sorted by workload name as a table with the columns `WORKLOAD NAME`, `AGENT` and `ACTION`, where the action is:
+* `added`, if the workload is only contained in the added workloads
+* `deleted`, if the workload is only contained in the deleted workloads
+* `updated`, if the workload is contained in both the added and the deleted workloads
+
+Comment:
+Ankaios updates a workload by deleting it and adding it again. If an updated workload is moved to another agent, the `AGENT` column shows the previous and the new agent, e.g., `agent_A -> agent_B`. An unscheduled workload is shown with `""` as agent, e.g., `agent_A -> ""`.
+
+Rationale:
+The user needs to see which workloads would be restarted and on which agents.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI presents dry run result without changes
+`swdd~cli-presents-dry-run-no-changes~1`
+
+Status: approved
+
+When the CLI receives a successful response without added and deleted workloads to an UpdateStateDryRunRequest, the CLI shall inform the user that no workloads would be changed.
+
+Rationale:
+An empty table could be mistaken for a failed request.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI presents dry run error
+`swdd~cli-presents-dry-run-error~1`
+
+Status: approved
+
+When the CLI sends an UpdateStateDryRunRequest and the Ankaios Server responds with an error, the CLI shall present the error to the user.
+
+Rationale:
+The user needs to know why the update would be rejected.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
 ### `ank get agents`
 
 ![Get agents](plantuml/seq_get_agent.svg)

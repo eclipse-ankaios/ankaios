@@ -145,3 +145,36 @@ The object field mask can be constructed using the field names of the [CompleteS
         nginx:
           restartPolicy: NEVER
     ```
+
+## Dry run
+
+A dry run shows which workloads would be added, updated or deleted by an update of the state without applying it. The Ankaios server performs the same checks as for a regular update, e.g., the validation of the workload configurations and the check for cyclic dependencies, but does not change the state and does not send anything to the Ankaios agents.
+
+The `ank` CLI provides the `--dry-run` option for the `ank set state` and the `ank apply` commands. As an example, the dry run of example 3 above:
+
+```bash
+ank set state --dry-run desiredState.workloads.nginx.restartPolicy new-state.yaml
+```
+
+shows that the nginx workload would be updated:
+
+```text
+WORKLOAD NAME   AGENT     ACTION
+nginx           agent_A   updated
+```
+
+The action is one of:
+
+- `added`: the workload would be created.
+- `updated`: the workload would be replaced by its new configuration, i.e., it would be restarted. If the agent of the workload changes, the old and the new agent are shown, e.g., `agent_A -> agent_B`.
+- `deleted`: the workload would be removed.
+
+If the update would not change any workload, the CLI prints `No workloads would be changed.`. If the update would be rejected, the CLI shows the same error as for the update without the `--dry-run` option.
+
+The option can be combined with the other options of `ank apply`, e.g., `ank apply -d --dry-run manifest.yaml` shows which workloads would be deleted.
+
+Workloads can request a dry run via the [control interface](./control-interface.md) by sending an [UpdateStateDryRunRequest](./_ankaios.proto.md#updatestatedryrunrequest) instead of an [UpdateStateRequest](./_ankaios.proto.md#updatestaterequest). Both requests have the same fields. The response is an [UpdateStateSuccess](./_ankaios.proto.md#updatestatesuccess) message with the instance names of the workloads that would be added and deleted, or an error. A dry run needs the same [write access](./control-interface.md#authorization) as the update itself.
+
+!!! Note
+
+    Mutating hooks configured in the Ankaios server are not executed during a dry run. If mutating hooks are configured, the actual update can differ from the result of the dry run.

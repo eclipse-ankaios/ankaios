@@ -89,6 +89,31 @@ fn extract_added_and_deleted_workloads(
     }
 }
 
+// [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
+fn check_cyclic_dependencies(
+    new_desired_state: &StateSpec,
+    added_workloads: &[WorkloadNamed],
+) -> Result<(), UpdateStateError> {
+    let start_nodes: Vec<&str> = added_workloads
+        .iter()
+        .filter_map(|w| {
+            if !w.workload.dependencies.dependencies.is_empty() {
+                Some(w.instance_name.workload_name())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if let Some(workload_part_of_cycle) = cycle_check::dfs(new_desired_state, Some(start_nodes)) {
+        return Err(UpdateStateError::CycleInDependencies(
+            workload_part_of_cycle,
+        ));
+    }
+
+    Ok(())
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum UpdateStateError {
     FieldNotFound(String),
@@ -303,10 +328,69 @@ impl ServerState {
     ) -> Result<Option<AddedDeletedWorkloads>, UpdateStateError> {
         // [impl->swdd~update-desired-state-with-update-mask~1]
         // [impl->swdd~update-desired-state-empty-update-mask~1]
-        // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
         // println!("call 1: {:#?}", new_desired_state.workloads.workloads);
         // println!("call 2: {:#?}", self.state.desired_state.configs.configs);
 
+        let (new_rendered_workloads, added_deleted_workloads) =
+            self.calculate_workload_changes(&new_desired_state)?;
+
+        if let Some(mut added_deleted_workloads) = added_deleted_workloads {
+            let pre_hook_rendered_workloads = new_rendered_workloads.clone();
+            let mut new_rendered_workloads = new_rendered_workloads;
+            // [impl->swdd~server-applies-mutated-workloads-to-effective-state~1]
+            // [impl->swdd~server-removes-dropped-workloads-from-effective-state~1]
+            // [impl->swdd~server-restores-undeleted-workloads-in-effective-state~1]
+            update_effective_state(
+                hooks_registry,
+                &mut added_deleted_workloads,
+                &mut new_rendered_workloads,
+                &self.rendered_workloads,
+            )?;
+
+            let added_workloads = &added_deleted_workloads.added_workloads;
+
+            check_cyclic_dependencies(&new_desired_state, added_workloads)?;
+
+            // [impl->swdd~server-state-stores-delete-condition~1]
+            self.delete_graph.insert(added_workloads);
+
+            // [impl->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
+            self.delete_graph
+                .apply_delete_conditions_to(&mut added_deleted_workloads.deleted_workloads);
+
+            self.set_desired_state(new_desired_state);
+            self.pre_hook_rendered_workloads = pre_hook_rendered_workloads;
+            self.rendered_workloads = new_rendered_workloads;
+            Ok(Some(added_deleted_workloads))
+        } else {
+            // update state with changed fields not affecting workloads, e.g. config items
+            // [impl->swdd~server-state-updates-state-on-unmodified-workloads~1]
+            self.set_desired_state(new_desired_state);
+            Ok(None)
+        }
+    }
+
+    // [impl->swdd~server-update-state-dry-run~1]
+    // [impl->swdd~server-update-state-dry-run-skips-mutating-hooks~1]
+    // [impl->swdd~server-update-state-dry-run-keeps-server-state~1]
+    pub fn dry_run_update(
+        &self,
+        new_desired_state: &StateSpec,
+    ) -> Result<Option<AddedDeletedWorkloads>, UpdateStateError> {
+        let (_, added_deleted_workloads) = self.calculate_workload_changes(new_desired_state)?;
+
+        if let Some(added_deleted_workloads) = &added_deleted_workloads {
+            check_cyclic_dependencies(new_desired_state, &added_deleted_workloads.added_workloads)?;
+        }
+
+        Ok(added_deleted_workloads)
+    }
+
+    fn calculate_workload_changes(
+        &self,
+        new_desired_state: &StateSpec,
+    ) -> Result<(RenderedWorkloads, Option<AddedDeletedWorkloads>), UpdateStateError> {
+        // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
         let new_rendered_workloads = self
             .config_renderer
             .render_workloads(
@@ -326,58 +410,7 @@ impl ServerState {
             &new_rendered_workloads,
         );
 
-        if let Some(mut added_deleted_workloads) = added_deleted_workloads {
-            let pre_hook_rendered_workloads = new_rendered_workloads.clone();
-            let mut new_rendered_workloads = new_rendered_workloads;
-            // [impl->swdd~server-applies-mutated-workloads-to-effective-state~1]
-            // [impl->swdd~server-removes-dropped-workloads-from-effective-state~1]
-            // [impl->swdd~server-restores-undeleted-workloads-in-effective-state~1]
-            update_effective_state(
-                hooks_registry,
-                &mut added_deleted_workloads,
-                &mut new_rendered_workloads,
-                &self.rendered_workloads,
-            )?;
-
-            let added_workloads = &added_deleted_workloads.added_workloads;
-
-            let start_nodes: Vec<&str> = added_workloads
-                .iter()
-                .filter_map(|w| {
-                    if !w.workload.dependencies.dependencies.is_empty() {
-                        Some(w.instance_name.workload_name())
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-
-            // [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
-            if let Some(workload_part_of_cycle) =
-                cycle_check::dfs(&new_desired_state, Some(start_nodes))
-            {
-                return Err(UpdateStateError::CycleInDependencies(
-                    workload_part_of_cycle,
-                ));
-            }
-
-            // [impl->swdd~server-state-stores-delete-condition~1]
-            self.delete_graph.insert(added_workloads);
-
-            // [impl->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
-            self.delete_graph
-                .apply_delete_conditions_to(&mut added_deleted_workloads.deleted_workloads);
-
-            self.set_desired_state(new_desired_state);
-            self.pre_hook_rendered_workloads = pre_hook_rendered_workloads;
-            self.rendered_workloads = new_rendered_workloads;
-            Ok(Some(added_deleted_workloads))
-        } else {
-            // update state with changed fields not affecting workloads, e.g. config items
-            // [impl->swdd~server-state-updates-state-on-unmodified-workloads~1]
-            self.set_desired_state(new_desired_state);
-            Ok(None)
-        }
+        Ok((new_rendered_workloads, added_deleted_workloads))
     }
 
     // [impl->swdd~server-effective-state-read-only~1]
@@ -1843,6 +1876,123 @@ mod tests {
             super::UPDATE_EFFECTIVE_STATE_CALLED.with(|called| called.get()),
             "update_effective_state must be called during ServerState::update"
         );
+    }
+
+    // [utest->swdd~server-update-state-dry-run~1]
+    // [utest->swdd~server-update-state-dry-run-skips-mutating-hooks~1]
+    // [utest->swdd~server-update-state-dry-run-keeps-server-state~1]
+    #[test]
+    fn utest_server_state_dry_run_update_returns_changes_without_modifying_state() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        super::UPDATE_EFFECTIVE_STATE_CALLED.with(|called| called.set(false));
+
+        let w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        let mut w2 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        w2.workload.dependencies.dependencies.clear();
+
+        let old_state = generate_test_complete_state(vec![w1.clone()]);
+        let new_state = generate_test_state_from_workloads(vec![w1.clone(), w2.clone()]);
+
+        let new_rendered = RenderedWorkloads::from([
+            (fixtures::WORKLOAD_NAMES[0].to_owned(), w1.clone()),
+            (fixtures::WORKLOAD_NAMES[1].to_owned(), w2.clone()),
+        ]);
+
+        let mut mock_config_renderer = MockConfigRenderer::new();
+        mock_config_renderer
+            .expect_render_workloads()
+            .once()
+            .return_once(move |_, _| Ok(new_rendered));
+
+        let mut delete_graph_mock = MockDeleteGraph::new();
+        delete_graph_mock.expect_insert().never();
+        delete_graph_mock
+            .expect_apply_delete_conditions_to()
+            .never();
+
+        let old_rendered = generate_rendered_workloads_from_state(&old_state.desired_state);
+        let server_state = ServerState {
+            state: old_state.clone(),
+            rendered_workloads: old_rendered.clone(),
+            pre_hook_rendered_workloads: old_rendered.clone(),
+            config_renderer: mock_config_renderer,
+            delete_graph: delete_graph_mock,
+        };
+
+        let result = server_state.dry_run_update(&new_state);
+
+        assert_eq!(
+            result,
+            Ok(Some(AddedDeletedWorkloads {
+                added_workloads: vec![w2],
+                deleted_workloads: vec![],
+            }))
+        );
+        assert!(
+            !super::UPDATE_EFFECTIVE_STATE_CALLED.with(|called| called.get()),
+            "update_effective_state must not be called during a dry run"
+        );
+        assert_eq!(server_state.state, old_state);
+        assert_eq!(server_state.rendered_workloads, old_rendered);
+        assert_eq!(server_state.pre_hook_rendered_workloads, old_rendered);
+    }
+
+    // [utest->swdd~server-update-state-dry-run~1]
+    // [utest->swdd~server-update-state-dry-run-keeps-server-state~1]
+    #[test]
+    fn utest_server_state_dry_run_update_rejects_state_with_cyclic_dependencies() {
+        let w1 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+        // the test workload depends on workload_B, so workload_B depends on itself
+        let w2 = generate_test_workload_named_with_params(
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+        );
+
+        let old_state = generate_test_complete_state(vec![w1.clone()]);
+        let new_state = generate_test_state_from_workloads(vec![w1.clone(), w2.clone()]);
+
+        let new_rendered = RenderedWorkloads::from([
+            (fixtures::WORKLOAD_NAMES[0].to_owned(), w1),
+            (fixtures::WORKLOAD_NAMES[1].to_owned(), w2),
+        ]);
+
+        let mut mock_config_renderer = MockConfigRenderer::new();
+        mock_config_renderer
+            .expect_render_workloads()
+            .once()
+            .return_once(move |_, _| Ok(new_rendered));
+
+        let old_rendered = generate_rendered_workloads_from_state(&old_state.desired_state);
+        let server_state = ServerState {
+            state: old_state.clone(),
+            rendered_workloads: old_rendered.clone(),
+            pre_hook_rendered_workloads: old_rendered,
+            config_renderer: mock_config_renderer,
+            ..Default::default()
+        };
+
+        let result = server_state.dry_run_update(&new_state);
+
+        assert_eq!(
+            result,
+            Err(UpdateStateError::CycleInDependencies(
+                fixtures::WORKLOAD_NAMES[1].to_string()
+            ))
+        );
+        assert_eq!(server_state.state, old_state);
     }
 
     // [utest->swdd~server-state-compares-rendered-workloads~2]

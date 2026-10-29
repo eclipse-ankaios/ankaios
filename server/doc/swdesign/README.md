@@ -919,6 +919,120 @@ Needs:
 - impl
 - stest
 
+##### UpdateState interface with dry run
+`swdd~server-update-state-dry-run~1`
+
+Status: approved
+
+When the Ankaios Server gets an UpdateStateDryRunRequest, the Ankaios Server shall determine the workloads that would be added and deleted by the request with the same checks as for an UpdateStateRequest, without applying the new state.
+
+Comment:
+The checks include applying the update_mask, validating the api version and the desired state field conventions, rendering the workload configurations, validating the workload fields and checking for cyclic dependencies.
+
+Rationale:
+A dry run allows checking the effect of a state update before applying it, e.g., which workloads would be restarted.
+
+Tags:
+- AnkaiosServer
+- ServerState
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
+
+##### Dry run skips mutating hooks
+`swdd~server-update-state-dry-run-skips-mutating-hooks~1`
+
+Status: approved
+
+When the ServerState determines the workloads that would be added and deleted by an UpdateStateDryRunRequest, the ServerState shall not execute the configured mutating hooks.
+
+Comment:
+The workloads are determined based on the DesiredState. If mutating hooks are configured, the result of a dry run can differ from the result of an UpdateStateRequest with the same content, as a mutating hook can modify, drop or veto workloads.
+
+Rationale:
+Mutating hooks are external programs that might perform changes on the system.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
+##### Dry run keeps the server state unchanged
+`swdd~server-update-state-dry-run-keeps-server-state~1`
+
+Status: approved
+
+When the ServerState determines the workloads that would be added and deleted by an UpdateStateDryRunRequest, the ServerState shall not modify its DesiredState, its rendered workloads and its delete graph.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
+##### Dry run has no side effects
+`swdd~server-update-state-dry-run-no-side-effects~1`
+
+Status: approved
+
+When the Ankaios Server processes an UpdateStateDryRunRequest, the Ankaios Server shall not:
+* update the agent tags
+* change the workload states
+* send the FromServer messages UpdateWorkload and UpdateWorkloadState to the Ankaios Agents
+* send any events to the event subscribers
+
+Comment:
+The Ankaios Server still responds to the request as described in `swdd~server-update-state-dry-run-success-response~1` and `swdd~server-update-state-dry-run-error-response~1`. If the request was sent by a workload via the control interface, the response is forwarded by the Ankaios Agent of that workload.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+
+##### Dry run success response
+`swdd~server-update-state-dry-run-success-response~1`
+
+Status: approved
+
+When the Ankaios Server processes an UpdateStateDryRunRequest and the new state is valid, the Ankaios Server shall respond with an UpdateStateSuccess message containing the instance names of the workloads that would be added and deleted.
+
+Rationale:
+Using the same response message as for a regular update allows clients to reuse their response handling.
+
+Tags:
+- AnkaiosServer
+- ControlInterface
+
+Needs:
+- impl
+- utest
+
+##### Dry run error response
+`swdd~server-update-state-dry-run-error-response~1`
+
+Status: approved
+
+When the Ankaios Server processes an UpdateStateDryRunRequest and the new state is invalid, the Ankaios Server shall respond with the same error message as for an UpdateStateRequest with the same content.
+
+Rationale:
+A dry run is used to check whether an update would be accepted before applying it, so a rejection has to be reported in the same way as for the actual update.
+
+Tags:
+- AnkaiosServer
+- ControlInterface
+
+Needs:
+- impl
+- utest
+
 ### Mutating Hooks
 
 > [!Note]
