@@ -364,7 +364,7 @@ mod tests {
     // [utest->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
     #[tokio::test]
     async fn utest_runtime_facade_reusable_running_workloads() {
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
 
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
             .workload_name(fixtures::WORKLOAD_NAMES[0])
@@ -451,7 +451,7 @@ mod tests {
             .once()
             .return_once(|_, _, _| mock_workload);
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![]);
 
         let ownable_runtime_mock: Box<dyn OwnableRuntime> = Box::new(runtime_mock.clone());
@@ -530,7 +530,7 @@ mod tests {
             .once()
             .return_once(|_, _, _| mock_workload);
 
-        let runtime_mock = MockRuntimeConnector::new();
+        let runtime_mock = MockRuntimeConnector::default();
 
         let ownable_runtime_mock: Box<dyn OwnableRuntime> = Box::new(runtime_mock.clone());
         let test_runtime_facade =
@@ -575,7 +575,7 @@ mod tests {
             .once()
             .return_once(|_, _, _| mock_workload);
 
-        let runtime_mock = MockRuntimeConnector::new();
+        let runtime_mock = MockRuntimeConnector::default();
 
         let ownable_runtime_mock: Box<dyn OwnableRuntime> = Box::new(runtime_mock.clone());
         let test_runtime_facade =
@@ -595,7 +595,7 @@ mod tests {
     // [utest->swdd~agent-delete-old-workload~3]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload() {
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
 
         let (wl_state_sender, wl_state_receiver) =
             tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
@@ -641,7 +641,7 @@ mod tests {
     // [utest->swdd~agent-delete-old-workload~3]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload_failed() {
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
 
         let (wl_state_sender, wl_state_receiver) =
             tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
