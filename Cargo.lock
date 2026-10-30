@@ -1000,6 +1000,7 @@ dependencies = [
  "futures-core",
  "hyper-util",
  "log",
+ "mockall",
  "nix",
  "prost",
  "regex",

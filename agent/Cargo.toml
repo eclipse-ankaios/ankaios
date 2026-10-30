@@ -50,6 +50,7 @@ bytes = "1.11.1"
 [dev-dependencies]
 ankaios-api = { path = "../ankaios_api", features = ["test_utils"] }
 common = { path = "../common", features = ["test_utils"] }
+grpc = { path = "../grpc", features = ["test_utils"] }
 tempfile = "3.17"
 mockall = "0.11"
 mockall_double = "0.3"
