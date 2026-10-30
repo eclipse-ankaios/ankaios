@@ -32,6 +32,11 @@ regex = "1.12"
 nix = { version = "0.31", features = ["fs", "user"] }
 tower = "0.5"
 hyper-util = "0.1"
+mockall = { version = "0.11", optional = true }
+
+[features]
+default = []
+test_utils = ["dep:mockall"]
 
 [dev-dependencies]
 ankaios-api = { path = "../ankaios_api", features = ["test_utils"] }
