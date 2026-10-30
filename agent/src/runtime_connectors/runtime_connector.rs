@@ -219,18 +219,12 @@ pub mod test {
         sync::{Arc, Mutex},
     };
 
-    #[derive(Debug)]
+    #[derive(Debug, Default)]
     pub struct StubStateChecker {
         panic_if_not_stopped: bool,
     }
 
     impl StubStateChecker {
-        pub fn new() -> Self {
-            StubStateChecker {
-                panic_if_not_stopped: false,
-            }
-        }
-
         pub fn panic_if_not_stopped(&mut self) {
             self.panic_if_not_stopped = true;
         }
@@ -302,11 +296,11 @@ pub mod test {
         pub unexpected_call_count: i8,
     }
 
-    impl<CallType> CallChecker<CallType>
+    impl<CallType> Default for CallChecker<CallType>
     where
         CallType: std::fmt::Debug,
     {
-        pub fn new() -> Self {
+        fn default() -> Self {
             CallChecker {
                 expected_calls: VecDeque::new(),
                 unexpected_call_count: 0,
@@ -322,16 +316,21 @@ pub mod test {
         call_checker: Arc<Mutex<CallChecker<CallType>>>,
     }
 
+    impl<CallType> Default for MockBase<CallType>
+    where
+        CallType: std::fmt::Debug,
+    {
+        fn default() -> Self {
+            MockBase {
+                call_checker: Arc::new(Mutex::new(CallChecker::default())),
+            }
+        }
+    }
+
     impl<CallType> MockBase<CallType>
     where
         CallType: std::fmt::Debug,
     {
-        pub fn new() -> Self {
-            MockBase {
-                call_checker: Arc::new(Mutex::new(CallChecker::new())),
-            }
-        }
-
         pub fn expect(&mut self, calls: Vec<CallType>) {
             self.call_checker
                 .lock()
