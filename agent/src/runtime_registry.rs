@@ -76,7 +76,7 @@ mod tests {
                 .map(|&name| {
                     (
                         name.to_string(),
-                        Box::new(MockRuntimeConnector::new()) as Box<dyn OwnableRuntime>,
+                        Box::new(MockRuntimeConnector::default()) as Box<dyn OwnableRuntime>,
                     )
                 })
                 .collect(),

@@ -313,7 +313,7 @@ mod tests {
     fn utest_with_runtime_registers_runtime() {
         let builder =
             AgentBuilder::new(Box::new(FakeCommunicationsClient) as Box<dyn CommunicationsClient>)
-                .with_runtime(Box::new(MockRuntimeConnector::new()) as Box<dyn OwnableRuntime>);
+                .with_runtime(Box::new(MockRuntimeConnector::default()) as Box<dyn OwnableRuntime>);
 
         let selected = builder
             .available_runtimes
@@ -497,7 +497,7 @@ mod tests {
 
         let builder =
             AgentBuilder::new(Box::new(FakeCommunicationsClient) as Box<dyn CommunicationsClient>)
-                .with_runtime(Box::new(MockRuntimeConnector::new()) as Box<dyn OwnableRuntime>)
+                .with_runtime(Box::new(MockRuntimeConnector::default()) as Box<dyn OwnableRuntime>)
                 .with_runtime(
                     Box::new(FakeRuntimeConnector::new("other-runtime")) as Box<dyn OwnableRuntime>
                 );
@@ -511,7 +511,7 @@ mod tests {
     fn utest_select_runtimes_selects_subset_of_configured_runtimes() {
         let mut available_runtimes = RuntimeRegistry::default();
         available_runtimes
-            .register(Box::new(MockRuntimeConnector::new()) as Box<dyn OwnableRuntime>);
+            .register(Box::new(MockRuntimeConnector::default()) as Box<dyn OwnableRuntime>);
         available_runtimes.register(
             Box::new(FakeRuntimeConnector::new("other-runtime")) as Box<dyn OwnableRuntime>
         );
@@ -530,7 +530,7 @@ mod tests {
     fn utest_select_runtimes_ignores_unknown_configured_runtime() {
         let mut available_runtimes = RuntimeRegistry::default();
         available_runtimes
-            .register(Box::new(MockRuntimeConnector::new()) as Box<dyn OwnableRuntime>);
+            .register(Box::new(MockRuntimeConnector::default()) as Box<dyn OwnableRuntime>);
 
         let selected = AgentBuilder::select_runtimes(
             available_runtimes,

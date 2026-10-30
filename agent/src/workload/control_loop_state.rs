@@ -183,7 +183,7 @@ mod tests {
 
         let (workload_state_sender, mut workload_state_receiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
-        let runtime = Box::new(MockRuntimeConnector::new());
+        let runtime = Box::new(MockRuntimeConnector::default());
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         let control_loop_state = ControlLoopState::builder()
@@ -272,7 +272,7 @@ mod tests {
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
-        let runtime = Box::new(MockRuntimeConnector::new());
+        let runtime = Box::new(MockRuntimeConnector::default());
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         let control_loop_state = ControlLoopState {
