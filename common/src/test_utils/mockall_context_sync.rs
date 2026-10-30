@@ -13,26 +13,26 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub struct MockAllContextSync {
-    mutex_tokio: tokio::sync::Mutex<()>,
-    mutex_std: std::sync::Mutex<()>,
+    mutex: tokio::sync::Mutex<()>,
 }
 
 impl MockAllContextSync {
     pub fn new() -> Self {
         Self {
-            mutex_tokio: tokio::sync::Mutex::new(()),
-            mutex_std: std::sync::Mutex::new(()),
+            mutex: tokio::sync::Mutex::new(()),
         }
-    }
-    pub async fn get_lock_async(&'_ self) -> tokio::sync::MutexGuard<'_, ()> {
-        self.mutex_tokio.lock().await
     }
 
-    pub fn get_lock(&'_ self) -> std::sync::MutexGuard<'_, ()> {
-        match self.mutex_std.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
-        }
+    // Shares the same mutex as `get_lock` so sync and async tests mutually exclude
+    // each other when touching the same global mockall static-mock context.
+    // An async-aware guard avoids clippy::await_holding_lock in tests that hold it across `.await`.
+    pub async fn get_lock_async(&'_ self) -> tokio::sync::MutexGuard<'_, ()> {
+        self.mutex.lock().await
+    }
+
+    // Blocks the current thread; must only be called outside of an async execution context.
+    pub fn get_lock(&'_ self) -> tokio::sync::MutexGuard<'_, ()> {
+        self.mutex.blocking_lock()
     }
 }
 

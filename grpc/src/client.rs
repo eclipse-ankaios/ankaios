@@ -31,6 +31,8 @@ use common::to_server_interface::ToServerReceiver;
 
 use async_trait::async_trait;
 use hyper_util::rt::TokioIo;
+#[cfg(feature = "test_utils")]
+use mockall::automock;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::net::UnixStream;
@@ -85,6 +87,7 @@ async fn connect_unix_channel(path: PathBuf) -> Result<Channel, GrpcMiddlewareEr
         .map_err(Into::into)
 }
 
+#[cfg_attr(feature = "test_utils", automock)]
 impl GRPCCommunicationsClient {
     pub fn new_agent_communication(
         name: String,
@@ -185,6 +188,18 @@ impl CommunicationsClient for GRPCCommunicationsClient {
     }
 }
 
+#[cfg(feature = "test_utils")]
+#[async_trait]
+impl CommunicationsClient for MockGRPCCommunicationsClient {
+    async fn run(
+        &mut self,
+        _server_rx: ToServerReceiver,
+        _agent_tx: FromServerSender,
+    ) -> Result<(), CommunicationMiddlewareError> {
+        Ok(())
+    }
+}
+
 impl GRPCCommunicationsClient {
     /// This functions establishes the connection to the gRPC server and starts listening and forwarding messages
     /// on the two communications channels. The method returns only if the connection could not be established or
@@ -267,11 +282,9 @@ impl GRPCCommunicationsClient {
                         .into_inner();
                     Ok(res)
                 }
-                (Some(_), ServerUrl::Unix(_)) => {
-                    Err(GrpcMiddlewareError::ConnectionInterrupted(
-                        "TLS is not supported for unix:// endpoints".to_string(),
-                    ))
-                }
+                (Some(_), ServerUrl::Unix(_)) => Err(GrpcMiddlewareError::ConnectionInterrupted(
+                    "TLS is not supported for unix:// endpoints".to_string(),
+                )),
                 // [impl->swdd~grpc-agent-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
                 (None, ServerUrl::Tcp(endpoint)) => {
                     let endpoint = endpoint.replace("https:", "http:");
@@ -314,11 +327,9 @@ impl GRPCCommunicationsClient {
                         .into_inner();
                     Ok(res)
                 }
-                (Some(_), ServerUrl::Unix(_)) => {
-                    Err(GrpcMiddlewareError::ConnectionInterrupted(
-                        "TLS is not supported for unix:// endpoints".to_string(),
-                    ))
-                }
+                (Some(_), ServerUrl::Unix(_)) => Err(GrpcMiddlewareError::ConnectionInterrupted(
+                    "TLS is not supported for unix:// endpoints".to_string(),
+                )),
                 // [impl->swdd~grpc-cli-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
                 (None, ServerUrl::Tcp(endpoint)) => {
                     let endpoint = endpoint.replace("https:", "http:");
