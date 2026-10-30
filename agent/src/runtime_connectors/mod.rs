@@ -34,9 +34,7 @@ pub use runtime_connector::{
 pub use runtime_connector::test;
 
 mod runtime_facade;
-#[cfg(test)]
-pub use runtime_facade::MockGenericRuntimeFacade;
-pub use runtime_facade::{GenericRuntimeFacade, RuntimeFacade};
+pub use runtime_facade::RuntimeFacade;
 
 #[cfg(test)]
 pub use runtime_facade::MockRuntimeFacade;
