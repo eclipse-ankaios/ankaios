@@ -222,9 +222,18 @@ impl CliCommands {
                     generate_state_obj_and_filter_masks_from_manifests(&mut manifests, &apply_args)
                         .map_err(CliError::ExecutionError)?
                 {
-                    // [impl->swdd~cli-apply-send-update-state~1]
-                    self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
+                    if apply_args.dry_run {
+                        // [impl->swdd~cli-sends-update-state-dry-run~1]
+                        self.dry_run_update_state(complete_state_req_obj, filter_masks)
+                            .await
+                    } else {
+                        // [impl->swdd~cli-apply-send-update-state~1]
+                        self.update_state_and_wait_for_complete(
+                            complete_state_req_obj,
+                            filter_masks,
+                        )
                         .await
+                    }
                 } else {
                     output!("Nothing to update.");
                     Ok(())
@@ -731,6 +740,7 @@ mod tests {
                     agent_name: None,
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: false,
+                    dry_run: false,
                 },
             )
         );
@@ -774,6 +784,7 @@ mod tests {
                     agent_name: None,
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: true,
+                    dry_run: false,
                 },
             )
         );
@@ -872,6 +883,7 @@ mod tests {
                 agent_name: None,
                 delete_mode: true,
                 manifest_files: vec!["manifest_yaml".to_string()],
+                dry_run: false,
             })
             .await;
         assert!(apply_result.is_ok());
@@ -994,6 +1006,7 @@ mod tests {
                 agent_name: None,
                 delete_mode: false,
                 manifest_files: vec!["manifest_yaml".to_string()],
+                dry_run: false,
             })
             .await;
         assert!(apply_result.is_ok());
@@ -1058,6 +1071,65 @@ mod tests {
                 agent_name: None,
                 delete_mode: false,
                 manifest_files: vec!["manifest_yaml".to_string()],
+                dry_run: false,
+            })
+            .await;
+        assert!(apply_result.is_ok());
+    }
+
+    // [utest->swdd~cli-sends-update-state-dry-run~1]
+    #[tokio::test]
+    async fn utest_apply_manifests_dry_run_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let manifest_content =
+            Cursor::new(b"apiVersion: \"v1\"\nconfigs:\n  config_1: config_value_1");
+
+        let mut manifest_data = String::new();
+        let _ = manifest_content.clone().read_to_string(&mut manifest_data);
+
+        let updated_state = CompleteState {
+            desired_state: yaml_serde::from_str(&manifest_data).unwrap(),
+            ..Default::default()
+        };
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state_dry_run()
+            .with(
+                eq(updated_state.clone()),
+                eq(vec!["desiredState.configs.config_1".to_string()]),
+            )
+            .once()
+            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
+        mock_server_connection.expect_get_complete_state().never();
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .never();
+        mock_server_connection
+            .expect_read_next_update_workload_state()
+            .never();
+
+        let mut cmd = CliCommands {
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        FAKE_GET_INPUT_SOURCE_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Ok(vec![(
+                "manifest.yml".to_string(),
+                Box::new(manifest_content),
+            )]));
+
+        let apply_result = cmd
+            .apply_manifests(ApplyArgs {
+                agent_name: None,
+                delete_mode: false,
+                dry_run: true,
+                manifest_files: vec!["manifest_yaml".to_string()],
             })
             .await;
         assert!(apply_result.is_ok());
@@ -1104,6 +1176,7 @@ mod tests {
                 agent_name: None,
                 delete_mode: false,
                 manifest_files: vec!["manifest_yaml".to_string()],
+                dry_run: false,
             })
             .await;
         assert!(apply_result.is_ok());
@@ -1212,6 +1285,7 @@ mod tests {
                 agent_name: None,
                 delete_mode: false,
                 manifest_files: vec!["manifest_yaml".to_string()],
+                dry_run: false,
             })
             .await;
         assert!(apply_result.is_err());

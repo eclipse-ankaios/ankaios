@@ -16,7 +16,7 @@ use ankaios_api::ank_base::{
     AlteredFields, CompleteState, CompleteStateRequest, CompleteStateResponse,
     EventsCancelAccepted, EventsCancelRequest, LogEntriesResponse, LogsCancelAccepted,
     LogsCancelRequest, LogsRequest, LogsRequestAccepted, Request, RequestContent, ResponseContent,
-    State, UpdateStateRequest, WorkloadInstanceName,
+    State, UpdateStateDryRunRequest, UpdateStateRequest, WorkloadInstanceName,
 };
 
 use ankaios_api::control_api::ToAnkaios;
@@ -64,6 +64,7 @@ enum CommandError {
 #[serde(tag = "type")]
 enum CommandEnum {
     UpdateState(UpdateState),
+    UpdateStateDryRun(UpdateState),
     GetState(GetState),
     SendHello(Version),
     RequestLogs(RequestLogs),
@@ -271,7 +272,11 @@ impl Connection {
             result: match command.command {
                 CommandEnum::UpdateState(update_state_command) => {
                     logging::log("Executing command: UpdateState");
-                    self.handle_update_state_command(update_state_command)?
+                    self.handle_update_state_command(update_state_command, false)?
+                }
+                CommandEnum::UpdateStateDryRun(update_state_command) => {
+                    logging::log("Executing command: UpdateStateDryRun");
+                    self.handle_update_state_command(update_state_command, true)?
                 }
                 CommandEnum::GetState(get_state_command) => {
                     logging::log("Executing command: GetState");
@@ -336,20 +341,28 @@ impl Connection {
     pub fn handle_update_state_command(
         &mut self,
         update_state_command: UpdateState,
+        dry_run: bool,
     ) -> Result<TestResultEnum, CommandError> {
         let request_id = self.get_next_id();
 
         let state: CompleteState = read_yaml_file(Path::new(&update_state_command.manifest_file))
             .map_err(CommandError::GenericError)?;
 
+        let request_content = if dry_run {
+            RequestContent::UpdateStateDryRunRequest(Box::new(UpdateStateDryRunRequest {
+                new_state: Some(state),
+                update_mask: update_state_command.update_mask,
+            }))
+        } else {
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                new_state: Some(state),
+                update_mask: update_state_command.update_mask,
+            }))
+        };
+
         let request = Request {
             request_id: request_id.clone(),
-            request_content: Some(RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
-                    new_state: Some(state),
-                    update_mask: update_state_command.update_mask,
-                },
-            ))),
+            request_content: Some(request_content),
         };
 
         let proto = ankaios_api::control_api::ToAnkaios {

@@ -17,7 +17,7 @@ use crate::message_size::process_log_entries_response;
 use ankaios_api::ank_base::{
     CompleteState, CompleteStateRequest, LogEntriesResponse,
     LogsCancelRequest, LogsRequest, LogsStopResponse, Request, RequestContent, Tags,
-    UpdateStateRequest, WorkloadStateSpec, EventsCancelRequest
+    UpdateStateDryRunRequest, UpdateStateRequest, WorkloadStateSpec, EventsCancelRequest
 };
 
 use async_trait::async_trait;
@@ -61,6 +61,12 @@ pub trait ToServerInterface {
     -> Result<(), ToServerError>;
     async fn agent_gone(&self, agent_name: String) -> Result<(), ToServerError>;
     async fn update_state(
+        &self,
+        request_id: String,
+        new_state: CompleteState,
+        update_mask: Vec<String>,
+    ) -> Result<(), ToServerError>;
+    async fn update_state_dry_run(
         &self,
         request_id: String,
         new_state: CompleteState,
@@ -136,6 +142,25 @@ impl ToServerInterface for ToServerSender {
                 request_id,
                 request_content: Some(RequestContent::UpdateStateRequest(Box::new(
                     UpdateStateRequest {
+                        new_state: Some(new_state),
+                        update_mask,
+                    },
+                ))),
+            }))
+            .await?)
+    }
+
+    async fn update_state_dry_run(
+        &self,
+        request_id: String,
+        new_state: CompleteState,
+        update_mask: Vec<String>,
+    ) -> Result<(), ToServerError> {
+        Ok(self
+            .send(ToServer::Request(Request {
+                request_id,
+                request_content: Some(RequestContent::UpdateStateDryRunRequest(Box::new(
+                    UpdateStateDryRunRequest {
                         new_state: Some(new_state),
                         update_mask,
                     },
@@ -258,7 +283,7 @@ mod tests {
         to_server_interface::{ToServer, ToServerInterface},
     };
     use ankaios_api::ank_base::{
-        CompleteState, CompleteStateRequest, ExecutionStateSpec, LogEntriesResponse, LogEntry, LogsCancelRequest, LogsRequest, LogsStopResponse, Request, RequestContent, Tags, UpdateStateRequest, WorkloadInstanceName,
+        CompleteState, CompleteStateRequest, ExecutionStateSpec, LogEntriesResponse, LogEntry, LogsCancelRequest, LogsRequest, LogsStopResponse, Request, RequestContent, Tags, UpdateStateDryRunRequest, UpdateStateRequest, WorkloadInstanceName,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_complete_state, generate_test_workload_named,
@@ -360,6 +385,38 @@ mod tests {
                 request_id: fixtures::REQUEST_ID.to_string(),
                 request_content: Some(RequestContent::UpdateStateRequest(Box::new(
                     UpdateStateRequest {
+                        new_state: Some(complete_state),
+                        update_mask: vec![FIELD_MASK.to_string()]
+                    },
+                ))),
+            })
+        )
+    }
+
+    // [utest->swdd~to-server-channel~1]
+    #[tokio::test]
+    async fn utest_to_server_send_update_state_dry_run() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
+
+        let workload1 = generate_test_workload_named();
+        let complete_state: CompleteState = generate_test_complete_state(vec![workload1]).into();
+        assert!(
+            tx.update_state_dry_run(
+                fixtures::REQUEST_ID.to_string(),
+                complete_state.clone(),
+                vec![FIELD_MASK.to_string()]
+            )
+            .await
+            .is_ok()
+        );
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::Request(Request {
+                request_id: fixtures::REQUEST_ID.to_string(),
+                request_content: Some(RequestContent::UpdateStateDryRunRequest(Box::new(
+                    UpdateStateDryRunRequest {
                         new_state: Some(complete_state),
                         update_mask: vec![FIELD_MASK.to_string()]
                     },

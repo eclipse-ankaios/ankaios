@@ -73,6 +73,29 @@ Considered alternatives:
 - **Lightweight mutating result message**: The hook returns a small response carrying only workload names and an "admitted" flag when no mutation occurred. This would save a few KB of pipe I/O per hook but adds significant complexity: a new protobuf message type, a framing mechanism for the server to distinguish response formats, two code paths for response handling, and additional burden on hook authors. The pipe I/O savings (~10–50 microseconds total across 10 hooks) are negligible compared to process spawning costs (~10–50 milliseconds), making the trade-off unjustified.
 - **Per-workload hash tracking**: Track individual workload mutations via content hashes to selectively skip conversion of unchanged workloads. Adds protocol complexity and statefulness without meaningful gain, since the entire message must still be transferred and decoded to extract the hashes.
 
+#### Dry run reports the workload changes before the mutating hooks
+`swdd~server-dry-run-reports-changes-before-mutating-hooks~1`
+
+Status: approved
+
+A dry run determines the workloads that would be added and deleted from the rendered workloads of the new DesiredState. The mutating hooks are applied as part of the actual update of the DesiredState. If mutating hooks are configured, the result of a dry run can differ from the result of the actual update, as a mutating hook can modify, drop or veto workloads.
+
+Rationale:
+
+Mutating hooks are external programs that might perform actions outside of Ankaios, e.g., calling an external service. The communication protocol between the server and the mutating hooks does not indicate whether a request is a dry run, so a mutating hook could not distinguish a dry run from an actual update.
+
+Needs:
+- impl
+
+Assumptions:
+
+Mutating hooks are a beta feature. The communication protocol between the server and the mutating hooks may change.
+
+Considered alternatives:
+
+- **Execute the mutating hooks during a dry run**: The result would include the modifications and vetoes of the mutating hooks, but a mutating hook would also perform its actions although nothing is applied.
+- **Pass a dry run indication to the mutating hooks**: The mutating hooks could skip their actions and still report their modifications and vetoes. This requires a change of the communication protocol and of the existing mutating hooks.
+
 #### Server uses a single communication listen endpoint
 `swdd~server-uses-single-communication-listen-endpoint~1`
 
@@ -919,6 +942,62 @@ Needs:
 - impl
 - stest
 
+##### UpdateState interface with dry run
+`swdd~server-update-state-dry-run~1`
+
+Status: approved
+
+When the Ankaios Server gets an UpdateStateDryRunRequest, the Ankaios Server shall determine the workloads that would be added and deleted by the request with the same checks as for an UpdateStateRequest.
+
+Comment:
+The checks include applying the update_mask, validating the api version and the desired state field conventions, rendering the workload configurations, validating the workload fields and checking for cyclic dependencies.
+
+Rationale:
+A dry run allows checking the effect of a state update before applying it, e.g., which workloads would be restarted.
+
+Tags:
+- AnkaiosServer
+- ServerState
+
+Needs:
+- impl
+- utest
+- stest
+
+##### Dry run success response
+`swdd~server-update-state-dry-run-success-response~1`
+
+Status: approved
+
+When the Ankaios Server processes an UpdateStateDryRunRequest and the new state is valid, the Ankaios Server shall respond with an UpdateStateSuccess message containing the instance names of the workloads that would be added and deleted.
+
+Rationale:
+Using the same response message as for a regular update allows clients to reuse their response handling.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+
+##### Dry run error response
+`swdd~server-update-state-dry-run-error-response~1`
+
+Status: approved
+
+When the Ankaios Server processes an UpdateStateDryRunRequest and the new state is invalid, the Ankaios Server shall respond with the same error message as for an UpdateStateRequest with the same content.
+
+Rationale:
+A dry run is used to check whether an update would be accepted before applying it, so a rejection has to be reported in the same way as for the actual update.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+
 ### Mutating Hooks
 
 > [!Note]
@@ -963,6 +1042,23 @@ Priority ordering allows administrators to ensure validation hooks run before mu
 
 Tags:
 - HooksRegistry
+
+Needs:
+- impl
+- utest
+
+#### ServerState executes mutating hooks when updating the DesiredState
+`swdd~server-state-executes-mutating-hooks-on-update~1`
+
+Status: approved
+
+When the ServerState updates its DesiredState and the update adds or deletes workloads, the ServerState shall execute the configured mutating hooks with the added and deleted workloads.
+
+Rationale:
+Mutating hooks validate, reject or modify the workload changes that are applied to the system.
+
+Tags:
+- ServerState
 
 Needs:
 - impl

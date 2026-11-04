@@ -86,6 +86,13 @@ impl Authorizer {
                 &self.state_allow_write,
                 &self.state_deny_write,
             ),
+            // [impl->swdd~agent-authorizing-update-state-dry-run-request~1]
+            RequestContent::UpdateStateDryRunRequest(r) => Self::check_state_rules(
+                &request.request_id,
+                &r.update_mask,
+                &self.state_allow_write,
+                &self.state_deny_write,
+            ),
             // [impl->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
             RequestContent::LogsRequest(logs_request) => {
                 let not_allowed_workload =
@@ -263,7 +270,7 @@ mod test {
         ank_base::{
             AccessRightsRuleSpec, CompleteStateRequest, ControlInterfaceAccessSpec,
             LogsCancelRequest, LogsRequest, ReadWriteEnum, Request, RequestContent,
-            UpdateStateRequest, WorkloadInstanceName,
+            UpdateStateDryRunRequest, UpdateStateRequest, WorkloadInstanceName,
         },
         test_utils::fixtures,
     };
@@ -475,6 +482,46 @@ mod test {
             request_id: "".into(),
             request_content: Some(RequestContent::UpdateStateRequest(Box::new(
                 UpdateStateRequest {
+                    new_state: Default::default(),
+                    update_mask: vec![MATCHING_PATH.into()],
+                },
+            ))),
+        };
+
+        let authorizer = Authorizer::default();
+        assert!(!authorizer.authorize(&request));
+        let authorizer =
+            create_authorizer(&[RuleType::StateAllowWrite(vec![MATCHING_PATH.into()])]);
+        assert!(authorizer.authorize(&request));
+        let authorizer =
+            create_authorizer(&[RuleType::StateAllowReadWrite(vec![MATCHING_PATH.into()])]);
+        assert!(authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::StateAllowRead(vec![MATCHING_PATH.into()])]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[
+            RuleType::StateAllowWrite(vec![MATCHING_PATH.into()]),
+            RuleType::StateDenyWrite(vec![MATCHING_PATH.into()]),
+        ]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[
+            RuleType::StateAllowWrite(vec![MATCHING_PATH.into()]),
+            RuleType::StateDenyReadWrite(vec![MATCHING_PATH.into()]),
+        ]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[
+            RuleType::StateAllowWrite(vec![MATCHING_PATH.into()]),
+            RuleType::StateDenyRead(vec![MATCHING_PATH.into()]),
+        ]);
+        assert!(authorizer.authorize(&request));
+    }
+
+    // [utest->swdd~agent-authorizing-update-state-dry-run-request~1]
+    #[test]
+    fn utest_update_state_dry_run_request_uses_write_rules() {
+        let request = Request {
+            request_id: "".into(),
+            request_content: Some(RequestContent::UpdateStateDryRunRequest(Box::new(
+                UpdateStateDryRunRequest {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into()],
                 },
