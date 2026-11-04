@@ -514,7 +514,6 @@ impl AnkaiosServer {
                         }
 
                         // [impl->swdd~server-update-state-dry-run~1]
-                        // [impl->swdd~server-update-state-dry-run-no-side-effects~1]
                         RequestContent::UpdateStateDryRunRequest(update_state_dry_run_request) => {
                             let UpdateStateDryRunRequest {
                                 new_state,
@@ -1862,7 +1861,6 @@ mod tests {
     }
 
     // [utest->swdd~server-update-state-dry-run~1]
-    // [utest->swdd~server-update-state-dry-run-no-side-effects~1]
     // [utest->swdd~server-update-state-dry-run-success-response~1]
     #[tokio::test]
     async fn utest_server_update_state_dry_run_responds_without_side_effects() {
