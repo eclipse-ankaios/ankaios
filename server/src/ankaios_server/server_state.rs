@@ -340,6 +340,7 @@ impl ServerState {
             // [impl->swdd~server-applies-mutated-workloads-to-effective-state~1]
             // [impl->swdd~server-removes-dropped-workloads-from-effective-state~1]
             // [impl->swdd~server-restores-undeleted-workloads-in-effective-state~1]
+            // [impl->swdd~server-state-executes-mutating-hooks-on-update~1]
             update_effective_state(
                 hooks_registry,
                 &mut added_deleted_workloads,
@@ -371,8 +372,7 @@ impl ServerState {
     }
 
     // [impl->swdd~server-update-state-dry-run~1]
-    // [impl->swdd~server-update-state-dry-run-skips-mutating-hooks~1]
-    // [impl->swdd~server-update-state-dry-run-keeps-server-state~1]
+    // [impl->swdd~server-dry-run-reports-changes-before-mutating-hooks~1]
     pub fn dry_run_update(
         &self,
         new_desired_state: &StateSpec,
@@ -1822,6 +1822,7 @@ mod tests {
     }
 
     // [utest->swdd~server-applies-mutated-workloads-to-effective-state~1]
+    // [utest->swdd~server-state-executes-mutating-hooks-on-update~1]
     #[test]
     fn utest_server_state_update_state_calls_update_effective_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
@@ -1879,8 +1880,7 @@ mod tests {
     }
 
     // [utest->swdd~server-update-state-dry-run~1]
-    // [utest->swdd~server-update-state-dry-run-skips-mutating-hooks~1]
-    // [utest->swdd~server-update-state-dry-run-keeps-server-state~1]
+    // [utest->swdd~server-state-executes-mutating-hooks-on-update~1]
     #[test]
     fn utest_server_state_dry_run_update_returns_changes_without_modifying_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
@@ -1946,7 +1946,6 @@ mod tests {
     }
 
     // [utest->swdd~server-update-state-dry-run~1]
-    // [utest->swdd~server-update-state-dry-run-keeps-server-state~1]
     #[test]
     fn utest_server_state_dry_run_update_rejects_state_with_cyclic_dependencies() {
         let w1 = generate_test_workload_named_with_params(
