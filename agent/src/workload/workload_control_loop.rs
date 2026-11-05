@@ -424,8 +424,7 @@ impl WorkloadControlLoop {
                 control_loop_state.workload_id = Some(old_id);
 
                 return Some(control_loop_state);
-            }
-            if let Some(old_checker) = control_loop_state.state_checker.take() {
+            } else if let Some(old_checker) = control_loop_state.state_checker.take() {
                 old_checker.stop_checker().await;
             }
             log::debug!("Stop workload complete");
