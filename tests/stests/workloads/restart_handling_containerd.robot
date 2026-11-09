@@ -21,7 +21,7 @@ Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
 
 *** Test Cases ***
-# [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
+# [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3]
 # [stest->swdd~workload-control-loop-reuses-bundle-on-successful-restart~1]
 Test Ankaios containerd restarts workloads with restart policy ALWAYS.
     [Documentation]    Restart workloads with restart policy set to ALWAYS and
@@ -46,7 +46,7 @@ Test Ankaios containerd restarts workloads with restart policy ALWAYS.
     And the workload "default_restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
+# [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3]
 Test Ankaios containerd restarts workloads with restart policy ON_FAILURE.
     [Documentation]    Restart workloads with restart policy set to ON_FAILURE
     [Setup]    Run Keywords    Setup Ankaios
