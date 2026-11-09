@@ -21,7 +21,7 @@ Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
 
 *** Test Cases ***
-# [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
+# [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3]
 Test Ankaios restarts podman kube workloads with restart policy ALWAYS.
     [Documentation]    Restart workloads with restart policy set to ALWAYS on runtime podman-kube
     [Setup]    Run Keywords    Setup Ankaios
