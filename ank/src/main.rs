@@ -95,7 +95,23 @@ async fn main() {
         output_and_error!("Cannot connect to server: '{}'", err);
     });
 
-    match args.command {
+    let result = run_command(&mut cmd, args.command).await;
+    // always shut down so that the server receives a Goodbye instead of a broken stream
+    cmd.shut_down().await;
+
+    match result {
+        Ok(Some(out_text)) => output_and_exit!("{}", out_text),
+        Ok(None) => {}
+        Err(err_message) => output_and_error!("{}", err_message),
+    }
+}
+
+/// Executes the CLI command. Returns the text to print before exiting, if any, or the error message.
+async fn run_command(
+    cmd: &mut CliCommands,
+    command: cli::Commands,
+) -> Result<Option<String>, String> {
+    match command {
         cli::Commands::Get(get_args) => match get_args.command {
             // [impl->swdd~cli-provides-get-desired-state~1]
             // [impl->swdd~cli-provides-object-field-mask-arg-to-get-partial-desired-state~1]
@@ -107,9 +123,9 @@ async fn main() {
                 // [impl->swdd~cli-blocks-until-ankaios-server-responds-get-desired-state~1]
                 if let Ok(out_text) = cmd.get_state(object_field_mask, output_format).await {
                     // [impl -> swdd~cli-returns-desired-state-from-server~1]
-                    output_and_exit!("{}", out_text);
+                    Ok(Some(out_text))
                 } else {
-                    output_and_error!("Could not retrieve state.");
+                    Err("Could not retrieve state.".to_string())
                 }
             }
 
@@ -130,37 +146,34 @@ async fn main() {
 
                 if watch {
                     // [impl->swdd~cli-get-workloads-with-watch~1]
-                    if let Err(error) = cmd.watch_workloads(agent_name, state, workload_name).await
-                    {
-                        output_and_error!("Failed to watch workloads: '{}'", error);
-                    }
-                } else {
-                    match cmd
-                        .get_workloads_table(agent_name, state, workload_name)
+                    cmd.watch_workloads(agent_name, state, workload_name)
                         .await
-                    {
-                        Ok(out_text) => output_and_exit!("{}", out_text),
-                        Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
-                    }
+                        .map(|_| None)
+                        .map_err(|error| format!("Failed to watch workloads: '{error}'"))
+                } else {
+                    cmd.get_workloads_table(agent_name, state, workload_name)
+                        .await
+                        .map(Some)
+                        .map_err(|error| format!("Failed to get workloads: '{error}'"))
                 }
             }
             // [impl->swdd~cli-provides-list-of-agents~1]
             Some(cli::GetCommands::Agent {}) => {
                 output_debug!("Received get agent.");
 
-                match cmd.get_agents().await {
-                    Ok(out_text) => output_and_exit!("{}", out_text),
-                    Err(error) => output_and_error!("Failed to get agents: '{}'", error),
-                }
+                cmd.get_agents()
+                    .await
+                    .map(Some)
+                    .map_err(|error| format!("Failed to get agents: '{error}'"))
             }
             // [impl->swdd~cli-provides-list-of-configs~1]
             Some(cli::GetCommands::Config {}) => {
                 output_debug!("Received get config.");
 
-                match cmd.get_configs().await {
-                    Ok(out_text) => output_and_exit!("{}", out_text),
-                    Err(error) => output_and_error!("Failed to get configs: '{}'", error),
-                }
+                cmd.get_configs()
+                    .await
+                    .map(Some)
+                    .map_err(|error| format!("Failed to get configs: '{error}'"))
             }
             // [impl->swdd~cli-provides-get-events-command~2]
             Some(cli::GetCommands::Events {
@@ -174,12 +187,10 @@ async fn main() {
                     object_field_mask
                 );
 
-                if let Err(error) = cmd
-                    .get_events(object_field_mask, output_format, detailed)
+                cmd.get_events(object_field_mask, output_format, detailed)
                     .await
-                {
-                    output_and_error!("Failed to get events: '{}'", error);
-                }
+                    .map(|_| None)
+                    .map_err(|error| format!("Failed to get events: '{error}'"))
             }
 
             None => unreachable!("Unreachable code."),
@@ -197,9 +208,10 @@ async fn main() {
                 );
 
                 // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
-                if let Err(err) = cmd.set_state(object_field_mask, state_object_file).await {
-                    output_and_error!("Failed to set state: '{}'", err)
-                }
+                cmd.set_state(object_field_mask, state_object_file)
+                    .await
+                    .map(|_| None)
+                    .map_err(|err| format!("Failed to set state: '{err}'"))
             }
             None => unreachable!("Unreachable code."),
         },
@@ -209,9 +221,10 @@ async fn main() {
                     "Received delete workload with workload_name = '{:?}'",
                     workload_name
                 );
-                if let Err(error) = cmd.delete_workloads(workload_name).await {
-                    output_and_error!("Failed to delete workloads: '{}'", error);
-                }
+                cmd.delete_workloads(workload_name)
+                    .await
+                    .map(|_| None)
+                    .map_err(|error| format!("Failed to delete workloads: '{error}'"))
             }
             // [impl->swdd~cli-provides-delete-configs~1]]
             Some(cli::DeleteCommands::Config { config_name }) => {
@@ -219,9 +232,10 @@ async fn main() {
                     "Received delete config with config_name = '{:?}'",
                     config_name
                 );
-                if let Err(error) = cmd.delete_configs(config_name).await {
-                    output_and_error!("Failed to delete configs: '{}'", error);
-                }
+                cmd.delete_configs(config_name)
+                    .await
+                    .map(|_| None)
+                    .map_err(|error| format!("Failed to delete configs: '{error}'"))
             }
             None => unreachable!("Unreachable code."),
         },
@@ -241,34 +255,29 @@ async fn main() {
                     agent_name,
                     tags,
                 );
-                if let Err(error) = cmd
-                    .run_workload(
-                        workload_name,
-                        runtime_name,
-                        runtime_config,
-                        agent_name,
-                        tags.into_iter().collect(),
-                    )
-                    .await
-                {
-                    output_and_error!("Failed to run workloads: '{}'", error);
-                }
+                cmd.run_workload(
+                    workload_name,
+                    runtime_name,
+                    runtime_config,
+                    agent_name,
+                    tags.into_iter().collect(),
+                )
+                .await
+                .map(|_| None)
+                .map_err(|error| format!("Failed to run workloads: '{error}'"))
             }
             None => unreachable!("Unreachable code."),
         },
-        cli::Commands::Apply(apply_args) => {
-            if let Err(err) = cmd.apply_manifests(apply_args).await {
-                output_and_error!("{}", err);
-            }
-        }
+        cli::Commands::Apply(apply_args) => cmd
+            .apply_manifests(apply_args)
+            .await
+            .map(|_| None)
+            .map_err(|err| err.to_string()),
         // [impl->swdd~cli-provides-workload-logs~1]
-        cli::Commands::Logs(logs_args) => {
-            cmd.get_logs_blocking(logs_args)
-                .await
-                .unwrap_or_else(|err| {
-                    output_and_error!("Failed to output logs: '{}'", err);
-                });
-        }
+        cli::Commands::Logs(logs_args) => cmd
+            .get_logs_blocking(logs_args)
+            .await
+            .map(|_| None)
+            .map_err(|err| format!("Failed to output logs: '{err}'")),
     }
-    cmd.shut_down().await;
 }
