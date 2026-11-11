@@ -17,7 +17,8 @@ use crate::grpc_api::{self, to_server::ToServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
 use ankaios_api::ank_base::{
-    LogsStopResponse, Request, UpdateStateRequest, request::RequestContent,
+    LogsStopResponse, Request, UpdateStateDryRunRequest, UpdateStateRequest,
+    request::RequestContent,
 };
 use common::commands;
 use common::request_id_prepending::prepend_request_id;
@@ -78,6 +79,24 @@ pub async fn forward_from_proto_to_ankaios(
                         match new_state {
                             Some(new_state) => {
                                 sink.update_state(request_id, new_state, update_mask)
+                                    .await?;
+                            }
+                            None => {
+                                return Err(GrpcMiddlewareError::ConversionError(
+                                    "No CompleteState for forwarding.".to_string(),
+                                ));
+                            }
+                        }
+                    }
+                    RequestContent::UpdateStateDryRunRequest(update_state_dry_run_request) => {
+                        let UpdateStateDryRunRequest {
+                            new_state,
+                            update_mask,
+                        } = *update_state_dry_run_request;
+                        log::debug!("Received UpdateStateDryRunRequest from '{agent_name}'");
+                        match new_state {
+                            Some(new_state) => {
+                                sink.update_state_dry_run(request_id, new_state, update_mask)
                                     .await?;
                             }
                             None => {
@@ -308,7 +327,7 @@ mod tests {
     use ankaios_api::ank_base::{
         CompleteState, CompleteStateRequest, ExecutionStateSpec, LogEntriesResponse, LogEntry,
         LogsCancelRequest, LogsRequest, LogsStopResponse, Request, RequestContent,
-        UpdateStateRequest, WorkloadInstanceName, WorkloadState,
+        UpdateStateDryRunRequest, UpdateStateRequest, WorkloadInstanceName, WorkloadState,
     };
     use ankaios_api::test_utils::{
         fixtures, generate_test_complete_state, generate_test_workload_named,
@@ -448,6 +467,41 @@ mod tests {
         assert!(matches!(
             result.to_server_enum,
             Some(ToServerEnum::Request(Request{request_id, request_content: Some(RequestContent::UpdateStateRequest(update_state_request))}))
+            if request_id == fixtures::REQUEST_ID && update_state_request.new_state == Some(input_state) && update_state_request.update_mask == update_mask));
+    }
+
+    // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_ankaios_to_proto_update_workload_dry_run() {
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+        let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
+
+        let workload_named = generate_test_workload_named();
+        let input_state: CompleteState = generate_test_complete_state(vec![workload_named]).into();
+        let update_mask = vec!["bla".into()];
+
+        // As the channel capacity is big enough the await is satisfied right away
+        let update_state_result = server_tx
+            .update_state_dry_run(
+                fixtures::REQUEST_ID.to_owned(),
+                input_state.clone(),
+                update_mask.clone(),
+            )
+            .await;
+        assert!(update_state_result.is_ok());
+
+        tokio::spawn(async move {
+            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+        });
+
+        // The receiver in the agent receives the message and terminates the infinite waiting-loop.
+        drop(server_tx);
+
+        let result = grpc_rx.recv().await.unwrap();
+
+        assert!(matches!(
+            result.to_server_enum,
+            Some(ToServerEnum::Request(Request{request_id, request_content: Some(RequestContent::UpdateStateDryRunRequest(update_state_request))}))
             if request_id == fixtures::REQUEST_ID && update_state_request.new_state == Some(input_state) && update_state_request.update_mask == update_mask));
     }
 
@@ -629,6 +683,57 @@ mod tests {
             ToServer::Request(Request {
                 request_id,
                 request_content: Some(RequestContent::UpdateStateRequest(update_request)),
+            })
+            if request_id == expected_prefixed_my_request_id && update_request.new_state.clone().unwrap() == ankaios_state && update_request.update_mask == ankaios_update_mask));
+    }
+
+    // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_update_workload_dry_run() {
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+        let workload_named = generate_test_workload_named();
+        let agent_name = workload_named.workload.agent.clone();
+
+        let ankaios_state: CompleteState =
+            generate_test_complete_state(vec![workload_named]).into();
+        let ankaios_update_mask = vec!["bla".into()];
+
+        // simulate the reception of an update workload state grpc from server message
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCToServerStreaming::new(LinkedList::from([
+                Some(grpc_api::ToServer {
+                    to_server_enum: Some(ToServerEnum::Request(Request {
+                        request_id: fixtures::REQUEST_ID.to_owned(),
+                        request_content: Some(RequestContent::UpdateStateDryRunRequest(Box::new(
+                            UpdateStateDryRunRequest {
+                                new_state: Some(ankaios_state.clone()),
+                                update_mask: ankaios_update_mask.clone(),
+                            },
+                        ))),
+                    })),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = forward_from_proto_to_ankaios(
+            agent_name.clone(),
+            &mut mock_grpc_ex_request_streaming,
+            server_tx,
+        )
+        .await;
+
+        assert!(forward_result.is_ok());
+
+        // pick received from server message
+        let result = server_rx.recv().await.unwrap();
+        let expected_prefixed_my_request_id = format!("{agent_name}@{}", fixtures::REQUEST_ID);
+
+        assert!(matches!(
+            result,
+            ToServer::Request(Request {
+                request_id,
+                request_content: Some(RequestContent::UpdateStateDryRunRequest(update_request)),
             })
             if request_id == expected_prefixed_my_request_id && update_request.new_state.clone().unwrap() == ankaios_state && update_request.update_mask == ankaios_update_mask));
     }
