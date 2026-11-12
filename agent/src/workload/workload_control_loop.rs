@@ -65,8 +65,8 @@ impl WorkloadControlLoop {
                             new_workload_state.execution_state.clone(),
                         ).await;
 
-                        // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
-                        if Self::restart_policy_matches_execution_state(&control_loop_state.workload_named.workload.restart_policy, &new_workload_state.execution_state) {
+                        // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3]
+                        if !control_loop_state.delete_requested && Self::restart_policy_matches_execution_state(&control_loop_state.workload_named.workload.restart_policy, &new_workload_state.execution_state) {
                             // [impl->swdd~workload-control-loop-handles-workload-restarts~2]
                             control_loop_state = Self::restart_workload_on_runtime(control_loop_state, &new_workload_state.execution_state).await;
                         }
@@ -82,6 +82,9 @@ impl WorkloadControlLoop {
 
                             // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
                             control_loop_state.retry_manager.invalidate();
+
+                            // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3]
+                            control_loop_state.delete_requested = true;
 
                             if let Some(new_control_loop_state) = Self::delete_workload_on_runtime(control_loop_state).await {
                                 control_loop_state = new_control_loop_state;
@@ -105,15 +108,28 @@ impl WorkloadControlLoop {
 
                             log::debug!("Update workload complete");
                         }
-                        // [impl->swdd~agent-workload-control-loop-executes-retry~1]
                         Some(WorkloadCommand::Retry(_instance_name, retry_token)) => {
                             log::debug!("Received WorkloadCommand::Retry.");
 
-                            control_loop_state = Self::retry_create_workload_on_runtime(
-                                control_loop_state,
-                                retry_token
-                            )
-                            .await;
+                            // [impl->swdd~agent-workload-control-loop-executes-delete-retry~1]
+                            if control_loop_state.delete_requested {
+                                if let Some(new_control_loop_state) = Self::retry_delete_workload_on_runtime(
+                                    control_loop_state,
+                                    retry_token
+                                )
+                                .await {
+                                    control_loop_state = new_control_loop_state;
+                                } else {
+                                    return;
+                                }
+                            } else {
+                                // [impl->swdd~agent-workload-control-loop-executes-retry~2]
+                                control_loop_state = Self::retry_create_workload_on_runtime(
+                                    control_loop_state,
+                                    retry_token
+                                )
+                                .await;
+                            }
                         }
                         // [impl->swdd~agent-workload-control-loop-executes-create~4]
                         Some(WorkloadCommand::Create) => {
@@ -398,7 +414,7 @@ impl WorkloadControlLoop {
 
     // [impl->swdd~agent-workload-control-loop-executes-delete~3]
     async fn delete_workload_on_runtime(
-        mut control_loop_state: ControlLoopState,
+        control_loop_state: ControlLoopState,
     ) -> Option<ControlLoopState> {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
@@ -407,6 +423,26 @@ impl WorkloadControlLoop {
         )
         .await;
 
+        Self::remove_workload_from_runtime(control_loop_state, None).await
+    }
+
+    // [impl->swdd~agent-workload-control-loop-executes-delete-retry~1]
+    async fn retry_delete_workload_on_runtime(
+        control_loop_state: ControlLoopState,
+        retry_token: RetryToken,
+    ) -> Option<ControlLoopState> {
+        if retry_token.is_valid() {
+            Self::remove_workload_from_runtime(control_loop_state, Some(retry_token)).await
+        } else {
+            log::debug!("Ignore outdated retry command");
+            Some(control_loop_state)
+        }
+    }
+
+    async fn remove_workload_from_runtime(
+        mut control_loop_state: ControlLoopState,
+        retry_token: Option<RetryToken>,
+    ) -> Option<ControlLoopState> {
         if let Some(old_id) = control_loop_state.workload_id.take() {
             if let Err(err) = control_loop_state.runtime.delete_workload(&old_id).await {
                 Self::send_workload_state_to_agent(
@@ -415,13 +451,23 @@ impl WorkloadControlLoop {
                     ExecutionStateSpec::delete_failed(err.to_string()),
                 )
                 .await;
-                // [impl->swdd~agent-workload-control-loop-delete-failed-allows-retry~1]
                 log::warn!(
                     "Could not stop workload '{}': '{}'",
                     control_loop_state.instance_name().workload_name(),
                     err
                 );
                 control_loop_state.workload_id = Some(old_id);
+
+                // [impl->swdd~agent-workload-control-loop-delete-failed-allows-retry~2]
+                let retry_token =
+                    retry_token.unwrap_or_else(|| control_loop_state.retry_manager.new_token());
+                control_loop_state
+                    .retry_sender
+                    .retry(control_loop_state.instance_name().clone(), retry_token)
+                    .await
+                    .unwrap_or_else(|err| {
+                        log::info!("Could not send WorkloadCommand::Retry: '{err}'")
+                    });
 
                 return Some(control_loop_state);
             }
@@ -1182,7 +1228,6 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-update-delete-failed-allows-retry~1]
-    // [utest->swdd~agent-workload-control-loop-delete-failed-allows-retry~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_delete_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1342,6 +1387,264 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
+        runtime_mock.assert_all_expectations();
+    }
+
+    // [utest->swdd~agent-workload-control-loop-delete-failed-allows-retry~2]
+    // [utest->swdd~agent-workload-control-loop-executes-delete-retry~1]
+    // [utest->swdd~agent-workload-control-loop-executes-delete~3]
+    #[tokio::test]
+    async fn utest_workload_obj_run_delete_failed_retries_until_success() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (state_change_tx, state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
+
+        let mut mock_state_checker = StubStateChecker::new();
+        mock_state_checker.panic_if_not_stopped();
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock.expect(vec![
+            RuntimeCall::DeleteWorkload(
+                OLD_WORKLOAD_ID.to_string(),
+                Err(RuntimeError::Delete("first delete error".into())),
+            ),
+            RuntimeCall::DeleteWorkload(
+                OLD_WORKLOAD_ID.to_string(),
+                Err(RuntimeError::Delete("second delete error".into())),
+            ),
+            RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+        ]);
+
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
+        mock_remove_dir.expect().returning(|_| Ok(()));
+
+        workload_command_sender.clone().delete().await.unwrap();
+
+        let workload = generate_test_workload_named();
+        let instance_name = workload.instance_name.clone();
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_named(workload)
+            .workload_id(Some(OLD_WORKLOAD_ID.into()))
+            .workload_state_sender(state_change_tx)
+            .run_folder(fixtures::RUN_FOLDER.into())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+        control_loop_state.state_checker = Some(Box::new(mock_state_checker));
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .once()
+            .return_const(());
+        control_loop_state
+            .retry_manager
+            .expect_new_token()
+            .once()
+            .return_once(|| MockRetryToken {
+                valid: true,
+                has_been_called: false,
+            });
+
+        assert!(
+            timeout(
+                Duration::from_millis(200),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
+
+        assert_execution_state_sequence(
+            state_change_rx,
+            vec![
+                (&instance_name, ExecutionStateSpec::stopping_requested()),
+                (
+                    &instance_name,
+                    ExecutionStateSpec::delete_failed("first delete error"),
+                ),
+                (
+                    &instance_name,
+                    ExecutionStateSpec::delete_failed("second delete error"),
+                ),
+                (&instance_name, ExecutionStateSpec::removed()),
+            ],
+        )
+        .await;
+
+        runtime_mock.assert_all_expectations();
+    }
+
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3]
+    #[tokio::test]
+    async fn utest_workload_obj_run_delete_failed_does_not_restart_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, _workload_command_receiver2) = WorkloadCommandSender::new();
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
+
+        // No create call is expected, it would fail the test.
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock.expect(vec![
+            RuntimeCall::DeleteWorkload(
+                OLD_WORKLOAD_ID.to_string(),
+                Err(RuntimeError::Delete("some delete error".into())),
+            ),
+            RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+        ]);
+
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
+        mock_remove_dir.expect().returning(|_| Ok(()));
+
+        workload_command_sender.clone().delete().await.unwrap();
+
+        let mut workload = generate_test_workload_named();
+        workload.workload.restart_policy = RestartPolicy::Always;
+        let instance_name = workload.instance_name.clone();
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_named(workload)
+            .workload_id(Some(OLD_WORKLOAD_ID.into()))
+            .workload_state_sender(state_change_tx)
+            .run_folder(fixtures::RUN_FOLDER.into())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            // the retry goes to another channel, so the test decides when the delete is retried
+            .retry_sender(workload_command_sender2)
+            .build()
+            .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .once()
+            .return_const(());
+        control_loop_state
+            .retry_manager
+            .expect_new_token()
+            .once()
+            .return_once(|| MockRetryToken {
+                valid: true,
+                has_been_called: false,
+            });
+
+        let state_checker_sender = control_loop_state
+            .state_checker_workload_state_sender
+            .clone();
+
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            for execution_state in [
+                ExecutionStateSpec::succeeded(),
+                ExecutionStateSpec::failed("exit code 137"),
+            ] {
+                state_checker_sender
+                    .report_workload_execution_state(&instance_name, execution_state)
+                    .await;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            workload_command_sender
+                .retry(
+                    instance_name,
+                    MockRetryToken {
+                        valid: true,
+                        has_been_called: false,
+                    },
+                )
+                .await
+                .unwrap();
+        });
+
+        assert!(
+            timeout(
+                Duration::from_millis(200),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
+
+        runtime_mock.assert_all_expectations();
+    }
+
+    // [utest->swdd~agent-workload-control-loop-executes-delete-retry~1]
+    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
+    #[tokio::test]
+    async fn utest_workload_obj_run_delete_failed_skips_outdated_retry() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, _workload_command_receiver2) = WorkloadCommandSender::new();
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
+
+        // The outdated retry must not trigger a second delete.
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock.expect(vec![RuntimeCall::DeleteWorkload(
+            OLD_WORKLOAD_ID.to_string(),
+            Err(RuntimeError::Delete("some delete error".into())),
+        )]);
+
+        let workload = generate_test_workload_named();
+        let instance_name = workload.instance_name.clone();
+
+        workload_command_sender.clone().delete().await.unwrap();
+        workload_command_sender
+            .retry(
+                instance_name,
+                MockRetryToken {
+                    valid: false,
+                    has_been_called: false,
+                },
+            )
+            .await
+            .unwrap();
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_named(workload)
+            .workload_id(Some(OLD_WORKLOAD_ID.into()))
+            .workload_state_sender(state_change_tx)
+            .run_folder(fixtures::RUN_FOLDER.into())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender2)
+            .build()
+            .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .once()
+            .return_const(());
+        control_loop_state
+            .retry_manager
+            .expect_new_token()
+            .once()
+            .return_once(|| MockRetryToken {
+                valid: true,
+                has_been_called: false,
+            });
+
+        // the control loop waits for further commands as the delete is not finished
+        assert!(
+            timeout(
+                Duration::from_millis(100),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_err()
+        );
+
         runtime_mock.assert_all_expectations();
     }
 
@@ -1800,7 +2103,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3]
     // [utest->swdd~workload-control-loop-handles-workload-restarts~2]
     // [utest->swdd~workload-control-loop-restarts-workloads-using-update~1]
     #[tokio::test]
@@ -1908,7 +2211,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3]
     // [utest->swdd~workload-control-loop-handles-workload-restarts~2]
     // [utest->swdd~workload-control-loop-reuses-bundle-on-successful-restart~1]
     #[tokio::test]
@@ -2014,7 +2317,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3]
     #[test]
     fn utest_is_restart_allowed_never() {
         let restart_policy = RestartPolicy::Never;
@@ -2039,7 +2342,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3]
     #[test]
     fn utest_is_restart_allowed_on_failure() {
         let restart_policy = RestartPolicy::OnFailure;
@@ -2062,7 +2365,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3]
     #[test]
     fn utest_restart_policy_matches_execution_state_always() {
         let restart_policy = RestartPolicy::Always;
@@ -2084,7 +2387,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-sends-workload-states-of-its-workloads-to-server~2]
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3]
     // [utest->swdd~workload-control-loop-checks-workload-state-validity~1]
     #[test]
     fn utest_is_same_workload() {
@@ -2532,7 +2835,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
+    // [utest->swdd~agent-workload-control-loop-executes-retry~2]
     #[tokio::test]
     async fn utest_workload_obj_run_retry_successful() {
         let _ = env_logger::builder().is_test(true).try_init();

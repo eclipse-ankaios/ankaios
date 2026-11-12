@@ -22,7 +22,7 @@ ${new_state_yaml_file}
 *** Test Cases ***
 
 # [stest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
-# [stest->swdd~agent-workload-control-loop-executes-retry~1]
+# [stest->swdd~agent-workload-control-loop-executes-retry~2]
 Test Ankaios Podman retry creation of a workload on creation failure
     [Setup]    Run Keywords    Setup Ankaios
 
@@ -36,7 +36,7 @@ Test Ankaios Podman retry creation of a workload on creation failure
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
-# [stest->swdd~agent-workload-control-loop-executes-retry~1]
+# [stest->swdd~agent-workload-control-loop-executes-retry~2]
 # [stest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
 Test Ankaios Podman retry creation of a workload on creation failure intercepted by update
     [Setup]    Run Keywords    Setup Ankaios
@@ -59,7 +59,7 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
-# [stest->swdd~agent-workload-control-loop-executes-retry~1]
+# [stest->swdd~agent-workload-control-loop-executes-retry~2]
 # [stest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
 Test Ankaios Podman retry creation of a workload on creation failure intercepted by delete
     [Setup]    Run Keywords    Setup Ankaios

@@ -1,0 +1,10 @@
+apiVersion: v1
+workloads:
+  blocked_delete:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: ALWAYS
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: ["--entrypoint", "/bin/sh"]
+      commandArgs: ["-c", "trap 'exit 0' TERM; while true; do sleep 1; done"]

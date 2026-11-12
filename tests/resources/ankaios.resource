@@ -345,6 +345,26 @@ Podman has deleted all existing volumes
 Podman has terminated all existing containers
     Run Process    podman    stop    --all    timeout=20    shell=True
 
+podman has blocked the deletion of workload "${workload_name}" on agent "${agent_name}"
+    [Documentation]    Starts a container unknown to Ankaios sharing the network namespace of the workload's container.
+    ...                As long as this container exists, podman refuses to remove the workload's container, so the
+    ...                delete fails on the runtime. The workload must not use a custom container name.
+    ${container_id}    ${container_name}=    Get Container Id And Name By Workload Name From Runtime    podman    ${workload_name}
+    Should Not Be Empty    ${container_id}    msg=No container found for workload '${workload_name}'!
+    Should End With    ${container_name}    .${agent_name}    msg=Workload '${workload_name}' is not running on agent '${agent_name}'!
+    ${result}=    Run Command    podman run -d --name ${workload_name}_${agent_name}_delete_blocker --network container:${container_id} ghcr.io/eclipse-ankaios/tests/alpine:latest sleep 1000    timeout=20
+    Should Be Equal As Integers    ${result.returncode}    0    msg=${result.stderr}
+
+podman has unblocked the deletion of workload "${workload_name}" on agent "${agent_name}"
+    ${result}=    Run Command    podman rm -f --time 0 ${workload_name}_${agent_name}_delete_blocker    timeout=20
+    Should Be Equal As Integers    ${result.returncode}    0    msg=${result.stderr}
+
+the workload "${workload_name}" shall not be running on the podman runtime
+    ${container_id}    ${container_name}=    Get Container Id And Name By Workload Name From Runtime    podman    ${workload_name}
+    Should Not Be Empty    ${container_id}    msg=No container found for workload '${workload_name}'!
+    ${result}=    Run Command    podman inspect --format {{.State.Running}} ${container_id}    timeout=20
+    Should Be Equal As Strings    ${result.stdout.strip()}    false    msg=Workload '${workload_name}' is running!
+
 containerd has deleted all existing containers
     Run Process    nerdctl    stop    --time    2    $(nerdctl    ps    --all    --quiet    --no-trunc)    timeout=20    shell=True
     Run Process    nerdctl    rm    --force    $(nerdctl    ps    --all    --quiet    --no-trunc)    timeout=20    shell=True

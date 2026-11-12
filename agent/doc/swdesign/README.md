@@ -93,7 +93,7 @@ A WorkloadCommand is used to instruct the WorkloadControlLoop to do an action on
 Thus, the following WorkloadCommands exists:
 * `Create` for creating a workload
 * `Update` for updating a workload
-* `Retry` for retrying the create of an workload
+* `Retry` for retrying the create or the delete of a workload
 * `Resume` for resuming an existing workload
 * `Delete` for deleting a workload
 * `StartLogFetcher` for initiating the log collection for a workload
@@ -1480,14 +1480,17 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop delete failed allows retry
-`swdd~agent-workload-control-loop-delete-failed-allows-retry~1`
+`swdd~agent-workload-control-loop-delete-failed-allows-retry~2`
 
 Status: approved
 
-When the WorkloadControlLoop encounters a failure while deleting the workload, the WorkloadControlLoop shall continue allowing subsequent workload command attempts.
+When the WorkloadControlLoop encounters a failure while deleting the workload, the WorkloadControlLoop shall retry the deletion of the workload by sending the WorkloadCommand Retry to the WorkloadControlLoop of the workload.
+
+Comment:
+A delete can fail temporarily, e.g., if another container still depends on the workload's container. The attempts use the same exponential backoff as the retries of a workload creation and are not limited in number.
 
 Rationale:
-This allows to try the delete again instead of going in an undefined state.
+The RuntimeManager does not keep the workload after triggering its deletion and the workload is no longer part of the desired state. The WorkloadControlLoop is the only remaining component able to finish the deletion and to report the `Removed` workload state.
 
 Tags:
 - WorkloadControlLoop
@@ -1495,6 +1498,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ##### Agent updates on add known workload
 `swdd~agent-update-on-add-known-workload~1`
@@ -1830,11 +1834,11 @@ Needs:
 - utest
 
 #### WorkloadControlLoop restarts workload with enabled restart policy
-`swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2`
+`swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~3`
 
 Status: approved
 
-When the WorkloadControlLoop receives a new valid workload state, then the WorkloadControlLoop shall detect that a restart of a workload is required by comparing the workload's RestartPolicy with the received ExecutionState of that workload according to the following table:
+When the WorkloadControlLoop receives a new valid workload state and has not received a delete command for the workload, then the WorkloadControlLoop shall detect that a restart of a workload is required by comparing the workload's RestartPolicy with the received ExecutionState of that workload according to the following table:
 
 | RestartPolicy | ExecutionState                      |
 |---------------|-------------------------------------|
@@ -1843,9 +1847,10 @@ When the WorkloadControlLoop receives a new valid workload state, then the Workl
 
 Comment:
 In case of the workload's restart policy is `NEVER` or other RestartPolicy-ExecutionState combinations the workload is not restarted.
+A failed delete can stop the workload without removing it. The stopped workload reports an execution state matching the table, but it is not restarted.
 
 Rationale:
-The restart depends on the execution state of the workload.
+The restart depends on the execution state of the workload. A deleted workload is no longer part of the desired state and must not come back.
 
 Tags:
 - WorkloadControlLoop
@@ -1959,16 +1964,42 @@ Needs:
 - utest
 
 #### WorkloadControlLoop retries creation of a workload
-`swdd~agent-workload-control-loop-executes-retry~1`
+`swdd~agent-workload-control-loop-executes-retry~2`
 
 Status: approved
 
-When the WorkloadControlLoop receives a retry command, the WorkloadControlLoop shall:
+When the WorkloadControlLoop receives a retry command and has not received a delete command for the workload, the WorkloadControlLoop shall:
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
 * store the new Id and reference to the state checker inside the WorkloadControlLoop
 
 Comment:
 The `Pending(Starting)` execution state of the workload is kept upon a startup failure to avoid fast execution state changes on the user side.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+#### WorkloadControlLoop retries deletion of a workload
+`swdd~agent-workload-control-loop-executes-delete-retry~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives a retry command with a valid retry token and has received a delete command for the workload, the WorkloadControlLoop shall:
+* delete the workload via the corresponding runtime connector blocking the execution
+* upon successful deletion of the workload:
+    * stop the state checker for the workload
+    * send a `Removed` workload state for that workload
+    * delete the workload subfolder in the agent's run folder
+    * stop the WorkloadControlLoop
+* upon failed deletion of the workload:
+    * send a `Stopping(DeleteFailed)` workload state for that workload
+
+Comment:
+The `Stopping(RequestedAtRuntime)` execution state is not sent again to avoid fast execution state changes on the user side.
 
 Tags:
 - WorkloadControlLoop
