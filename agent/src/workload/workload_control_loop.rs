@@ -424,8 +424,7 @@ impl WorkloadControlLoop {
                 control_loop_state.workload_id = Some(old_id);
 
                 return Some(control_loop_state);
-            }
-            if let Some(old_checker) = control_loop_state.state_checker.take() {
+            } else if let Some(old_checker) = control_loop_state.state_checker.take() {
                 old_checker.stop_checker().await;
             }
             log::debug!("Stop workload complete");
@@ -757,12 +756,12 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let mut old_mock_state_checker = StubStateChecker::new();
+        let mut old_mock_state_checker = StubStateChecker::default();
         old_mock_state_checker.panic_if_not_stopped();
 
         // Since we also send a delete command to exit the control loop properly, the new state
         // checker will also we stopped. This also tests if the new state checker was properly stored.
-        let mut new_mock_state_checker = StubStateChecker::new();
+        let mut new_mock_state_checker = StubStateChecker::default();
         new_mock_state_checker.panic_if_not_stopped();
 
         let mut old_workload = generate_test_workload_named();
@@ -776,7 +775,7 @@ mod tests {
             .config(&new_workload.workload.runtime_config)
             .build();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
             RuntimeCall::CreateWorkload(
@@ -874,12 +873,12 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let mut old_mock_state_checker = StubStateChecker::new();
+        let mut old_mock_state_checker = StubStateChecker::default();
         old_mock_state_checker.panic_if_not_stopped();
 
         let old_workload = generate_test_workload_named();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
             // The workload was already deleted with the previous runtime call delete.
@@ -962,12 +961,12 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let mut old_mock_state_checker = StubStateChecker::new();
+        let mut old_mock_state_checker = StubStateChecker::default();
         old_mock_state_checker.panic_if_not_stopped();
 
         // Since we also send a delete command to exit the control loop properly, the new state
         // checker will also we stopped. This also tests if the new state checker was properly stored.
-        let mut new_mock_state_checker = StubStateChecker::new();
+        let mut new_mock_state_checker = StubStateChecker::default();
         new_mock_state_checker.panic_if_not_stopped();
 
         let mut old_workload = generate_test_workload_named();
@@ -981,7 +980,7 @@ mod tests {
             .config(&new_workload.workload.runtime_config)
             .build();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
             RuntimeCall::CreateWorkload(
@@ -1085,7 +1084,7 @@ mod tests {
 
         // Since we also send a delete command to exit the control loop properly, the new state
         // checker will also be stopped. This also tests if the new state checker was properly stored.
-        let mut new_mock_state_checker = StubStateChecker::new();
+        let mut new_mock_state_checker = StubStateChecker::default();
         new_mock_state_checker.panic_if_not_stopped();
 
         let mut old_workload = generate_test_workload_named();
@@ -1098,7 +1097,7 @@ mod tests {
             .workload_name(old_workload.instance_name.workload_name())
             .config(&new_workload.workload.runtime_config)
             .build();
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
                 new_workload.clone(),
@@ -1203,7 +1202,7 @@ mod tests {
             .config(&new_workload.workload.runtime_config)
             .build();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::DeleteWorkload(
                 OLD_WORKLOAD_ID.to_string(),
@@ -1284,10 +1283,10 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let mut mock_state_checker = StubStateChecker::new();
+        let mut mock_state_checker = StubStateChecker::default();
         mock_state_checker.panic_if_not_stopped();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![RuntimeCall::DeleteWorkload(
             OLD_WORKLOAD_ID.to_string(),
             Ok(()),
@@ -1356,7 +1355,7 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let runtime_mock = MockRuntimeConnector::new();
+        let runtime_mock = MockRuntimeConnector::default();
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -1412,10 +1411,10 @@ mod tests {
         let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
 
-        let mut new_mock_state_checker = StubStateChecker::new();
+        let mut new_mock_state_checker = StubStateChecker::default();
         new_mock_state_checker.panic_if_not_stopped();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
                 workload.clone(),
@@ -1497,10 +1496,10 @@ mod tests {
 
         let workload = generate_test_workload_named();
 
-        let mut new_mock_state_checker = StubStateChecker::new();
+        let mut new_mock_state_checker = StubStateChecker::default();
         new_mock_state_checker.panic_if_not_stopped();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::GetWorkloadId(
                 workload.instance_name.clone(),
@@ -1570,7 +1569,7 @@ mod tests {
 
         let workload = generate_test_workload_named();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::GetWorkloadId(
                 workload.instance_name.clone(),
@@ -1580,7 +1579,7 @@ mod tests {
                 fixtures::WORKLOAD_IDS[0].to_string(),
                 workload.clone(),
                 state_checker_workload_state_sender.clone(),
-                Ok(Box::new(StubStateChecker::new())),
+                Ok(Box::new(StubStateChecker::default())),
             ),
         ]);
 
@@ -1629,7 +1628,7 @@ mod tests {
 
         let workload = generate_test_workload_named();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![RuntimeCall::GetWorkloadId(
             workload.instance_name.clone(),
             Err(crate::runtime_connectors::RuntimeError::List(
@@ -1673,7 +1672,7 @@ mod tests {
 
         let workload = generate_test_workload_named();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::GetWorkloadId(
                 workload.instance_name.clone(),
@@ -1737,7 +1736,7 @@ mod tests {
 
         let workload = generate_test_workload_named();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![]);
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -1818,13 +1817,13 @@ mod tests {
         let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
 
-        let mut old_mock_state_checker = StubStateChecker::new();
+        let mut old_mock_state_checker = StubStateChecker::default();
         old_mock_state_checker.panic_if_not_stopped();
 
-        let mut new_mock_state_checker = StubStateChecker::new();
+        let mut new_mock_state_checker = StubStateChecker::default();
         new_mock_state_checker.panic_if_not_stopped();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())), // delete operation of the restarted workload
             RuntimeCall::CreateWorkload(
@@ -1926,13 +1925,13 @@ mod tests {
         let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
 
-        let mut old_mock_state_checker = StubStateChecker::new();
+        let mut old_mock_state_checker = StubStateChecker::default();
         old_mock_state_checker.panic_if_not_stopped();
 
-        let mut new_mock_state_checker = StubStateChecker::new();
+        let mut new_mock_state_checker = StubStateChecker::default();
         new_mock_state_checker.panic_if_not_stopped();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
                 workload.clone(),
@@ -2144,7 +2143,7 @@ mod tests {
             ),
         ]);
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
             workload.clone(),
             None,
@@ -2152,7 +2151,7 @@ mod tests {
             expected_mount_point_mappings.clone(),
             Ok((
                 fixtures::WORKLOAD_IDS[0].into(),
-                Box::new(StubStateChecker::new()),
+                Box::new(StubStateChecker::default()),
             )),
         )]);
 
@@ -2230,7 +2229,7 @@ mod tests {
             .workload_named(workload.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(fixtures::RUN_FOLDER.into())
-            .runtime(Box::new(MockRuntimeConnector::new()))
+            .runtime(Box::new(MockRuntimeConnector::default()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
             .build()
@@ -2279,7 +2278,7 @@ mod tests {
 
         let workload = generate_test_workload_named();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
             workload.clone(),
             None,
@@ -2355,7 +2354,7 @@ mod tests {
 
         let instance_name = workload.instance_name.clone();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
             workload.clone(),
             None,
@@ -2439,7 +2438,7 @@ mod tests {
             WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let mut old_mock_state_checker = StubStateChecker::new();
+        let mut old_mock_state_checker = StubStateChecker::default();
         old_mock_state_checker.panic_if_not_stopped();
 
         let mut old_workload = generate_test_workload_named();
@@ -2456,7 +2455,7 @@ mod tests {
         let new_instance_name = new_workload.instance_name.clone();
 
         let create_runtime_error_msg = "some create error";
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
             RuntimeCall::CreateWorkload(
@@ -2549,7 +2548,7 @@ mod tests {
 
         let instance_name = workload.instance_name.clone();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
                 workload.clone(),
@@ -2558,7 +2557,7 @@ mod tests {
                 HashMap::default(),
                 Ok((
                     fixtures::WORKLOAD_IDS[0].into(),
-                    Box::new(StubStateChecker::new()),
+                    Box::new(StubStateChecker::default()),
                 )),
             ),
             RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
@@ -2629,7 +2628,7 @@ mod tests {
 
         let instance_name = workload.instance_name.clone();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             // We also send a delete command, but as no new workload was generated, there is also no
             // new ID so no call to the runtime is expected to happen here.
@@ -2703,7 +2702,7 @@ mod tests {
 
         let instance_name = workload.instance_name.clone();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         let create_runtime_error_msg = "some create error";
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
@@ -2788,7 +2787,7 @@ mod tests {
 
         let workload = generate_test_workload_named();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![RuntimeCall::StartLogFetcher(
             LogRequestOptions {
                 follow: true,
@@ -2851,7 +2850,7 @@ mod tests {
 
         let workload = generate_test_workload_named();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![RuntimeCall::StartLogFetcher(
             LogRequestOptions {
                 follow: true,
@@ -2914,7 +2913,7 @@ mod tests {
 
         let workload = generate_test_workload_named();
 
-        let runtime_mock = MockRuntimeConnector::new();
+        let runtime_mock = MockRuntimeConnector::default();
 
         let control_loop_state = ControlLoopState::builder()
             .workload_named(workload)
@@ -2967,7 +2966,7 @@ mod tests {
 
         let workload = generate_test_workload_named();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![RuntimeCall::StartLogFetcher(
             LogRequestOptions {
                 follow: true,

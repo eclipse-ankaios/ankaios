@@ -12,15 +12,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cli::Arguments;
+use crate::cli::{self, Arguments};
 use crate::io_utils::default_run_folder_string;
 
+use ankaios_api::ALLOWED_CHAR_SET;
 use common::config::{
-    CONFIG_VERSION, ConfigFile, ConversionErrors, ServerUrl, get_default_url,
+    CONFIG_VERSION, ConfigFile, ConversionErrors, ServerUrl, get_default_url, handle_config,
 };
-use common::std_extensions::UnreachableOption;
+use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableOption};
+use regex::Regex;
 
-use grpc::security::PemFileType;
+use grpc::security::{PemFileType, TLSConfig};
 
 #[cfg(not(test))]
 use grpc::security::read_pem_file;
@@ -79,6 +81,41 @@ impl Default for AgentConfig {
     }
 }
 
+impl AgentConfig {
+    fn finish_loading_from_file(&mut self) -> Result<(), ConversionErrors> {
+        if self.version != CONFIG_VERSION {
+            return Err(ConversionErrors::WrongVersion(self.version.clone()));
+        }
+
+        if (self.ca_pem.is_some() && self.ca_pem_content.is_some())
+            || (self.crt_pem.is_some() && self.crt_pem_content.is_some())
+            || (self.key_pem.is_some() && self.key_pem_content.is_some())
+        {
+            return Err(ConversionErrors::ConflictingCertificates(
+                "Certificate paths and certificate content are both set".to_string(),
+            ));
+        }
+
+        if let Some(ca_pem_path) = &self.ca_pem {
+            let ca_pem_content = read_pem_file(ca_pem_path, PemFileType::Certificate)
+                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
+            self.ca_pem_content = Some(ca_pem_content);
+        }
+        if let Some(crt_pem_path) = &self.crt_pem {
+            let crt_pem_content = read_pem_file(crt_pem_path, PemFileType::Certificate)
+                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
+            self.crt_pem_content = Some(crt_pem_content);
+        }
+        if let Some(key_pem_path) = &self.key_pem {
+            let key_pem_content = read_pem_file(key_pem_path, PemFileType::PrivateKey)
+                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
+            self.key_pem_content = Some(key_pem_content);
+        }
+
+        Ok(())
+    }
+}
+
 // [impl->swdd~agent-loads-config-file~2]
 impl ConfigFile for AgentConfig {
     fn from_file(file_path: PathBuf) -> Result<AgentConfig, ConversionErrors> {
@@ -87,35 +124,7 @@ impl ConfigFile for AgentConfig {
         let mut agent_config: AgentConfig = from_str(&agent_config_content)
             .map_err(|err| ConversionErrors::InvalidConfig(err.to_string()))?;
 
-        if agent_config.version != CONFIG_VERSION {
-            return Err(ConversionErrors::WrongVersion(agent_config.version));
-        }
-
-        if (agent_config.ca_pem.is_some() && agent_config.ca_pem_content.is_some())
-            || (agent_config.crt_pem.is_some() && agent_config.crt_pem_content.is_some())
-            || (agent_config.key_pem.is_some() && agent_config.key_pem_content.is_some())
-        {
-            return Err(ConversionErrors::ConflictingCertificates(
-                "Certificate paths and certificate content are both set".to_string(),
-            ));
-        }
-
-        if let Some(ca_pem_path) = &agent_config.ca_pem {
-            let ca_pem_content = read_pem_file(ca_pem_path, PemFileType::Certificate)
-                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
-            agent_config.ca_pem_content = Some(ca_pem_content);
-        }
-        if let Some(crt_pem_path) = &agent_config.crt_pem {
-            let crt_pem_content = read_pem_file(crt_pem_path, PemFileType::Certificate)
-                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
-            agent_config.crt_pem_content = Some(crt_pem_content);
-        }
-        if let Some(key_pem_path) = &agent_config.key_pem {
-            let key_pem_content = read_pem_file(key_pem_path, PemFileType::PrivateKey)
-                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
-            agent_config.key_pem_content = Some(key_pem_content);
-        }
-
+        agent_config.finish_loading_from_file()?;
         validate_socket_configuration(&agent_config).map_err(ConversionErrors::InvalidConfig)?;
 
         Ok(agent_config)
@@ -123,6 +132,27 @@ impl ConfigFile for AgentConfig {
 }
 
 impl AgentConfig {
+    /// Resolves the config file path and CLI arguments into a validated, ready-to-use config.
+    // [impl->swdd~agent-loads-config-file~2]
+    pub fn load() -> Self {
+        env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
+        let args = cli::parse();
+
+        let mut agent_config: AgentConfig =
+            handle_config(&args.config_path, &DEFAULT_AGENT_CONFIG_FILE_PATH)
+                .unwrap_or_exit("Config file could not be parsed");
+
+        agent_config
+            .update_with_args(&args)
+            .unwrap_or_exit("Failed to load certificate files!");
+
+        validate_agent_name(&agent_config.name)
+            .unwrap_or_exit("Error encountered while checking agent name!");
+
+        agent_config
+    }
+
     pub fn update_with_args(&mut self, args: &Arguments) -> Result<(), String> {
         if let Some(name) = &args.agent_name {
             self.name = name.to_string();
@@ -167,6 +197,32 @@ impl AgentConfig {
 
         Ok(())
     }
+
+    pub fn build_tls_config(&self) -> Option<TLSConfig> {
+        if self.server_url.is_unix() {
+            None
+        } else {
+            if let Err(err_message) = TLSConfig::is_config_conflicting(
+                self.insecure,
+                &self.ca_pem_content,
+                &self.crt_pem_content,
+                &self.key_pem_content,
+            ) {
+                log::warn!("{err_message}");
+            }
+
+            // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
+            // [impl->swdd~agent-provides-file-paths-to-communication-middleware~1]
+            // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+            TLSConfig::new(
+                self.insecure,
+                self.ca_pem_content.clone(),
+                self.crt_pem_content.clone(),
+                self.key_pem_content.clone(),
+            )
+            .unwrap_or_exit("Missing certificate files")
+        }
+    }
 }
 
 fn validate_socket_configuration(agent_config: &AgentConfig) -> Result<(), String> {
@@ -185,6 +241,26 @@ fn validate_socket_configuration(agent_config: &AgentConfig) -> Result<(), Strin
         .map_err(|err| format!("Invalid agent config: {err}"))
 }
 
+// [impl->swdd~agent-naming-convention~1]
+fn validate_agent_name(agent_name: &str) -> Result<(), String> {
+    const EXPECTED_AGENT_NAME_FORMAT: &str = "It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.";
+    if agent_name.is_empty() {
+        return Err(format!(
+            "Empty agent name is not allowed. {EXPECTED_AGENT_NAME_FORMAT}"
+        ));
+    }
+
+    let re = Regex::new(&format!(r"^{ALLOWED_CHAR_SET}+$")).unwrap_or_illegal_state();
+
+    if re.is_match(agent_name) {
+        Ok(())
+    } else {
+        Err(format!(
+            "Agent name '{agent_name}' is invalid. {EXPECTED_AGENT_NAME_FORMAT}",
+        ))
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -195,7 +271,7 @@ fn validate_socket_configuration(agent_config: &AgentConfig) -> Result<(), Strin
 
 #[cfg(test)]
 mod tests {
-    use super::{AgentConfig, CONFIG_VERSION};
+    use super::{AgentConfig, CONFIG_VERSION, validate_agent_name};
     use crate::cli::Arguments;
     use crate::io_utils::default_run_folder_string;
     use common::config::{ConfigFile, ConversionErrors, ServerUrl, get_default_url};
@@ -234,7 +310,7 @@ mod tests {
     // [utest->swdd~agent-loads-config-file~2]
     #[test]
     fn utest_default_agent_config() {
-        let default_agent_config = AgentConfig::default();
+        let default_agent_config: AgentConfig = AgentConfig::default();
 
         assert_eq!(default_agent_config.server_url, get_default_url());
         assert!(!default_agent_config.insecure);
@@ -251,7 +327,8 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{agent_config_content}").unwrap();
 
-        let agent_config = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let agent_config: Result<AgentConfig, _> =
+            AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
         assert_eq!(
             agent_config,
@@ -275,7 +352,8 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{agent_config_content}").unwrap();
 
-        let agent_config = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let agent_config: Result<AgentConfig, _> =
+            AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
         assert_eq!(
             agent_config,
@@ -289,7 +367,7 @@ mod tests {
     #[test]
     fn utest_agent_config_update_with_args() {
         let default_run_folder = default_run_folder_string();
-        let mut agent_config = AgentConfig::default();
+        let mut agent_config: AgentConfig = AgentConfig::default();
         let args = Arguments {
             config_path: None,
             agent_name: Some(fixtures::AGENT_NAMES[0].to_string()),
@@ -353,7 +431,7 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{agent_config_content}").unwrap();
 
-        let mut agent_config =
+        let mut agent_config: AgentConfig =
             AgentConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
         let args = Arguments {
             config_path: None,
@@ -408,7 +486,8 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{agent_config_content}").unwrap();
 
-        let agent_config_res = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let agent_config_res: Result<AgentConfig, _> =
+            AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
         assert!(agent_config_res.is_ok());
 
@@ -437,7 +516,7 @@ mod tests {
 
     #[test]
     fn utest_agent_config_update_with_tags_from_cli() {
-        let mut agent_config = AgentConfig::default();
+        let mut agent_config: AgentConfig = AgentConfig::default();
 
         agent_config
             .tags
@@ -477,7 +556,8 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{agent_config_content}").unwrap();
 
-        let result = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let result: Result<AgentConfig, _> =
+            AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
         assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
     }
 
@@ -493,7 +573,38 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{agent_config_content}").unwrap();
 
-        let result = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let result: Result<AgentConfig, _> =
+            AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
         assert!(matches!(result, Err(ConversionErrors::InvalidConfig(_))));
+    }
+
+    // [utest->swdd~agent-naming-convention~1]
+    #[test]
+    fn utest_validate_agent_name_ok() {
+        let name = "test_AgEnt-name1_56";
+        assert!(validate_agent_name(name).is_ok());
+    }
+
+    // [utest->swdd~agent-naming-convention~1]
+    #[test]
+    fn utest_validate_agent_name_fail() {
+        let invalid_agent_names = ["a.b", "a_b_%#", "a b"];
+        for name in invalid_agent_names {
+            let result = validate_agent_name(name);
+            assert!(result.is_err());
+            assert!(
+                result
+                    .unwrap_err()
+                    .contains(&format!("Agent name '{name}' is invalid.",))
+            );
+        }
+
+        let result = validate_agent_name("");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("Empty agent name is not allowed.")
+        );
     }
 }

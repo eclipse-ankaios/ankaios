@@ -14,7 +14,7 @@
 
 #[cfg_attr(test, mockall_double::double)]
 use super::retry_manager::RetryManager;
-use crate::BUFFER_SIZE;
+use crate::agent_builder::BUFFER_SIZE;
 use crate::control_interface::ControlInterfacePath;
 use crate::runtime_connectors::{RuntimeConnector, RuntimeWorkloadId, StateCheckerHandle};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
@@ -183,7 +183,7 @@ mod tests {
 
         let (workload_state_sender, mut workload_state_receiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
-        let runtime = Box::new(MockRuntimeConnector::new());
+        let runtime = Box::new(MockRuntimeConnector::default());
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         let control_loop_state = ControlLoopState::builder()
@@ -272,7 +272,7 @@ mod tests {
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(fixtures::TEST_CHANNEL_CAP);
-        let runtime = Box::new(MockRuntimeConnector::new());
+        let runtime = Box::new(MockRuntimeConnector::default());
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         let control_loop_state = ControlLoopState {
