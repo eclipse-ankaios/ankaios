@@ -78,7 +78,7 @@ Considered alternatives:
 
 Status: approved
 
-A dry run determines the workloads that would be added and deleted from the rendered workloads of the new DesiredState. The mutating hooks are applied as part of the actual update of the DesiredState. If mutating hooks are configured, the result of a dry run can differ from the result of the actual update, as a mutating hook can modify, drop or veto workloads.
+A dry run reports workload changes calculated from the rendered DesiredState, before mutating hooks are applied. Since hooks may modify, drop, or veto workloads during an actual update, the dry-run result may differ from the applied changes.
 
 Rationale:
 
