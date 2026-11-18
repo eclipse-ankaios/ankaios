@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+// [impl->swdd~agent-decision-split-into-library-and-binary-crate~1]
 mod agent_builder;
 mod agent_config;
 mod agent_manager;

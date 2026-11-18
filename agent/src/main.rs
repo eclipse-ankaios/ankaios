@@ -17,6 +17,7 @@ use ank_agent::runtime_connectors::{
 };
 use ank_agent::{AgentBuilder, AgentConfig};
 
+// [impl->swdd~agent-decision-split-into-library-and-binary-crate~1]
 #[tokio::main]
 async fn main() {
     let agent_config = AgentConfig::load();

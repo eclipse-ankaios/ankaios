@@ -58,6 +58,31 @@ Rationale:
 - The jitter prevents, that too many retries are executed an the same moment.
 - The timeout is limited to 5 minutes, as it is expected with this timeout the retries will not overload the system anymore.
 
+#### Provide the agent as a library crate with a thin binary on top
+`swdd~agent-decision-split-into-library-and-binary-crate~1`
+
+Status: approved
+
+The Ankaios agent consists of a library crate (`ank_agent`), providing an `AgentBuilder` to assemble and run an agent with a configurable set of runtimes and a communications client, and a thin binary crate (`ank-agent`) that uses the library with the built-in runtimes and the default gRPC communications client.
+
+Comment:
+The interface between the library and a custom binary is not yet considered public/stable, so its exact extensibility behavior is intentionally not specified further in a requirement.
+
+Rationale:
+This architecture allows building custom Ankaios agent binaries that register additional runtime connectors or a different communications client, without forking the Ankaios agent implementation.
+
+Assumptions:
+No assumptions were taken.
+
+Considered alternatives:
+
+- Dynamic libraries loaded at runtime (e.g. shared objects): Rust has no stable ABI, so such plugins would either need to be built with the exact same compiler version/toolchain as the agent, or rely on extra crates to bridge that boundary.
+- Plugins written in a scripting language with an embedded interpreter: the interpreter and its runtime would add considerable size and complexity to the agent for a feature not yet required.
+- Plugins as separate external executables communicating with the agent (e.g. over IPC): the process spawning and communication overhead is too high for the agent's runtime-critical paths.
+
+Needs:
+- impl
+
 ## Structural view
 
 The following diagram shows the structural view of the Ankaios Agent:
