@@ -1222,6 +1222,9 @@ When the CLI receives an event from the Ankaios server, the CLI shall output the
 * altered fields information (added, updated, and removed fields)
 * the complete state using the same state representation format as the `get state` command.
 
+Comment:
+Event timestamps use the UTC offset `+00:00`. Fractional seconds are omitted for whole seconds; otherwise they use 3, 6, or 9 digits, whichever preserves the timestamp exactly.
+
 Tags:
 - CliCommands
 

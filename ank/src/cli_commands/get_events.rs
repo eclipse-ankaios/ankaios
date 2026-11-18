@@ -67,10 +67,10 @@ impl CliCommands {
 
 mod event_output {
     use ankaios_api::ank_base::{AlteredFields, CompleteState, CompleteStateResponse};
-    use chrono::Utc;
     #[cfg(test)]
     use mockall::automock;
     use serde::{Deserialize, Serialize};
+    use time::{OffsetDateTime, macros::format_description};
 
     use crate::{cli::OutputFormat, cli_error::CliError, output};
 
@@ -87,6 +87,59 @@ mod event_output {
     }
 
     pub struct EventSerializer;
+
+    fn current_timestamp() -> String {
+        format_utc_timestamp(OffsetDateTime::now_utc())
+    }
+
+    // [impl->swdd~cli-outputs-events-with-timestamp~1]
+    fn format_utc_timestamp(timestamp: OffsetDateTime) -> String {
+        let seconds = timestamp
+            .format(format_description!(
+                "[year]-[month]-[day]T[hour]:[minute]:[second]"
+            ))
+            .expect("UTC timestamp should be representable as RFC 3339");
+        let nanos = timestamp.nanosecond();
+
+        // Preserve Chrono's fractional precision and numeric UTC offset.
+        match nanos {
+            0 => format!("{seconds}+00:00"),
+            n if n.is_multiple_of(1_000_000) => format!("{seconds}.{:03}+00:00", n / 1_000_000),
+            n if n.is_multiple_of(1_000) => format!("{seconds}.{:06}+00:00", n / 1_000),
+            n => format!("{seconds}.{n:09}+00:00"),
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::format_utc_timestamp;
+        use time::macros::datetime;
+
+        // [utest->swdd~cli-outputs-events-with-timestamp~1]
+        #[test]
+        fn utest_event_timestamp_preserves_legacy_format() {
+            for (timestamp, expected) in [
+                (
+                    datetime!(2026-11-18 13:12:47 UTC),
+                    "2026-11-18T13:12:47+00:00",
+                ),
+                (
+                    datetime!(2026-11-18 13:12:47.120 UTC),
+                    "2026-11-18T13:12:47.120+00:00",
+                ),
+                (
+                    datetime!(2026-11-18 13:12:47.000120 UTC),
+                    "2026-11-18T13:12:47.000120+00:00",
+                ),
+                (
+                    datetime!(2026-11-18 13:12:47.473813550 UTC),
+                    "2026-11-18T13:12:47.473813550+00:00",
+                ),
+            ] {
+                assert_eq!(format_utc_timestamp(timestamp), expected);
+            }
+        }
+    }
 
     #[cfg_attr(test, automock)]
     impl EventSerializer {
@@ -115,7 +168,7 @@ mod event_output {
 
     impl From<CompleteStateResponse> for EventOutput {
         fn from(response: CompleteStateResponse) -> Self {
-            let timestamp_str = Utc::now().to_rfc3339();
+            let timestamp_str = current_timestamp();
 
             let filtered_state = response.complete_state;
 
@@ -135,7 +188,7 @@ mod event_output {
 
     impl From<CompleteState> for EventOutput {
         fn from(complete_state: CompleteState) -> Self {
-            let timestamp_str = Utc::now().to_rfc3339();
+            let timestamp_str = current_timestamp();
             EventOutput {
                 timestamp: timestamp_str,
                 altered_fields: None,
