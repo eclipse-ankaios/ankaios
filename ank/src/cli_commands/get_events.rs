@@ -70,7 +70,7 @@ mod event_output {
     #[cfg(test)]
     use mockall::automock;
     use serde::{Deserialize, Serialize};
-    use time::{OffsetDateTime, macros::format_description};
+    use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
     use crate::{cli::OutputFormat, cli_error::CliError, output};
 
@@ -88,55 +88,26 @@ mod event_output {
 
     pub struct EventSerializer;
 
-    fn current_timestamp() -> String {
-        format_utc_timestamp(OffsetDateTime::now_utc())
-    }
-
     // [impl->swdd~cli-outputs-events-with-timestamp~1]
-    fn format_utc_timestamp(timestamp: OffsetDateTime) -> String {
-        let seconds = timestamp
-            .format(format_description!(
-                "[year]-[month]-[day]T[hour]:[minute]:[second]"
-            ))
-            .expect("UTC timestamp should be representable as RFC 3339");
-        let nanos = timestamp.nanosecond();
-
-        // Preserve Chrono's fractional precision and numeric UTC offset.
-        match nanos {
-            0 => format!("{seconds}+00:00"),
-            n if n.is_multiple_of(1_000_000) => format!("{seconds}.{:03}+00:00", n / 1_000_000),
-            n if n.is_multiple_of(1_000) => format!("{seconds}.{:06}+00:00", n / 1_000),
-            n => format!("{seconds}.{n:09}+00:00"),
-        }
+    fn current_timestamp() -> String {
+        OffsetDateTime::now_utc()
+            .format(&Rfc3339)
+            .expect("UTC timestamp should be representable as RFC 3339")
     }
 
     #[cfg(test)]
     mod tests {
-        use super::format_utc_timestamp;
-        use time::macros::datetime;
+        use super::{CompleteState, CompleteStateResponse, EventOutput, OffsetDateTime, Rfc3339};
 
         // [utest->swdd~cli-outputs-events-with-timestamp~1]
         #[test]
-        fn utest_event_timestamp_preserves_legacy_format() {
-            for (timestamp, expected) in [
-                (
-                    datetime!(2026-11-18 13:12:47 UTC),
-                    "2026-11-18T13:12:47+00:00",
-                ),
-                (
-                    datetime!(2026-11-18 13:12:47.120 UTC),
-                    "2026-11-18T13:12:47.120+00:00",
-                ),
-                (
-                    datetime!(2026-11-18 13:12:47.000120 UTC),
-                    "2026-11-18T13:12:47.000120+00:00",
-                ),
-                (
-                    datetime!(2026-11-18 13:12:47.473813550 UTC),
-                    "2026-11-18T13:12:47.473813550+00:00",
-                ),
+        fn utest_event_timestamps_use_rfc3339_utc_format() {
+            for event in [
+                EventOutput::from(CompleteState::default()),
+                EventOutput::from(CompleteStateResponse::default()),
             ] {
-                assert_eq!(format_utc_timestamp(timestamp), expected);
+                assert!(event.timestamp.ends_with('Z'));
+                assert!(OffsetDateTime::parse(&event.timestamp, &Rfc3339).is_ok());
             }
         }
     }

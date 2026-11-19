@@ -39,7 +39,7 @@ ankaios-api = { path = "../ankaios_api" }
 ank-schema = { path = "../ank_schema" }
 common = { path = "../common" }
 grpc = { path = "../grpc" }
-time = { version = "0.3", features = ["formatting", "macros"] }
+time = { version = "0.3", features = ["formatting"] }
 clap = { version = "4.5", features = ["derive", "env"] }
 tokio = { version = "1.41", features = [
     "macros",
@@ -64,3 +64,4 @@ ankaios-api = { path = "../ankaios_api", features = ["test_utils"] }
 common = { path = "../common", features = ["test_utils"] }
 mockall = "0.11"
 mockall_double = "0.3"
+time = { version = "0.3", features = ["parsing"] }
