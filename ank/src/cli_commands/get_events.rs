@@ -72,7 +72,7 @@ mod event_output {
     use serde::{Deserialize, Serialize};
     use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
-    use crate::{cli::OutputFormat, cli_error::CliError, output};
+    use crate::{cli::OutputFormat, cli_error::CliError, output, output_and_error};
 
     #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
     #[serde(rename_all = "camelCase")]
@@ -89,10 +89,10 @@ mod event_output {
     pub struct EventSerializer;
 
     // [impl->swdd~cli-outputs-events-with-timestamp~1]
-    fn current_timestamp() -> String {
+    fn current_timestamp() -> Result<String, CliError> {
         OffsetDateTime::now_utc()
             .format(&Rfc3339)
-            .expect("UTC timestamp should be representable as RFC 3339")
+            .map_err(|err| CliError::ExecutionError(err.to_string()))
     }
 
     #[cfg(test)]
@@ -139,7 +139,12 @@ mod event_output {
 
     impl From<CompleteStateResponse> for EventOutput {
         fn from(response: CompleteStateResponse) -> Self {
-            let timestamp_str = current_timestamp();
+            let timestamp_str = match current_timestamp() {
+                Ok(ts) => ts,
+                Err(err) => {
+                    output_and_error!("Failed to get current timestamp: {}", err);
+                }
+            };
 
             let filtered_state = response.complete_state;
 
@@ -159,7 +164,13 @@ mod event_output {
 
     impl From<CompleteState> for EventOutput {
         fn from(complete_state: CompleteState) -> Self {
-            let timestamp_str = current_timestamp();
+            let timestamp_str = match current_timestamp() {
+                Ok(ts) => ts,
+                Err(err) => {
+                    output_and_error!("Failed to get current timestamp: {}", err);
+                }
+            };
+
             EventOutput {
                 timestamp: timestamp_str,
                 altered_fields: None,
