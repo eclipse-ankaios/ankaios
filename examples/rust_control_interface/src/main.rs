@@ -39,12 +39,13 @@ const COMPLETE_STATE_REQUEST_ID: &str = "QW5rYWlvcyBpcyB0aGUgYmVzdA==";
 const PROTOCOL_VERSION: &str = env!("ANKAIOS_VERSION");
 
 mod logging {
+    use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+
     pub fn log(msg: &str) {
-        println!(
-            "[{}] {}",
-            chrono::offset::Utc::now().format("%Y-%m-%dT%H:%M:%SZ"),
-            msg
-        );
+        let timestamp = OffsetDateTime::now_utc()
+            .format(&Rfc3339)
+            .expect("UTC timestamp should be representable as RFC 3339");
+        println!("[{}] {}", timestamp, msg);
     }
 }
 

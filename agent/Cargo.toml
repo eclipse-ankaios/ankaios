@@ -1,12 +1,20 @@
 [package]
 name = "ank-agent"
-version = "1.1.0-rc1"
+version = "1.2.0-pre"
 edition = "2024"
 license = "Apache-2.0"
 description = "Eclipse Ankaios agent component"
 documentation = "https://eclipse-ankaios.github.io/ankaios"
 authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
 repository = "https://github.com/eclipse-ankaios/ankaios"
+
+[lib]
+name = "ank_agent"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ank-agent"
+path = "src/main.rs"
 
 [dependencies]
 ankaios-api = { path = "../ankaios_api" }
@@ -42,6 +50,7 @@ bytes = "1.11.1"
 [dev-dependencies]
 ankaios-api = { path = "../ankaios_api", features = ["test_utils"] }
 common = { path = "../common", features = ["test_utils"] }
+grpc = { path = "../grpc", features = ["test_utils"] }
 tempfile = "3.17"
 mockall = "0.11"
 mockall_double = "0.3"

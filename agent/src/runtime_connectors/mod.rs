@@ -16,11 +16,11 @@ mod cli_command;
 
 mod podman_cli;
 
-pub(crate) mod podman;
+pub mod podman;
 
-pub(crate) mod podman_kube;
+pub mod podman_kube;
 
-pub(crate) mod containerd;
+pub mod containerd;
 
 pub(crate) mod unsupported;
 
@@ -34,9 +34,7 @@ pub use runtime_connector::{
 pub use runtime_connector::test;
 
 mod runtime_facade;
-#[cfg(test)]
-pub use runtime_facade::MockGenericRuntimeFacade;
-pub use runtime_facade::{GenericRuntimeFacade, RuntimeFacade};
+pub use runtime_facade::RuntimeFacade;
 
 #[cfg(test)]
 pub use runtime_facade::MockRuntimeFacade;

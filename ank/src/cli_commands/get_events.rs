@@ -67,12 +67,12 @@ impl CliCommands {
 
 mod event_output {
     use ankaios_api::ank_base::{AlteredFields, CompleteState, CompleteStateResponse};
-    use chrono::Utc;
     #[cfg(test)]
     use mockall::automock;
     use serde::{Deserialize, Serialize};
+    use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
-    use crate::{cli::OutputFormat, cli_error::CliError, output};
+    use crate::{cli::OutputFormat, cli_error::CliError, output, output_and_error};
 
     #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
     #[serde(rename_all = "camelCase")]
@@ -87,6 +87,13 @@ mod event_output {
     }
 
     pub struct EventSerializer;
+
+    // [impl->swdd~cli-outputs-events-with-timestamp~1]
+    fn current_timestamp() -> Result<String, CliError> {
+        OffsetDateTime::now_utc()
+            .format(&Rfc3339)
+            .map_err(|err| CliError::ExecutionError(err.to_string()))
+    }
 
     #[cfg_attr(test, automock)]
     impl EventSerializer {
@@ -115,7 +122,12 @@ mod event_output {
 
     impl From<CompleteStateResponse> for EventOutput {
         fn from(response: CompleteStateResponse) -> Self {
-            let timestamp_str = Utc::now().to_rfc3339();
+            let timestamp_str = match current_timestamp() {
+                Ok(ts) => ts,
+                Err(err) => {
+                    output_and_error!("Failed to get current timestamp: {}", err);
+                }
+            };
 
             let filtered_state = response.complete_state;
 
@@ -135,11 +147,34 @@ mod event_output {
 
     impl From<CompleteState> for EventOutput {
         fn from(complete_state: CompleteState) -> Self {
-            let timestamp_str = Utc::now().to_rfc3339();
+            let timestamp_str = match current_timestamp() {
+                Ok(ts) => ts,
+                Err(err) => {
+                    output_and_error!("Failed to get current timestamp: {}", err);
+                }
+            };
+
             EventOutput {
                 timestamp: timestamp_str,
                 altered_fields: None,
                 complete_state: Some(complete_state),
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{CompleteState, CompleteStateResponse, EventOutput, OffsetDateTime, Rfc3339};
+
+        // [utest->swdd~cli-outputs-events-with-timestamp~1]
+        #[test]
+        fn utest_event_timestamps_use_rfc3339_utc_format() {
+            for event in [
+                EventOutput::from(CompleteState::default()),
+                EventOutput::from(CompleteStateResponse::default()),
+            ] {
+                assert!(event.timestamp.ends_with('Z'));
+                assert!(OffsetDateTime::parse(&event.timestamp, &Rfc3339).is_ok());
             }
         }
     }

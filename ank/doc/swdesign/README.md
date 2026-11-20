@@ -1317,6 +1317,9 @@ When the CLI receives an event from the Ankaios server, the CLI shall output the
 * altered fields information (added, updated, and removed fields)
 * the complete state using the same state representation format as the `get state` command.
 
+Comment:
+Event timestamps use UTC, indicated by the `Z` suffix.
+
 Tags:
 - CliCommands
 
