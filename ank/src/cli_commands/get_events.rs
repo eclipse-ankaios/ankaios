@@ -95,23 +95,6 @@ mod event_output {
             .map_err(|err| CliError::ExecutionError(err.to_string()))
     }
 
-    #[cfg(test)]
-    mod tests {
-        use super::{CompleteState, CompleteStateResponse, EventOutput, OffsetDateTime, Rfc3339};
-
-        // [utest->swdd~cli-outputs-events-with-timestamp~1]
-        #[test]
-        fn utest_event_timestamps_use_rfc3339_utc_format() {
-            for event in [
-                EventOutput::from(CompleteState::default()),
-                EventOutput::from(CompleteStateResponse::default()),
-            ] {
-                assert!(event.timestamp.ends_with('Z'));
-                assert!(OffsetDateTime::parse(&event.timestamp, &Rfc3339).is_ok());
-            }
-        }
-    }
-
     #[cfg_attr(test, automock)]
     impl EventSerializer {
         // [impl->swdd~cli-outputs-events-with-timestamp~1]
@@ -175,6 +158,23 @@ mod event_output {
                 timestamp: timestamp_str,
                 altered_fields: None,
                 complete_state: Some(complete_state),
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{CompleteState, CompleteStateResponse, EventOutput, OffsetDateTime, Rfc3339};
+
+        // [utest->swdd~cli-outputs-events-with-timestamp~1]
+        #[test]
+        fn utest_event_timestamps_use_rfc3339_utc_format() {
+            for event in [
+                EventOutput::from(CompleteState::default()),
+                EventOutput::from(CompleteStateResponse::default()),
+            ] {
+                assert!(event.timestamp.ends_with('Z'));
+                assert!(OffsetDateTime::parse(&event.timestamp, &Rfc3339).is_ok());
             }
         }
     }
