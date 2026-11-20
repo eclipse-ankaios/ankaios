@@ -8,7 +8,7 @@ description = "Application using the Control Interface used for system tests"
 
 [dependencies]
 ankaios-api = { path = "../../../ankaios_api" }
-chrono = "0.4"
+time = { version = "0.3", features = ["formatting"] }
 # required for encoding/decoding of protobuf varint format
 prost = "0.14"
 serde = "1.0"

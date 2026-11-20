@@ -41,12 +41,13 @@ const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interfac
 const MAX_VARINT_SIZE: usize = 19;
 
 mod logging {
+    use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+
     pub fn log(msg: &str) {
-        eprintln!(
-            "[{}] {}",
-            chrono::offset::Utc::now().format("%Y-%m-%dT%H:%M:%SZ"),
-            msg
-        );
+        let timestamp = OffsetDateTime::now_utc()
+            .format(&Rfc3339)
+            .expect("UTC timestamp should be representable as RFC 3339");
+        eprintln!("[{}] {}", timestamp, msg);
     }
 }
 
