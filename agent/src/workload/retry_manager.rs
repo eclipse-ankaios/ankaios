@@ -114,7 +114,8 @@ impl RetryToken {
 
     fn calc_backoff(&self) -> u64 {
         min(
-            2u64.pow(self.counter) * BASE_BACKOFF_IN_MILLIS,
+            2u64.saturating_pow(self.counter)
+                .saturating_mul(BASE_BACKOFF_IN_MILLIS),
             BACKOFF_MAX_IN_MILLIS,
         )
     }
@@ -479,5 +480,20 @@ mod tests {
 
         assert_eq!(call_res.as_mut().poll(&mut context), Poll::Ready(()));
         assert!(called.borrow().is_none());
+    }
+
+    // [utest->swdd~agent-workload-control-loop-exponential-backoff-retries~1]
+    #[test]
+    fn utest_backoff_is_capped_for_high_retry_counters() {
+        let (_sender, valid) = tokio::sync::watch::channel(true);
+
+        for counter in [20, 54, 64, 1000, u32::MAX] {
+            let retry_token = RetryToken {
+                counter,
+                valid: valid.clone(),
+            };
+
+            assert_eq!(retry_token.calc_backoff(), super::BACKOFF_MAX_IN_MILLIS);
+        }
     }
 }
