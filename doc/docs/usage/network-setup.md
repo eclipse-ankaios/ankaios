@@ -195,7 +195,7 @@ To set up Ankaios with mTLS support, you need to supply the necessary mTLS certi
 
 #### Configure `ank-server` and `ank-agent` with mTLS certificates
 
-Replace the default `address` in `/etc/ankaios/ank-server.conf` with a network address and remove `socket_group`, which only applies to Unix domain sockets:
+Replace the default `address` in `/etc/ankaios/ank-server.conf` with a network address. The `socket_group` setting only applies to Unix domain sockets and can be removed; if it is kept, the server logs a warning and ignores it:
 
 ```toml
 address = '0.0.0.0:25551'
@@ -264,7 +264,7 @@ In any case, make sure the `server_url` in there is set to the network address o
 
     Network communication without TLS is neither authenticated nor encrypted. Since `ank-server` typically runs as root (e.g. via `sudo systemctl`), **any program or user that can reach the port** - every local user on the machine, and every host on the network if the port is not otherwise firewalled - can act as an agent or CLI against the server and start workloads with root privileges. Only use network communication without TLS in isolated test environments such as VMs or containers set up for this purpose. For anything else, secure the connection with mTLS as described above.
 
-Replace the default `address` in `/etc/ankaios/ank-server.conf` and remove `socket_group`, which only applies to Unix domain sockets:
+Replace the default `address` in `/etc/ankaios/ank-server.conf`. The `socket_group` setting only applies to Unix domain sockets and can be removed; if it is kept, the server logs a warning and ignores it:
 
 ```toml
 address = '0.0.0.0:25551'

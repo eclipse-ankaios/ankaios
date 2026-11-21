@@ -411,14 +411,14 @@ Needs:
 - utest
 
 #### Server validates socket group endpoint compatibility
-`swdd~server-validates-socket-group-endpoint-compatibility~1`
+`swdd~server-validates-socket-group-endpoint-compatibility~2`
 
 Status: approved
 
-When the Ankaios server is configured with a non-Unix endpoint, the server shall reject startup configuration that sets `socket_group`.
+When the Ankaios server is configured with a non-Unix endpoint and a `socket_group` is set, the server shall log a warning, ignore the `socket_group` setting and continue the startup.
 
 Rationale:
-The `socket_group` setting applies only to filesystem permissions of Unix domain socket files and is not applicable to TCP endpoints.
+The `socket_group` setting applies only to filesystem permissions of Unix domain socket files and is not applicable to TCP endpoints. As the default server configuration file sets `socket_group`, rejecting the configuration would prevent switching to a TCP endpoint, e.g., via command line arguments.
 
 Tags:
 - AnkaiosServer
