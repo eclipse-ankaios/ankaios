@@ -57,6 +57,7 @@
   - [StateRule](<#ank_base-StateRule>)
   - [Tags](<#ank_base-Tags>)
   - [Tags.TagsEntry](<#ank_base-Tags-TagsEntry>)
+  - [UpdateStateDryRunRequest](<#ank_base-UpdateStateDryRunRequest>)
   - [UpdateStateRequest](<#ank_base-UpdateStateRequest>)
   - [UpdateStateSuccess](<#ank_base-UpdateStateSuccess>)
   - [Workload](<#ank_base-Workload>)
@@ -478,6 +479,7 @@ A message containing a request to the Ankaios server to update the state or to r
 | logsRequest | [LogsRequest](<#ank_base-LogsRequest>) |  | A message to Ankaios server to request workload logs. |
 | logsCancelRequest | [LogsCancelRequest](<#ank_base-LogsCancelRequest>) |  | A message to Ankaios server to stop the request for workload logs. |
 | eventsCancelRequest | [EventsCancelRequest](<#ank_base-EventsCancelRequest>) |  | A message to Ankaios server to stop a specific event campaign. |
+| updateStateDryRunRequest | [UpdateStateDryRunRequest](<#ank_base-UpdateStateDryRunRequest>) |  | A message to Ankaios server to calculate the changes of a state update without applying them. |
 
 ### Response
 
@@ -530,6 +532,15 @@ This is a workaround for proto not supporting optional maps.
 | --- | --- | --- | --- |
 | key | [string](<#string>) |  |  |
 | value | [string](<#string>) |  |  |
+
+### UpdateStateDryRunRequest
+
+A message containing a request to calculate the changes of a state update without applying them. The fields are the same as in the UpdateStateRequest.
+
+| Field | Type | Label | Description |
+| --- | --- | --- | --- |
+| newState | [CompleteState](<#ank_base-CompleteState>) |  | The new state of the Ankaios system. |
+| updateMask | [string](<#string>) | repeated | A list of symbolic field paths within the state message structure, e.g., 'desiredState.workloads.nginx' to specify what to be updated. |
 
 ### UpdateStateRequest
 

@@ -2135,6 +2135,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#updatestatedryrunrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        UpdateStateDryRunRequest
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#updatestaterequest" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -3480,6 +3491,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#updatestatedryrunrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        UpdateStateDryRunRequest
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#updatestaterequest" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -3803,6 +3825,7 @@
 <li><a href="#ank_base-StateRule">StateRule</a></li>
 <li><a href="#ank_base-Tags">Tags</a></li>
 <li><a href="#ank_base-Tags-TagsEntry">Tags.TagsEntry</a></li>
+<li><a href="#ank_base-UpdateStateDryRunRequest">UpdateStateDryRunRequest</a></li>
 <li><a href="#ank_base-UpdateStateRequest">UpdateStateRequest</a></li>
 <li><a href="#ank_base-UpdateStateSuccess">UpdateStateSuccess</a></li>
 <li><a href="#ank_base-Workload">Workload</a></li>
@@ -4996,6 +5019,12 @@ Please note that the actual stopping of the log collection campaign could take l
 <td></td>
 <td>A message to Ankaios server to stop a specific event campaign.</td>
 </tr>
+<tr>
+<td>updateStateDryRunRequest</td>
+<td><a href="#ank_base-UpdateStateDryRunRequest">UpdateStateDryRunRequest</a></td>
+<td></td>
+<td>A message to Ankaios server to calculate the changes of a state update without applying them.</td>
+</tr>
 </tbody>
 </table>
 <p><a name="ank_base-Response"></a></p>
@@ -5173,6 +5202,34 @@ The response content depends on the request content previously sent to the Ankai
 <td><a href="#string">string</a></td>
 <td></td>
 <td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-UpdateStateDryRunRequest"></a></p>
+<h3 id="updatestatedryrunrequest">UpdateStateDryRunRequest<a class="headerlink" href="#updatestatedryrunrequest" title="Permanent link">&para;</a></h3>
+<p>A message containing a request to calculate the changes of a state update without applying them.
+The fields are the same as in the UpdateStateRequest.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>newState</td>
+<td><a href="#ank_base-CompleteState">CompleteState</a></td>
+<td></td>
+<td>The new state of the Ankaios system.</td>
+</tr>
+<tr>
+<td>updateMask</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td>A list of symbolic field paths within the state message structure, e.g., &#39;desiredState.workloads.nginx&#39; to specify what to be updated.</td>
 </tr>
 </tbody>
 </table>

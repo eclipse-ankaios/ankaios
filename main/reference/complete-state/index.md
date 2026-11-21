@@ -144,3 +144,36 @@ With the object field mask only specific parts of the Ankaios state could be ret
        nginx:
          restartPolicy: NEVER
    ```
+
+## Dry run
+
+A dry run shows which workloads would be added, updated or deleted by an update of the state without applying it. The Ankaios server performs the same checks as for a regular update, e.g., the validation of the workload configurations and the check for cyclic dependencies, but does not change the state and does not send anything to the Ankaios agents.
+
+The `ank` CLI provides the `--dry-run` option for the `ank set state` and the `ank apply` commands. As an example, the dry run of example 3 above:
+
+```
+ank set state --dry-run desiredState.workloads.nginx.restartPolicy new-state.yaml
+```
+
+shows that the nginx workload would be updated:
+
+```
+WORKLOAD NAME   AGENT     ACTION
+nginx           agent_A   updated
+```
+
+The action is one of:
+
+- `added`: the workload would be created.
+- `updated`: the workload would be replaced by its new configuration, i.e., it would be restarted. If the agent of the workload changes, the old and the new agent are shown, e.g., `agent_A -> agent_B`.
+- `deleted`: the workload would be removed.
+
+If the update would not change any workload, the CLI prints `No workloads would be changed.`. If the update would be rejected, the CLI shows the same error as for the update without the `--dry-run` option.
+
+The option can be combined with the other options of `ank apply`, e.g., `ank apply -d --dry-run manifest.yaml` shows which workloads would be deleted.
+
+Workloads can request a dry run via the [control interface](<https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/index.md>) by sending an [UpdateStateDryRunRequest](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#updatestatedryrunrequest>) instead of an [UpdateStateRequest](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#updatestaterequest>). Both requests have the same fields. The response is an [UpdateStateSuccess](<https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/#updatestatesuccess>) message with the instance names of the workloads that would be added and deleted, or an error. A dry run needs the same [write access](<https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/#authorization>) as the update itself.
+
+> [!NOTE]
+>
+> Mutating hooks configured in the Ankaios server are not executed during a dry run. If mutating hooks are configured, the actual update can differ from the result of the dry run.

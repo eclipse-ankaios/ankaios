@@ -1332,6 +1332,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#dry-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Dry run
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2087,6 +2098,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#dry-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Dry run
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2246,6 +2268,28 @@ The object field mask can be constructed using the field names of the <a href=".
 </code></pre></div>
 </li>
 </ol>
+<h2 id="dry-run">Dry run<a class="headerlink" href="#dry-run" title="Permanent link">&para;</a></h2>
+<p>A dry run shows which workloads would be added, updated or deleted by an update of the state without applying it. The Ankaios server performs the same checks as for a regular update, e.g., the validation of the workload configurations and the check for cyclic dependencies, but does not change the state and does not send anything to the Ankaios agents.</p>
+<p>The <code>ank</code> CLI provides the <code>--dry-run</code> option for the <code>ank set state</code> and the <code>ank apply</code> commands. As an example, the dry run of example 3 above:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ank<span class="w"> </span><span class="nb">set</span><span class="w"> </span>state<span class="w"> </span>--dry-run<span class="w"> </span>desiredState.workloads.nginx.restartPolicy<span class="w"> </span>new-state.yaml
+</code></pre></div>
+<p>shows that the nginx workload would be updated:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>WORKLOAD NAME   AGENT     ACTION
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>nginx           agent_A   updated
+</code></pre></div>
+<p>The action is one of:</p>
+<ul>
+<li><code>added</code>: the workload would be created.</li>
+<li><code>updated</code>: the workload would be replaced by its new configuration, i.e., it would be restarted. If the agent of the workload changes, the old and the new agent are shown, e.g., <code>agent_A -&gt; agent_B</code>.</li>
+<li><code>deleted</code>: the workload would be removed.</li>
+</ul>
+<p>If the update would not change any workload, the CLI prints <code>No workloads would be changed.</code>. If the update would be rejected, the CLI shows the same error as for the update without the <code>--dry-run</code> option.</p>
+<p>The option can be combined with the other options of <code>ank apply</code>, e.g., <code>ank apply -d --dry-run manifest.yaml</code> shows which workloads would be deleted.</p>
+<p>Workloads can request a dry run via the <a href=".././control-interface/">control interface</a> by sending an <a href=".././_ankaios.proto/#updatestatedryrunrequest">UpdateStateDryRunRequest</a> instead of an <a href=".././_ankaios.proto/#updatestaterequest">UpdateStateRequest</a>. Both requests have the same fields. The response is an <a href=".././_ankaios.proto/#updatestatesuccess">UpdateStateSuccess</a> message with the instance names of the workloads that would be added and deleted, or an error. A dry run needs the same <a href=".././control-interface/#authorization">write access</a> as the update itself.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Mutating hooks configured in the Ankaios server are not executed during a dry run. If mutating hooks are configured, the actual update can differ from the result of the dry run.</p>
+</div>
 
 
 
