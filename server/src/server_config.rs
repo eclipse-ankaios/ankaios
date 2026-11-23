@@ -142,8 +142,7 @@ impl ConfigFile for ServerConfig {
         }
 
         // [impl->swdd~server-validates-unix-domain-socket-configuration~1]
-        // [impl->swdd~server-validates-socket-group-endpoint-compatibility~2]
-        validate_socket_configuration(&mut server_config).map_err(ConversionErrors::InvalidConfig)?;
+        validate_socket_configuration(&server_config).map_err(ConversionErrors::InvalidConfig)?;
 
         if let Some(ca_pem_path) = &server_config.ca_pem {
             let ca_pem_content = read_pem_file(ca_pem_path, PemFileType::Certificate)
@@ -204,14 +203,26 @@ impl ServerConfig {
         }
 
         // [impl->swdd~server-validates-unix-domain-socket-configuration~1]
-        // [impl->swdd~server-validates-socket-group-endpoint-compatibility~2]
         validate_socket_configuration(self)?;
+
+        // [impl->swdd~server-validates-socket-group-endpoint-compatibility~2]
+        self.ignore_socket_group_for_non_unix_endpoint();
 
         Ok(())
     }
+
+    // [impl->swdd~server-validates-socket-group-endpoint-compatibility~2]
+    fn ignore_socket_group_for_non_unix_endpoint(&mut self) {
+        if !matches!(self.address, ServerConnection::Unix(_)) && self.socket_group.take().is_some()
+        {
+            log::warn!(
+                "Ignoring 'socket_group' setting as it is only supported for unix:// endpoints."
+            );
+        }
+    }
 }
 
-fn validate_socket_configuration(server_config: &mut ServerConfig) -> Result<(), String> {
+fn validate_socket_configuration(server_config: &ServerConfig) -> Result<(), String> {
     match &server_config.address {
         // [impl->swdd~server-validates-unix-domain-socket-configuration~1]
         ServerConnection::Unix(_) => {
@@ -244,14 +255,7 @@ fn validate_socket_configuration(server_config: &mut ServerConfig) -> Result<(),
                 );
             }
         }
-        ServerConnection::Tcp(_) => {
-            // [impl->swdd~server-validates-socket-group-endpoint-compatibility~2]
-            if server_config.socket_group.take().is_some() {
-                log::warn!(
-                    "Ignoring 'socket_group' setting as it is only supported for unix:// endpoints."
-                );
-            }
-        }
+        ServerConnection::Tcp(_) => {}
     }
 
     Ok(())
@@ -277,6 +281,19 @@ mod tests {
     use common::config::{ConfigFile, ConversionErrors};
 
     use std::io::Write;
+
+    fn no_args() -> Arguments {
+        Arguments {
+            manifest_path: None,
+            config_path: None,
+            addr: None,
+            socket_group: None,
+            insecure: None,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
+        }
+    }
     use std::net::SocketAddr;
     use std::path::PathBuf;
 
@@ -759,9 +776,42 @@ mod tests {
         let mut tmp_config_file = NamedTempFile::new().unwrap();
         write!(tmp_config_file, "{server_config_content}").unwrap();
 
-        let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
+        let mut server_config =
+            ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
+
+        server_config.update_with_args(&no_args()).unwrap();
 
         assert_eq!(server_config.socket_group, None);
+    }
+
+    // [utest->swdd~server-validates-socket-group-endpoint-compatibility~2]
+    // [utest->swdd~server-configures-unix-domain-socket-group~1]
+    #[test]
+    fn utest_server_config_keeps_socket_group_when_args_switch_to_unix_address() {
+        let server_config_content = r"#
+        version = 'v1'
+        address = '127.0.0.1:25551'
+        socket_group = 'ankaios'
+        #";
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
+
+        let mut server_config =
+            ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
+
+        let args = Arguments {
+            addr: Some("unix:///tmp/ankaios-from-args.sock".to_string()),
+            ..no_args()
+        };
+
+        server_config.update_with_args(&args).unwrap();
+
+        assert_eq!(
+            server_config.address,
+            ServerConnection::Unix(PathBuf::from("/tmp/ankaios-from-args.sock"))
+        );
+        assert_eq!(server_config.socket_group, Some("ankaios".to_string()));
     }
 
     // [utest->swdd~server-validates-socket-group-endpoint-compatibility~2]
