@@ -84,7 +84,7 @@ async fn main() {
         )
     };
 
-    let mut cmd = CliCommands::init(
+    let cmd = CliCommands::init(
         ank_config.response_timeout,
         cli_name.to_string(),
         ank_config.server_url,
@@ -95,15 +95,22 @@ async fn main() {
         output_and_error!("Cannot connect to server: '{}'", err);
     });
 
-    let result = run_command(&mut cmd, args.command).await;
-    // always shut down so that the server receives a Goodbye instead of a broken stream
-    cmd.shut_down().await;
-
-    match result {
+    match run_command_and_shut_down(cmd, args.command).await {
         Ok(Some(out_text)) => output_and_exit!("{}", out_text),
         Ok(None) => {}
         Err(err_message) => output_and_error!("{}", err_message),
     }
+}
+
+/// Always shuts down the connection, also if the command failed, so that the server
+/// receives a Goodbye instead of a broken stream.
+async fn run_command_and_shut_down(
+    mut cmd: CliCommands,
+    command: cli::Commands,
+) -> Result<Option<String>, String> {
+    let result = run_command(&mut cmd, command).await;
+    cmd.shut_down().await;
+    result
 }
 
 /// Executes the CLI command. Returns the text to print before exiting, if any, or the error message.
@@ -281,5 +288,50 @@ async fn run_command(
             .await
             .map(|_| None)
             .map_err(|err| format!("Failed to output logs: '{err}'")),
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::{cli, run_command_and_shut_down};
+    use crate::cli_commands::{
+        CliCommands,
+        server_connection::{MockServerConnection, ServerConnectionError},
+    };
+
+    fn logs_command() -> cli::Commands {
+        cli::Commands::Logs(cli::LogsArgs {
+            workload_name: vec!["workload".to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+            output_names: false,
+        })
+    }
+
+    #[tokio::test]
+    async fn utest_shuts_down_connection_when_command_fails() {
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .return_once(|_| Err(ServerConnectionError::ExecutionError("failed".to_string())));
+        mock_server_connection
+            .expect_shut_down()
+            .once()
+            .return_const(());
+
+        let cmd = CliCommands::new_for_test(mock_server_connection);
+        let result = run_command_and_shut_down(cmd, logs_command()).await;
+
+        assert!(result.is_err());
     }
 }
