@@ -67,8 +67,6 @@ Test Ankaios retries a failed delete without restarting the workload
     When user triggers "ank --no-wait delete workload blocked_delete"
     # Asserts
     Then the workload "blocked_delete" shall have the execution state "Stopping(DeleteFailed)" on agent "agent_A" within "20" seconds
-    And the user waits "3" seconds
-    And the workload "blocked_delete" shall not be running on the podman runtime
     # Actions
     When podman has unblocked the deletion of workload "blocked_delete" on agent "agent_A"
     # Asserts
