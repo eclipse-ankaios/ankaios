@@ -170,6 +170,14 @@ pub struct CliCommands {
 }
 
 impl CliCommands {
+    #[cfg(test)]
+    pub fn new_for_test(server_connection: server_connection::MockServerConnection) -> Self {
+        Self {
+            no_wait: false,
+            server_connection,
+        }
+    }
+
     pub fn init(
         response_timeout_ms: u64,
         cli_name: String,
