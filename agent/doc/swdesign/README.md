@@ -1512,11 +1512,8 @@ Status: approved
 
 When the WorkloadControlLoop encounters a failure while deleting the workload, the WorkloadControlLoop shall retry the deletion of the workload by sending the WorkloadCommand Retry to the WorkloadControlLoop of the workload.
 
-Comment:
-A delete can fail temporarily, e.g., if another container still depends on the workload's container. The attempts use the same exponential backoff as the retries of a workload creation and are not limited in number.
-
 Rationale:
-The RuntimeManager does not keep the workload after triggering its deletion and the workload is no longer part of the desired state. The WorkloadControlLoop is the only remaining component able to finish the deletion and to report the `Removed` workload state.
+If a workload is scheduled for deletion and the runtime fails in deleting it, Ankaios should perform the state seeking by retrying the deletion.
 
 Tags:
 - WorkloadControlLoop
