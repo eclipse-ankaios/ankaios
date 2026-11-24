@@ -53,6 +53,8 @@ jobs:
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
       - name: Setup sccache
         uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.19.0" # pin the binary to the last working version
       - name: Build debug
         run: cargo build
       - name: Prepare system tests
@@ -117,6 +119,8 @@ jobs:
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
       - name: Setup sccache
         uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.19.0" # pin the binary to the last working version
       - name: Run unit tests
         run: just utest
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -168,6 +172,8 @@ jobs:
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
       - name: Setup sccache
         uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.19.0" # pin the binary to the last working version
       - name: Create code coverage html report
         run: |
           rustup component add llvm-tools-preview
@@ -196,6 +202,8 @@ jobs:
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
       - name: Setup sccache
         uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.19.0" # pin the binary to the last working version
       - name: Build linux-amd64 release-mode
         run: |
           cargo build --release
@@ -228,6 +236,8 @@ jobs:
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
       - name: Setup sccache
         uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.19.0" # pin the binary to the last working version
 
       - name: Build linux-arm64 release-mode
         run: |
