@@ -38,6 +38,7 @@ pub struct ControlLoopState {
     pub command_receiver: WorkloadCommandReceiver,
     pub retry_sender: WorkloadCommandSender,
     pub retry_manager: RetryManager,
+    pub delete_requested: bool,
 }
 
 impl ControlLoopState {
@@ -148,6 +149,7 @@ impl ControlLoopStateBuilder {
                 .retry_sender
                 .ok_or_else(|| "WorkloadCommandSender is not set".to_string())?,
             retry_manager: Default::default(),
+            delete_requested: false,
         })
     }
 }
@@ -288,6 +290,7 @@ mod tests {
             command_receiver: workload_command_receiver,
             retry_sender,
             retry_manager: Default::default(),
+            delete_requested: false,
         };
 
         assert_eq!(
