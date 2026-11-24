@@ -2409,7 +2409,7 @@
 <h3 id="switch-to-network-communication-with-mtls-support">Switch to network communication with mTLS support<a class="headerlink" href="#switch-to-network-communication-with-mtls-support" title="Permanent link">&para;</a></h3>
 <p>To set up Ankaios with mTLS support, you need to supply the necessary mTLS certificates to the already installed <code>ank-server</code>, <code>ank-agent</code>, and <code>ank</code> CLI components. Here's a step-by-step guide:</p>
 <h4 id="configure-ank-server-and-ank-agent-with-mtls-certificates">Configure <code>ank-server</code> and <code>ank-agent</code> with mTLS certificates<a class="headerlink" href="#configure-ank-server-and-ank-agent-with-mtls-certificates" title="Permanent link">&para;</a></h4>
-<p>Replace the default <code>address</code> in <code>/etc/ankaios/ank-server.conf</code> with a network address and remove <code>socket_group</code>, which only applies to Unix domain sockets:</p>
+<p>Replace the default <code>address</code> in <code>/etc/ankaios/ank-server.conf</code> with a network address. The <code>socket_group</code> setting only applies to Unix domain sockets and can be removed; if it is kept, the server logs a warning and ignores it:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'0.0.0.0:25551'</span>
 </code></pre></div>
 <p>To use the CA, certificate and key for the server, add the following lines to <code>/etc/ankaios/ank-server.conf</code> and set the <code>insecure</code> flag inside it to <code>false</code>:</p>
@@ -2449,7 +2449,7 @@ In any case, make sure the <code>server_url</code> in there is set to the networ
 <p class="admonition-title">Warning</p>
 <p>Network communication without TLS is neither authenticated nor encrypted. Since <code>ank-server</code> typically runs as root (e.g. via <code>sudo systemctl</code>), <strong>any program or user that can reach the port</strong> - every local user on the machine, and every host on the network if the port is not otherwise firewalled - can act as an agent or CLI against the server and start workloads with root privileges. Only use network communication without TLS in isolated test environments such as VMs or containers set up for this purpose. For anything else, secure the connection with mTLS as described above.</p>
 </div>
-<p>Replace the default <code>address</code> in <code>/etc/ankaios/ank-server.conf</code> and remove <code>socket_group</code>, which only applies to Unix domain sockets:</p>
+<p>Replace the default <code>address</code> in <code>/etc/ankaios/ank-server.conf</code>. The <code>socket_group</code> setting only applies to Unix domain sockets and can be removed; if it is kept, the server logs a warning and ignores it:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="n">address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'0.0.0.0:25551'</span>
 <a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="n">insecure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </code></pre></div>
