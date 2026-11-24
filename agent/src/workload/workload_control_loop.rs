@@ -1401,10 +1401,10 @@ mod tests {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let mut mock_state_checker = StubStateChecker::new();
+        let mut mock_state_checker = StubStateChecker::default();
         mock_state_checker.panic_if_not_stopped();
 
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::DeleteWorkload(
                 OLD_WORKLOAD_ID.to_string(),
@@ -1492,7 +1492,7 @@ mod tests {
         let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         // No create call is expected, it would fail the test.
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![
             RuntimeCall::DeleteWorkload(
                 OLD_WORKLOAD_ID.to_string(),
@@ -1588,7 +1588,7 @@ mod tests {
         let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         // The outdated retry must not trigger a second delete.
-        let mut runtime_mock = MockRuntimeConnector::new();
+        let mut runtime_mock = MockRuntimeConnector::default();
         runtime_mock.expect(vec![RuntimeCall::DeleteWorkload(
             OLD_WORKLOAD_ID.to_string(),
             Err(RuntimeError::Delete("some delete error".into())),
